@@ -25,12 +25,6 @@ import {
 } from "@/lib/appointment-ui";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
-const dayFormatter = new Intl.DateTimeFormat("es-AR", {
-  weekday: "short",
-  day: "2-digit",
-  month: "2-digit",
-});
-
 type PendingAction = {
   appointment: Appointment;
   status: AppointmentStatus;
@@ -39,14 +33,6 @@ type PendingAction = {
   buttonLabel: string;
   tone: "green" | "red" | "rose";
 };
-
-function startOfWeek(date: Date) {
-  const next = new Date(date);
-  const day = next.getDay() || 7;
-  next.setHours(0, 0, 0, 0);
-  next.setDate(next.getDate() - day + 1);
-  return next;
-}
 
 function addDays(date: Date, days: number) {
   const next = new Date(date);
@@ -60,13 +46,6 @@ function sameDay(left: Date, right: Date) {
     left.getMonth() === right.getMonth() &&
     left.getDate() === right.getDate()
   );
-}
-
-function weekLabel(weekStart: Date) {
-  const weekEnd = addDays(weekStart, 6);
-  return `${weekStart.toLocaleDateString("es-AR")} - ${weekEnd.toLocaleDateString(
-    "es-AR",
-  )}`;
 }
 
 function compactDayLabel(date: Date) {
@@ -108,7 +87,6 @@ export default function AppointmentsPage() {
     rescheduleAppointment,
     updateAppointmentStatus,
   } = useAppointments();
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [actionError, setActionError] = useState("");
   const [updatingId, setUpdatingId] = useState("");
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
@@ -119,30 +97,6 @@ export default function AppointmentsPage() {
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [mobileCenterDate, setMobileCenterDate] = useState(() => new Date());
 
-  const weekDays = useMemo(
-    () =>
-      Array.from({ length: 7 }, (_, index) => {
-        const date = addDays(weekStart, index);
-        const appointmentsForDay = appointments
-          .filter((appointment) =>
-            sameDay(new Date(appointment.scheduledAt), date),
-          )
-          .sort(
-            (a, b) =>
-              new Date(a.scheduledAt).getTime() -
-              new Date(b.scheduledAt).getTime(),
-          );
-
-        return {
-          appointments: appointmentsForDay,
-          date,
-          isToday: sameDay(date, new Date()),
-        };
-      }),
-    [appointments, weekStart],
-  );
-
-  const weeklyAppointments = weekDays.flatMap((day) => day.appointments);
   const upcomingAppointments = [...appointments]
     .filter(isUpcomingActiveAppointment)
     .sort(
@@ -172,6 +126,10 @@ export default function AppointmentsPage() {
       }),
     [appointments, mobileCenterDate],
   );
+  const visibleAppointments = mobileDays.flatMap((day) => day.appointments);
+  const visibleRangeLabel = `${mobileDays[0]?.date.toLocaleDateString(
+    "es-AR",
+  )} - ${mobileDays[2]?.date.toLocaleDateString("es-AR")}`;
 
   function askForStatusChange(
     appointment: Appointment,
@@ -434,17 +392,17 @@ export default function AppointmentsPage() {
             <div>
               <p className="text-sm font-semibold text-ocean-700">Turnos</p>
               <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
-                Agenda semanal
+                Agenda
               </h1>
               <p className="mt-2 text-sm text-slate-600 sm:text-base">
-                Semana del {weekLabel(weekStart)}
+                Ayer, hoy y mañana · {visibleRangeLabel}
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
               <div className="grid grid-cols-3 rounded-lg border border-ocean-100 bg-white p-1">
                 <button
                   className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md px-2 text-xs font-semibold text-slate-700 transition hover:bg-ocean-50 sm:text-sm"
-                  onClick={() => setWeekStart((date) => addDays(date, -7))}
+                  onClick={() => setMobileCenterDate((date) => addDays(date, -1))}
                   type="button"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -452,14 +410,14 @@ export default function AppointmentsPage() {
                 </button>
                 <button
                   className="inline-flex min-h-10 items-center justify-center rounded-md px-2 text-xs font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:text-sm"
-                  onClick={() => setWeekStart(startOfWeek(new Date()))}
+                  onClick={() => setMobileCenterDate(new Date())}
                   type="button"
                 >
                   Hoy
                 </button>
                 <button
                   className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md px-2 text-xs font-semibold text-slate-700 transition hover:bg-ocean-50 sm:text-sm"
-                  onClick={() => setWeekStart((date) => addDays(date, 7))}
+                  onClick={() => setMobileCenterDate((date) => addDays(date, 1))}
                   type="button"
                 >
                   Siguiente
@@ -482,10 +440,10 @@ export default function AppointmentsPage() {
             </p>
           ) : null}
 
-          {weeklyAppointments.length === 0 ? (
+          {visibleAppointments.length === 0 ? (
             <div className="mt-6 rounded-lg border border-dashed border-ocean-200 bg-white p-8 text-center shadow-sm">
               <p className="font-semibold text-ink">
-                No hay turnos para esta semana.
+                No hay turnos para estos días.
               </p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
                 Usá Nuevo turno para programar sesiones.
@@ -493,31 +451,7 @@ export default function AppointmentsPage() {
             </div>
           ) : null}
 
-          <section className="mt-6 xl:hidden">
-            <div className="mb-3 grid grid-cols-3 gap-2">
-              <button
-                className="min-h-9 rounded-lg border border-ocean-100 bg-white text-xs font-semibold text-ocean-800 shadow-sm"
-                onClick={() => setMobileCenterDate((date) => addDays(date, -1))}
-                type="button"
-              >
-                Anterior
-              </button>
-              <button
-                className="min-h-9 rounded-lg border border-ocean-100 bg-white text-xs font-semibold text-ocean-800 shadow-sm"
-                onClick={() => setMobileCenterDate(new Date())}
-                type="button"
-              >
-                Hoy
-              </button>
-              <button
-                className="min-h-9 rounded-lg border border-ocean-100 bg-white text-xs font-semibold text-ocean-800 shadow-sm"
-                onClick={() => setMobileCenterDate((date) => addDays(date, 1))}
-                type="button"
-              >
-                Siguiente
-              </button>
-            </div>
-
+          <section className="mt-6">
             <div className="grid grid-cols-3 gap-2">
               {mobileDays.map((day) => (
                 <div
@@ -564,50 +498,6 @@ export default function AppointmentsPage() {
                 </div>
               ))}
             </div>
-          </section>
-
-          <section className="mt-6 hidden gap-4 xl:grid xl:grid-cols-7">
-            {weekDays.map((day) => (
-              <div
-                className={`min-w-0 rounded-lg border bg-white p-3 shadow-sm ${
-                  day.isToday
-                    ? "border-ocean-300 ring-2 ring-ocean-100"
-                    : "border-ocean-100"
-                }`}
-                key={day.date.toISOString()}
-              >
-                <div
-                  className={`mb-3 rounded-lg px-3 py-2 ${
-                    day.isToday ? "bg-ocean-600 text-white" : "bg-ocean-50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p
-                      className={`text-sm font-bold capitalize ${
-                        day.isToday ? "text-white" : "text-ocean-900"
-                      }`}
-                    >
-                      {dayFormatter.format(day.date)}
-                    </p>
-                    {day.isToday ? (
-                      <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
-                        Hoy
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {day.appointments.map(renderAppointment)}
-                  {day.appointments.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-ocean-100 bg-ocean-50 p-4 text-center">
-                      <p className="text-sm font-medium text-slate-500">
-                        Sin turnos
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            ))}
           </section>
 
           <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
