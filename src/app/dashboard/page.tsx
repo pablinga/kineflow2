@@ -22,6 +22,20 @@ import {
 } from "@/lib/appointment-ui";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
+function startOfWeek(date: Date) {
+  const next = new Date(date);
+  const day = next.getDay() || 7;
+  next.setHours(0, 0, 0, 0);
+  next.setDate(next.getDate() - day + 1);
+  return next;
+}
+
+function endOfWeek(date: Date) {
+  const next = startOfWeek(date);
+  next.setDate(next.getDate() + 7);
+  return next;
+}
+
 export default function DashboardPage() {
   const { authError, displayName, loading, redirecting } = useRequireAuth();
   const {
@@ -62,6 +76,12 @@ export default function DashboardPage() {
     )
     .slice(0, 6);
   const actionRequired = appointments.filter(isPastPendingAppointment);
+  const currentWeekStart = startOfWeek(new Date()).getTime();
+  const currentWeekEnd = endOfWeek(new Date()).getTime();
+  const appointmentsThisWeek = appointments.filter((appointment) => {
+    const scheduledAt = new Date(appointment.scheduledAt).getTime();
+    return scheduledAt >= currentWeekStart && scheduledAt < currentWeekEnd;
+  });
 
   const summaryCards = [
     {
@@ -71,8 +91,11 @@ export default function DashboardPage() {
     },
     {
       label: "Sesiones esta semana",
-      value: String(appointments.length),
-      detail: appointments.length === 0 ? "Sin sesiones cargadas" : "Turnos registrados",
+      value: String(appointmentsThisWeek.length),
+      detail:
+        appointmentsThisWeek.length === 0
+          ? "Sin sesiones esta semana"
+          : "Turnos de la semana",
     },
     {
       label: "Turnos pendientes",

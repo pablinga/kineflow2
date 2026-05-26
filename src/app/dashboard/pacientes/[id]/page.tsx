@@ -28,6 +28,7 @@ const today = new Date().toISOString().slice(0, 10);
 function createEmptyEvolution(patientId: string): NewEvolutionInput {
   return {
     patientId,
+    appointmentId: "",
     sessionDate: today,
     painLevel: 0,
     mobilityNotes: "",
@@ -58,6 +59,9 @@ export default function PatientDetailPage() {
   const patient = useMemo(
     () => patients.find((item) => item.id === patientId),
     [patientId, patients],
+  );
+  const attendedAppointments = appointments.filter(
+    (appointment) => getAppointmentDisplayStatus(appointment) === "Asistió",
   );
 
   if (authError) {
@@ -176,6 +180,32 @@ export default function PatientDetailPage() {
                   </p>
 
                   <div className="mt-5 grid gap-5 md:grid-cols-2">
+                    <label className="block md:col-span-2">
+                      <span className="text-sm font-semibold text-slate-700">
+                        Turno asociado
+                      </span>
+                      <select
+                        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                        onChange={(event) =>
+                          updateField("appointmentId", event.target.value)
+                        }
+                        value={evolution.appointmentId}
+                      >
+                        <option value="">Sin turno asociado</option>
+                        {attendedAppointments.map((appointment) => (
+                          <option key={appointment.id} value={appointment.id}>
+                            {appointment.date} · {appointment.time} ·{" "}
+                            {appointment.reason}
+                          </option>
+                        ))}
+                      </select>
+                      {attendedAppointments.length === 0 ? (
+                        <p className="mt-2 text-sm text-slate-500">
+                          Para asociarla a una sesión, marcá antes un turno como
+                          asistido.
+                        </p>
+                      ) : null}
+                    </label>
                     <label className="block">
                       <span className="text-sm font-semibold text-slate-700">
                         Fecha

@@ -6,6 +6,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 export type Evolution = {
   id: string;
   patientId: string;
+  appointmentId: string | null;
   patient: string;
   date: string;
   pain: string;
@@ -15,6 +16,7 @@ export type Evolution = {
 
 export type NewEvolutionInput = {
   patientId: string;
+  appointmentId?: string;
   sessionDate: string;
   painLevel: number;
   mobilityNotes: string;
@@ -25,6 +27,7 @@ export type NewEvolutionInput = {
 type EvolutionRow = {
   id: string;
   patient_id: string;
+  appointment_id: string | null;
   session_date: string;
   pain_level: number | null;
   mobility_notes: string | null;
@@ -38,6 +41,7 @@ function mapEvolution(row: EvolutionRow): Evolution {
   return {
     id: row.id,
     patientId: row.patient_id,
+    appointmentId: row.appointment_id,
     patient: patient?.full_name ?? "Paciente",
     date: new Date(`${row.session_date}T00:00:00`).toLocaleDateString("es-AR"),
     pain: row.pain_level === null ? "Sin dato" : `${row.pain_level}/10`,
@@ -60,7 +64,7 @@ export function useEvolutions(patientId?: string) {
       let query = supabase
         .from("evolutions")
         .select(
-          "id, patient_id, session_date, pain_level, mobility_notes, clinical_notes, patients(full_name)",
+          "id, patient_id, appointment_id, session_date, pain_level, mobility_notes, clinical_notes, patients(full_name)",
         )
         .order("session_date", { ascending: false });
 
@@ -103,6 +107,7 @@ export function useEvolutions(patientId?: string) {
     const { error: insertError } = await supabase.from("evolutions").insert({
       owner_id: sessionData.user.id,
       patient_id: input.patientId,
+      appointment_id: input.appointmentId || null,
       session_date: input.sessionDate,
       pain_level: input.painLevel,
       mobility_notes: input.mobilityNotes,

@@ -175,11 +175,30 @@ export function useAppointments(patientId?: string) {
     await loadAppointments();
   }
 
+  async function rescheduleAppointment(id: string, date: string, time: string) {
+    const supabase = getSupabaseClient();
+    const scheduledAt = new Date(`${date}T${time}`).toISOString();
+    const { error: updateError } = await supabase
+      .from("appointments")
+      .update({
+        scheduled_at: scheduledAt,
+        status: "rescheduled",
+      })
+      .eq("id", id);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
+    await loadAppointments();
+  }
+
   return {
     addAppointment,
     appointments,
     error,
     loaded,
+    rescheduleAppointment,
     refreshAppointments: loadAppointments,
     updateAppointmentStatus,
   };

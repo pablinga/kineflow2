@@ -63,11 +63,19 @@ function weekLabel(weekStart: Date) {
 
 export default function AppointmentsPage() {
   const { authError, loading, redirecting } = useRequireAuth();
-  const { appointments, error, loaded, updateAppointmentStatus } =
-    useAppointments();
+  const {
+    appointments,
+    error,
+    loaded,
+    rescheduleAppointment,
+    updateAppointmentStatus,
+  } = useAppointments();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [actionError, setActionError] = useState("");
   const [updatingId, setUpdatingId] = useState("");
+  const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
 
   const weekDays = useMemo(
     () =>
@@ -101,6 +109,19 @@ export default function AppointmentsPage() {
     )
     .slice(0, 12);
 
+  function openReschedule(appointment: Appointment) {
+    const scheduledAt = new Date(appointment.scheduledAt);
+    setRescheduling(appointment);
+    setRescheduleDate(scheduledAt.toISOString().slice(0, 10));
+    setRescheduleTime(
+      scheduledAt.toLocaleTimeString("es-AR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }),
+    );
+  }
+
   if (authError) {
     return <DashboardLoading error={authError} />;
   }
@@ -122,6 +143,17 @@ export default function AppointmentsPage() {
     appointment: Appointment,
     status: AppointmentStatus,
   ) {
+    const confirmationByStatus: Partial<Record<AppointmentStatus, string>> = {
+      attended: `¿Marcar el turno de ${appointment.patient} como asistido?`,
+      cancelled: `¿Cancelar el turno de ${appointment.patient}?`,
+      no_show: `¿Marcar que ${appointment.patient} no asistió?`,
+    };
+    const confirmation = confirmationByStatus[status];
+
+    if (confirmation && !window.confirm(confirmation)) {
+      return;
+    }
+
     setActionError("");
     setUpdatingId(appointment.id);
 
@@ -132,6 +164,34 @@ export default function AppointmentsPage() {
         updateError instanceof Error
           ? updateError.message
           : "No pudimos actualizar el turno.",
+      );
+    } finally {
+      setUpdatingId("");
+    }
+  }
+
+  async function handleRescheduleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!rescheduling) {
+      return;
+    }
+
+    setActionError("");
+    setUpdatingId(rescheduling.id);
+
+    try {
+      await rescheduleAppointment(
+        rescheduling.id,
+        rescheduleDate,
+        rescheduleTime,
+      );
+      setRescheduling(null);
+    } catch (rescheduleError) {
+      setActionError(
+        rescheduleError instanceof Error
+          ? rescheduleError.message
+          : "No pudimos reprogramar el turno.",
       );
     } finally {
       setUpdatingId("");
@@ -221,7 +281,7 @@ export default function AppointmentsPage() {
               <button
                 className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-semibold text-ocean-800 hover:bg-ocean-50 disabled:opacity-60"
                 disabled={disabled}
-                onClick={() => handleStatusChange(appointment, "rescheduled")}
+                onClick={() => openReschedule(appointment)}
                 type="button"
               >
                 <RotateCcw className="h-4 w-4" />
@@ -416,6 +476,62 @@ export default function AppointmentsPage() {
               </div>
             ) : null}
           </section>
+
+          {rescheduling ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4">
+              <form
+                className="w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
+                onSubmit={handleRescheduleSubmit}
+              >
+                <h2 className="text-lg font-bold text-ink">Reprogramar turno</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {rescheduling.patient} · {rescheduling.reason}
+                </p>
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Fecha
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) => setRescheduleDate(event.target.value)}
+                      required
+                      type="date"
+                      value={rescheduleDate}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Hora
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) => setRescheduleTime(event.target.value)}
+                      required
+                      type="time"
+                      value={rescheduleTime}
+                    />
+                  </label>
+                </div>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                    onClick={() => setRescheduling(null)}
+                    type="button"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 text-sm font-semibold text-white transition hover:bg-ocean-700 disabled:opacity-60"
+                    disabled={updatingId === rescheduling.id}
+                    type="submit"
+                  >
+                    Guardar nueva fecha
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : null}
         </div>
       </section>
     </main>
