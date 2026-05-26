@@ -4,13 +4,14 @@ import Link from "next/link";
 import { CalendarPlus, Clock, MapPin } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
-import { appointments } from "@/lib/mock-data";
+import { useAppointments } from "@/hooks/useAppointments";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function AppointmentsPage() {
   const { loading } = useRequireAuth();
+  const { appointments, error, loaded } = useAppointments();
 
-  if (loading) {
+  if (loading || !loaded) {
     return <DashboardLoading />;
   }
 
@@ -24,7 +25,7 @@ export default function AppointmentsPage() {
               <p className="text-sm font-semibold text-ocean-700">Turnos</p>
               <h1 className="mt-1 text-3xl font-bold text-ink">Agenda</h1>
               <p className="mt-2 text-slate-600">
-                Revisá los próximos turnos y su estado de confirmación.
+                Revisá los próximos turnos guardados en Supabase.
               </p>
             </div>
             <Link
@@ -35,6 +36,12 @@ export default function AppointmentsPage() {
               Nuevo turno
             </Link>
           </header>
+
+          {error ? (
+            <p className="mt-6 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {error}
+            </p>
+          ) : null}
 
           <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
             <div className="grid gap-4">

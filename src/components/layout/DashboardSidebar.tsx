@@ -10,7 +10,6 @@ import {
   Menu,
   MessageSquareText,
   PanelLeftClose,
-  Settings,
   Users,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
@@ -21,7 +20,6 @@ const navigation = [
   { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
   { href: "/dashboard/turnos", label: "Turnos", icon: CalendarDays },
   { href: "/dashboard/evoluciones", label: "Evoluciones", icon: MessageSquareText },
-  { href: "/dashboard", label: "Ajustes", icon: Settings },
 ];
 
 export function DashboardSidebar() {
@@ -100,7 +98,7 @@ export function DashboardSidebar() {
         <div className="mt-8 rounded-lg border border-ocean-100 bg-ocean-50 p-4">
           <p className="text-sm font-semibold text-ocean-900">Plan clínica</p>
           <p className="mt-1 text-sm text-slate-600">
-            42 pacientes activos y seguimiento ilimitado.
+            Pacientes, turnos y evoluciones conectados a Supabase.
           </p>
         </div>
         <button

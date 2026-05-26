@@ -26,10 +26,12 @@ const emptyPatient: NewPatientInput = {
 
 export default function PatientsPage() {
   const { loading } = useRequireAuth();
-  const { addPatient, disablePatient, loaded, patients } = usePatients();
+  const { addPatient, disablePatient, error, loaded, patients } = usePatients();
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [newPatient, setNewPatient] = useState<NewPatientInput>(emptyPatient);
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   const filteredPatients = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -61,11 +63,38 @@ export default function PatientsPage() {
     setNewPatient((current) => ({ ...current, [field]: value }));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    addPatient(newPatient);
-    setNewPatient(emptyPatient);
-    setShowForm(false);
+    setSaving(true);
+    setActionError("");
+
+    try {
+      await addPatient(newPatient);
+      setNewPatient(emptyPatient);
+      setShowForm(false);
+    } catch (submitError) {
+      setActionError(
+        submitError instanceof Error
+          ? submitError.message
+          : "No pudimos guardar el paciente.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDisablePatient(id: string) {
+    setActionError("");
+
+    try {
+      await disablePatient(id);
+    } catch (disableError) {
+      setActionError(
+        disableError instanceof Error
+          ? disableError.message
+          : "No pudimos deshabilitar el paciente.",
+      );
+    }
   }
 
   return (
@@ -80,7 +109,7 @@ export default function PatientsPage() {
                 Gestión de pacientes
               </h1>
               <p className="mt-2 text-slate-600">
-                Alta, búsqueda y estado de pacientes para trabajar desde cero.
+                Alta, búsqueda y estado de pacientes guardados en Supabase.
               </p>
             </div>
             <button
@@ -92,6 +121,12 @@ export default function PatientsPage() {
               Nuevo paciente
             </button>
           </header>
+
+          {error || actionError ? (
+            <p className="mt-6 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {actionError || error}
+            </p>
+          ) : null}
 
           {showForm ? (
             <form
@@ -114,9 +149,7 @@ export default function PatientsPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">
-                    DNI
-                  </span>
+                  <span className="text-sm font-semibold text-slate-700">DNI</span>
                   <input
                     className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                     onChange={(event) =>
@@ -179,11 +212,12 @@ export default function PatientsPage() {
                   Cancelar
                 </button>
                 <button
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={saving}
                   type="submit"
                 >
                   <Plus className="h-4 w-4" />
-                  Guardar paciente
+                  {saving ? "Guardando..." : "Guardar paciente"}
                 </button>
               </div>
             </form>
@@ -208,8 +242,8 @@ export default function PatientsPage() {
                   Todavía no hay pacientes cargados.
                 </p>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-                  Creá el primer paciente para empezar a probar turnos y
-                  evoluciones sin datos de ejemplo.
+                  Creá el primer paciente para empezar a programar turnos y
+                  registrar evoluciones.
                 </p>
               </div>
             ) : (
@@ -258,7 +292,7 @@ export default function PatientsPage() {
                         {patient.status === "Activo" ? (
                           <button
                             className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-red-100 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-50"
-                            onClick={() => disablePatient(patient.id)}
+                            onClick={() => handleDisablePatient(patient.id)}
                             type="button"
                           >
                             <UserMinus className="h-4 w-4" />

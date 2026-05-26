@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getSupabaseClient } from "@/lib/supabase";
 
 export type PatientStatus = "Activo" | "Inactivo";
 
@@ -25,13 +26,25 @@ export type NewPatientInput = {
   condition: string;
 };
 
-const STORAGE_KEY = "kineflow.patients";
+type PatientRow = {
+  id: string;
+  full_name: string;
+  document_number: string;
+  phone: string | null;
+  email: string | null;
+  initial_condition: string;
+  status: "active" | "inactive";
+};
 
-function createPatient(input: NewPatientInput): Patient {
+function mapPatient(row: PatientRow): Patient {
   return {
-    ...input,
-    id: crypto.randomUUID(),
-    status: "Activo",
+    id: row.id,
+    name: row.full_name,
+    document: row.document_number,
+    phone: row.phone ?? "Sin teléfono",
+    email: row.email ?? "Sin email",
+    condition: row.initial_condition,
+    status: row.status === "active" ? "Activo" : "Inactivo",
     progress: "Sin evolución registrada",
     lastSession: "Sin sesiones",
     nextAppointment: "Sin turno",
@@ -41,49 +54,101 @@ function createPatient(input: NewPatientInput): Patient {
 export function usePatients() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
+  const loadPatients = useCallback(async () => {
+    setLoaded(false);
+    setError("");
 
     try {
-      if (stored) {
-        setPatients(JSON.parse(stored) as Patient[]);
-      }
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
+      const supabase = getSupabaseClient();
+      const { data, error: queryError } = await supabase
+        .from("patients")
+        .select(
+          "id, full_name, document_number, phone, email, initial_condition, status",
+        )
+        .order("created_at", { ascending: false });
 
-    setLoaded(true);
+      if (queryError) {
+        setError(queryError.message);
+        return;
+      }
+
+      setPatients(((data ?? []) as PatientRow[]).map(mapPatient));
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "No pudimos cargar pacientes.",
+      );
+    } finally {
+      setLoaded(true);
+    }
   }, []);
 
   useEffect(() => {
-    if (loaded) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
-    }
-  }, [loaded, patients]);
+    loadPatients();
+  }, [loadPatients]);
 
   const activePatients = useMemo(
     () => patients.filter((patient) => patient.status === "Activo"),
     [patients],
   );
 
-  function addPatient(input: NewPatientInput) {
-    setPatients((current) => [createPatient(input), ...current]);
+  async function addPatient(input: NewPatientInput) {
+    setError("");
+
+    const supabase = getSupabaseClient();
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getUser();
+
+    if (sessionError || !sessionData.user) {
+      throw new Error("No pudimos identificar al usuario.");
+    }
+
+    const { error: insertError } = await supabase.from("patients").insert({
+      owner_id: sessionData.user.id,
+      full_name: input.name,
+      document_number: input.document,
+      phone: input.phone,
+      email: input.email,
+      initial_condition: input.condition,
+      status: "active",
+    });
+
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
+
+    await loadPatients();
   }
 
-  function disablePatient(id: string) {
-    setPatients((current) =>
-      current.map((patient) =>
-        patient.id === id ? { ...patient, status: "Inactivo" } : patient,
-      ),
-    );
+  async function disablePatient(id: string) {
+    setError("");
+
+    const supabase = getSupabaseClient();
+    const { error: updateError } = await supabase
+      .from("patients")
+      .update({
+        status: "inactive",
+        disabled_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
+    await loadPatients();
   }
 
   return {
     activePatients,
     addPatient,
     disablePatient,
+    error,
     loaded,
     patients,
+    refreshPatients: loadPatients,
   };
 }

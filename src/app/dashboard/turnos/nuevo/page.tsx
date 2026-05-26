@@ -2,24 +2,64 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, CalendarCheck, Save } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
+import { useAppointments, type NewAppointmentInput } from "@/hooks/useAppointments";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
+const today = new Date().toISOString().slice(0, 10);
+
+const emptyAppointment: NewAppointmentInput = {
+  patientId: "",
+  date: today,
+  time: "",
+  reason: "",
+  durationMinutes: 45,
+  modality: "presencial",
+  notes: "",
+};
+
 export default function NewAppointmentPage() {
+  const router = useRouter();
   const { loading } = useRequireAuth();
+  const { addAppointment } = useAppointments();
   const { activePatients, loaded } = usePatients();
-  const [saved, setSaved] = useState(false);
+  const [appointment, setAppointment] =
+    useState<NewAppointmentInput>(emptyAppointment);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   if (loading || !loaded) {
     return <DashboardLoading />;
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function updateField<Field extends keyof NewAppointmentInput>(
+    field: Field,
+    value: NewAppointmentInput[Field],
+  ) {
+    setAppointment((current) => ({ ...current, [field]: value }));
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaved(true);
+    setSaving(true);
+    setError("");
+
+    try {
+      await addAppointment(appointment);
+      router.push("/dashboard/turnos");
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "No pudimos guardar el turno.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -41,7 +81,7 @@ export default function NewAppointmentPage() {
               Programar una sesión
             </h1>
             <p className="mt-2 text-slate-600">
-              Cargá los datos del turno. En la próxima etapa lo guardamos en Supabase.
+              Cargá los datos del turno y guardalo en Supabase.
             </p>
           </header>
 
@@ -56,7 +96,9 @@ export default function NewAppointmentPage() {
                 </span>
                 <select
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => updateField("patientId", event.target.value)}
                   required
+                  value={appointment.patientId}
                 >
                   <option value="">Seleccionar paciente</option>
                   {activePatients.map((patient) => (
@@ -77,25 +119,31 @@ export default function NewAppointmentPage() {
                 </span>
                 <input
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => updateField("reason", event.target.value)}
                   placeholder="Ej. Rehabilitación de rodilla"
                   required
                   type="text"
+                  value={appointment.reason}
                 />
               </label>
               <label className="block">
                 <span className="text-sm font-semibold text-slate-700">Fecha</span>
                 <input
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => updateField("date", event.target.value)}
                   required
                   type="date"
+                  value={appointment.date}
                 />
               </label>
               <label className="block">
                 <span className="text-sm font-semibold text-slate-700">Hora</span>
                 <input
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => updateField("time", event.target.value)}
                   required
                   type="time"
+                  value={appointment.time}
                 />
               </label>
               <label className="block">
@@ -104,11 +152,14 @@ export default function NewAppointmentPage() {
                 </span>
                 <select
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                  defaultValue="45 min"
+                  onChange={(event) =>
+                    updateField("durationMinutes", Number(event.target.value))
+                  }
+                  value={appointment.durationMinutes}
                 >
-                  <option>30 min</option>
-                  <option>45 min</option>
-                  <option>60 min</option>
+                  <option value={30}>30 min</option>
+                  <option value={45}>45 min</option>
+                  <option value={60}>60 min</option>
                 </select>
               </label>
               <label className="block">
@@ -117,10 +168,16 @@ export default function NewAppointmentPage() {
                 </span>
                 <select
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                  defaultValue="Presencial"
+                  onChange={(event) =>
+                    updateField(
+                      "modality",
+                      event.target.value as NewAppointmentInput["modality"],
+                    )
+                  }
+                  value={appointment.modality}
                 >
-                  <option>Presencial</option>
-                  <option>Virtual</option>
+                  <option value="presencial">Presencial</option>
+                  <option value="virtual">Virtual</option>
                 </select>
               </label>
             </div>
@@ -130,13 +187,15 @@ export default function NewAppointmentPage() {
               </span>
               <textarea
                 className="mt-2 min-h-28 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
+                onChange={(event) => updateField("notes", event.target.value)}
                 placeholder="Notas internas para preparar la sesión"
+                value={appointment.notes}
               />
             </label>
 
-            {saved ? (
-              <p className="mt-5 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-                Turno preparado en pantalla. Falta conectarlo a la base para persistirlo.
+            {error ? (
+              <p className="mt-5 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                {error}
               </p>
             ) : null}
 
@@ -149,11 +208,11 @@ export default function NewAppointmentPage() {
               </Link>
               <button
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={activePatients.length === 0 || saving}
                 type="submit"
-                disabled={activePatients.length === 0}
               >
                 <Save className="h-4 w-4" />
-                Guardar turno
+                {saving ? "Guardando..." : "Guardar turno"}
               </button>
             </div>
           </form>

@@ -4,22 +4,58 @@ import { useState } from "react";
 import { Activity, ClipboardPlus, Save } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
+import { useEvolutions, type NewEvolutionInput } from "@/hooks/useEvolutions";
 import { usePatients } from "@/hooks/usePatients";
-import { evolutions } from "@/lib/mock-data";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+
+const today = new Date().toISOString().slice(0, 10);
+
+const emptyEvolution: NewEvolutionInput = {
+  patientId: "",
+  sessionDate: today,
+  painLevel: 0,
+  mobilityNotes: "",
+  clinicalNotes: "",
+  nextGoals: "",
+};
 
 export default function EvolutionsPage() {
   const { loading } = useRequireAuth();
-  const { activePatients, loaded } = usePatients();
-  const [saved, setSaved] = useState(false);
+  const { addEvolution, error, evolutions, loaded: evolutionsLoaded } =
+    useEvolutions();
+  const { activePatients, loaded: patientsLoaded } = usePatients();
+  const [evolution, setEvolution] = useState<NewEvolutionInput>(emptyEvolution);
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState("");
 
-  if (loading || !loaded) {
+  if (loading || !patientsLoaded || !evolutionsLoaded) {
     return <DashboardLoading />;
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function updateField<Field extends keyof NewEvolutionInput>(
+    field: Field,
+    value: NewEvolutionInput[Field],
+  ) {
+    setEvolution((current) => ({ ...current, [field]: value }));
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaved(true);
+    setSaving(true);
+    setActionError("");
+
+    try {
+      await addEvolution(evolution);
+      setEvolution(emptyEvolution);
+    } catch (submitError) {
+      setActionError(
+        submitError instanceof Error
+          ? submitError.message
+          : "No pudimos guardar la evolución.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -37,6 +73,12 @@ export default function EvolutionsPage() {
             </p>
           </header>
 
+          {(error || actionError) ? (
+            <p className="mt-6 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {actionError || error}
+            </p>
+          ) : null}
+
           <section className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
             <form
               className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm"
@@ -48,7 +90,9 @@ export default function EvolutionsPage() {
                 </div>
                 <div>
                   <h2 className="font-bold text-ink">Nueva evolución</h2>
-                  <p className="text-sm text-slate-500">Datos mockeados por ahora.</p>
+                  <p className="text-sm text-slate-500">
+                    Se guarda en Supabase y queda asociada al paciente.
+                  </p>
                 </div>
               </div>
 
@@ -59,7 +103,9 @@ export default function EvolutionsPage() {
                   </span>
                   <select
                     className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                    onChange={(event) => updateField("patientId", event.target.value)}
                     required
+                    value={evolution.patientId}
                   >
                     <option value="">Seleccionar paciente</option>
                     {activePatients.map((patient) => (
@@ -78,20 +124,30 @@ export default function EvolutionsPage() {
                   <span className="text-sm font-semibold text-slate-700">Fecha</span>
                   <input
                     className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                    onChange={(event) =>
+                      updateField("sessionDate", event.target.value)
+                    }
                     required
                     type="date"
+                    value={evolution.sessionDate}
                   />
                 </label>
                 <label className="block">
                   <span className="text-sm font-semibold text-slate-700">
                     Dolor
                   </span>
-                  <select className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400">
-                    {["0/10", "1/10", "2/10", "3/10", "4/10", "5/10", "6/10"].map(
-                      (value) => (
-                        <option key={value}>{value}</option>
-                      ),
-                    )}
+                  <select
+                    className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                    onChange={(event) =>
+                      updateField("painLevel", Number(event.target.value))
+                    }
+                    value={evolution.painLevel}
+                  >
+                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
+                      <option key={value} value={value}>
+                        {value}/10
+                      </option>
+                    ))}
                   </select>
                 </label>
               </div>
@@ -102,9 +158,13 @@ export default function EvolutionsPage() {
                 </span>
                 <input
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) =>
+                    updateField("mobilityNotes", event.target.value)
+                  }
                   placeholder="Ej. Mejora de rango en flexión"
                   required
                   type="text"
+                  value={evolution.mobilityNotes}
                 />
               </label>
               <label className="mt-5 block">
@@ -113,52 +173,61 @@ export default function EvolutionsPage() {
                 </span>
                 <textarea
                   className="mt-2 min-h-32 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) =>
+                    updateField("clinicalNotes", event.target.value)
+                  }
                   placeholder="Resumen de la sesión, respuesta al tratamiento y próximos objetivos"
                   required
+                  value={evolution.clinicalNotes}
+                />
+              </label>
+              <label className="mt-5 block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Próximos objetivos
+                </span>
+                <textarea
+                  className="mt-2 min-h-24 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => updateField("nextGoals", event.target.value)}
+                  placeholder="Objetivos o indicaciones para la próxima sesión"
+                  value={evolution.nextGoals}
                 />
               </label>
 
-              {saved ? (
-                <p className="mt-5 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-                  Evolución preparada en pantalla. Falta persistirla en Supabase.
-                </p>
-              ) : null}
-
               <button
                 className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={activePatients.length === 0}
+                disabled={activePatients.length === 0 || saving}
                 type="submit"
               >
                 <Save className="h-4 w-4" />
-                Guardar evolución
+                {saving ? "Guardando..." : "Guardar evolución"}
               </button>
             </form>
 
             <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
               <h2 className="font-bold text-ink">Historial reciente</h2>
               <div className="mt-5 space-y-4">
-                {evolutions.map((evolution) => (
+                {evolutions.map((item) => (
                   <article
                     className="rounded-lg border border-ocean-100 p-4"
-                    key={evolution.id}
+                    key={item.id}
                   >
                     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                       <div>
-                        <h3 className="font-bold text-ink">{evolution.patient}</h3>
+                        <h3 className="font-bold text-ink">{item.patient}</h3>
                         <p className="mt-1 text-sm text-slate-500">
-                          {evolution.date} · {evolution.diagnosis}
+                          {item.date}
                         </p>
                       </div>
                       <span className="flex w-fit items-center gap-2 rounded-full bg-ocean-50 px-3 py-1 text-sm font-semibold text-ocean-800">
                         <Activity className="h-4 w-4" />
-                        Dolor {evolution.pain}
+                        Dolor {item.pain}
                       </span>
                     </div>
                     <p className="mt-4 text-sm font-semibold text-ocean-800">
-                      {evolution.mobility}
+                      {item.mobility}
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                      {evolution.notes}
+                      {item.notes}
                     </p>
                   </article>
                 ))}
@@ -169,7 +238,7 @@ export default function EvolutionsPage() {
                     Sin evoluciones registradas.
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
-                    Cuando guardemos evoluciones reales, aparecerán en este historial.
+                    Cuando guardes evoluciones reales, aparecerán en este historial.
                   </p>
                 </div>
               ) : null}

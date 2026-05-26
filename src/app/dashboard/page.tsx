@@ -11,17 +11,28 @@ import {
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
-import { appointments, evolutions } from "@/lib/mock-data";
+import { useAppointments } from "@/hooks/useAppointments";
+import { useEvolutions } from "@/hooks/useEvolutions";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function DashboardPage() {
   const { displayName, loading } = useRequireAuth();
-  const { activePatients, loaded, patients } = usePatients();
+  const {
+    activePatients,
+    loaded: patientsLoaded,
+    patients,
+  } = usePatients();
+  const { appointments, loaded: appointmentsLoaded } = useAppointments();
+  const { evolutions, loaded: evolutionsLoaded } = useEvolutions();
 
-  if (loading || !loaded) {
+  if (loading || !patientsLoaded || !appointmentsLoaded || !evolutionsLoaded) {
     return <DashboardLoading />;
   }
+
+  const pendingAppointments = appointments.filter(
+    (appointment) => appointment.status === "Pendiente",
+  );
 
   const summaryCards = [
     {
@@ -29,9 +40,20 @@ export default function DashboardPage() {
       value: String(activePatients.length),
       detail: patients.length === 0 ? "Sin pacientes cargados" : "En seguimiento",
     },
-    { label: "Sesiones esta semana", value: "0", detail: "Sin sesiones cargadas" },
-    { label: "Turnos pendientes", value: "0", detail: "Sin turnos pendientes" },
-    { label: "Altas recientes", value: "0", detail: "Últimos 30 días" },
+    {
+      label: "Sesiones esta semana",
+      value: String(appointments.length),
+      detail: appointments.length === 0 ? "Sin sesiones cargadas" : "Turnos registrados",
+    },
+    {
+      label: "Turnos pendientes",
+      value: String(pendingAppointments.length),
+      detail:
+        pendingAppointments.length === 0
+          ? "Sin turnos pendientes"
+          : "Requieren confirmación",
+    },
+    { label: "Evoluciones", value: String(evolutions.length), detail: "Historial clínico" },
   ];
 
   return (
@@ -46,8 +68,7 @@ export default function DashboardPage() {
                 Bienvenida, {displayName}
               </h1>
               <p className="mt-2 text-slate-600">
-                Tu espacio ya está listo para cargar pacientes, turnos y
-                evoluciones desde cero.
+                Tu espacio ya guarda pacientes, turnos y evoluciones en Supabase.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -160,7 +181,7 @@ export default function DashboardPage() {
                         {appointment.reason}
                       </p>
                     </div>
-                    <span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
+                    <span className="w-fit rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
                       {appointment.status}
                     </span>
                   </div>
@@ -244,7 +265,7 @@ export default function DashboardPage() {
                   >
                     <p className="font-semibold text-ink">{evolution.patient}</p>
                     <p className="mt-1 text-sm text-slate-500">
-                      {evolution.diagnosis} · Dolor {evolution.pain}
+                      Dolor {evolution.pain}
                     </p>
                     <p className="mt-3 text-sm leading-6 text-slate-600">
                       {evolution.notes}

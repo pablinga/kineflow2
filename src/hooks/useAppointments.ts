@@ -1,0 +1,137 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { getSupabaseClient } from "@/lib/supabase";
+
+export type Appointment = {
+  id: string;
+  date: string;
+  time: string;
+  patient: string;
+  reason: string;
+  status: string;
+  modality: string;
+  duration: string;
+};
+
+export type NewAppointmentInput = {
+  patientId: string;
+  date: string;
+  time: string;
+  reason: string;
+  durationMinutes: number;
+  modality: "presencial" | "virtual";
+  notes: string;
+};
+
+type AppointmentRow = {
+  id: string;
+  scheduled_at: string;
+  duration_minutes: number;
+  modality: "presencial" | "virtual";
+  reason: string;
+  status: "pending" | "confirmed" | "cancelled" | "completed";
+  patients: { full_name: string } | Array<{ full_name: string }> | null;
+};
+
+const statusLabels: Record<AppointmentRow["status"], string> = {
+  pending: "Pendiente",
+  confirmed: "Confirmado",
+  cancelled: "Cancelado",
+  completed: "Completado",
+};
+
+function mapAppointment(row: AppointmentRow): Appointment {
+  const date = new Date(row.scheduled_at);
+  const patient = Array.isArray(row.patients) ? row.patients[0] : row.patients;
+
+  return {
+    id: row.id,
+    date: date.toLocaleDateString("es-AR"),
+    time: date.toLocaleTimeString("es-AR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    patient: patient?.full_name ?? "Paciente",
+    reason: row.reason,
+    status: statusLabels[row.status],
+    modality: row.modality === "presencial" ? "Presencial" : "Virtual",
+    duration: `${row.duration_minutes} min`,
+  };
+}
+
+export function useAppointments() {
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadAppointments = useCallback(async () => {
+    setLoaded(false);
+    setError("");
+
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error: queryError } = await supabase
+        .from("appointments")
+        .select(
+          "id, scheduled_at, duration_minutes, modality, reason, status, patients(full_name)",
+        )
+        .order("scheduled_at", { ascending: true });
+
+      if (queryError) {
+        setError(queryError.message);
+        return;
+      }
+
+      setAppointments(((data ?? []) as unknown as AppointmentRow[]).map(mapAppointment));
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "No pudimos cargar turnos.",
+      );
+    } finally {
+      setLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAppointments();
+  }, [loadAppointments]);
+
+  async function addAppointment(input: NewAppointmentInput) {
+    const supabase = getSupabaseClient();
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getUser();
+
+    if (sessionError || !sessionData.user) {
+      throw new Error("No pudimos identificar al usuario.");
+    }
+
+    const scheduledAt = new Date(`${input.date}T${input.time}`).toISOString();
+    const { error: insertError } = await supabase.from("appointments").insert({
+      owner_id: sessionData.user.id,
+      patient_id: input.patientId,
+      scheduled_at: scheduledAt,
+      duration_minutes: input.durationMinutes,
+      modality: input.modality,
+      reason: input.reason,
+      notes: input.notes || null,
+      status: "pending",
+    });
+
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
+
+    await loadAppointments();
+  }
+
+  return {
+    addAppointment,
+    appointments,
+    error,
+    loaded,
+    refreshAppointments: loadAppointments,
+  };
+}
