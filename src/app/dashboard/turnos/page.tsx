@@ -10,7 +10,6 @@ import {
   Clock,
   MoreHorizontal,
   RotateCcw,
-  UserRound,
   XCircle,
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
@@ -29,6 +28,12 @@ import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const dayFormatter = new Intl.DateTimeFormat("es-AR", {
   weekday: "short",
+  day: "2-digit",
+  month: "2-digit",
+});
+
+const fullDayFormatter = new Intl.DateTimeFormat("es-AR", {
+  weekday: "long",
   day: "2-digit",
   month: "2-digit",
 });
@@ -96,9 +101,16 @@ export default function AppointmentsPage() {
   const [actionError, setActionError] = useState("");
   const [updatingId, setUpdatingId] = useState("");
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [actionsAppointment, setActionsAppointment] =
+    useState<Appointment | null>(null);
   const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
+  const [selectedDayIndex, setSelectedDayIndex] = useState(() => {
+    const today = new Date();
+    const day = today.getDay() || 7;
+    return day - 1;
+  });
 
   const weekDays = useMemo(
     () =>
@@ -131,6 +143,7 @@ export default function AppointmentsPage() {
         new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
     )
     .slice(0, 12);
+  const selectedDay = weekDays[selectedDayIndex] ?? weekDays[0];
 
   function askForStatusChange(
     appointment: Appointment,
@@ -177,6 +190,7 @@ export default function AppointmentsPage() {
 
   function openReschedule(appointment: Appointment) {
     const scheduledAt = new Date(appointment.scheduledAt);
+    setActionsAppointment(null);
     setRescheduling(appointment);
     setRescheduleDate(scheduledAt.toISOString().slice(0, 10));
     setRescheduleTime(
@@ -186,6 +200,11 @@ export default function AppointmentsPage() {
         hour12: false,
       }),
     );
+  }
+
+  function openStatusModal(appointment: Appointment, status: AppointmentStatus) {
+    setActionsAppointment(null);
+    askForStatusChange(appointment, status);
   }
 
   if (authError) {
@@ -258,8 +277,52 @@ export default function AppointmentsPage() {
     }
   }
 
-  function renderAppointment(appointment: Appointment) {
+  function renderActionItems(appointment: Appointment) {
     const disabled = updatingId === appointment.id;
+
+    return (
+      <>
+        <button
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+          disabled={disabled}
+          onClick={() => openStatusModal(appointment, "attended")}
+          type="button"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          Marcar como asistió
+        </button>
+        <button
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+          disabled={disabled}
+          onClick={() => openStatusModal(appointment, "no_show")}
+          type="button"
+        >
+          <XCircle className="h-4 w-4" />
+          Marcar como no asistió
+        </button>
+        <button
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50 disabled:opacity-60"
+          disabled={disabled}
+          onClick={() => openReschedule(appointment)}
+          type="button"
+        >
+          <RotateCcw className="h-4 w-4" />
+          Reprogramar
+        </button>
+        <button
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+          disabled={disabled}
+          onClick={() => openStatusModal(appointment, "cancelled")}
+          type="button"
+        >
+          <XCircle className="h-4 w-4" />
+          Cancelar turno
+        </button>
+      </>
+    );
+  }
+
+  function renderAppointment(appointment: Appointment) {
     const status = getAppointmentDisplayStatus(appointment);
 
     return (
@@ -267,12 +330,12 @@ export default function AppointmentsPage() {
         className="rounded-lg border border-ocean-100 bg-white p-3 shadow-sm"
         key={appointment.id}
       >
-        <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
           <p className="whitespace-nowrap text-base font-bold leading-none text-ocean-800">
             {appointment.time}
           </p>
           <span
-            className={`w-fit shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold leading-none ${
+            className={`mt-2 inline-flex w-fit rounded-full px-2.5 py-1 text-[0.68rem] font-semibold leading-none ${
               appointmentStatusStyles[status] ?? "bg-slate-100 text-slate-700"
             }`}
           >
@@ -281,9 +344,18 @@ export default function AppointmentsPage() {
         </div>
 
         <div className="mt-3 min-w-0">
-          <p className="truncate text-sm font-semibold text-ink">
-            {appointment.patient}
-          </p>
+          <Link
+            className="group relative block max-w-full text-[0.82rem] font-semibold leading-4 text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline focus:outline-none focus:ring-2 focus:ring-ocean-200"
+            href={`/dashboard/pacientes/${appointment.patientId}`}
+            title={`Ver detalle de ${appointment.patient}`}
+          >
+            <span className="line-clamp-2 break-words">
+              {appointment.patient}
+            </span>
+            <span className="pointer-events-none absolute left-0 top-full z-30 mt-2 hidden w-max max-w-[13rem] rounded-lg border border-ocean-100 bg-white px-3 py-2 text-xs font-semibold text-ocean-900 shadow-soft group-hover:block group-focus:block">
+              Ver detalle de {appointment.patient}
+            </span>
+          </Link>
           <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
             {appointment.reason}
           </p>
@@ -299,57 +371,23 @@ export default function AppointmentsPage() {
           </span>
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-2">
-          <Link
-            className="inline-flex min-h-9 flex-1 items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-xs font-semibold text-ocean-800 transition hover:bg-ocean-50"
-            href={`/dashboard/pacientes/${appointment.patientId}`}
+        <div className="mt-3">
+          <button
+            className="flex min-h-9 w-full items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-xs font-semibold text-ocean-800 transition hover:bg-ocean-50 xl:hidden"
+            onClick={() => setActionsAppointment(appointment)}
+            type="button"
           >
-            <UserRound className="h-3.5 w-3.5" />
-            Ver paciente
-          </Link>
+            <MoreHorizontal className="h-4 w-4" />
+            Acciones
+          </button>
 
-          <details className="relative shrink-0">
+          <details className="relative hidden xl:block">
             <summary className="flex min-h-9 cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-xs font-semibold text-ocean-800 transition hover:bg-ocean-50">
               <MoreHorizontal className="h-4 w-4" />
               Acciones
             </summary>
-            <div className="absolute right-0 z-20 mt-2 w-44 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
-              <button
-                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
-                disabled={disabled}
-                onClick={() => askForStatusChange(appointment, "attended")}
-                type="button"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                Asistió
-              </button>
-              <button
-                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
-                disabled={disabled}
-                onClick={() => askForStatusChange(appointment, "no_show")}
-                type="button"
-              >
-                <XCircle className="h-4 w-4" />
-                No asistió
-              </button>
-              <button
-                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
-                disabled={disabled}
-                onClick={() => askForStatusChange(appointment, "cancelled")}
-                type="button"
-              >
-                <XCircle className="h-4 w-4" />
-                Cancelar
-              </button>
-              <button
-                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-semibold text-ocean-800 hover:bg-ocean-50 disabled:opacity-60"
-                disabled={disabled}
-                onClick={() => openReschedule(appointment)}
-                type="button"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Reprogramar
-              </button>
+            <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
+              {renderActionItems(appointment)}
             </div>
           </details>
         </div>
@@ -434,10 +472,64 @@ export default function AppointmentsPage() {
             </div>
           ) : null}
 
-          <section className="mt-6 grid gap-4 xl:grid-cols-7">
+          <section className="mt-6 xl:hidden">
+            <div className="grid grid-cols-7 gap-2 rounded-lg border border-ocean-100 bg-white p-2 shadow-sm">
+              {weekDays.map((day, index) => (
+                <button
+                  className={`min-h-14 rounded-lg px-1 text-center transition ${
+                    selectedDayIndex === index
+                      ? "bg-ocean-600 text-white"
+                      : "bg-ocean-50 text-ocean-900 hover:bg-ocean-100"
+                  }`}
+                  key={day.date.toISOString()}
+                  onClick={() => setSelectedDayIndex(index)}
+                  type="button"
+                >
+                  <span className="block text-[0.68rem] font-bold capitalize leading-4">
+                    {day.date.toLocaleDateString("es-AR", { weekday: "short" })}
+                  </span>
+                  <span className="mt-1 block text-sm font-bold">
+                    {day.date.getDate()}
+                  </span>
+                  {day.isToday ? (
+                    <span
+                      className={`mx-auto mt-1 block h-1.5 w-1.5 rounded-full ${
+                        selectedDayIndex === index ? "bg-white" : "bg-ocean-600"
+                      }`}
+                    />
+                  ) : null}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-5 rounded-lg border border-ocean-100 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-lg font-bold capitalize text-ink">
+                  {fullDayFormatter.format(selectedDay.date)}
+                </h2>
+                {selectedDay.isToday ? (
+                  <span className="rounded-full bg-ocean-50 px-3 py-1 text-xs font-semibold text-ocean-800">
+                    Hoy
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-4 space-y-3">
+                {selectedDay.appointments.map(renderAppointment)}
+                {selectedDay.appointments.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
+                    <p className="text-sm font-semibold text-slate-600">
+                      No hay turnos para este día.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-6 hidden gap-4 xl:grid xl:grid-cols-7">
             {weekDays.map((day) => (
               <div
-                className={`rounded-lg border bg-white p-3 shadow-sm ${
+                className={`min-w-0 rounded-lg border bg-white p-3 shadow-sm ${
                   day.isToday
                     ? "border-ocean-300 ring-2 ring-ocean-100"
                     : "border-ocean-100"
@@ -506,9 +598,12 @@ export default function AppointmentsPage() {
                       {appointment.time}
                     </p>
                     <div>
-                      <p className="font-semibold text-ink">
+                      <Link
+                        className="font-semibold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
+                        href={`/dashboard/pacientes/${appointment.patientId}`}
+                      >
                         {appointment.patient}
-                      </p>
+                      </Link>
                       <p className="mt-1 text-sm text-slate-500">
                         {appointment.reason} · {appointment.modality}
                       </p>
@@ -522,12 +617,6 @@ export default function AppointmentsPage() {
                       >
                         {status}
                       </span>
-                      <Link
-                        className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-                        href={`/dashboard/pacientes/${appointment.patientId}`}
-                      >
-                        Ver paciente
-                      </Link>
                     </div>
                   </div>
                 );
@@ -541,6 +630,40 @@ export default function AppointmentsPage() {
               </div>
             ) : null}
           </section>
+
+          {actionsAppointment ? (
+            <div className="fixed inset-0 z-50 flex items-end bg-ink/40 px-3 pb-3 xl:hidden">
+              <div className="w-full rounded-t-2xl border border-ocean-100 bg-white p-4 shadow-soft">
+                <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-slate-200" />
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-ink">
+                      Acciones del turno
+                    </h2>
+                    <Link
+                      className="mt-1 block text-sm font-semibold text-ocean-800 underline-offset-4 hover:underline"
+                      href={`/dashboard/pacientes/${actionsAppointment.patientId}`}
+                    >
+                      {actionsAppointment.patient}
+                    </Link>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {actionsAppointment.date} · {actionsAppointment.time}
+                    </p>
+                  </div>
+                  <button
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-ocean-100 text-slate-500"
+                    onClick={() => setActionsAppointment(null)}
+                    type="button"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="mt-4 divide-y divide-ocean-100">
+                  {renderActionItems(actionsAppointment)}
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {pendingAction ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4 py-6">

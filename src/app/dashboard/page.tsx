@@ -203,9 +203,12 @@ export default function DashboardPage() {
                         {appointment.time}
                       </p>
                       <div>
-                        <p className="font-semibold text-ink">
+                        <Link
+                          className="font-semibold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
+                          href={`/dashboard/pacientes/${appointment.patientId}`}
+                        >
                           {appointment.patient}
-                        </p>
+                        </Link>
                         <p className="mt-1 text-sm text-slate-500">
                           {appointment.reason} · {appointment.modality}
                         </p>
@@ -218,12 +221,6 @@ export default function DashboardPage() {
                         >
                           {status}
                         </span>
-                        <Link
-                          className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-                          href={`/dashboard/pacientes/${appointment.patientId}`}
-                        >
-                          Ver paciente
-                        </Link>
                       </div>
                     </div>
                   );
