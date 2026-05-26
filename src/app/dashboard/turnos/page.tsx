@@ -66,6 +66,10 @@ function compactDayLabel(date: Date) {
   return date.toLocaleDateString("es-AR", { weekday: "short" });
 }
 
+function isFutureAppointment(appointment: Appointment) {
+  return new Date(appointment.scheduledAt).getTime() > Date.now();
+}
+
 function actionToneClass(tone: PendingAction["tone"]) {
   if (tone === "green") {
     return "bg-emerald-600 hover:bg-emerald-700";
@@ -189,6 +193,17 @@ export default function AppointmentsPage() {
   }
 
   function openStatusModal(appointment: Appointment, status: AppointmentStatus) {
+    if (
+      ["attended", "no_show"].includes(status) &&
+      isFutureAppointment(appointment)
+    ) {
+      setActionsAppointment(null);
+      setActionError(
+        "No se puede registrar asistencia o ausencia en un turno futuro.",
+      );
+      return;
+    }
+
     setActionsAppointment(null);
     askForStatusChange(appointment, status);
   }
@@ -265,13 +280,19 @@ export default function AppointmentsPage() {
 
   function renderActionItems(appointment: Appointment) {
     const disabled = updatingId === appointment.id;
+    const futureAttendanceDisabled = isFutureAppointment(appointment);
 
     return (
       <>
         <button
           className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
-          disabled={disabled}
+          disabled={disabled || futureAttendanceDisabled}
           onClick={() => openStatusModal(appointment, "attended")}
+          title={
+            futureAttendanceDisabled
+              ? "Disponible cuando llegue el horario del turno"
+              : undefined
+          }
           type="button"
         >
           <CheckCircle2 className="h-4 w-4" />
@@ -279,8 +300,13 @@ export default function AppointmentsPage() {
         </button>
         <button
           className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
-          disabled={disabled}
+          disabled={disabled || futureAttendanceDisabled}
           onClick={() => openStatusModal(appointment, "no_show")}
+          title={
+            futureAttendanceDisabled
+              ? "Disponible cuando llegue el horario del turno"
+              : undefined
+          }
           type="button"
         >
           <XCircle className="h-4 w-4" />
@@ -313,15 +339,32 @@ export default function AppointmentsPage() {
 
     return (
       <article
-        className="rounded-lg border border-ocean-100 bg-white p-2 shadow-sm"
+        className="rounded-lg border border-ocean-100 bg-white px-2 py-2 shadow-sm"
         key={appointment.id}
       >
-        <div>
-          <p className="whitespace-nowrap text-sm font-bold leading-none text-ocean-800">
+        <div className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)_auto_auto_auto] items-center gap-1.5">
+          <p className="whitespace-nowrap text-[0.72rem] font-bold text-ocean-800">
             {appointment.time}
           </p>
+          <span className="text-[0.68rem] font-semibold text-slate-400">-</span>
+          <Link
+            className="group relative block min-w-0 truncate text-[0.72rem] font-semibold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline focus:outline-none focus:ring-2 focus:ring-ocean-200"
+            href={`/dashboard/pacientes/${appointment.patientId}`}
+            title={`Ver detalle de ${appointment.patient}`}
+          >
+            {appointment.patient}
+            <span className="pointer-events-none absolute left-0 top-full z-30 mt-2 hidden w-max max-w-[13rem] rounded-lg border border-ocean-100 bg-white px-3 py-2 text-xs font-semibold text-ocean-900 shadow-soft group-hover:block group-focus:block">
+              Ver detalle de {appointment.patient}
+            </span>
+          </Link>
+          <span className="text-[0.62rem] font-semibold text-slate-400">
+            -
+          </span>
+          <span className="whitespace-nowrap text-[0.62rem] font-semibold text-ocean-800">
+            {appointment.modality}
+          </span>
           <span
-            className={`mt-1 inline-flex w-fit rounded-full px-1.5 py-0.5 text-[0.62rem] font-semibold leading-none ${
+            className={`w-fit whitespace-nowrap rounded-full px-1.5 py-0.5 text-[0.6rem] font-semibold leading-none ${
               appointmentStatusStyles[status] ?? "bg-slate-100 text-slate-700"
             }`}
           >
@@ -329,30 +372,9 @@ export default function AppointmentsPage() {
           </span>
         </div>
 
-        <div className="mt-2 min-w-0">
-          <Link
-            className="group relative block max-w-full text-[0.72rem] font-semibold leading-4 text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline focus:outline-none focus:ring-2 focus:ring-ocean-200"
-            href={`/dashboard/pacientes/${appointment.patientId}`}
-            title={`Ver detalle de ${appointment.patient}`}
-          >
-            <span className="line-clamp-2 break-words">
-              {appointment.patient}
-            </span>
-            <span className="pointer-events-none absolute left-0 top-full z-30 mt-2 hidden w-max max-w-[13rem] rounded-lg border border-ocean-100 bg-white px-3 py-2 text-xs font-semibold text-ocean-900 shadow-soft group-hover:block group-focus:block">
-              Ver detalle de {appointment.patient}
-            </span>
-          </Link>
-        </div>
-
-        <div className="mt-2 flex flex-wrap items-center gap-1 text-[0.68rem] text-slate-500">
-          <span className="rounded-full bg-ocean-50 px-1.5 py-0.5 font-semibold text-ocean-800">
-            {appointment.modality}
-          </span>
-        </div>
-
-        <div className="mt-2">
+        <div className="mt-2 flex items-center gap-2">
           <button
-            className="flex min-h-8 w-full items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-[0.7rem] font-semibold text-ocean-800 transition hover:bg-ocean-50 xl:hidden"
+            className="flex min-h-7 flex-1 items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-[0.68rem] font-semibold text-ocean-800 transition hover:bg-ocean-50 xl:hidden"
             onClick={() => setActionsAppointment(appointment)}
             type="button"
           >
@@ -360,8 +382,8 @@ export default function AppointmentsPage() {
             Acciones
           </button>
 
-          <details className="relative hidden xl:block">
-            <summary className="flex min-h-8 cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-[0.7rem] font-semibold text-ocean-800 transition hover:bg-ocean-50">
+          <details className="relative hidden flex-1 xl:block">
+            <summary className="flex min-h-7 cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-[0.68rem] font-semibold text-ocean-800 transition hover:bg-ocean-50">
               <MoreHorizontal className="h-3.5 w-3.5" />
               Acciones
             </summary>
@@ -369,16 +391,16 @@ export default function AppointmentsPage() {
               {renderActionItems(appointment)}
             </div>
           </details>
-        </div>
 
-        {status === "Asistió" ? (
-          <Link
-            className="mt-3 inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-ocean-600 px-3 text-xs font-semibold text-white transition hover:bg-ocean-700"
-            href={`/dashboard/pacientes/${appointment.patientId}`}
-          >
-            Cargar evolución
-          </Link>
-        ) : null}
+          {status === "Asistió" ? (
+            <Link
+              className="inline-flex min-h-7 flex-1 items-center justify-center rounded-lg bg-ocean-600 px-2 text-[0.68rem] font-semibold text-white transition hover:bg-ocean-700"
+              href={`/dashboard/pacientes/${appointment.patientId}`}
+            >
+              Cargar evolución
+            </Link>
+          ) : null}
+        </div>
       </article>
     );
   }

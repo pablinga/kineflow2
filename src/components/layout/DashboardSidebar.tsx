@@ -5,6 +5,7 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarDays,
+  CreditCard,
   Home,
   LogOut,
   Menu,
@@ -18,6 +19,7 @@ const navigation = [
   { href: "/dashboard", label: "Inicio", icon: Home },
   { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
   { href: "/dashboard/turnos", label: "Turnos", icon: CalendarDays },
+  { href: "/dashboard/planes", label: "Planes", icon: CreditCard },
 ];
 
 export function DashboardSidebar() {
@@ -93,14 +95,8 @@ export function DashboardSidebar() {
             );
           })}
         </nav>
-        <div className="mt-8 rounded-lg border border-ocean-100 bg-ocean-50 p-4">
-          <p className="text-sm font-semibold text-ocean-900">Plan clínica</p>
-          <p className="mt-1 text-sm text-slate-600">
-            Pacientes, turnos y evoluciones conectados a Supabase.
-          </p>
-        </div>
         <button
-          className="mt-4 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-8 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={loggingOut}
           onClick={handleLogout}
           type="button"

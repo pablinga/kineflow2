@@ -15,6 +15,7 @@ import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { usePatients, type NewPatientInput } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 const emptyPatient: NewPatientInput = {
   name: "",
@@ -27,6 +28,7 @@ const emptyPatient: NewPatientInput = {
 export default function PatientsPage() {
   const { authError, loading, redirecting } = useRequireAuth();
   const { addPatient, disablePatient, error, loaded, patients } = usePatients();
+  const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [newPatient, setNewPatient] = useState<NewPatientInput>(emptyPatient);
@@ -76,7 +78,7 @@ export default function PatientsPage() {
     );
   }
 
-  if (loading || !loaded) {
+  if (loading || !loaded || !planLoaded) {
     return <DashboardLoading />;
   }
 
@@ -90,6 +92,21 @@ export default function PatientsPage() {
     setActionError("");
 
     try {
+      const activePatients = patients.filter(
+        (patient) => patient.status === "Activo",
+      );
+
+      if (
+        plan.plan === "FREE" &&
+        plan.limitePacientes !== null &&
+        activePatients.length >= plan.limitePacientes
+      ) {
+        setActionError(
+          "El Plan Free permite hasta 5 pacientes. Para continuar, activa un plan pago.",
+        );
+        return;
+      }
+
       await addPatient(newPatient);
       setNewPatient(emptyPatient);
       setShowForm(false);
@@ -135,7 +152,25 @@ export default function PatientsPage() {
             </div>
             <button
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
-              onClick={() => setShowForm((value) => !value)}
+              onClick={() => {
+                const activePatients = patients.filter(
+                  (patient) => patient.status === "Activo",
+                );
+
+                if (
+                  plan.plan === "FREE" &&
+                  plan.limitePacientes !== null &&
+                  activePatients.length >= plan.limitePacientes
+                ) {
+                  setActionError(
+                    "El Plan Free permite hasta 5 pacientes. Para continuar, activa un plan pago.",
+                  );
+                  return;
+                }
+
+                setActionError("");
+                setShowForm((value) => !value);
+              }}
               type="button"
             >
               <Plus className="h-4 w-4" />
@@ -143,10 +178,38 @@ export default function PatientsPage() {
             </button>
           </header>
 
+          {plan.plan === "FREE" ? (
+            <section className="mt-6 rounded-lg border border-ocean-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                <div>
+                  <p className="font-bold text-ink">
+                    Plan Free: {patients.filter((patient) => patient.status === "Activo").length}
+                    /{plan.limitePacientes} pacientes activos
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    Actualmente estas usando el Plan Free. Activa un plan pago
+                    para acceder a pacientes ilimitados y funciones avanzadas.
+                  </p>
+                </div>
+                <Link
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+                  href="/dashboard/planes"
+                >
+                  Ver planes
+                </Link>
+              </div>
+            </section>
+          ) : null}
+
           {error || actionError ? (
-            <p className="mt-6 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              {actionError || error}
-            </p>
+            <div className="mt-6 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              <p>{actionError || error}</p>
+              {(actionError || error).includes("Plan Free") ? (
+                <Link className="mt-2 inline-flex font-bold" href="/dashboard/planes">
+                  Activar plan
+                </Link>
+              ) : null}
+            </div>
           ) : null}
 
           {showForm ? (

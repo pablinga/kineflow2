@@ -7,6 +7,7 @@ import { Logo } from "@/components/ui/Logo";
 
 const links = [
   { href: "#beneficios", label: "Beneficios" },
+  { href: "#planes", label: "Planes" },
   { href: "#como-funciona", label: "Cómo funciona" },
   { href: "#contacto", label: "Contacto" },
 ];

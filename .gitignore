@@ -4,7 +4,17 @@ _git
 node_modules
 tsconfig.tsbuildinfo
 .env
+.env.*
+!.env.example
 .env.local
+.env.development
+.env.development.local
+.env.preview
+.env.preview.local
+.env.production
+.env.production.local
+.env.test
+.env.test.local
 .vercel
 .npm-cache
 npm-debug.log*

@@ -5,6 +5,7 @@ import {
   ArrowUpRight,
   CalendarPlus,
   ClipboardPlus,
+  CreditCard,
   FileText,
   Search,
   UsersRound,
@@ -21,6 +22,7 @@ import {
   isUpcomingActiveAppointment,
 } from "@/lib/appointment-ui";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 function startOfWeek(date: Date) {
   const next = new Date(date);
@@ -38,6 +40,7 @@ function endOfWeek(date: Date) {
 
 export default function DashboardPage() {
   const { authError, displayName, loading, redirecting } = useRequireAuth();
+  const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const {
     activePatients,
     loaded: patientsLoaded,
@@ -59,7 +62,13 @@ export default function DashboardPage() {
     );
   }
 
-  if (loading || !patientsLoaded || !appointmentsLoaded || !evolutionsLoaded) {
+  if (
+    loading ||
+    !patientsLoaded ||
+    !appointmentsLoaded ||
+    !evolutionsLoaded ||
+    !planLoaded
+  ) {
     return <DashboardLoading />;
   }
 
@@ -144,6 +153,31 @@ export default function DashboardPage() {
               </Link>
             </div>
           </header>
+
+          {plan.plan === "FREE" ? (
+            <section className="mt-6 flex flex-col justify-between gap-4 rounded-lg border border-ocean-200 bg-white p-5 shadow-sm md:flex-row md:items-center">
+              <div className="flex gap-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
+                  <CreditCard className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="font-bold text-ink">
+                    Actualmente estas usando el Plan Free.
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    Activa un plan pago para acceder a pacientes ilimitados y
+                    funciones avanzadas.
+                  </p>
+                </div>
+              </div>
+              <Link
+                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+                href="/dashboard/planes"
+              >
+                Activar plan
+              </Link>
+            </section>
+          ) : null}
 
           <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {summaryCards.map((card) => (

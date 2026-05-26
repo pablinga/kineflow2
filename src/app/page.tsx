@@ -1,14 +1,19 @@
 import {
   ArrowRight,
   CalendarCheck,
+  CheckCircle2,
   ClipboardList,
   FileHeart,
+  Instagram,
   LineChart,
+  MessageSquare,
   ShieldCheck,
   Sparkles,
+  Star,
 } from "lucide-react";
 import { PublicNavbar } from "@/components/layout/PublicNavbar";
 import { LinkButton } from "@/components/ui/Button";
+import { plans } from "@/lib/plans";
 
 const benefits = [
   {
@@ -33,6 +38,9 @@ const steps = [
   "Cargá pacientes, antecedentes y objetivos terapéuticos.",
   "Seguimiento sesión por sesión con métricas y notas simples.",
 ];
+
+const instagramUrl = "https://www.instagram.com/kineflow.app/";
+const contactEmail = "contacto@kineflow.app";
 
 export default function Home() {
   return (
@@ -156,6 +164,86 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="bg-ocean-50 px-4 py-16 sm:px-6 lg:px-8" id="planes">
+        <div className="mx-auto max-w-7xl">
+          <div className="max-w-2xl">
+            <p className="text-sm font-bold uppercase tracking-wider text-ocean-600">
+              Planes
+            </p>
+            <h2 className="mt-3 text-3xl font-bold text-ink">
+              Elegi como queres empezar y escala cuando tu practica lo necesite.
+            </h2>
+            <p className="mt-4 leading-7 text-slate-600">
+              Los planes estan preparados para profesionales independientes,
+              equipos chicos y consultorios que necesitan agenda y pacientes
+              compartidos.
+            </p>
+          </div>
+          <div className="mt-10 grid gap-5 lg:grid-cols-3">
+            {plans.map((plan) => {
+              const Icon = plan.icon;
+
+              return (
+                <article
+                  className={`relative flex rounded-lg border bg-white p-6 shadow-sm ${
+                    plan.recommended
+                      ? "border-ocean-500 ring-2 ring-ocean-100"
+                      : "border-ocean-100"
+                  }`}
+                  key={plan.id}
+                >
+                  {plan.recommended ? (
+                    <div className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-ocean-600 px-3 py-1 text-xs font-bold uppercase text-white">
+                      <Star className="h-3.5 w-3.5" />
+                      Recomendado
+                    </div>
+                  ) : null}
+                  <div className="flex w-full flex-col">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
+                      <Icon className="h-6 w-6" />
+                    </div>
+                    <h3
+                      className={`mt-5 text-xl font-bold text-ink ${
+                        plan.recommended ? "pr-28" : ""
+                      }`}
+                    >
+                      {plan.name}
+                    </h3>
+                    <p className="mt-2 text-3xl font-bold text-ocean-800">
+                      {plan.price}
+                    </p>
+                    <p className="mt-2 font-semibold text-slate-700">
+                      {plan.limit}
+                    </p>
+                    <p className="mt-3 leading-7 text-slate-600">
+                      {plan.audience}
+                    </p>
+                    <ul className="mt-5 space-y-3">
+                      {plan.features.map((feature) => (
+                        <li
+                          className="flex gap-3 text-sm leading-6 text-slate-700"
+                          key={feature}
+                        >
+                          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <LinkButton
+                      className="mt-6 w-full"
+                      href={plan.href}
+                      variant={plan.recommended ? "primary" : "secondary"}
+                    >
+                      {plan.cta}
+                    </LinkButton>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       <section className="bg-ocean-50 px-4 py-16 sm:px-6 lg:px-8" id="como-funciona">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
@@ -207,10 +295,53 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-ocean-100 bg-white px-4 py-8 sm:px-6 lg:px-8" id="contacto">
+      <section className="bg-ocean-50 px-4 py-14 sm:px-6 lg:px-8" id="contacto">
+        <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-2">
+          <a
+            className="flex items-center gap-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm transition hover:border-ocean-300 hover:bg-ocean-50"
+            href={instagramUrl}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
+              <Instagram className="h-5 w-5" />
+            </span>
+            <span>
+              <span className="block font-bold text-ink">
+                Seguinos en Instagram
+              </span>
+              <span className="mt-1 block text-sm text-slate-600">
+                Novedades, mejoras y consejos para el consultorio.
+              </span>
+            </span>
+          </a>
+          <a
+            className="flex items-center gap-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm transition hover:border-ocean-300 hover:bg-ocean-50"
+            href={`mailto:${contactEmail}?subject=Contacto%20KineFlow`}
+          >
+            <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
+              <MessageSquare className="h-5 w-5" />
+            </span>
+            <span>
+              <span className="block font-bold text-ink">Contactanos</span>
+              <span className="mt-1 block text-sm text-slate-600">
+                Comentarios, sugerencias o reclamos para mejorar KineFlow.
+              </span>
+            </span>
+          </a>
+        </div>
+      </section>
+
+      <footer className="border-t border-ocean-100 bg-white px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 text-sm text-slate-500 md:flex-row">
           <p>© 2026 KineFlow. Gestión clínica para kinesiólogos.</p>
           <div className="flex gap-5">
+            <a href={instagramUrl} rel="noreferrer" target="_blank">
+              Instagram
+            </a>
+            <a href={`mailto:${contactEmail}?subject=Contacto%20KineFlow`}>
+              Contacto
+            </a>
             <a href="/login">Ingresar</a>
             <a href="/registro">Registrarse</a>
           </div>
