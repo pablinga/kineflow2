@@ -68,12 +68,13 @@ create index if not exists evolutions_session_date_idx on public.evolutions(sess
 
 create or replace function public.set_updated_at()
 returns trigger
+language plpgsql
 as $$
 begin
   new.updated_at = now();
   return new;
 end;
-$$ language plpgsql;
+$$;
 
 drop trigger if exists set_profiles_updated_at on public.profiles;
 create trigger set_profiles_updated_at
@@ -97,6 +98,7 @@ for each row execute function public.set_updated_at();
 
 create or replace function public.handle_new_user()
 returns trigger
+language plpgsql
 security definer
 set search_path = public
 as $$
@@ -117,7 +119,7 @@ begin
 
   return new;
 end;
-$$ language plpgsql;
+$$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
