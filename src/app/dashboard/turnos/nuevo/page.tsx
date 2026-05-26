@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CalendarCheck, Save } from "lucide-react";
@@ -27,10 +27,21 @@ export default function NewAppointmentPage() {
   const { authError, loading, redirecting } = useRequireAuth();
   const { addAppointment } = useAppointments();
   const { activePatients, loaded } = usePatients();
+  const [patientFromUrl, setPatientFromUrl] = useState("");
   const [appointment, setAppointment] =
     useState<NewAppointmentInput>(emptyAppointment);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const patientId = params.get("paciente") ?? "";
+
+    if (patientId) {
+      setPatientFromUrl(patientId);
+      setAppointment((current) => ({ ...current, patientId }));
+    }
+  }, []);
 
   if (authError) {
     return <DashboardLoading error={authError} />;
@@ -49,6 +60,10 @@ export default function NewAppointmentPage() {
     return <DashboardLoading />;
   }
 
+  const preselectedPatient = activePatients.find(
+    (patient) => patient.id === patientFromUrl,
+  );
+
   function updateField<Field extends keyof NewAppointmentInput>(
     field: Field,
     value: NewAppointmentInput[Field],
@@ -63,7 +78,11 @@ export default function NewAppointmentPage() {
 
     try {
       await addAppointment(appointment);
-      router.push("/dashboard/turnos");
+      router.push(
+        preselectedPatient
+          ? `/dashboard/pacientes/${preselectedPatient.id}`
+          : "/dashboard/turnos",
+      );
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -111,6 +130,7 @@ export default function NewAppointmentPage() {
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
                   onChange={(event) => updateField("patientId", event.target.value)}
                   required
+                  disabled={Boolean(preselectedPatient)}
                   value={appointment.patientId}
                 >
                   <option value="">Seleccionar paciente</option>
@@ -123,6 +143,11 @@ export default function NewAppointmentPage() {
                 {activePatients.length === 0 ? (
                   <p className="mt-2 text-sm text-amber-700">
                     Primero cargá un paciente activo para asignarle un turno.
+                  </p>
+                ) : null}
+                {preselectedPatient ? (
+                  <p className="mt-2 text-sm text-ocean-700">
+                    Paciente preseleccionado desde su historial.
                   </p>
                 ) : null}
               </label>

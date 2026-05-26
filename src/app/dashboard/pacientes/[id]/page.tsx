@@ -301,7 +301,7 @@ export default function PatientDetailPage() {
                       </h2>
                       <Link
                         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-                        href="/dashboard/turnos/nuevo"
+                        href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
                       >
                         <CalendarPlus className="h-4 w-4" />
                         Nuevo turno

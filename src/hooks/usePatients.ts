@@ -36,7 +36,70 @@ type PatientRow = {
   status: "active" | "inactive";
 };
 
-function mapPatient(row: PatientRow): Patient {
+type PatientAppointmentRow = {
+  patient_id: string;
+  scheduled_at: string;
+  status:
+    | "pending"
+    | "attended"
+    | "cancelled"
+    | "no_show"
+    | "rescheduled"
+    | "confirmed"
+    | "completed";
+};
+
+type PatientEvolutionRow = {
+  patient_id: string;
+  session_date: string;
+  clinical_notes: string | null;
+};
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  return `${date.toLocaleDateString("es-AR")} ${date.toLocaleTimeString(
+    "es-AR",
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  )}`;
+}
+
+function mapPatient(
+  row: PatientRow,
+  appointments: PatientAppointmentRow[],
+  evolutions: PatientEvolutionRow[],
+): Patient {
+  const now = Date.now();
+  const patientAppointments = appointments
+    .filter((appointment) => appointment.patient_id === row.id)
+    .sort(
+      (left, right) =>
+        new Date(left.scheduled_at).getTime() -
+        new Date(right.scheduled_at).getTime(),
+    );
+  const lastAttendedAppointment = [...patientAppointments]
+    .reverse()
+    .find(
+      (appointment) =>
+        ["attended", "completed"].includes(appointment.status) &&
+        new Date(appointment.scheduled_at).getTime() <= now,
+    );
+  const nextAppointment = patientAppointments.find(
+    (appointment) =>
+      ["pending", "confirmed", "rescheduled"].includes(appointment.status) &&
+      new Date(appointment.scheduled_at).getTime() >= now,
+  );
+  const lastEvolution = evolutions
+    .filter((evolution) => evolution.patient_id === row.id)
+    .sort(
+      (left, right) =>
+        new Date(right.session_date).getTime() -
+        new Date(left.session_date).getTime(),
+    )[0];
+
   return {
     id: row.id,
     name: row.full_name,
@@ -45,9 +108,17 @@ function mapPatient(row: PatientRow): Patient {
     email: row.email ?? "Sin email",
     condition: row.initial_condition,
     status: row.status === "active" ? "Activo" : "Inactivo",
-    progress: "Sin evolución registrada",
-    lastSession: "Sin sesiones",
-    nextAppointment: "Sin turno",
+    progress: lastEvolution
+      ? new Date(`${lastEvolution.session_date}T00:00:00`).toLocaleDateString(
+          "es-AR",
+        )
+      : "Sin evolución registrada",
+    lastSession: lastAttendedAppointment
+      ? formatDateTime(lastAttendedAppointment.scheduled_at)
+      : "Sin sesiones",
+    nextAppointment: nextAppointment
+      ? formatDateTime(nextAppointment.scheduled_at)
+      : "Sin turno",
   };
 }
 
@@ -74,7 +145,46 @@ export function usePatients() {
         return;
       }
 
-      setPatients(((data ?? []) as PatientRow[]).map(mapPatient));
+      const patientRows = (data ?? []) as PatientRow[];
+      const patientIds = patientRows.map((patient) => patient.id);
+
+      if (patientIds.length === 0) {
+        setPatients([]);
+        return;
+      }
+
+      const [
+        { data: appointmentsData, error: appointmentsError },
+        { data: evolutionsData, error: evolutionsError },
+      ] = await Promise.all([
+        supabase
+          .from("appointments")
+          .select("patient_id, scheduled_at, status")
+          .in("patient_id", patientIds),
+        supabase
+          .from("evolutions")
+          .select("patient_id, session_date, clinical_notes")
+          .in("patient_id", patientIds),
+      ]);
+
+      if (appointmentsError || evolutionsError) {
+        setError(
+          appointmentsError?.message ??
+            evolutionsError?.message ??
+            "No pudimos cargar el resumen de pacientes.",
+        );
+        return;
+      }
+
+      setPatients(
+        patientRows.map((patient) =>
+          mapPatient(
+            patient,
+            (appointmentsData ?? []) as PatientAppointmentRow[],
+            (evolutionsData ?? []) as PatientEvolutionRow[],
+          ),
+        ),
+      );
     } catch (loadError) {
       setError(
         loadError instanceof Error

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   CalendarPlus,
@@ -23,6 +23,7 @@ import {
 import {
   appointmentStatusStyles,
   getAppointmentDisplayStatus,
+  isUpcomingActiveAppointment,
 } from "@/lib/appointment-ui";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
@@ -31,6 +32,15 @@ const dayFormatter = new Intl.DateTimeFormat("es-AR", {
   day: "2-digit",
   month: "2-digit",
 });
+
+type PendingAction = {
+  appointment: Appointment;
+  status: AppointmentStatus;
+  title: string;
+  message: string;
+  buttonLabel: string;
+  tone: "green" | "red" | "rose";
+};
 
 function startOfWeek(date: Date) {
   const next = new Date(date);
@@ -61,6 +71,18 @@ function weekLabel(weekStart: Date) {
   )}`;
 }
 
+function actionToneClass(tone: PendingAction["tone"]) {
+  if (tone === "green") {
+    return "bg-emerald-600 hover:bg-emerald-700";
+  }
+
+  if (tone === "rose") {
+    return "bg-rose-600 hover:bg-rose-700";
+  }
+
+  return "bg-red-600 hover:bg-red-700";
+}
+
 export default function AppointmentsPage() {
   const { authError, loading, redirecting } = useRequireAuth();
   const {
@@ -73,6 +95,7 @@ export default function AppointmentsPage() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [actionError, setActionError] = useState("");
   const [updatingId, setUpdatingId] = useState("");
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
@@ -102,12 +125,55 @@ export default function AppointmentsPage() {
 
   const weeklyAppointments = weekDays.flatMap((day) => day.appointments);
   const upcomingAppointments = [...appointments]
-    .filter((appointment) => new Date(appointment.scheduledAt).getTime() >= Date.now())
+    .filter(isUpcomingActiveAppointment)
     .sort(
       (a, b) =>
         new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
     )
     .slice(0, 12);
+
+  function askForStatusChange(
+    appointment: Appointment,
+    status: AppointmentStatus,
+  ) {
+    const actionByStatus: Record<
+      "attended" | "cancelled" | "no_show",
+      Omit<PendingAction, "appointment" | "status">
+    > = {
+      attended: {
+        title: "Marcar asistencia",
+        message: `Se marcará el turno de ${appointment.patient} como asistido.`,
+        buttonLabel: "Marcar asistió",
+        tone: "green",
+      },
+      cancelled: {
+        title: "Cancelar turno",
+        message: `El turno de ${appointment.patient} dejará de aparecer como próximo turno activo.`,
+        buttonLabel: "Cancelar turno",
+        tone: "red",
+      },
+      no_show: {
+        title: "Registrar ausencia",
+        message: `Se registrará que ${appointment.patient} no asistió a este turno.`,
+        buttonLabel: "Marcar no asistió",
+        tone: "rose",
+      },
+    };
+
+    if (
+      status !== "attended" &&
+      status !== "cancelled" &&
+      status !== "no_show"
+    ) {
+      return;
+    }
+
+    setPendingAction({
+      appointment,
+      status,
+      ...actionByStatus[status],
+    });
+  }
 
   function openReschedule(appointment: Appointment) {
     const scheduledAt = new Date(appointment.scheduledAt);
@@ -139,26 +205,20 @@ export default function AppointmentsPage() {
     return <DashboardLoading />;
   }
 
-  async function handleStatusChange(
-    appointment: Appointment,
-    status: AppointmentStatus,
-  ) {
-    const confirmationByStatus: Partial<Record<AppointmentStatus, string>> = {
-      attended: `¿Marcar el turno de ${appointment.patient} como asistido?`,
-      cancelled: `¿Cancelar el turno de ${appointment.patient}?`,
-      no_show: `¿Marcar que ${appointment.patient} no asistió?`,
-    };
-    const confirmation = confirmationByStatus[status];
-
-    if (confirmation && !window.confirm(confirmation)) {
+  async function confirmStatusChange() {
+    if (!pendingAction) {
       return;
     }
 
     setActionError("");
-    setUpdatingId(appointment.id);
+    setUpdatingId(pendingAction.appointment.id);
 
     try {
-      await updateAppointmentStatus(appointment.id, status);
+      await updateAppointmentStatus(
+        pendingAction.appointment.id,
+        pendingAction.status,
+      );
+      setPendingAction(null);
     } catch (updateError) {
       setActionError(
         updateError instanceof Error
@@ -170,7 +230,7 @@ export default function AppointmentsPage() {
     }
   }
 
-  async function handleRescheduleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleRescheduleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!rescheduling) {
@@ -207,20 +267,12 @@ export default function AppointmentsPage() {
         className="rounded-lg border border-ocean-100 bg-white p-3 shadow-sm"
         key={appointment.id}
       >
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="whitespace-nowrap text-lg font-bold text-ocean-800">
-              {appointment.time}
-            </p>
-            <p className="mt-1 truncate text-sm font-semibold text-ink">
-              {appointment.patient}
-            </p>
-            <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
-              {appointment.reason}
-            </p>
-          </div>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <p className="whitespace-nowrap text-base font-bold leading-none text-ocean-800">
+            {appointment.time}
+          </p>
           <span
-            className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${
+            className={`w-fit shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold leading-none ${
               appointmentStatusStyles[status] ?? "bg-slate-100 text-slate-700"
             }`}
           >
@@ -228,25 +280,36 @@ export default function AppointmentsPage() {
           </span>
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-          <span className="inline-flex items-center gap-1">
+        <div className="mt-3 min-w-0">
+          <p className="truncate text-sm font-semibold text-ink">
+            {appointment.patient}
+          </p>
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
+            {appointment.reason}
+          </p>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <span className="inline-flex items-center gap-1 whitespace-nowrap">
             <Clock className="h-3.5 w-3.5 text-ocean-600" />
             {appointment.duration}
           </span>
-          <span>{appointment.modality}</span>
+          <span className="rounded-full bg-ocean-50 px-2 py-1 font-semibold text-ocean-800">
+            {appointment.modality}
+          </span>
         </div>
 
         <div className="mt-3 flex items-center justify-between gap-2">
           <Link
-            className="inline-flex min-h-8 items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-xs font-semibold text-ocean-800 transition hover:bg-ocean-50"
+            className="inline-flex min-h-9 flex-1 items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-xs font-semibold text-ocean-800 transition hover:bg-ocean-50"
             href={`/dashboard/pacientes/${appointment.patientId}`}
           >
             <UserRound className="h-3.5 w-3.5" />
             Ver paciente
           </Link>
 
-          <details className="relative">
-            <summary className="flex min-h-8 cursor-pointer list-none items-center gap-1 rounded-lg border border-ocean-200 px-2 text-xs font-semibold text-ocean-800 transition hover:bg-ocean-50">
+          <details className="relative shrink-0">
+            <summary className="flex min-h-9 cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-xs font-semibold text-ocean-800 transition hover:bg-ocean-50">
               <MoreHorizontal className="h-4 w-4" />
               Acciones
             </summary>
@@ -254,7 +317,7 @@ export default function AppointmentsPage() {
               <button
                 className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
                 disabled={disabled}
-                onClick={() => handleStatusChange(appointment, "attended")}
+                onClick={() => askForStatusChange(appointment, "attended")}
                 type="button"
               >
                 <CheckCircle2 className="h-4 w-4" />
@@ -263,7 +326,7 @@ export default function AppointmentsPage() {
               <button
                 className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
                 disabled={disabled}
-                onClick={() => handleStatusChange(appointment, "no_show")}
+                onClick={() => askForStatusChange(appointment, "no_show")}
                 type="button"
               >
                 <XCircle className="h-4 w-4" />
@@ -272,7 +335,7 @@ export default function AppointmentsPage() {
               <button
                 className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
                 disabled={disabled}
-                onClick={() => handleStatusChange(appointment, "cancelled")}
+                onClick={() => askForStatusChange(appointment, "cancelled")}
                 type="button"
               >
                 <XCircle className="h-4 w-4" />
@@ -293,7 +356,7 @@ export default function AppointmentsPage() {
 
         {status === "Asistió" ? (
           <Link
-            className="mt-3 inline-flex min-h-8 w-full items-center justify-center rounded-lg bg-ocean-600 px-3 text-xs font-semibold text-white transition hover:bg-ocean-700"
+            className="mt-3 inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-ocean-600 px-3 text-xs font-semibold text-white transition hover:bg-ocean-700"
             href={`/dashboard/pacientes/${appointment.patientId}`}
           >
             Cargar evolución
@@ -311,15 +374,17 @@ export default function AppointmentsPage() {
           <header className="flex flex-col justify-between gap-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm md:flex-row md:items-center">
             <div>
               <p className="text-sm font-semibold text-ocean-700">Turnos</p>
-              <h1 className="mt-1 text-3xl font-bold text-ink">Agenda semanal</h1>
-              <p className="mt-2 text-slate-600">
+              <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
+                Agenda semanal
+              </h1>
+              <p className="mt-2 text-sm text-slate-600 sm:text-base">
                 Semana del {weekLabel(weekStart)}
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="flex rounded-lg border border-ocean-100 bg-white p-1">
+              <div className="grid grid-cols-3 rounded-lg border border-ocean-100 bg-white p-1">
                 <button
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-ocean-50"
+                  className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md px-2 text-xs font-semibold text-slate-700 transition hover:bg-ocean-50 sm:text-sm"
                   onClick={() => setWeekStart((date) => addDays(date, -7))}
                   type="button"
                 >
@@ -327,14 +392,14 @@ export default function AppointmentsPage() {
                   Anterior
                 </button>
                 <button
-                  className="inline-flex min-h-10 items-center justify-center rounded-md px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                  className="inline-flex min-h-10 items-center justify-center rounded-md px-2 text-xs font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:text-sm"
                   onClick={() => setWeekStart(startOfWeek(new Date()))}
                   type="button"
                 >
                   Hoy
                 </button>
                 <button
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold text-slate-700 transition hover:bg-ocean-50"
+                  className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md px-2 text-xs font-semibold text-slate-700 transition hover:bg-ocean-50 sm:text-sm"
                   onClick={() => setWeekStart((date) => addDays(date, 7))}
                   type="button"
                 >
@@ -369,7 +434,7 @@ export default function AppointmentsPage() {
             </div>
           ) : null}
 
-          <section className="mt-6 grid gap-4 lg:grid-cols-2 xl:grid-cols-7">
+          <section className="mt-6 grid gap-4 xl:grid-cols-7">
             {weekDays.map((day) => (
               <div
                 className={`rounded-lg border bg-white p-3 shadow-sm ${
@@ -399,7 +464,7 @@ export default function AppointmentsPage() {
                     ) : null}
                   </div>
                 </div>
-                <div className="max-h-[34rem] space-y-3 overflow-y-auto pr-1">
+                <div className="space-y-3">
                   {day.appointments.map(renderAppointment)}
                   {day.appointments.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-ocean-100 bg-ocean-50 p-4 text-center">
@@ -418,7 +483,7 @@ export default function AppointmentsPage() {
               <div>
                 <h2 className="text-lg font-bold text-ink">Próximos turnos</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Vista lista preparada para revisión rápida.
+                  Vista lista para revisión rápida.
                 </p>
               </div>
               <span className="rounded-full bg-ocean-50 px-3 py-1 text-sm font-semibold text-ocean-800">
@@ -477,8 +542,40 @@ export default function AppointmentsPage() {
             ) : null}
           </section>
 
+          {pendingAction ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4 py-6">
+              <div className="w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft">
+                <h2 className="text-lg font-bold text-ink">
+                  {pendingAction.title}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {pendingAction.message}
+                </p>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                    onClick={() => setPendingAction(null)}
+                    type="button"
+                  >
+                    Volver
+                  </button>
+                  <button
+                    className={`inline-flex min-h-11 items-center justify-center rounded-lg px-5 text-sm font-semibold text-white transition disabled:opacity-60 ${actionToneClass(
+                      pendingAction.tone,
+                    )}`}
+                    disabled={updatingId === pendingAction.appointment.id}
+                    onClick={confirmStatusChange}
+                    type="button"
+                  >
+                    {pendingAction.buttonLabel}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {rescheduling ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4 py-6">
               <form
                 className="w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
                 onSubmit={handleRescheduleSubmit}

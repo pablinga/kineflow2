@@ -270,7 +270,7 @@ export default function DashboardPage() {
                   {[
                     {
                       label: "Nuevo paciente",
-                      href: "/dashboard/pacientes",
+                      href: "/dashboard/pacientes?nuevo=1",
                       icon: UsersRound,
                     },
                     {
@@ -337,7 +337,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <div className="text-sm text-slate-600">
-                    <p>Último turno: {patient.nextAppointment}</p>
+                    <p>Último turno: {patient.lastSession}</p>
                     <p>Última evolución: {patient.progress}</p>
                   </div>
                   <Link
