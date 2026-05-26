@@ -190,6 +190,7 @@ export default function NewAppointmentPage() {
                   value={appointment.modality}
                 >
                   <option value="presencial">Presencial</option>
+                  <option value="domicilio">Domicilio</option>
                   <option value="virtual">Virtual</option>
                 </select>
               </label>

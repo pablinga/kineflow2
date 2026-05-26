@@ -14,6 +14,12 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { useAppointments } from "@/hooks/useAppointments";
 import { useEvolutions } from "@/hooks/useEvolutions";
 import { usePatients } from "@/hooks/usePatients";
+import {
+  appointmentStatusStyles,
+  getAppointmentDisplayStatus,
+  isPastPendingAppointment,
+  isUpcomingActiveAppointment,
+} from "@/lib/appointment-ui";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function DashboardPage() {
@@ -43,9 +49,19 @@ export default function DashboardPage() {
     return <DashboardLoading />;
   }
 
-  const pendingAppointments = appointments.filter(
-    (appointment) => appointment.status === "Pendiente",
+  const pendingAppointments = appointments.filter((appointment) =>
+    ["Pendiente", "Sin registrar asistencia"].includes(
+      getAppointmentDisplayStatus(appointment),
+    ),
   );
+  const upcomingAppointments = [...appointments]
+    .filter(isUpcomingActiveAppointment)
+    .sort(
+      (a, b) =>
+        new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
+    )
+    .slice(0, 6);
+  const actionRequired = appointments.filter(isPastPendingAppointment);
 
   const summaryCards = [
     {
@@ -64,9 +80,13 @@ export default function DashboardPage() {
       detail:
         pendingAppointments.length === 0
           ? "Sin turnos pendientes"
-          : "Requieren confirmación",
+          : "Requieren seguimiento",
     },
-    { label: "Evoluciones", value: String(evolutions.length), detail: "Historial clínico" },
+    {
+      label: "Evoluciones registradas",
+      value: String(evolutions.length),
+      detail: "Historial clínico",
+    },
   ];
 
   return (
@@ -81,7 +101,7 @@ export default function DashboardPage() {
                 Bienvenida, {displayName}
               </h1>
               <p className="mt-2 text-slate-600">
-                Tu espacio ya guarda pacientes, turnos y evoluciones en Supabase.
+                Resumen operativo de pacientes, agenda y seguimiento clínico.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -128,48 +148,15 @@ export default function DashboardPage() {
             ))}
           </section>
 
-          <section className="mt-6 grid gap-6 xl:grid-cols-[0.7fr_1.3fr]">
-            <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
-              <h2 className="text-lg font-bold text-ink">Accesos rápidos</h2>
-              <div className="mt-5 grid gap-3">
-                {[
-                  {
-                    label: "Nuevo paciente",
-                    href: "/dashboard/pacientes",
-                    icon: UsersRound,
-                  },
-                  {
-                    label: "Registrar evolución",
-                    href: "/dashboard/evoluciones",
-                    icon: ClipboardPlus,
-                  },
-                  {
-                    label: "Crear informe",
-                    href: "/dashboard/evoluciones",
-                    icon: FileText,
-                  },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      className="flex min-h-14 items-center justify-between rounded-lg border border-ocean-100 px-4 text-left font-semibold text-slate-700 transition hover:border-ocean-200 hover:bg-ocean-50"
-                      href={item.href}
-                      key={item.label}
-                    >
-                      <span className="flex items-center gap-3">
-                        <Icon className="h-5 w-5 text-ocean-600" />
-                        {item.label}
-                      </span>
-                      <ArrowUpRight className="h-4 w-4 text-slate-400" />
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-
+          <section className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_0.8fr]">
             <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-4">
-                <h2 className="text-lg font-bold text-ink">Próximos turnos</h2>
+                <div>
+                  <h2 className="text-lg font-bold text-ink">Próximos turnos</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Ordenados por fecha y hora.
+                  </p>
+                </div>
                 <Link
                   className="text-sm font-semibold text-ocean-700"
                   href="/dashboard/turnos"
@@ -178,109 +165,174 @@ export default function DashboardPage() {
                 </Link>
               </div>
               <div className="mt-5 divide-y divide-ocean-100">
-                {appointments.slice(0, 3).map((appointment) => (
-                  <div
-                    className="grid gap-3 py-4 sm:grid-cols-[5rem_1fr_auto] sm:items-center"
-                    key={appointment.id}
-                  >
-                    <span className="w-fit rounded-lg bg-ocean-50 px-3 py-2 text-sm font-bold text-ocean-800">
-                      {appointment.time}
-                    </span>
-                    <div>
-                      <p className="font-semibold text-ink">
-                        {appointment.patient}
+                {upcomingAppointments.map((appointment) => {
+                  const status = getAppointmentDisplayStatus(appointment);
+
+                  return (
+                    <div
+                      className="grid gap-3 py-4 md:grid-cols-[7rem_5rem_1fr_auto] md:items-center"
+                      key={appointment.id}
+                    >
+                      <p className="text-sm font-semibold text-slate-600">
+                        {appointment.date}
                       </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {appointment.reason}
+                      <p className="whitespace-nowrap text-sm font-bold text-ocean-800">
+                        {appointment.time}
                       </p>
+                      <div>
+                        <p className="font-semibold text-ink">
+                          {appointment.patient}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {appointment.reason} · {appointment.modality}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                            appointmentStatusStyles[status]
+                          }`}
+                        >
+                          {status}
+                        </span>
+                        <Link
+                          className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                          href={`/dashboard/pacientes/${appointment.patientId}`}
+                        >
+                          Ver paciente
+                        </Link>
+                      </div>
                     </div>
-                    <span className="w-fit rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
-                      {appointment.status}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              {appointments.length === 0 ? (
+              {upcomingAppointments.length === 0 ? (
                 <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
-                  <p className="font-semibold text-ink">Sin turnos cargados.</p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Los próximos turnos aparecerán cuando programes sesiones.
+                  <p className="font-semibold text-ink">
+                    No hay próximos turnos registrados.
                   </p>
                 </div>
               ) : null}
+            </div>
+
+            <div className="space-y-6">
+              <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+                <h2 className="text-lg font-bold text-ink">Requieren acción</h2>
+                <div className="mt-4 space-y-3">
+                  {actionRequired.map((appointment) => (
+                    <Link
+                      className="block rounded-lg border border-orange-100 bg-orange-50 p-3 transition hover:bg-orange-100"
+                      href={`/dashboard/pacientes/${appointment.patientId}`}
+                      key={appointment.id}
+                    >
+                      <p className="text-sm font-semibold text-orange-800">
+                        Sin registrar asistencia
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">
+                        {appointment.patient} · {appointment.date} {appointment.time}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+                {actionRequired.length === 0 ? (
+                  <p className="mt-4 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-4 text-sm text-slate-600">
+                    No hay alertas pendientes.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+                <h2 className="text-lg font-bold text-ink">Accesos rápidos</h2>
+                <div className="mt-4 grid gap-2">
+                  {[
+                    {
+                      label: "Nuevo paciente",
+                      href: "/dashboard/pacientes",
+                      icon: UsersRound,
+                    },
+                    {
+                      label: "Nuevo turno",
+                      href: "/dashboard/turnos/nuevo",
+                      icon: CalendarPlus,
+                    },
+                    {
+                      label: "Registrar evolución",
+                      href: "/dashboard/pacientes",
+                      icon: ClipboardPlus,
+                    },
+                    {
+                      label: "Crear informe",
+                      href: "/dashboard/pacientes",
+                      icon: FileText,
+                    },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        className="flex min-h-11 items-center justify-between rounded-lg border border-ocean-100 px-3 text-sm font-semibold text-slate-700 transition hover:border-ocean-200 hover:bg-ocean-50"
+                        href={item.href}
+                        key={item.label}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Icon className="h-4 w-4 text-ocean-600" />
+                          {item.label}
+                        </span>
+                        <ArrowUpRight className="h-4 w-4 text-slate-400" />
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </section>
 
-          <section className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
+          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
                 <h2 className="text-lg font-bold text-ink">Pacientes recientes</h2>
-                <Link
-                  className="text-sm font-semibold text-ocean-700"
-                  href="/dashboard/pacientes"
-                >
-                  Ver pacientes
-                </Link>
+                <p className="mt-1 text-sm text-slate-500">
+                  Acceso rápido para retomar tratamientos.
+                </p>
               </div>
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
-                {patients.slice(0, 3).map((patient) => (
-                  <article
-                    className="rounded-lg border border-ocean-100 bg-white p-4"
-                    key={patient.id}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-ocean-100 font-bold text-ocean-800">
-                        {patient.name
-                          .split(" ")
-                          .map((part) => part[0])
-                          .join("")}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-ink">{patient.name}</p>
-                        <p className="text-sm text-slate-500">
-                          {patient.condition}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="mt-4 rounded-lg bg-ocean-50 px-3 py-2 text-sm font-medium text-ocean-800">
-                      {patient.progress}
-                    </p>
-                  </article>
-                ))}
-              </div>
-              {patients.length === 0 ? (
-                <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
-                  <p className="font-semibold text-ink">
-                    Todavía no hay pacientes cargados.
-                  </p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Creá el primero para iniciar el seguimiento clínico.
-                  </p>
-                </div>
-              ) : null}
+              <Link
+                className="text-sm font-semibold text-ocean-700"
+                href="/dashboard/pacientes"
+              >
+                Ver pacientes
+              </Link>
             </div>
-
-            <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
-                <h2 className="text-lg font-bold text-ink">Evoluciones</h2>
-                <Link
-                  className="text-sm font-semibold text-ocean-700"
-                  href="/dashboard/evoluciones"
+            <div className="mt-5 divide-y divide-ocean-100">
+              {patients.slice(0, 6).map((patient) => (
+                <div
+                  className="grid gap-3 py-4 md:grid-cols-[1fr_1fr_auto] md:items-center"
+                  key={patient.id}
                 >
-                  Ver todas
-                </Link>
-              </div>
+                  <div>
+                    <p className="font-semibold text-ink">{patient.name}</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {patient.condition}
+                    </p>
+                  </div>
+                  <div className="text-sm text-slate-600">
+                    <p>Último turno: {patient.nextAppointment}</p>
+                    <p>Última evolución: {patient.progress}</p>
+                  </div>
+                  <Link
+                    className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                    href={`/dashboard/pacientes/${patient.id}`}
+                  >
+                    Ver paciente
+                  </Link>
+                </div>
+              ))}
+            </div>
+            {patients.length === 0 ? (
               <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
                 <p className="font-semibold text-ink">
-                  {evolutions.length === 0
-                    ? "Sin evoluciones registradas."
-                    : `${evolutions.length} evoluciones registradas.`}
-                </p>
-                <p className="mt-2 text-sm text-slate-600">
-                  Consultalas dentro del historial de cada paciente.
+                  Todavía no hay pacientes cargados.
                 </p>
               </div>
-            </div>
+            ) : null}
           </section>
         </div>
       </section>

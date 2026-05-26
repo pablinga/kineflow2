@@ -17,6 +17,10 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { useAppointments } from "@/hooks/useAppointments";
 import { useEvolutions, type NewEvolutionInput } from "@/hooks/useEvolutions";
 import { usePatients } from "@/hooks/usePatients";
+import {
+  appointmentStatusStyles,
+  getAppointmentDisplayStatus,
+} from "@/lib/appointment-ui";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const today = new Date().toISOString().slice(0, 10);
@@ -288,8 +292,14 @@ export default function PatientDetailPage() {
                                 {appointment.date} · {appointment.time}
                               </p>
                             </div>
-                            <span className="w-fit rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
-                              {appointment.status}
+                            <span
+                              className={`w-fit rounded-full px-3 py-1 text-sm font-semibold ${
+                                appointmentStatusStyles[
+                                  getAppointmentDisplayStatus(appointment)
+                                ] ?? "bg-slate-100 text-slate-700"
+                              }`}
+                            >
+                              {getAppointmentDisplayStatus(appointment)}
                             </span>
                           </div>
                           <p className="mt-3 flex items-center gap-2 text-sm text-slate-600">

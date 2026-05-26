@@ -23,13 +23,15 @@ export type AppointmentStatus =
   | "no_show"
   | "rescheduled";
 
+export type AppointmentModality = "presencial" | "domicilio" | "virtual";
+
 export type NewAppointmentInput = {
   patientId: string;
   date: string;
   time: string;
   reason: string;
   durationMinutes: number;
-  modality: "presencial" | "virtual";
+  modality: AppointmentModality;
   notes: string;
 };
 
@@ -38,7 +40,7 @@ type AppointmentRow = {
   patient_id: string;
   scheduled_at: string;
   duration_minutes: number;
-  modality: "presencial" | "virtual";
+  modality: AppointmentModality;
   reason: string;
   status: AppointmentStatus | "confirmed" | "completed";
   patients: { full_name: string } | Array<{ full_name: string }> | null;
@@ -52,6 +54,12 @@ const statusLabels: Record<AppointmentRow["status"], string> = {
   rescheduled: "Reprogramado",
   confirmed: "Pendiente",
   completed: "Asistió",
+};
+
+const modalityLabels: Record<AppointmentModality, string> = {
+  presencial: "Presencial",
+  domicilio: "Domicilio",
+  virtual: "Virtual",
 };
 
 function mapAppointment(row: AppointmentRow): Appointment {
@@ -70,7 +78,7 @@ function mapAppointment(row: AppointmentRow): Appointment {
     patient: patient?.full_name ?? "Paciente",
     reason: row.reason,
     status: statusLabels[row.status],
-    modality: row.modality === "presencial" ? "Presencial" : "Virtual",
+    modality: modalityLabels[row.modality],
     duration: `${row.duration_minutes} min`,
   };
 }
@@ -104,7 +112,9 @@ export function useAppointments(patientId?: string) {
         return;
       }
 
-      setAppointments(((data ?? []) as unknown as AppointmentRow[]).map(mapAppointment));
+      setAppointments(
+        ((data ?? []) as unknown as AppointmentRow[]).map(mapAppointment),
+      );
     } catch (loadError) {
       setError(
         loadError instanceof Error

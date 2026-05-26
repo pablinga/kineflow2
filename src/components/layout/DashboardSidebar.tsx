@@ -8,7 +8,6 @@ import {
   Home,
   LogOut,
   Menu,
-  MessageSquareText,
   PanelLeftClose,
   Users,
 } from "lucide-react";
@@ -19,7 +18,6 @@ const navigation = [
   { href: "/dashboard", label: "Inicio", icon: Home },
   { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
   { href: "/dashboard/turnos", label: "Turnos", icon: CalendarDays },
-  { href: "/dashboard/evoluciones", label: "Evoluciones", icon: MessageSquareText },
 ];
 
 export function DashboardSidebar() {
