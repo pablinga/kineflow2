@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { User } from "@supabase/supabase-js";
+import Link from "next/link";
 import {
   ArrowUpRight,
   CalendarPlus,
@@ -11,9 +9,10 @@ import {
   Search,
   UsersRound,
 } from "lucide-react";
+import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
-import { Button } from "@/components/ui/Button";
-import { getSupabaseClient } from "@/lib/supabase";
+import { appointments, evolutions, patients } from "@/lib/mock-data";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const summaryCards = [
   { label: "Pacientes activos", value: "42", detail: "+6 este mes" },
@@ -22,104 +21,11 @@ const summaryCards = [
   { label: "Altas recientes", value: "5", detail: "últimos 30 días" },
 ];
 
-const appointments = [
-  {
-    time: "09:00",
-    patient: "Marina Duarte",
-    reason: "Rehabilitación de rodilla",
-  },
-  {
-    time: "10:30",
-    patient: "Laura Méndez",
-    reason: "Cervicalgia",
-  },
-  {
-    time: "12:00",
-    patient: "Tomás Pereyra",
-    reason: "Control postural",
-  },
-];
-
-const patients = [
-  {
-    name: "Agustín Franco",
-    condition: "Lumbalgia",
-    progress: "Mejora funcional 68%",
-  },
-  {
-    name: "Camila Ríos",
-    condition: "Esguince de tobillo",
-    progress: "Fase de fortalecimiento",
-  },
-  {
-    name: "Pablo Torres",
-    condition: "Hombro congelado",
-    progress: "Movilidad en progreso",
-  },
-];
-
 export default function DashboardPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const supabase = getSupabaseClient();
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
-        router.replace("/login?redirect=/dashboard");
-        return;
-      }
-
-      setUser(data.session.user);
-      setLoading(false);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (!session) {
-          router.replace("/login?redirect=/dashboard");
-          return;
-        }
-
-        setUser(session.user);
-        setLoading(false);
-      },
-    );
-
-    return () => listener.subscription.unsubscribe();
-  }, [router]);
-
-  const displayName = useMemo(() => {
-    const metadataName = user?.user_metadata?.full_name;
-
-    if (typeof metadataName === "string" && metadataName.trim()) {
-      return metadataName.trim().split(" ")[0];
-    }
-
-    return user?.email?.split("@")[0] || "profesional";
-  }, [user]);
+  const { displayName, loading } = useRequireAuth();
 
   if (loading) {
-    return (
-      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
-        <DashboardSidebar />
-        <section className="px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-7xl">
-            <div className="rounded-lg border border-ocean-100 bg-white p-6 shadow-sm">
-              <p className="text-sm font-semibold text-ocean-700">Dashboard</p>
-              <h1 className="mt-2 text-2xl font-bold text-ink">
-                Preparando tu panel...
-              </h1>
-              <p className="mt-2 text-slate-600">
-                Estamos verificando tu sesión.
-              </p>
-            </div>
-          </div>
-        </section>
-      </main>
-    );
+    return <DashboardLoading />;
   }
 
   return (
@@ -129,9 +35,7 @@ export default function DashboardPage() {
         <div className="mx-auto max-w-7xl">
           <header className="flex flex-col justify-between gap-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm md:flex-row md:items-center">
             <div>
-              <p className="text-sm font-semibold text-ocean-700">
-                Dashboard
-              </p>
+              <p className="text-sm font-semibold text-ocean-700">Dashboard</p>
               <h1 className="mt-1 text-3xl font-bold text-ink">
                 Bienvenida, {displayName}
               </h1>
@@ -140,14 +44,20 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button variant="secondary">
+              <Link
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ocean-200 bg-white px-5 py-2.5 text-sm font-semibold text-ocean-800 transition hover:border-ocean-300 hover:bg-ocean-50"
+                href="/dashboard/pacientes"
+              >
                 <Search className="h-4 w-4" />
                 Buscar paciente
-              </Button>
-              <Button>
+              </Link>
+              <Link
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+                href="/dashboard/turnos/nuevo"
+              >
                 <CalendarPlus className="h-4 w-4" />
                 Nuevo turno
-              </Button>
+              </Link>
             </div>
           </header>
 
@@ -184,30 +94,33 @@ export default function DashboardPage() {
                 {[
                   {
                     label: "Nuevo paciente",
+                    href: "/dashboard/pacientes",
                     icon: UsersRound,
                   },
                   {
                     label: "Registrar evolución",
+                    href: "/dashboard/evoluciones",
                     icon: ClipboardPlus,
                   },
                   {
                     label: "Crear informe",
+                    href: "/dashboard/evoluciones",
                     icon: FileText,
                   },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <button
+                    <Link
                       className="flex min-h-14 items-center justify-between rounded-lg border border-ocean-100 px-4 text-left font-semibold text-slate-700 transition hover:border-ocean-200 hover:bg-ocean-50"
+                      href={item.href}
                       key={item.label}
-                      type="button"
                     >
                       <span className="flex items-center gap-3">
                         <Icon className="h-5 w-5 text-ocean-600" />
                         {item.label}
                       </span>
                       <ArrowUpRight className="h-4 w-4 text-slate-400" />
-                    </button>
+                    </Link>
                   );
                 })}
               </div>
@@ -216,18 +129,18 @@ export default function DashboardPage() {
             <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-4">
                 <h2 className="text-lg font-bold text-ink">Próximos turnos</h2>
-                <button
+                <Link
                   className="text-sm font-semibold text-ocean-700"
-                  type="button"
+                  href="/dashboard/turnos"
                 >
                   Ver agenda
-                </button>
+                </Link>
               </div>
               <div className="mt-5 divide-y divide-ocean-100">
-                {appointments.map((appointment) => (
+                {appointments.slice(0, 3).map((appointment) => (
                   <div
                     className="grid gap-3 py-4 sm:grid-cols-[5rem_1fr_auto] sm:items-center"
-                    key={`${appointment.time}-${appointment.patient}`}
+                    key={appointment.id}
                   >
                     <span className="w-fit rounded-lg bg-ocean-50 px-3 py-2 text-sm font-bold text-ocean-800">
                       {appointment.time}
@@ -241,7 +154,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
-                      Confirmado
+                      {appointment.status}
                     </span>
                   </div>
                 ))}
@@ -249,41 +162,71 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="text-lg font-bold text-ink">Pacientes recientes</h2>
-              <button
-                className="text-sm font-semibold text-ocean-700"
-                type="button"
-              >
-                Ver pacientes
-              </button>
-            </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              {patients.map((patient) => (
-                <article
-                  className="rounded-lg border border-ocean-100 bg-white p-4"
-                  key={patient.name}
+          <section className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="text-lg font-bold text-ink">Pacientes recientes</h2>
+                <Link
+                  className="text-sm font-semibold text-ocean-700"
+                  href="/dashboard/pacientes"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-ocean-100 font-bold text-ocean-800">
-                      {patient.name
-                        .split(" ")
-                        .map((part) => part[0])
-                        .join("")}
+                  Ver pacientes
+                </Link>
+              </div>
+              <div className="mt-5 grid gap-4 md:grid-cols-3">
+                {patients.slice(0, 3).map((patient) => (
+                  <article
+                    className="rounded-lg border border-ocean-100 bg-white p-4"
+                    key={patient.id}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-ocean-100 font-bold text-ocean-800">
+                        {patient.name
+                          .split(" ")
+                          .map((part) => part[0])
+                          .join("")}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-ink">{patient.name}</p>
+                        <p className="text-sm text-slate-500">
+                          {patient.condition}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-ink">{patient.name}</p>
-                      <p className="text-sm text-slate-500">
-                        {patient.condition}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="mt-4 rounded-lg bg-ocean-50 px-3 py-2 text-sm font-medium text-ocean-800">
-                    {patient.progress}
-                  </p>
-                </article>
-              ))}
+                    <p className="mt-4 rounded-lg bg-ocean-50 px-3 py-2 text-sm font-medium text-ocean-800">
+                      {patient.progress}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="text-lg font-bold text-ink">Evoluciones</h2>
+                <Link
+                  className="text-sm font-semibold text-ocean-700"
+                  href="/dashboard/evoluciones"
+                >
+                  Ver todas
+                </Link>
+              </div>
+              <div className="mt-5 space-y-3">
+                {evolutions.slice(0, 2).map((evolution) => (
+                  <article
+                    className="rounded-lg border border-ocean-100 p-4"
+                    key={evolution.id}
+                  >
+                    <p className="font-semibold text-ink">{evolution.patient}</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {evolution.diagnosis} · Dolor {evolution.pain}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      {evolution.notes}
+                    </p>
+                  </article>
+                ))}
+              </div>
             </div>
           </section>
         </div>

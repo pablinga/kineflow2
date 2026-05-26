@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarDays,
   Home,
@@ -18,15 +18,16 @@ import { getSupabaseClient } from "@/lib/supabase";
 
 const navigation = [
   { href: "/dashboard", label: "Inicio", icon: Home },
-  { href: "/dashboard", label: "Pacientes", icon: Users },
-  { href: "/dashboard", label: "Turnos", icon: CalendarDays },
-  { href: "/dashboard", label: "Evoluciones", icon: MessageSquareText },
+  { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
+  { href: "/dashboard/turnos", label: "Turnos", icon: CalendarDays },
+  { href: "/dashboard/evoluciones", label: "Evoluciones", icon: MessageSquareText },
   { href: "/dashboard", label: "Ajustes", icon: Settings },
 ];
 
 export function DashboardSidebar() {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const pathname = usePathname();
   const router = useRouter();
 
   async function handleLogout() {
@@ -72,12 +73,17 @@ export function DashboardSidebar() {
           </button>
         </div>
         <nav className="space-y-1">
-          {navigation.map((item, index) => {
+          {navigation.map((item) => {
             const Icon = item.icon;
+            const active =
+              item.href === "/dashboard"
+                ? pathname === item.href
+                : pathname.startsWith(item.href);
+
             return (
               <Link
                 className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition ${
-                  index === 0
+                  active
                     ? "bg-ocean-600 text-white shadow-soft"
                     : "text-slate-600 hover:bg-ocean-50 hover:text-ocean-800"
                 }`}
