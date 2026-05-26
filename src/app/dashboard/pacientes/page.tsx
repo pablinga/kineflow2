@@ -25,7 +25,7 @@ const emptyPatient: NewPatientInput = {
 };
 
 export default function PatientsPage() {
-  const { loading } = useRequireAuth();
+  const { authError, loading, redirecting } = useRequireAuth();
   const { addPatient, disablePatient, error, loaded, patients } = usePatients();
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -54,6 +54,19 @@ export default function PatientsPage() {
         .includes(normalized),
     );
   }, [patients, query]);
+
+  if (authError) {
+    return <DashboardLoading error={authError} />;
+  }
+
+  if (redirecting) {
+    return (
+      <DashboardLoading
+        message="No hay una sesión activa. Te estamos llevando al login."
+        title="Redirigiendo..."
+      />
+    );
+  }
 
   if (loading || !loaded) {
     return <DashboardLoading />;

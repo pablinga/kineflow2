@@ -20,13 +20,26 @@ const emptyEvolution: NewEvolutionInput = {
 };
 
 export default function EvolutionsPage() {
-  const { loading } = useRequireAuth();
+  const { authError, loading, redirecting } = useRequireAuth();
   const { addEvolution, error, evolutions, loaded: evolutionsLoaded } =
     useEvolutions();
   const { activePatients, loaded: patientsLoaded } = usePatients();
   const [evolution, setEvolution] = useState<NewEvolutionInput>(emptyEvolution);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+
+  if (authError) {
+    return <DashboardLoading error={authError} />;
+  }
+
+  if (redirecting) {
+    return (
+      <DashboardLoading
+        message="No hay una sesión activa. Te estamos llevando al login."
+        title="Redirigiendo..."
+      />
+    );
+  }
 
   if (loading || !patientsLoaded || !evolutionsLoaded) {
     return <DashboardLoading />;

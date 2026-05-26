@@ -24,13 +24,26 @@ const emptyAppointment: NewAppointmentInput = {
 
 export default function NewAppointmentPage() {
   const router = useRouter();
-  const { loading } = useRequireAuth();
+  const { authError, loading, redirecting } = useRequireAuth();
   const { addAppointment } = useAppointments();
   const { activePatients, loaded } = usePatients();
   const [appointment, setAppointment] =
     useState<NewAppointmentInput>(emptyAppointment);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  if (authError) {
+    return <DashboardLoading error={authError} />;
+  }
+
+  if (redirecting) {
+    return (
+      <DashboardLoading
+        message="No hay una sesión activa. Te estamos llevando al login."
+        title="Redirigiendo..."
+      />
+    );
+  }
 
   if (loading || !loaded) {
     return <DashboardLoading />;

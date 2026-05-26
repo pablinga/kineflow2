@@ -8,8 +8,21 @@ import { useAppointments } from "@/hooks/useAppointments";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function AppointmentsPage() {
-  const { loading } = useRequireAuth();
+  const { authError, loading, redirecting } = useRequireAuth();
   const { appointments, error, loaded } = useAppointments();
+
+  if (authError) {
+    return <DashboardLoading error={authError} />;
+  }
+
+  if (redirecting) {
+    return (
+      <DashboardLoading
+        message="No hay una sesión activa. Te estamos llevando al login."
+        title="Redirigiendo..."
+      />
+    );
+  }
 
   if (loading || !loaded) {
     return <DashboardLoading />;

@@ -17,7 +17,7 @@ import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function DashboardPage() {
-  const { displayName, loading } = useRequireAuth();
+  const { authError, displayName, loading, redirecting } = useRequireAuth();
   const {
     activePatients,
     loaded: patientsLoaded,
@@ -25,6 +25,19 @@ export default function DashboardPage() {
   } = usePatients();
   const { appointments, loaded: appointmentsLoaded } = useAppointments();
   const { evolutions, loaded: evolutionsLoaded } = useEvolutions();
+
+  if (authError) {
+    return <DashboardLoading error={authError} />;
+  }
+
+  if (redirecting) {
+    return (
+      <DashboardLoading
+        message="No hay una sesión activa. Te estamos llevando al login."
+        title="Redirigiendo..."
+      />
+    );
+  }
 
   if (loading || !patientsLoaded || !appointmentsLoaded || !evolutionsLoaded) {
     return <DashboardLoading />;
