@@ -68,13 +68,12 @@ create index if not exists evolutions_session_date_idx on public.evolutions(sess
 
 create or replace function public.set_updated_at()
 returns trigger
-language plpgsql
-as $$
+as $function$
 begin
   new.updated_at = now();
   return new;
 end;
-$$;
+$function$ language plpgsql;
 
 drop trigger if exists set_profiles_updated_at on public.profiles;
 create trigger set_profiles_updated_at
@@ -98,15 +97,12 @@ for each row execute function public.set_updated_at();
 
 create or replace function public.handle_new_user()
 returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
+as $function$
 begin
   insert into public.profiles (id, full_name, license_number, role)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'full_name', 'Kinesiólogo'),
+    coalesce(new.raw_user_meta_data->>'full_name', 'Kinesiologo'),
     new.raw_user_meta_data->>'license_number',
     coalesce(new.raw_user_meta_data->>'role', 'kinesiologist')
   )
@@ -119,7 +115,7 @@ begin
 
   return new;
 end;
-$$;
+$function$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
