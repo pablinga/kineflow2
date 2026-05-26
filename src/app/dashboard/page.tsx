@@ -270,32 +270,16 @@ export default function DashboardPage() {
                   Ver todas
                 </Link>
               </div>
-              <div className="mt-5 space-y-3">
-                {evolutions.slice(0, 2).map((evolution) => (
-                  <article
-                    className="rounded-lg border border-ocean-100 p-4"
-                    key={evolution.id}
-                  >
-                    <p className="font-semibold text-ink">{evolution.patient}</p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Dolor {evolution.pain}
-                    </p>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                      {evolution.notes}
-                    </p>
-                  </article>
-                ))}
+              <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
+                <p className="font-semibold text-ink">
+                  {evolutions.length === 0
+                    ? "Sin evoluciones registradas."
+                    : `${evolutions.length} evoluciones registradas.`}
+                </p>
+                <p className="mt-2 text-sm text-slate-600">
+                  Consultalas dentro del historial de cada paciente.
+                </p>
               </div>
-              {evolutions.length === 0 ? (
-                <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
-                  <p className="font-semibold text-ink">
-                    Sin evoluciones registradas.
-                  </p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Se van a mostrar cuando empieces a registrar sesiones.
-                  </p>
-                </div>
-              ) : null}
             </div>
           </section>
         </div>

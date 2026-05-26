@@ -5,6 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 
 export type Appointment = {
   id: string;
+  patientId: string;
   date: string;
   time: string;
   patient: string;
@@ -26,6 +27,7 @@ export type NewAppointmentInput = {
 
 type AppointmentRow = {
   id: string;
+  patient_id: string;
   scheduled_at: string;
   duration_minutes: number;
   modality: "presencial" | "virtual";
@@ -47,6 +49,7 @@ function mapAppointment(row: AppointmentRow): Appointment {
 
   return {
     id: row.id,
+    patientId: row.patient_id,
     date: date.toLocaleDateString("es-AR"),
     time: date.toLocaleTimeString("es-AR", {
       hour: "2-digit",
@@ -60,7 +63,7 @@ function mapAppointment(row: AppointmentRow): Appointment {
   };
 }
 
-export function useAppointments() {
+export function useAppointments(patientId?: string) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -71,12 +74,18 @@ export function useAppointments() {
 
     try {
       const supabase = getSupabaseClient();
-      const { data, error: queryError } = await supabase
+      let query = supabase
         .from("appointments")
         .select(
-          "id, scheduled_at, duration_minutes, modality, reason, status, patients(full_name)",
+          "id, patient_id, scheduled_at, duration_minutes, modality, reason, status, patients(full_name)",
         )
         .order("scheduled_at", { ascending: true });
+
+      if (patientId) {
+        query = query.eq("patient_id", patientId);
+      }
+
+      const { data, error: queryError } = await query;
 
       if (queryError) {
         setError(queryError.message);
@@ -93,7 +102,7 @@ export function useAppointments() {
     } finally {
       setLoaded(true);
     }
-  }, []);
+  }, [patientId]);
 
   useEffect(() => {
     loadAppointments();

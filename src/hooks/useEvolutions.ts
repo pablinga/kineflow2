@@ -5,6 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 
 export type Evolution = {
   id: string;
+  patientId: string;
   patient: string;
   date: string;
   pain: string;
@@ -23,6 +24,7 @@ export type NewEvolutionInput = {
 
 type EvolutionRow = {
   id: string;
+  patient_id: string;
   session_date: string;
   pain_level: number | null;
   mobility_notes: string | null;
@@ -35,6 +37,7 @@ function mapEvolution(row: EvolutionRow): Evolution {
 
   return {
     id: row.id,
+    patientId: row.patient_id,
     patient: patient?.full_name ?? "Paciente",
     date: new Date(`${row.session_date}T00:00:00`).toLocaleDateString("es-AR"),
     pain: row.pain_level === null ? "Sin dato" : `${row.pain_level}/10`,
@@ -43,7 +46,7 @@ function mapEvolution(row: EvolutionRow): Evolution {
   };
 }
 
-export function useEvolutions() {
+export function useEvolutions(patientId?: string) {
   const [evolutions, setEvolutions] = useState<Evolution[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -54,12 +57,18 @@ export function useEvolutions() {
 
     try {
       const supabase = getSupabaseClient();
-      const { data, error: queryError } = await supabase
+      let query = supabase
         .from("evolutions")
         .select(
-          "id, session_date, pain_level, mobility_notes, clinical_notes, patients(full_name)",
+          "id, patient_id, session_date, pain_level, mobility_notes, clinical_notes, patients(full_name)",
         )
         .order("session_date", { ascending: false });
+
+      if (patientId) {
+        query = query.eq("patient_id", patientId);
+      }
+
+      const { data, error: queryError } = await query;
 
       if (queryError) {
         setError(queryError.message);
@@ -76,7 +85,7 @@ export function useEvolutions() {
     } finally {
       setLoaded(true);
     }
-  }, []);
+  }, [patientId]);
 
   useEffect(() => {
     loadEvolutions();

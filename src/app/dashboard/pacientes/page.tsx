@@ -296,6 +296,12 @@ export default function PatientsPage() {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Link
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white transition hover:bg-ocean-700"
+                          href={`/dashboard/pacientes/${patient.id}`}
+                        >
+                          Ver historial
+                        </Link>
+                        <Link
                           className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
                           href="/dashboard/turnos/nuevo"
                         >
