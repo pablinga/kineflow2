@@ -6,6 +6,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 export type Appointment = {
   id: string;
   patientId: string;
+  scheduledAt: string;
   date: string;
   time: string;
   patient: string;
@@ -14,6 +15,13 @@ export type Appointment = {
   modality: string;
   duration: string;
 };
+
+export type AppointmentStatus =
+  | "pending"
+  | "attended"
+  | "cancelled"
+  | "no_show"
+  | "rescheduled";
 
 export type NewAppointmentInput = {
   patientId: string;
@@ -32,15 +40,18 @@ type AppointmentRow = {
   duration_minutes: number;
   modality: "presencial" | "virtual";
   reason: string;
-  status: "pending" | "confirmed" | "cancelled" | "completed";
+  status: AppointmentStatus | "confirmed" | "completed";
   patients: { full_name: string } | Array<{ full_name: string }> | null;
 };
 
 const statusLabels: Record<AppointmentRow["status"], string> = {
   pending: "Pendiente",
-  confirmed: "Confirmado",
+  attended: "Asistió",
   cancelled: "Cancelado",
-  completed: "Completado",
+  no_show: "No asistió",
+  rescheduled: "Reprogramado",
+  confirmed: "Pendiente",
+  completed: "Asistió",
 };
 
 function mapAppointment(row: AppointmentRow): Appointment {
@@ -50,6 +61,7 @@ function mapAppointment(row: AppointmentRow): Appointment {
   return {
     id: row.id,
     patientId: row.patient_id,
+    scheduledAt: row.scheduled_at,
     date: date.toLocaleDateString("es-AR"),
     time: date.toLocaleTimeString("es-AR", {
       hour: "2-digit",
@@ -136,11 +148,29 @@ export function useAppointments(patientId?: string) {
     await loadAppointments();
   }
 
+  async function updateAppointmentStatus(
+    id: string,
+    status: AppointmentStatus,
+  ) {
+    const supabase = getSupabaseClient();
+    const { error: updateError } = await supabase
+      .from("appointments")
+      .update({ status })
+      .eq("id", id);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
+    await loadAppointments();
+  }
+
   return {
     addAppointment,
     appointments,
     error,
     loaded,
     refreshAppointments: loadAppointments,
+    updateAppointmentStatus,
   };
 }
