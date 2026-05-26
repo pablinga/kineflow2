@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Clock,
   MoreHorizontal,
   RotateCcw,
   XCircle,
@@ -28,12 +27,6 @@ import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const dayFormatter = new Intl.DateTimeFormat("es-AR", {
   weekday: "short",
-  day: "2-digit",
-  month: "2-digit",
-});
-
-const fullDayFormatter = new Intl.DateTimeFormat("es-AR", {
-  weekday: "long",
   day: "2-digit",
   month: "2-digit",
 });
@@ -76,6 +69,24 @@ function weekLabel(weekStart: Date) {
   )}`;
 }
 
+function compactDayLabel(date: Date) {
+  const today = new Date();
+
+  if (sameDay(date, today)) {
+    return "Hoy";
+  }
+
+  if (sameDay(date, addDays(today, -1))) {
+    return "Ayer";
+  }
+
+  if (sameDay(date, addDays(today, 1))) {
+    return "Mañana";
+  }
+
+  return date.toLocaleDateString("es-AR", { weekday: "short" });
+}
+
 function actionToneClass(tone: PendingAction["tone"]) {
   if (tone === "green") {
     return "bg-emerald-600 hover:bg-emerald-700";
@@ -106,11 +117,7 @@ export default function AppointmentsPage() {
   const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
-  const [selectedDayIndex, setSelectedDayIndex] = useState(() => {
-    const today = new Date();
-    const day = today.getDay() || 7;
-    return day - 1;
-  });
+  const [mobileCenterDate, setMobileCenterDate] = useState(() => new Date());
 
   const weekDays = useMemo(
     () =>
@@ -143,7 +150,28 @@ export default function AppointmentsPage() {
         new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
     )
     .slice(0, 12);
-  const selectedDay = weekDays[selectedDayIndex] ?? weekDays[0];
+  const mobileDays = useMemo(
+    () =>
+      [-1, 0, 1].map((offset) => {
+        const date = addDays(mobileCenterDate, offset);
+        const appointmentsForDay = appointments
+          .filter((appointment) =>
+            sameDay(new Date(appointment.scheduledAt), date),
+          )
+          .sort(
+            (a, b) =>
+              new Date(a.scheduledAt).getTime() -
+              new Date(b.scheduledAt).getTime(),
+          );
+
+        return {
+          appointments: appointmentsForDay,
+          date,
+          isToday: sameDay(date, new Date()),
+        };
+      }),
+    [appointments, mobileCenterDate],
+  );
 
   function askForStatusChange(
     appointment: Appointment,
@@ -327,15 +355,15 @@ export default function AppointmentsPage() {
 
     return (
       <article
-        className="rounded-lg border border-ocean-100 bg-white p-3 shadow-sm"
+        className="rounded-lg border border-ocean-100 bg-white p-2 shadow-sm"
         key={appointment.id}
       >
         <div>
-          <p className="whitespace-nowrap text-base font-bold leading-none text-ocean-800">
+          <p className="whitespace-nowrap text-sm font-bold leading-none text-ocean-800">
             {appointment.time}
           </p>
           <span
-            className={`mt-2 inline-flex w-fit rounded-full px-2.5 py-1 text-[0.68rem] font-semibold leading-none ${
+            className={`mt-1 inline-flex w-fit rounded-full px-1.5 py-0.5 text-[0.62rem] font-semibold leading-none ${
               appointmentStatusStyles[status] ?? "bg-slate-100 text-slate-700"
             }`}
           >
@@ -343,9 +371,9 @@ export default function AppointmentsPage() {
           </span>
         </div>
 
-        <div className="mt-3 min-w-0">
+        <div className="mt-2 min-w-0">
           <Link
-            className="group relative block max-w-full text-[0.82rem] font-semibold leading-4 text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline focus:outline-none focus:ring-2 focus:ring-ocean-200"
+            className="group relative block max-w-full text-[0.72rem] font-semibold leading-4 text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline focus:outline-none focus:ring-2 focus:ring-ocean-200"
             href={`/dashboard/pacientes/${appointment.patientId}`}
             title={`Ver detalle de ${appointment.patient}`}
           >
@@ -356,34 +384,27 @@ export default function AppointmentsPage() {
               Ver detalle de {appointment.patient}
             </span>
           </Link>
-          <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
-            {appointment.reason}
-          </p>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-          <span className="inline-flex items-center gap-1 whitespace-nowrap">
-            <Clock className="h-3.5 w-3.5 text-ocean-600" />
-            {appointment.duration}
-          </span>
-          <span className="rounded-full bg-ocean-50 px-2 py-1 font-semibold text-ocean-800">
+        <div className="mt-2 flex flex-wrap items-center gap-1 text-[0.68rem] text-slate-500">
+          <span className="rounded-full bg-ocean-50 px-1.5 py-0.5 font-semibold text-ocean-800">
             {appointment.modality}
           </span>
         </div>
 
-        <div className="mt-3">
+        <div className="mt-2">
           <button
-            className="flex min-h-9 w-full items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-xs font-semibold text-ocean-800 transition hover:bg-ocean-50 xl:hidden"
+            className="flex min-h-8 w-full items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-[0.7rem] font-semibold text-ocean-800 transition hover:bg-ocean-50 xl:hidden"
             onClick={() => setActionsAppointment(appointment)}
             type="button"
           >
-            <MoreHorizontal className="h-4 w-4" />
+            <MoreHorizontal className="h-3.5 w-3.5" />
             Acciones
           </button>
 
           <details className="relative hidden xl:block">
-            <summary className="flex min-h-9 cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-xs font-semibold text-ocean-800 transition hover:bg-ocean-50">
-              <MoreHorizontal className="h-4 w-4" />
+            <summary className="flex min-h-8 cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-ocean-200 px-2 text-[0.7rem] font-semibold text-ocean-800 transition hover:bg-ocean-50">
+              <MoreHorizontal className="h-3.5 w-3.5" />
               Acciones
             </summary>
             <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
@@ -473,56 +494,75 @@ export default function AppointmentsPage() {
           ) : null}
 
           <section className="mt-6 xl:hidden">
-            <div className="grid grid-cols-7 gap-2 rounded-lg border border-ocean-100 bg-white p-2 shadow-sm">
-              {weekDays.map((day, index) => (
-                <button
-                  className={`min-h-14 rounded-lg px-1 text-center transition ${
-                    selectedDayIndex === index
-                      ? "bg-ocean-600 text-white"
-                      : "bg-ocean-50 text-ocean-900 hover:bg-ocean-100"
-                  }`}
-                  key={day.date.toISOString()}
-                  onClick={() => setSelectedDayIndex(index)}
-                  type="button"
-                >
-                  <span className="block text-[0.68rem] font-bold capitalize leading-4">
-                    {day.date.toLocaleDateString("es-AR", { weekday: "short" })}
-                  </span>
-                  <span className="mt-1 block text-sm font-bold">
-                    {day.date.getDate()}
-                  </span>
-                  {day.isToday ? (
-                    <span
-                      className={`mx-auto mt-1 block h-1.5 w-1.5 rounded-full ${
-                        selectedDayIndex === index ? "bg-white" : "bg-ocean-600"
-                      }`}
-                    />
-                  ) : null}
-                </button>
-              ))}
+            <div className="mb-3 grid grid-cols-3 gap-2">
+              <button
+                className="min-h-9 rounded-lg border border-ocean-100 bg-white text-xs font-semibold text-ocean-800 shadow-sm"
+                onClick={() => setMobileCenterDate((date) => addDays(date, -1))}
+                type="button"
+              >
+                Anterior
+              </button>
+              <button
+                className="min-h-9 rounded-lg border border-ocean-100 bg-white text-xs font-semibold text-ocean-800 shadow-sm"
+                onClick={() => setMobileCenterDate(new Date())}
+                type="button"
+              >
+                Hoy
+              </button>
+              <button
+                className="min-h-9 rounded-lg border border-ocean-100 bg-white text-xs font-semibold text-ocean-800 shadow-sm"
+                onClick={() => setMobileCenterDate((date) => addDays(date, 1))}
+                type="button"
+              >
+                Siguiente
+              </button>
             </div>
 
-            <div className="mt-5 rounded-lg border border-ocean-100 bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-bold capitalize text-ink">
-                  {fullDayFormatter.format(selectedDay.date)}
-                </h2>
-                {selectedDay.isToday ? (
-                  <span className="rounded-full bg-ocean-50 px-3 py-1 text-xs font-semibold text-ocean-800">
-                    Hoy
-                  </span>
-                ) : null}
-              </div>
-              <div className="mt-4 space-y-3">
-                {selectedDay.appointments.map(renderAppointment)}
-                {selectedDay.appointments.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
-                    <p className="text-sm font-semibold text-slate-600">
-                      No hay turnos para este día.
+            <div className="grid grid-cols-3 gap-2">
+              {mobileDays.map((day) => (
+                <div
+                  className={`min-w-0 rounded-lg border bg-white p-2 shadow-sm ${
+                    day.isToday
+                      ? "border-ocean-300 ring-2 ring-ocean-100"
+                      : "border-ocean-100"
+                  }`}
+                  key={day.date.toISOString()}
+                >
+                  <div
+                    className={`mb-2 rounded-lg px-2 py-2 text-center ${
+                      day.isToday ? "bg-ocean-600 text-white" : "bg-ocean-50"
+                    }`}
+                  >
+                    <p
+                      className={`text-[0.7rem] font-bold capitalize leading-4 ${
+                        day.isToday ? "text-white" : "text-ocean-900"
+                      }`}
+                    >
+                      {compactDayLabel(day.date)}
+                    </p>
+                    <p
+                      className={`mt-0.5 text-[0.68rem] font-semibold ${
+                        day.isToday ? "text-white/90" : "text-slate-500"
+                      }`}
+                    >
+                      {day.date.toLocaleDateString("es-AR", {
+                        weekday: "short",
+                        day: "2-digit",
+                      })}
                     </p>
                   </div>
-                ) : null}
-              </div>
+                  <div className="space-y-2">
+                    {day.appointments.map(renderAppointment)}
+                    {day.appointments.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-ocean-100 bg-ocean-50 p-2 text-center">
+                        <p className="text-[0.68rem] font-medium text-slate-500">
+                          Sin turnos
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
 
