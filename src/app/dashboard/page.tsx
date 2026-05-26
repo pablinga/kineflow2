@@ -11,22 +11,28 @@ import {
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
-import { appointments, evolutions, patients } from "@/lib/mock-data";
+import { appointments, evolutions } from "@/lib/mock-data";
+import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-
-const summaryCards = [
-  { label: "Pacientes activos", value: "42", detail: "+6 este mes" },
-  { label: "Sesiones esta semana", value: "28", detail: "82% completadas" },
-  { label: "Turnos pendientes", value: "12", detail: "4 para confirmar" },
-  { label: "Altas recientes", value: "5", detail: "últimos 30 días" },
-];
 
 export default function DashboardPage() {
   const { displayName, loading } = useRequireAuth();
+  const { activePatients, loaded, patients } = usePatients();
 
-  if (loading) {
+  if (loading || !loaded) {
     return <DashboardLoading />;
   }
+
+  const summaryCards = [
+    {
+      label: "Pacientes activos",
+      value: String(activePatients.length),
+      detail: patients.length === 0 ? "Sin pacientes cargados" : "En seguimiento",
+    },
+    { label: "Sesiones esta semana", value: "0", detail: "Sin sesiones cargadas" },
+    { label: "Turnos pendientes", value: "0", detail: "Sin turnos pendientes" },
+    { label: "Altas recientes", value: "0", detail: "Últimos 30 días" },
+  ];
 
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
@@ -40,7 +46,8 @@ export default function DashboardPage() {
                 Bienvenida, {displayName}
               </h1>
               <p className="mt-2 text-slate-600">
-                Tenés 8 sesiones programadas para hoy y 4 evoluciones por revisar.
+                Tu espacio ya está listo para cargar pacientes, turnos y
+                evoluciones desde cero.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -159,6 +166,14 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
+              {appointments.length === 0 ? (
+                <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
+                  <p className="font-semibold text-ink">Sin turnos cargados.</p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Los próximos turnos aparecerán cuando programes sesiones.
+                  </p>
+                </div>
+              ) : null}
             </div>
           </section>
 
@@ -199,6 +214,16 @@ export default function DashboardPage() {
                   </article>
                 ))}
               </div>
+              {patients.length === 0 ? (
+                <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
+                  <p className="font-semibold text-ink">
+                    Todavía no hay pacientes cargados.
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Creá el primero para iniciar el seguimiento clínico.
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
@@ -227,6 +252,16 @@ export default function DashboardPage() {
                   </article>
                 ))}
               </div>
+              {evolutions.length === 0 ? (
+                <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
+                  <p className="font-semibold text-ink">
+                    Sin evoluciones registradas.
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Se van a mostrar cuando empieces a registrar sesiones.
+                  </p>
+                </div>
+              ) : null}
             </div>
           </section>
         </div>

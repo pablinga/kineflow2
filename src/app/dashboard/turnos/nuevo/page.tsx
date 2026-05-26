@@ -5,14 +5,15 @@ import Link from "next/link";
 import { ArrowLeft, CalendarCheck, Save } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
-import { patients } from "@/lib/mock-data";
+import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function NewAppointmentPage() {
   const { loading } = useRequireAuth();
+  const { activePatients, loaded } = usePatients();
   const [saved, setSaved] = useState(false);
 
-  if (loading) {
+  if (loading || !loaded) {
     return <DashboardLoading />;
   }
 
@@ -58,12 +59,17 @@ export default function NewAppointmentPage() {
                   required
                 >
                   <option value="">Seleccionar paciente</option>
-                  {patients.map((patient) => (
+                  {activePatients.map((patient) => (
                     <option key={patient.id} value={patient.id}>
                       {patient.name}
                     </option>
                   ))}
                 </select>
+                {activePatients.length === 0 ? (
+                  <p className="mt-2 text-sm text-amber-700">
+                    Primero cargá un paciente activo para asignarle un turno.
+                  </p>
+                ) : null}
               </label>
               <label className="block">
                 <span className="text-sm font-semibold text-slate-700">
@@ -142,8 +148,9 @@ export default function NewAppointmentPage() {
                 Cancelar
               </Link>
               <button
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 disabled:cursor-not-allowed disabled:opacity-60"
                 type="submit"
+                disabled={activePatients.length === 0}
               >
                 <Save className="h-4 w-4" />
                 Guardar turno

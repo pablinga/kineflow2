@@ -79,6 +79,14 @@ export default function AppointmentsPage() {
                 </article>
               ))}
             </div>
+            {appointments.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-8 text-center">
+                <p className="font-semibold text-ink">Sin turnos cargados.</p>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+                  Creá pacientes y luego programá sus sesiones desde Nuevo turno.
+                </p>
+              </div>
+            ) : null}
           </section>
         </div>
       </section>

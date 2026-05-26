@@ -4,14 +4,16 @@ import { useState } from "react";
 import { Activity, ClipboardPlus, Save } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
-import { evolutions, patients } from "@/lib/mock-data";
+import { usePatients } from "@/hooks/usePatients";
+import { evolutions } from "@/lib/mock-data";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function EvolutionsPage() {
   const { loading } = useRequireAuth();
+  const { activePatients, loaded } = usePatients();
   const [saved, setSaved] = useState(false);
 
-  if (loading) {
+  if (loading || !loaded) {
     return <DashboardLoading />;
   }
 
@@ -60,12 +62,17 @@ export default function EvolutionsPage() {
                     required
                   >
                     <option value="">Seleccionar paciente</option>
-                    {patients.map((patient) => (
+                    {activePatients.map((patient) => (
                       <option key={patient.id} value={patient.id}>
                         {patient.name}
                       </option>
                     ))}
                   </select>
+                  {activePatients.length === 0 ? (
+                    <p className="mt-2 text-sm text-amber-700">
+                      Primero cargá un paciente activo para registrar una evolución.
+                    </p>
+                  ) : null}
                 </label>
                 <label className="block">
                   <span className="text-sm font-semibold text-slate-700">Fecha</span>
@@ -118,7 +125,8 @@ export default function EvolutionsPage() {
               ) : null}
 
               <button
-                className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+                className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={activePatients.length === 0}
                 type="submit"
               >
                 <Save className="h-4 w-4" />
@@ -155,6 +163,16 @@ export default function EvolutionsPage() {
                   </article>
                 ))}
               </div>
+              {evolutions.length === 0 ? (
+                <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-8 text-center">
+                  <p className="font-semibold text-ink">
+                    Sin evoluciones registradas.
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Cuando guardemos evoluciones reales, aparecerán en este historial.
+                  </p>
+                </div>
+              ) : null}
             </div>
           </section>
         </div>
