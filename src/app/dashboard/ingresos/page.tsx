@@ -18,6 +18,7 @@ import {
   getAppointmentDisplayStatus,
 } from "@/lib/appointment-ui";
 import { formatCurrency, paymentStatusStyles } from "@/lib/payment-ui";
+import { formatSessionAmount } from "@/lib/format";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function IncomePage() {
@@ -271,7 +272,7 @@ export default function IncomePage() {
                           {appointment.paymentMethodLabel}
                         </td>
                         <td className="px-5 py-4 text-right font-bold text-ink">
-                          {formatCurrency(appointment.amount)}
+                          {formatSessionAmount(appointment.amount)}
                         </td>
                       </tr>
                     );
@@ -331,7 +332,7 @@ export default function IncomePage() {
                         {appointment.paymentMethodLabel}
                       </span>
                       <span className="font-bold text-ink">
-                        {formatCurrency(appointment.amount)}
+                        {formatSessionAmount(appointment.amount)}
                       </span>
                     </div>
                   </article>

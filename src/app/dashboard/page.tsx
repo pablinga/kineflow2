@@ -6,7 +6,6 @@ import {
   CalendarPlus,
   ClipboardPlus,
   CreditCard,
-  FileText,
   Search,
   UsersRound,
   WalletCards,
@@ -28,6 +27,7 @@ import {
   isAttendedPendingPayment,
   paymentStatusStyles,
 } from "@/lib/payment-ui";
+import { formatSessionAmount } from "@/lib/format";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
@@ -112,6 +112,16 @@ export default function DashboardPage() {
   const paidAppointments = appointments.filter(
     (appointment) => appointment.paymentStatus === "paid",
   );
+  const todayIncome = paidAppointments
+    .filter((appointment) => {
+      const paymentDate = getPaymentDate(appointment);
+      return (
+        paymentDate.getFullYear() === today.getFullYear() &&
+        paymentDate.getMonth() === today.getMonth() &&
+        paymentDate.getDate() === today.getDate()
+      );
+    })
+    .reduce((total, appointment) => total + appointment.amount, 0);
   const weekIncome = paidAppointments
     .filter((appointment) => {
       const paymentDate = getPaymentDate(appointment).getTime();
@@ -148,9 +158,9 @@ export default function DashboardPage() {
       detail: patients.length === 0 ? "Sin pacientes cargados" : "En seguimiento",
     },
     {
-      label: "Cobrado esta semana",
-      value: formatCurrency(weekIncome),
-      detail: "Cobros registrados",
+      label: "Cobrado hoy",
+      value: formatCurrency(todayIncome),
+      detail: todayIncome === 0 ? "Sin cobros hoy" : "Cobros del dia",
     },
     {
       label: "Pendiente de cobro",
@@ -193,10 +203,10 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm font-semibold text-ocean-700">Dashboard</p>
               <h1 className="mt-1 text-3xl font-bold text-ink">
-                Bienvenida, {displayName}
+                Hola, {displayName}
               </h1>
               <p className="mt-2 text-slate-600">
-                Resumen operativo de pacientes, agenda y seguimiento clínico.
+                Pacientes, turnos, evoluciones y cobros en un solo lugar.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -396,7 +406,8 @@ export default function DashboardPage() {
                       </p>
                       <p className="mt-1 text-sm text-slate-700">
                         {appointment.patient} · {appointment.date}{" "}
-                        {appointment.time} · {formatCurrency(appointment.amount)}
+                        {appointment.time} ·{" "}
+                        {formatSessionAmount(appointment.amount)}
                       </p>
                     </Link>
                   ))}
@@ -427,11 +438,6 @@ export default function DashboardPage() {
                       label: "Registrar evolución",
                       href: "/dashboard/pacientes",
                       icon: ClipboardPlus,
-                    },
-                    {
-                      label: "Crear informe",
-                      href: "/dashboard/pacientes",
-                      icon: FileText,
                     },
                     {
                       label: "Ver ingresos",

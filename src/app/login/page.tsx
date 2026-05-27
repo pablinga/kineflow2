@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function LoginPage() {
   async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setMessage("");
     setLoading(true);
 
     try {
@@ -118,13 +120,26 @@ export default function LoginPage() {
                 <input className="h-4 w-4 accent-ocean-600" type="checkbox" />
                 Recordarme
               </label>
-              <a className="font-semibold text-ocean-700" href="#">
+              <button
+                className="font-semibold text-ocean-700"
+                onClick={() =>
+                  setMessage(
+                    "Estamos preparando la recuperacion online. Por ahora escribinos para restablecer el acceso.",
+                  )
+                }
+                type="button"
+              >
                 Recuperar acceso
-              </a>
+              </button>
             </div>
             {error ? (
               <p className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                 {error}
+              </p>
+            ) : null}
+            {message ? (
+              <p className="rounded-lg border border-ocean-100 bg-ocean-50 px-4 py-3 text-sm font-medium text-ocean-800">
+                {message}
               </p>
             ) : null}
             <Button className="w-full" disabled={loading} type="submit">

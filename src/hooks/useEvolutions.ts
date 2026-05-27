@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
+import { formatDate } from "@/lib/format";
 
 export type Evolution = {
   id: string;
@@ -43,7 +44,7 @@ function mapEvolution(row: EvolutionRow): Evolution {
     patientId: row.patient_id,
     appointmentId: row.appointment_id,
     patient: patient?.full_name ?? "Paciente",
-    date: new Date(`${row.session_date}T00:00:00`).toLocaleDateString("es-AR"),
+    date: formatDate(row.session_date),
     pain: row.pain_level === null ? "Sin dato" : `${row.pain_level}/10`,
     mobility: row.mobility_notes ?? "Sin nota de movilidad",
     notes: row.clinical_notes,

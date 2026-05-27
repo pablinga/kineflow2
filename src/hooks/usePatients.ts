@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
+import { formatDate, formatDateTime } from "@/lib/format";
 
 export type PatientStatus = "Activo" | "Inactivo";
 
@@ -55,18 +56,6 @@ type PatientEvolutionRow = {
   clinical_notes: string | null;
 };
 
-function formatDateTime(value: string) {
-  const date = new Date(value);
-
-  return `${date.toLocaleDateString("es-AR")} ${date.toLocaleTimeString(
-    "es-AR",
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-    },
-  )}`;
-}
-
 function mapPatient(
   row: PatientRow,
   appointments: PatientAppointmentRow[],
@@ -99,23 +88,24 @@ function mapPatient(
         new Date(right.session_date).getTime() -
         new Date(left.session_date).getTime(),
     )[0];
+  const lastSession = lastAttendedAppointment
+    ? formatDateTime(lastAttendedAppointment.scheduled_at)
+    : lastEvolution
+      ? formatDate(lastEvolution.session_date)
+      : "Sin sesiones";
 
   return {
     id: row.id,
     name: row.full_name,
     document: row.document_number,
-    phone: row.phone ?? "Sin teléfono",
+    phone: row.phone ?? "Sin telefono",
     email: row.email ?? "Sin email",
     condition: row.initial_condition,
     status: row.status === "active" ? "Activo" : "Inactivo",
     progress: lastEvolution
-      ? new Date(`${lastEvolution.session_date}T00:00:00`).toLocaleDateString(
-          "es-AR",
-        )
-      : "Sin evolución registrada",
-    lastSession: lastAttendedAppointment
-      ? formatDateTime(lastAttendedAppointment.scheduled_at)
-      : "Sin sesiones",
+      ? formatDate(lastEvolution.session_date)
+      : "Sin evolucion registrada",
+    lastSession,
     nextAppointment: nextAppointment
       ? formatDateTime(nextAppointment.scheduled_at)
       : "Sin turno",

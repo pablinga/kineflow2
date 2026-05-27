@@ -1,4 +1,5 @@
 import type { Appointment } from "@/hooks/useAppointments";
+import { formatCurrency } from "@/lib/format";
 
 export const paymentStatusStyles: Record<string, string> = {
   Pendiente: "bg-amber-50 text-amber-700",
@@ -7,13 +8,7 @@ export const paymentStatusStyles: Record<string, string> = {
   "No corresponde": "bg-slate-100 text-slate-700",
 };
 
-export function formatCurrency(value: number) {
-  return new Intl.NumberFormat("es-AR", {
-    currency: "ARS",
-    maximumFractionDigits: 0,
-    style: "currency",
-  }).format(value || 0);
-}
+export { formatCurrency };
 
 export function getPaymentDate(appointment: Appointment) {
   return appointment.paidAt
@@ -22,5 +17,9 @@ export function getPaymentDate(appointment: Appointment) {
 }
 
 export function isAttendedPendingPayment(appointment: Appointment) {
-  return appointment.status === "Asistió" && appointment.paymentStatus === "pending";
+  return (
+    appointment.status === "Asistió" &&
+    appointment.paymentStatus === "pending" &&
+    appointment.amount > 0
+  );
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   Activity,
   ArrowLeft,
@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
-import { useAppointments } from "@/hooks/useAppointments";
+import { type Appointment, useAppointments } from "@/hooks/useAppointments";
 import { useEvolutions, type NewEvolutionInput } from "@/hooks/useEvolutions";
 import { usePatients } from "@/hooks/usePatients";
 import {
@@ -22,6 +22,7 @@ import {
   getAppointmentDisplayStatus,
 } from "@/lib/appointment-ui";
 import { formatCurrency, paymentStatusStyles } from "@/lib/payment-ui";
+import { formatSessionAmount } from "@/lib/format";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const today = new Date().toISOString().slice(0, 10);
@@ -40,10 +41,16 @@ function createEmptyEvolution(patientId: string): NewEvolutionInput {
 
 export default function PatientDetailPage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const patientId = params.id;
   const { authError, displayName, loading, redirecting } = useRequireAuth();
-  const { appointments, error: appointmentsError, loaded: appointmentsLoaded } =
-    useAppointments(patientId);
+  const {
+    appointments,
+    error: appointmentsError,
+    loaded: appointmentsLoaded,
+    rescheduleAppointment,
+    updateAppointmentStatus,
+  } = useAppointments(patientId);
   const {
     addEvolution,
     error: evolutionsError,
@@ -56,6 +63,11 @@ export default function PatientDetailPage() {
   );
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [updatingId, setUpdatingId] = useState("");
+  const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
+  const [canceling, setCanceling] = useState<Appointment | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
 
   const patient = useMemo(
     () => patients.find((item) => item.id === patientId),
@@ -82,6 +94,24 @@ export default function PatientDetailPage() {
       .filter((item) => item.appointmentId)
       .map((item) => [item.appointmentId, item]),
   );
+
+  useEffect(() => {
+    const appointmentId = searchParams.get("appointment");
+
+    if (!appointmentId || appointments.length === 0) {
+      return;
+    }
+
+    const appointment = appointments.find((item) => item.id === appointmentId);
+
+    if (appointment) {
+      setEvolution((current) => ({
+        ...current,
+        appointmentId: appointment.id,
+        sessionDate: appointment.scheduledAt.slice(0, 10),
+      }));
+    }
+  }, [appointments, searchParams]);
 
   if (authError) {
     return <DashboardLoading error={authError} />;
@@ -123,6 +153,96 @@ export default function PatientDetailPage() {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleMarkAttended(appointmentId: string) {
+    setActionError("");
+
+    try {
+      await updateAppointmentStatus(appointmentId, "attended");
+      setEvolution((current) => ({ ...current, appointmentId }));
+    } catch (statusError) {
+      setActionError(
+        statusError instanceof Error
+          ? statusError.message
+          : "No pudimos marcar el turno como asistido.",
+      );
+    }
+  }
+
+  function prepareEvolutionForAppointment(appointmentId: string) {
+    const appointment = appointments.find((item) => item.id === appointmentId);
+
+    setEvolution((current) => ({
+      ...current,
+      appointmentId,
+      sessionDate: appointment?.scheduledAt.slice(0, 10) ?? current.sessionDate,
+    }));
+  }
+
+  function openReschedule(appointment: Appointment) {
+    const scheduledAt = new Date(appointment.scheduledAt);
+
+    setActionError("");
+    setRescheduling(appointment);
+    setRescheduleDate(appointment.scheduledAt.slice(0, 10));
+    setRescheduleTime(
+      scheduledAt.toLocaleTimeString("es-AR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }),
+    );
+  }
+
+  async function handleRescheduleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!rescheduling) {
+      return;
+    }
+
+    setActionError("");
+    setUpdatingId(rescheduling.id);
+
+    try {
+      await rescheduleAppointment(
+        rescheduling.id,
+        rescheduleDate,
+        rescheduleTime,
+      );
+      setRescheduling(null);
+    } catch (rescheduleError) {
+      setActionError(
+        rescheduleError instanceof Error
+          ? rescheduleError.message
+          : "No pudimos reprogramar el turno.",
+      );
+    } finally {
+      setUpdatingId("");
+    }
+  }
+
+  async function handleCancelAppointment() {
+    if (!canceling) {
+      return;
+    }
+
+    setActionError("");
+    setUpdatingId(canceling.id);
+
+    try {
+      await updateAppointmentStatus(canceling.id, "cancelled");
+      setCanceling(null);
+    } catch (cancelError) {
+      setActionError(
+        cancelError instanceof Error
+          ? cancelError.message
+          : "No pudimos cancelar el turno.",
+      );
+    } finally {
+      setUpdatingId("");
     }
   }
 
@@ -220,8 +340,8 @@ export default function PatientDetailPage() {
                       </select>
                       {attendedAppointments.length === 0 ? (
                         <p className="mt-2 text-sm text-slate-500">
-                          Para asociarla a una sesión, marcá antes un turno como
-                          asistido.
+                          Para asociar esta evolucion a una sesion, primero
+                          marca un turno como asistido o crea una nueva sesion.
                         </p>
                       ) : null}
                     </label>
@@ -411,7 +531,7 @@ export default function PatientDetailPage() {
                             <p>
                               Monto:{" "}
                               <span className="font-semibold text-ink">
-                                {formatCurrency(appointment.amount)}
+                                {formatSessionAmount(appointment.amount)}
                               </span>
                             </p>
                             <p>
@@ -422,6 +542,52 @@ export default function PatientDetailPage() {
                                   : "Sin evolución asociada"}
                               </span>
                             </p>
+                          </div>
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {getAppointmentDisplayStatus(appointment) !==
+                            "Asistió" ? (
+                              <button
+                                className="inline-flex min-h-9 items-center justify-center rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                                onClick={() =>
+                                  handleMarkAttended(appointment.id)
+                                }
+                                type="button"
+                              >
+                                Marcar asistio
+                              </button>
+                            ) : null}
+                            <button
+                              className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                              onClick={() =>
+                                prepareEvolutionForAppointment(appointment.id)
+                              }
+                              type="button"
+                            >
+                              Registrar evolucion
+                            </button>
+                            <Link
+                              className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                              href="/dashboard/turnos"
+                            >
+                              Registrar cobro
+                            </Link>
+                            <button
+                              className="inline-flex min-h-9 items-center justify-center rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                              onClick={() => openReschedule(appointment)}
+                              type="button"
+                            >
+                              Reprogramar
+                            </button>
+                            {getAppointmentDisplayStatus(appointment) !==
+                            "Cancelado" ? (
+                              <button
+                                className="inline-flex min-h-9 items-center justify-center rounded-lg border border-red-100 px-3 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+                                onClick={() => setCanceling(appointment)}
+                                type="button"
+                              >
+                                Cancelar
+                              </button>
+                            ) : null}
                           </div>
                         </article>
                         );
@@ -488,6 +654,95 @@ export default function PatientDetailPage() {
               </p>
             </div>
           )}
+
+          {rescheduling ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 px-4 py-6">
+              <form
+                className="w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
+                onSubmit={handleRescheduleSubmit}
+              >
+                <h2 className="text-lg font-bold text-ink">
+                  Reprogramar turno
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {rescheduling.reason} · {rescheduling.date} ·{" "}
+                  {rescheduling.time}
+                </p>
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Fecha
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) => setRescheduleDate(event.target.value)}
+                      required
+                      type="date"
+                      value={rescheduleDate}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Hora
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) => setRescheduleTime(event.target.value)}
+                      required
+                      type="time"
+                      value={rescheduleTime}
+                    />
+                  </label>
+                </div>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                    onClick={() => setRescheduling(null)}
+                    type="button"
+                  >
+                    Volver
+                  </button>
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 text-sm font-semibold text-white transition hover:bg-ocean-700 disabled:opacity-60"
+                    disabled={updatingId === rescheduling.id}
+                    type="submit"
+                  >
+                    Guardar nueva fecha
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : null}
+
+          {canceling ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 px-4 py-6">
+              <div className="w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft">
+                <h2 className="text-lg font-bold text-ink">Cancelar turno</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  El turno de {patient?.name} del {canceling.date} a las{" "}
+                  {canceling.time} dejara de aparecer como turno activo. Esta
+                  accion no borra el historial.
+                </p>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                    onClick={() => setCanceling(null)}
+                    type="button"
+                  >
+                    Volver
+                  </button>
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg bg-red-600 px-5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+                    disabled={updatingId === canceling.id}
+                    onClick={handleCancelAppointment}
+                    type="button"
+                  >
+                    Cancelar turno
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       </section>
     </main>

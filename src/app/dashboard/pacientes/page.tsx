@@ -147,7 +147,7 @@ export default function PatientsPage() {
                 Gestión de pacientes
               </h1>
               <p className="mt-2 text-slate-600">
-                Alta, búsqueda y estado de pacientes guardados en Supabase.
+                Carga pacientes, revisa su historial y agenda nuevas sesiones.
               </p>
             </div>
             <button
@@ -350,7 +350,12 @@ export default function PatientsPage() {
                             .join("")}
                         </div>
                         <div>
-                          <h2 className="font-bold text-ink">{patient.name}</h2>
+                          <Link
+                            className="font-bold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
+                            href={`/dashboard/pacientes/${patient.id}`}
+                          >
+                            {patient.name}
+                          </Link>
                           <p className="mt-1 text-sm text-slate-500">
                             DNI {patient.document} · {patient.condition}
                           </p>
@@ -377,17 +382,24 @@ export default function PatientsPage() {
                           href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
                         >
                           <CalendarPlus className="h-4 w-4" />
-                          Turno
+                          Nuevo turno
                         </Link>
                         {patient.status === "Activo" ? (
-                          <button
-                            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-red-100 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-50"
-                            onClick={() => handleDisablePatient(patient.id)}
-                            type="button"
-                          >
-                            <UserMinus className="h-4 w-4" />
-                            Deshabilitar
-                          </button>
+                          <details className="relative">
+                            <summary className="inline-flex min-h-10 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+                              Mas
+                            </summary>
+                            <div className="absolute right-0 z-20 mt-2 w-48 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
+                              <button
+                                className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-red-700 transition hover:bg-red-50"
+                                onClick={() => handleDisablePatient(patient.id)}
+                                type="button"
+                              >
+                                <UserMinus className="h-4 w-4" />
+                                Deshabilitar
+                              </button>
+                            </div>
+                          </details>
                         ) : null}
                       </div>
                     </div>

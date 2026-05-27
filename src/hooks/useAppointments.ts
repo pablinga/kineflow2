@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
+import { formatDate } from "@/lib/format";
 
 export type Appointment = {
   id: string;
@@ -112,7 +113,7 @@ function mapAppointment(row: AppointmentRow): Appointment {
     id: row.id,
     patientId: row.patient_id,
     scheduledAt: row.scheduled_at,
-    date: date.toLocaleDateString("es-AR"),
+    date: formatDate(date),
     time: date.toLocaleTimeString("es-AR", {
       hour: "2-digit",
       minute: "2-digit",

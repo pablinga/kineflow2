@@ -51,19 +51,19 @@ export default function Home() {
           <div className="flex flex-col justify-center">
             <div className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-ocean-200 bg-white px-4 py-2 text-sm font-semibold text-ocean-800 shadow-sm">
               <Sparkles className="h-4 w-4" />
-              Gestión clínica moderna para kinesiólogos
+              Gestion simple para kinesiologos y consultorios
             </div>
             <h1 className="max-w-3xl text-4xl font-bold tracking-normal text-ink sm:text-5xl lg:text-6xl">
               KineFlow
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-              Organizá pacientes, sesiones y evolución clínica con una
-              experiencia simple, profesional y pensada para el ritmo real del
-              consultorio.
+              Organiza pacientes, turnos, evoluciones y cobros en un solo
+              lugar. Deja de depender de papel, WhatsApp y la agenda del
+              celular para seguir cada tratamiento.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <LinkButton href="/registro">
-                Empezar gratis
+                Probar gratis
                 <ArrowRight className="h-4 w-4" />
               </LinkButton>
               <LinkButton href="/login" variant="secondary">
