@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarDays,
   CreditCard,
+  Building2,
   Home,
   LogOut,
   Menu,
@@ -20,6 +21,8 @@ const navigation = [
   { href: "/dashboard", label: "Inicio", icon: Home },
   { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
   { href: "/dashboard/turnos", label: "Turnos", icon: CalendarDays },
+  { href: "/dashboard/mis-consultorios", label: "Mis consultorios", icon: Building2 },
+  { href: "/dashboard/consultorios", label: "Consultorios", icon: Building2 },
   { href: "/dashboard/ingresos", label: "Ingresos", icon: WalletCards },
   { href: "/dashboard/planes", label: "Planes", icon: CreditCard },
 ];

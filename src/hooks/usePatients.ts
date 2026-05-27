@@ -8,6 +8,7 @@ export type PatientStatus = "Activo" | "Inactivo";
 
 export type Patient = {
   id: string;
+  clinicId: string | null;
   name: string;
   document: string;
   phone: string;
@@ -35,6 +36,7 @@ type PatientRow = {
   email: string | null;
   initial_condition: string;
   status: "active" | "inactive";
+  clinic_id: string | null;
 };
 
 type PatientAppointmentRow = {
@@ -96,6 +98,7 @@ function mapPatient(
 
   return {
     id: row.id,
+    clinicId: row.clinic_id,
     name: row.full_name,
     document: row.document_number,
     phone: row.phone ?? "Sin telefono",
@@ -126,7 +129,7 @@ export function usePatients() {
       const { data, error: queryError } = await supabase
         .from("patients")
         .select(
-          "id, full_name, document_number, phone, email, initial_condition, status",
+          "id, clinic_id, full_name, document_number, phone, email, initial_condition, status",
         )
         .order("created_at", { ascending: false });
 
@@ -191,7 +194,10 @@ export function usePatients() {
   }, [loadPatients]);
 
   const activePatients = useMemo(
-    () => patients.filter((patient) => patient.status === "Activo"),
+    () =>
+      patients.filter(
+        (patient) => patient.status === "Activo" && !patient.clinicId,
+      ),
     [patients],
   );
 

@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Filter,
   MoreHorizontal,
   RotateCcw,
   XCircle,
@@ -116,8 +117,44 @@ export default function AppointmentsPage() {
     paymentNotes: "",
   });
   const [mobileCenterDate, setMobileCenterDate] = useState(() => new Date());
+  const [originFilter, setOriginFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  const upcomingAppointments = [...appointments]
+  const clinicOptions = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          appointments
+            .filter((appointment) => appointment.origin === "clinic")
+            .map((appointment) => [
+              appointment.clinicId ?? appointment.originLabel,
+              appointment.originLabel,
+            ]),
+        ).entries(),
+      ),
+    [appointments],
+  );
+  const statusOptions = useMemo(
+    () => Array.from(new Set(appointments.map((appointment) => appointment.status))),
+    [appointments],
+  );
+  const filteredAppointments = useMemo(
+    () =>
+      appointments.filter((appointment) => {
+        const matchesOrigin =
+          originFilter === "all" ||
+          (originFilter === "independent" &&
+            appointment.origin === "independent") ||
+          appointment.clinicId === originFilter;
+        const matchesStatus =
+          statusFilter === "all" || appointment.status === statusFilter;
+
+        return matchesOrigin && matchesStatus;
+      }),
+    [appointments, originFilter, statusFilter],
+  );
+
+  const upcomingAppointments = [...filteredAppointments]
     .filter(isUpcomingActiveAppointment)
     .sort(
       (a, b) =>
@@ -128,7 +165,7 @@ export default function AppointmentsPage() {
     () =>
       [-1, 0, 1].map((offset) => {
         const date = addDays(mobileCenterDate, offset);
-        const appointmentsForDay = appointments
+        const appointmentsForDay = filteredAppointments
           .filter((appointment) =>
             sameDay(new Date(appointment.scheduledAt), date),
           )
@@ -144,7 +181,7 @@ export default function AppointmentsPage() {
           isToday: sameDay(date, new Date()),
         };
       }),
-    [appointments, mobileCenterDate],
+    [filteredAppointments, mobileCenterDate],
   );
   const visibleAppointments = mobileDays.flatMap((day) => day.appointments);
   const visibleRangeLabel = `${formatDate(mobileDays[0]?.date)} - ${formatDate(
@@ -407,6 +444,7 @@ export default function AppointmentsPage() {
       <article
         className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
         key={appointment.id}
+        style={{ borderLeftColor: appointment.originColor, borderLeftWidth: 5 }}
       >
         <div className="flex min-w-0 items-start justify-between gap-2">
           <div className="min-w-0">
@@ -431,6 +469,12 @@ export default function AppointmentsPage() {
         </div>
 
         <div className="mt-2 flex flex-wrap gap-1.5">
+          <span
+            className="w-fit rounded-full px-2 py-1 text-[0.62rem] font-semibold text-white"
+            style={{ backgroundColor: appointment.originColor }}
+          >
+            {appointment.originLabel}
+          </span>
           <span
             className={`w-fit rounded-full px-2 py-1 text-[0.62rem] font-semibold ${
               paymentStatusStyles[appointment.paymentStatusLabel] ??
@@ -541,6 +585,42 @@ export default function AppointmentsPage() {
             </p>
           ) : null}
 
+          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-4 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+              <div className="flex items-center gap-2 font-semibold text-ink">
+                <Filter className="h-4 w-4 text-ocean-700" />
+                Filtros
+              </div>
+              <div className="grid flex-1 gap-3 sm:grid-cols-2">
+                <select
+                  className="min-h-11 rounded-lg border border-ocean-100 bg-white px-4 text-sm font-semibold text-slate-700 outline-none focus:border-ocean-400"
+                  onChange={(event) => setOriginFilter(event.target.value)}
+                  value={originFilter}
+                >
+                  <option value="all">Todos</option>
+                  <option value="independent">Propios</option>
+                  {clinicOptions.map(([clinicId, clinicName]) => (
+                    <option key={clinicId} value={clinicId}>
+                      {clinicName}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="min-h-11 rounded-lg border border-ocean-100 bg-white px-4 text-sm font-semibold text-slate-700 outline-none focus:border-ocean-400"
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                  value={statusFilter}
+                >
+                  <option value="all">Todos los estados</option>
+                  {statusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </section>
+
           {visibleAppointments.length === 0 ? (
             <div className="mt-6 rounded-lg border border-dashed border-ocean-200 bg-white p-8 text-center shadow-sm">
               <p className="font-semibold text-ink">
@@ -625,10 +705,17 @@ export default function AppointmentsPage() {
                         {appointment.patient}
                       </Link>
                       <p className="mt-1 text-sm text-slate-500">
-                        {appointment.reason} · {appointment.modality}
+                        {appointment.reason} · {appointment.modality} ·{" "}
+                        {appointment.originLabel}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className="w-fit rounded-full px-3 py-1 text-sm font-semibold text-white"
+                        style={{ backgroundColor: appointment.originColor }}
+                      >
+                        {appointment.originLabel}
+                      </span>
                       <span
                         className={`w-fit rounded-full px-3 py-1 text-sm font-semibold ${
                           appointmentStatusStyles[status] ??
