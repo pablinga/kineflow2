@@ -27,8 +27,30 @@ export function getMercadoPagoAccessToken() {
   return process.env.MERCADOPAGO_ACCESS_TOKEN;
 }
 
+export function isMercadoPagoTestMode(accessToken: string) {
+  return accessToken.startsWith("TEST-");
+}
+
 export function getMercadoPagoPayerEmail(fallbackEmail: string) {
-  return process.env.MERCADOPAGO_TEST_PAYER_EMAIL ?? fallbackEmail;
+  const accessToken = getMercadoPagoAccessToken();
+
+  if (!accessToken) {
+    throw new Error("Mercado Pago no está configurado.");
+  }
+
+  if (!isMercadoPagoTestMode(accessToken)) {
+    return fallbackEmail;
+  }
+
+  const testPayerEmail = process.env.MERCADOPAGO_TEST_PAYER_EMAIL?.trim();
+
+  if (!testPayerEmail) {
+    throw new Error(
+      "Falta configurar MERCADOPAGO_TEST_PAYER_EMAIL para modo prueba",
+    );
+  }
+
+  return testPayerEmail;
 }
 
 export function getSiteUrl() {
@@ -112,6 +134,14 @@ export async function createMercadoPagoPreapproval(params: {
     throw new Error("Mercado Pago no está configurado.");
   }
 
+  const mercadoPagoMode = isMercadoPagoTestMode(accessToken) ? "TEST" : "PROD";
+
+  console.info("Mercado Pago preapproval request", {
+    mode: mercadoPagoMode,
+    payerEmail,
+    planId: params.planId,
+  });
+
   const response = await fetch(`${MERCADOPAGO_API_URL}/preapproval`, {
     method: "POST",
     headers: {
@@ -137,8 +167,17 @@ export async function createMercadoPagoPreapproval(params: {
   const data = await response.json();
 
   if (!response.ok) {
+    const safeBody = {
+      blocked_by: data?.blocked_by,
+      code: data?.code,
+      error: data?.error,
+      message: data?.message,
+      status: data?.status,
+    };
+
     console.error("Mercado Pago preapproval error", {
-      body: data,
+      body: safeBody,
+      mode: mercadoPagoMode,
       payerEmail,
       planId: params.planId,
       status: response.status,
