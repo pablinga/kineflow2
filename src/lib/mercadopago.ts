@@ -27,6 +27,10 @@ export function getMercadoPagoAccessToken() {
   return process.env.MERCADOPAGO_ACCESS_TOKEN;
 }
 
+export function getMercadoPagoPayerEmail(fallbackEmail: string) {
+  return process.env.MERCADOPAGO_TEST_PAYER_EMAIL ?? fallbackEmail;
+}
+
 export function getSiteUrl() {
   return (
     process.env.NEXT_PUBLIC_SITE_URL ??
@@ -98,6 +102,7 @@ export async function createMercadoPagoPreapproval(params: {
   const accessToken = getMercadoPagoAccessToken();
   const siteUrl = getSiteUrl();
   const plan = getCheckoutPlan(params.planId);
+  const payerEmail = getMercadoPagoPayerEmail(params.userEmail);
 
   if (!plan || !plan.priceAmount) {
     throw new Error("El plan seleccionado no requiere checkout.");
@@ -116,7 +121,7 @@ export async function createMercadoPagoPreapproval(params: {
     body: JSON.stringify({
       reason: `KineFlow ${plan.name}`,
       external_reference: `${params.userId}:${params.planId}:${params.subscriptionId}`,
-      payer_email: params.userEmail,
+      payer_email: payerEmail,
       back_url: `${siteUrl}/billing/success`,
       notification_url: `${siteUrl}/api/webhooks/mercadopago`,
       auto_recurring: {
@@ -132,8 +137,22 @@ export async function createMercadoPagoPreapproval(params: {
   const data = await response.json();
 
   if (!response.ok) {
+    console.error("Mercado Pago preapproval error", {
+      body: data,
+      payerEmail,
+      planId: params.planId,
+      status: response.status,
+    });
+
+    const detail =
+      data?.message ??
+      data?.error ??
+      data?.cause?.[0]?.description ??
+      data?.cause?.[0]?.code ??
+      "Mercado Pago no pudo crear la suscripción.";
+
     throw new Error(
-      data?.message ?? "Mercado Pago no pudo crear la suscripción.",
+      `${detail} (${response.status}). Revisá las credenciales TEST y el comprador de prueba.`,
     );
   }
 
