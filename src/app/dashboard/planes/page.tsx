@@ -42,8 +42,8 @@ export default function PlansPage() {
   const reachedFreeLimit =
     accountType === "KINESIOLOGO" &&
     plan.plan === "FREE" &&
-    plan.límitePacientes !== null &&
-    activePatients.length >= plan.límitePacientes;
+    plan.limitePacientes !== null &&
+    activePatients.length >= plan.limitePacientes;
 
   async function handleCheckout(planId: CommercialPlan) {
     setSelectedPlan(planId);
@@ -70,7 +70,7 @@ export default function PlansPage() {
         throw new Error("Necesitás iniciar sesión nuevamente.");
       }
 
-      const response = await fetch("/api/billing/checkout", {
+      const response = await fetch("/api/billing/create-subscription", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -127,9 +127,9 @@ export default function PlansPage() {
               ["Estado", plan.estadoPlan],
               [
                 "Límite de pacientes",
-                plan.límitePacientes === null || plan.límitePacientes < 0
+                plan.limitePacientes === null || plan.limitePacientes < 0
                   ? "Ilimitado"
-                  : String(plan.límitePacientes),
+                  : String(plan.limitePacientes),
               ],
               ["Pacientes usados", String(activePatients.length)],
             ].map(([label, value]) => (
@@ -230,7 +230,7 @@ export default function PlansPage() {
                           ? "Preparando..."
                           : item.cta}
                     </button>
-                    {item.id === "CLINICA" ? (
+                    {item.id.startsWith("CONSULTORIO_") ? (
                       <p className="mt-3 text-xs leading-5 text-slate-500">
                         Cada consultorio paga por los kinesiólogos activos
                         dentro de su propia cuenta, incluso si el profesional

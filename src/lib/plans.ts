@@ -1,7 +1,12 @@
 import type { LucideIcon } from "lucide-react";
 import { Building2, UserRound, UsersRound } from "lucide-react";
 
-export type CommercialPlan = "FREE" | "INDEPENDIENTE" | "CLINICA";
+export type CommercialPlan =
+  | "FREE"
+  | "INDEPENDIENTE"
+  | "CONSULTORIO_2"
+  | "CONSULTORIO_5"
+  | "CONSULTORIO_10";
 export type PlanStatus = "ACTIVO" | "PENDIENTE" | "VENCIDO" | "CANCELADO";
 
 export type PlanDefinition = {
@@ -22,9 +27,9 @@ export type PlanDefinition = {
 
 export const FREE_PATIENT_LIMIT = 5;
 export const INDEPENDENT_PLAN_PRICE = 14900;
-export const CLINIC_PLAN_BASE_PRICE = 29900;
-export const CLINIC_PLAN_INCLUDED_KINESIOLOGISTS = 2;
-export const CLINIC_PLAN_PRICE_PER_KINESIOLOGIST = 9900;
+export const CONSULTORIO_2_PRICE = 29900;
+export const CONSULTORIO_5_PRICE = 49900;
+export const CONSULTORIO_10_PRICE = 79900;
 
 export const plans: PlanDefinition[] = [
   {
@@ -73,13 +78,11 @@ export const plans: PlanDefinition[] = [
     icon: UsersRound,
   },
   {
-    id: "CLINICA",
-    name: "Plan Consultorio",
-    price: `$${CLINIC_PLAN_BASE_PRICE.toLocaleString(
-      "es-AR",
-    )}/mes base`,
-    priceAmount: CLINIC_PLAN_BASE_PRICE,
-    limit: `Incluye ${CLINIC_PLAN_INCLUDED_KINESIOLOGISTS} kinesiólogos activos`,
+    id: "CONSULTORIO_2",
+    name: "Plan Consultorio 2",
+    price: `$${CONSULTORIO_2_PRICE.toLocaleString("es-AR")}/mes`,
+    priceAmount: CONSULTORIO_2_PRICE,
+    limit: "Hasta 2 kinesiólogos activos",
     audience:
       "Para consultorios y centros de rehabilitación que necesitan administrar pacientes, agenda multi-profesional, turnos, evoluciónes e ingresos por profesional.",
     features: [
@@ -90,14 +93,52 @@ export const plans: PlanDefinition[] = [
       "Asignación de días y horarios por profesional",
       "Alta de turnos del consultorio",
       "Reportes e ingresos del consultorio",
-      `Kinesiólogo adicional: $${CLINIC_PLAN_PRICE_PER_KINESIOLOGIST.toLocaleString(
-        "es-AR",
-      )}/mes`,
+      "Límite de 2 profesionales activos",
     ],
     cta: "Consultar / Contratar",
-    href: "/registro?plan=CLINICA",
+    href: "/registro?plan=CONSULTORIO_2",
     patientLimit: null,
     kinesiologistCount: 2,
+    icon: Building2,
+  },
+  {
+    id: "CONSULTORIO_5",
+    name: "Plan Consultorio 5",
+    price: `$${CONSULTORIO_5_PRICE.toLocaleString("es-AR")}/mes`,
+    priceAmount: CONSULTORIO_5_PRICE,
+    limit: "Hasta 5 kinesiólogos activos",
+    audience:
+      "Para consultorios que necesitan ampliar su equipo sin perder control de agenda, pacientes e ingresos.",
+    features: [
+      "Todo lo del Plan Consultorio 2",
+      "Hasta 5 kinesiólogos activos",
+      "Agenda multi-profesional ampliada",
+      "Reportes e ingresos por profesional",
+    ],
+    cta: "Contratar plan",
+    href: "/registro?plan=CONSULTORIO_5",
+    patientLimit: null,
+    kinesiologistCount: 5,
+    icon: Building2,
+  },
+  {
+    id: "CONSULTORIO_10",
+    name: "Plan Consultorio 10",
+    price: `$${CONSULTORIO_10_PRICE.toLocaleString("es-AR")}/mes`,
+    priceAmount: CONSULTORIO_10_PRICE,
+    limit: "Hasta 10 kinesiólogos activos",
+    audience:
+      "Para centros con equipos grandes que necesitan operar agenda, pacientes e ingresos en una sola cuenta.",
+    features: [
+      "Todo lo del Plan Consultorio 5",
+      "Hasta 10 kinesiólogos activos",
+      "Control de sesiones por profesional",
+      "Escala para centros y clínicas",
+    ],
+    cta: "Contratar plan",
+    href: "/registro?plan=CONSULTORIO_10",
+    patientLimit: null,
+    kinesiologistCount: 10,
     icon: Building2,
   },
 ];
@@ -105,8 +146,8 @@ export const plans: PlanDefinition[] = [
 export const defaultPlan = {
   plan: "FREE" as CommercialPlan,
   estadoPlan: "ACTIVO" as PlanStatus,
-  límitePacientes: FREE_PATIENT_LIMIT,
-  cantidadKinesiólogos: 1,
+  limitePacientes: FREE_PATIENT_LIMIT,
+  cantidadKinesiologos: 1,
 };
 
 export function getPlanDefinition(plan: CommercialPlan) {

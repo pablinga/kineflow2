@@ -10,6 +10,7 @@ import {
 } from "@/hooks/useClinicAdmin";
 import { weekdayLabels } from "@/hooks/useClinicLinks";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 const emptyAvailability = {
   weekday: 1,
@@ -24,6 +25,7 @@ export default function ClinicsAdminPage() {
     loading,
     redirecting,
   } = useRequireAuth();
+  const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const {
     clinics,
     error,
@@ -54,7 +56,7 @@ export default function ClinicsAdminPage() {
     );
   }
 
-  if (loading || !loaded) {
+  if (loading || !loaded || !planLoaded) {
     return <DashboardLoading />;
   }
 
@@ -67,6 +69,28 @@ export default function ClinicsAdminPage() {
             <h1 className="text-2xl font-bold text-ink">Acceso no disponible</h1>
             <p className="mt-2 text-slate-600">
               Esta seccion es solo para cuentas de consultorio.
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  const hasActiveClinicPlan =
+    plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_");
+
+  if (!hasActiveClinicPlan) {
+    return (
+      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+        <DashboardSidebar />
+        <section className="px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl rounded-lg border border-amber-100 bg-amber-50 p-6 shadow-sm">
+            <h1 className="text-2xl font-bold text-amber-950">
+              Plan Consultorio requerido
+            </h1>
+            <p className="mt-2 leading-6 text-amber-800">
+              Para invitar kinesiólogos y gestionar profesionales necesitás una
+              suscripción activa del Plan Consultorio.
             </p>
           </div>
         </section>
@@ -118,6 +142,7 @@ export default function ClinicsAdminPage() {
         availability,
         clinicId: selectedClinicId,
         color: inviteColor,
+        maxProfessionals: plan.cantidadKinesiologos,
         professional: foundProfessional,
       });
       setLicenseQuery("");

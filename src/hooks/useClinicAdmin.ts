@@ -15,6 +15,7 @@ export type Clinic = {
 export type ClinicInvitationInput = {
   clinicId: string;
   color: string;
+  maxProfessionals: number;
   professional: ProfessionalSearchResult;
   availability: Array<{
     weekday: number;
@@ -144,6 +145,22 @@ export function useClinicAdmin() {
 
   async function inviteProfessional(input: ClinicInvitationInput) {
     const supabase = getSupabaseClient();
+    const { count, error: countError } = await supabase
+      .from("clinic_professionals")
+      .select("id", { count: "exact", head: true })
+      .eq("clinic_id", input.clinicId)
+      .eq("status", "accepted");
+
+    if (countError) {
+      throw new Error(countError.message);
+    }
+
+    if ((count ?? 0) >= input.maxProfessionals) {
+      throw new Error(
+        "Alcanzaste el límite de kinesiólogos activos de tu plan. Para agregar más profesionales, actualizá tu plan.",
+      );
+    }
+
     const { data: link, error: linkError } = await supabase
       .from("clinic_professionals")
       .insert({

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import {
   defaultPlan,
+  getPlanDefinition,
   getPatientLimit,
   type CommercialPlan,
   type PlanStatus,
@@ -12,12 +13,21 @@ import {
 export type UserPlan = {
   plan: CommercialPlan;
   estadoPlan: PlanStatus;
-  límitePacientes: number | null;
-  cantidadKinesiólogos: number;
+  limitePacientes: number | null;
+  cantidadKinesiologos: number;
 };
 
 function normalizePlan(value: unknown): CommercialPlan {
-  return value === "INDEPENDIENTE" || value === "CLINICA" ? value : "FREE";
+  if (
+    value === "INDEPENDIENTE" ||
+    value === "CONSULTORIO_2" ||
+    value === "CONSULTORIO_5" ||
+    value === "CONSULTORIO_10"
+  ) {
+    return value;
+  }
+
+  return value === "CLINICA" ? "CONSULTORIO_2" : "FREE";
 }
 
 function normalizeStatus(value: unknown): PlanStatus {
@@ -64,13 +74,11 @@ export function useSubscriptionPlan() {
           setPlan({
             plan: currentPlan,
             estadoPlan: normalizeStatus(data.estado_plan),
-            límitePacientes: configuredLimit,
-            cantidadKinesiólogos:
+            limitePacientes: configuredLimit,
+            cantidadKinesiologos:
               typeof data.cantidad_kinesiologos === "number"
                 ? data.cantidad_kinesiologos
-                : currentPlan === "CLINICA"
-                  ? 2
-                  : 1,
+                : getPlanDefinition(currentPlan).kinesiologistCount,
           });
         }
       } finally {

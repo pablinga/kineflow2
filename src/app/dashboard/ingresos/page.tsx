@@ -103,6 +103,28 @@ export default function IncomePage() {
     );
   }
 
+  if (
+    accountType === "CONSULTORIO" &&
+    !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"))
+  ) {
+    return (
+      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+        <DashboardSidebar />
+        <section className="px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl rounded-lg border border-amber-100 bg-amber-50 p-6 shadow-sm">
+            <h1 className="text-2xl font-bold text-amber-950">
+              Ingresos del consultorio bloqueados
+            </h1>
+            <p className="mt-2 leading-6 text-amber-800">
+              Para ver ingresos y reportes del consultorio necesitás una
+              suscripción activa del Plan Consultorio.
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />

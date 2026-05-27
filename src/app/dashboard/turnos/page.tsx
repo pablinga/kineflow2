@@ -292,7 +292,10 @@ export default function AppointmentsPage() {
   }
 
   const canCreateAppointment =
-    accountType === "CONSULTORIO" || plan.plan === "INDEPENDIENTE";
+    (accountType === "CONSULTORIO" &&
+      plan.estadoPlan === "ACTIVO" &&
+      plan.plan.startsWith("CONSULTORIO_")) ||
+    plan.plan === "INDEPENDIENTE";
 
   async function confirmStatusChange() {
     if (!pendingAction) {

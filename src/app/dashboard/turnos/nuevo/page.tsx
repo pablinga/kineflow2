@@ -101,6 +101,9 @@ export default function NewAppointmentPage() {
 
   const independentPracticeBlocked =
     accountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE";
+  const clinicPlanBlocked =
+    accountType === "CONSULTORIO" &&
+    !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));
   const independentPlanMessage =
     "Esta funcionalidad está disponible en el Plan Independiente. Podés activárlo para gestionar tus pacientes, turnos y cobros propios.";
 
@@ -122,6 +125,13 @@ export default function NewAppointmentPage() {
 
     try {
       if (accountType === "CONSULTORIO") {
+        if (clinicPlanBlocked) {
+          setError(
+            "Para crear turnos del consultorio necesitás una suscripción activa del Plan Consultorio.",
+          );
+          return;
+        }
+
         if (clinicProfessionals.length === 0) {
           setError(
             "Todavía no tenés kinesiólogos activos. Cuando el profesional acepte la invitación, vas a poder asignarle turnos.",
@@ -201,6 +211,13 @@ export default function NewAppointmentPage() {
             <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
               Para crear un turno, primero tenés que agregar un kinesiólogo al
               consultorio y esperar que acepte la invitación.
+            </section>
+          ) : null}
+
+          {clinicPlanBlocked ? (
+            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+              Para crear turnos del consultorio necesitás una suscripción activa
+              del Plan Consultorio.
             </section>
           ) : null}
 
@@ -370,6 +387,7 @@ export default function NewAppointmentPage() {
                   activePatients.length === 0 ||
                   saving ||
                   independentPracticeBlocked ||
+                  clinicPlanBlocked ||
                   (accountType === "CONSULTORIO" &&
                     clinicProfessionals.length === 0)
                 }

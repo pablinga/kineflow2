@@ -84,6 +84,9 @@ export default function PatientsPage() {
 
   const independentPracticeBlocked =
     accountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE";
+  const clinicPracticeBlocked =
+    accountType === "CONSULTORIO" &&
+    !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));
   const independentPlanMessage =
     "Esta funcionalidad está disponible en el Plan Independiente. Podés activárlo para gestionar tus pacientes, turnos y cobros propios.";
 
@@ -101,15 +104,19 @@ export default function PatientsPage() {
         (patient) => patient.status === "Activo",
       );
 
-      if (independentPracticeBlocked) {
-        setActionError(independentPlanMessage);
+      if (independentPracticeBlocked || clinicPracticeBlocked) {
+        setActionError(
+          independentPracticeBlocked
+            ? independentPlanMessage
+            : "Para gestionar pacientes del consultorio necesitás una suscripción activa del Plan Consultorio.",
+        );
         return;
       }
 
       if (
         plan.plan === "FREE" &&
-        plan.límitePacientes !== null &&
-        activePatients.length >= plan.límitePacientes
+        plan.limitePacientes !== null &&
+        activePatients.length >= plan.limitePacientes
       ) {
         setActionError(
           "El Plan Free permite hasta 5 pacientes. Para continuar, activá un plan pago.",
@@ -169,15 +176,18 @@ export default function PatientsPage() {
 
                 if (
                   independentPracticeBlocked ||
+                  clinicPracticeBlocked ||
                   (
                   plan.plan === "FREE" &&
-                  plan.límitePacientes !== null &&
-                  activePatients.length >= plan.límitePacientes
+                  plan.limitePacientes !== null &&
+                  activePatients.length >= plan.limitePacientes
                   )
                 ) {
                   setActionError(
                     independentPracticeBlocked
                       ? independentPlanMessage
+                      : clinicPracticeBlocked
+                        ? "Para gestionar pacientes del consultorio necesitás una suscripción activa del Plan Consultorio."
                       : "El Plan Free permite hasta 5 pacientes. Para continuar, activá un plan pago.",
                   );
                   return;
@@ -193,13 +203,17 @@ export default function PatientsPage() {
             </button>
           </header>
 
-          {independentPracticeBlocked ? (
+          {independentPracticeBlocked || clinicPracticeBlocked ? (
             <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 shadow-sm">
               <p className="font-bold text-amber-900">
-                Práctica particular bloqueada
+                {independentPracticeBlocked
+                  ? "Práctica particular bloqueada"
+                  : "Plan Consultorio requerido"}
               </p>
               <p className="mt-1 text-sm leading-6 text-amber-800">
-                {independentPlanMessage}
+                {independentPracticeBlocked
+                  ? independentPlanMessage
+                  : "Para gestionar pacientes del consultorio necesitás una suscripción activa del Plan Consultorio."}
               </p>
               <Link
                 className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
@@ -214,7 +228,7 @@ export default function PatientsPage() {
                 <div>
                   <p className="font-bold text-ink">
                     Plan Free: {patients.filter((patient) => patient.status === "Activo").length}
-                    /{plan.límitePacientes} pacientes activos
+                    /{plan.limitePacientes} pacientes activos
                   </p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
                     Actualmente estás usando el Plan Free. Activá un plan pago
