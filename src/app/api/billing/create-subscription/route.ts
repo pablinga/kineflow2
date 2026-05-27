@@ -8,6 +8,7 @@ import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase-
 import { isPlanAllowedForAccount } from "@/lib/billing";
 import type { CommercialPlan } from "@/lib/plans";
 import type { AccountType } from "@/hooks/useRequireAuth";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 const validPlans: CommercialPlan[] = [
   "INDEPENDIENTE",
@@ -20,6 +21,92 @@ function normalizePlan(value: unknown): CommercialPlan | null {
   return validPlans.includes(value as CommercialPlan)
     ? (value as CommercialPlan)
     : null;
+}
+
+function getAccountTypeFromUser(user: User): AccountType {
+  const metadataAccountType = user.user_metadata?.account_type;
+
+  if (metadataAccountType === "CONSULTORIO") {
+    return "CONSULTORIO";
+  }
+
+  return "KINESIOLOGO";
+}
+
+async function getOrCreateProfile(admin: SupabaseClient, user: User) {
+  const { data: profile, error: profileError } = await admin
+    .from("profiles")
+    .select("account_type")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    throw profileError;
+  }
+
+  if (profile) {
+    return profile;
+  }
+
+  const accountType = getAccountTypeFromUser(user);
+  const fullName =
+    typeof user.user_metadata?.full_name === "string" &&
+    user.user_metadata.full_name.trim()
+      ? user.user_metadata.full_name.trim()
+      : user.email?.split("@")[0] ?? "Usuario";
+  const organizationName =
+    typeof user.user_metadata?.organization_name === "string" &&
+    user.user_metadata.organization_name.trim()
+      ? user.user_metadata.organization_name.trim()
+      : fullName;
+
+  const { data: createdProfile, error: createProfileError } = await admin
+    .from("profiles")
+    .insert({
+      account_type: accountType,
+      email: user.email?.toLowerCase() ?? null,
+      full_name: accountType === "CONSULTORIO" ? organizationName : fullName,
+      id: user.id,
+      license_number:
+        accountType === "KINESIOLOGO"
+          ? user.user_metadata?.license_number ?? null
+          : null,
+      organization_address:
+        accountType === "CONSULTORIO"
+          ? user.user_metadata?.organization_address ?? null
+          : null,
+      organization_name:
+        accountType === "CONSULTORIO" ? organizationName : null,
+      phone: user.user_metadata?.phone ?? null,
+      responsible_name:
+        accountType === "CONSULTORIO"
+          ? user.user_metadata?.responsible_name ?? null
+          : null,
+      role: accountType === "CONSULTORIO" ? "clinic" : "kinesiologist",
+      specialty:
+        accountType === "KINESIOLOGO"
+          ? user.user_metadata?.specialty ?? null
+          : null,
+    })
+    .select("account_type")
+    .single();
+
+  if (createProfileError || !createdProfile) {
+    throw createProfileError ?? new Error("No pudimos crear el perfil.");
+  }
+
+  if (accountType === "CONSULTORIO") {
+    await admin.from("clinics").insert({
+      address: user.user_metadata?.organization_address ?? null,
+      email: user.email?.toLowerCase() ?? null,
+      name: organizationName,
+      owner_id: user.id,
+      phone: user.user_metadata?.phone ?? null,
+      responsible_name: user.user_metadata?.responsible_name ?? null,
+    });
+  }
+
+  return createdProfile;
 }
 
 export async function POST(request: Request) {
@@ -66,18 +153,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: profile, error: profileError } = await admin
-      .from("profiles")
-      .select("account_type")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError || !profile) {
-      return NextResponse.json(
-        { error: "No encontramos el perfil de la cuenta." },
-        { status: 404 },
-      );
-    }
+    const profile = await getOrCreateProfile(admin, user);
 
     const accountType = profile.account_type as AccountType;
 
