@@ -15,7 +15,12 @@ import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import {
   type Appointment,
+  type AppointmentPaymentInput,
   type AppointmentStatus,
+  type PaymentMethod,
+  type PaymentStatus,
+  paymentMethodLabels,
+  paymentStatusLabels,
   useAppointments,
 } from "@/hooks/useAppointments";
 import {
@@ -23,6 +28,7 @@ import {
   getAppointmentDisplayStatus,
   isUpcomingActiveAppointment,
 } from "@/lib/appointment-ui";
+import { formatCurrency, paymentStatusStyles } from "@/lib/payment-ui";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 type PendingAction = {
@@ -89,6 +95,7 @@ export default function AppointmentsPage() {
     error,
     loaded,
     rescheduleAppointment,
+    updateAppointmentPayment,
     updateAppointmentStatus,
   } = useAppointments();
   const [actionError, setActionError] = useState("");
@@ -97,8 +104,16 @@ export default function AppointmentsPage() {
   const [actionsAppointment, setActionsAppointment] =
     useState<Appointment | null>(null);
   const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
+  const [editingPayment, setEditingPayment] = useState<Appointment | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
+  const [paymentForm, setPaymentForm] = useState<AppointmentPaymentInput>({
+    amount: 0,
+    paymentStatus: "pending",
+    paymentMethod: "",
+    paidAt: "",
+    paymentNotes: "",
+  });
   const [mobileCenterDate, setMobileCenterDate] = useState(() => new Date());
 
   const upcomingAppointments = [...appointments]
@@ -192,6 +207,18 @@ export default function AppointmentsPage() {
     );
   }
 
+  function openPaymentModal(appointment: Appointment) {
+    setActionsAppointment(null);
+    setEditingPayment(appointment);
+    setPaymentForm({
+      amount: appointment.amount,
+      paymentStatus: appointment.paymentStatus,
+      paymentMethod: appointment.paymentMethod,
+      paidAt: appointment.paidAt ?? "",
+      paymentNotes: appointment.paymentNotes,
+    });
+  }
+
   function openStatusModal(appointment: Appointment, status: AppointmentStatus) {
     if (
       ["attended", "no_show"].includes(status) &&
@@ -238,6 +265,9 @@ export default function AppointmentsPage() {
         pendingAction.appointment.id,
         pendingAction.status,
       );
+      if (pendingAction.status === "attended") {
+        openPaymentModal(pendingAction.appointment);
+      }
       setPendingAction(null);
     } catch (updateError) {
       setActionError(
@@ -278,6 +308,30 @@ export default function AppointmentsPage() {
     }
   }
 
+  async function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editingPayment) {
+      return;
+    }
+
+    setActionError("");
+    setUpdatingId(editingPayment.id);
+
+    try {
+      await updateAppointmentPayment(editingPayment.id, paymentForm);
+      setEditingPayment(null);
+    } catch (paymentError) {
+      setActionError(
+        paymentError instanceof Error
+          ? paymentError.message
+          : "No pudimos guardar el cobro.",
+      );
+    } finally {
+      setUpdatingId("");
+    }
+  }
+
   function renderActionItems(appointment: Appointment) {
     const disabled = updatingId === appointment.id;
     const futureAttendanceDisabled = isFutureAppointment(appointment);
@@ -311,6 +365,15 @@ export default function AppointmentsPage() {
         >
           <XCircle className="h-4 w-4" />
           Marcar como no asistió
+        </button>
+        <button
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50 disabled:opacity-60"
+          disabled={disabled}
+          onClick={() => openPaymentModal(appointment)}
+          type="button"
+        >
+          <CalendarPlus className="h-4 w-4" />
+          Editar cobro
         </button>
         <button
           className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50 disabled:opacity-60"
@@ -369,6 +432,20 @@ export default function AppointmentsPage() {
             }`}
           >
             {status}
+          </span>
+        </div>
+
+        <div className="mt-2 flex items-center gap-1.5 text-[0.65rem] font-semibold">
+          <span
+            className={`w-fit whitespace-nowrap rounded-full px-1.5 py-0.5 leading-none ${
+              paymentStatusStyles[appointment.paymentStatusLabel] ??
+              "bg-slate-100 text-slate-700"
+            }`}
+          >
+            {appointment.paymentStatusLabel}
+          </span>
+          <span className="whitespace-nowrap text-slate-500">
+            {formatCurrency(appointment.amount)}
           </span>
         </div>
 
@@ -569,6 +646,15 @@ export default function AppointmentsPage() {
                       >
                         {status}
                       </span>
+                      <span
+                        className={`w-fit rounded-full px-3 py-1 text-sm font-semibold ${
+                          paymentStatusStyles[appointment.paymentStatusLabel] ??
+                          "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {appointment.paymentStatusLabel} ·{" "}
+                        {formatCurrency(appointment.amount)}
+                      </span>
                     </div>
                   </div>
                 );
@@ -699,6 +785,132 @@ export default function AppointmentsPage() {
                     type="submit"
                   >
                     Guardar nueva fecha
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : null}
+
+          {editingPayment ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4 py-6">
+              <form
+                className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
+                onSubmit={handlePaymentSubmit}
+              >
+                <h2 className="text-lg font-bold text-ink">Editar cobro</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {editingPayment.patient} · {editingPayment.date} ·{" "}
+                  {editingPayment.time}
+                </p>
+
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Monto
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      min={0}
+                      onChange={(event) =>
+                        setPaymentForm((current) => ({
+                          ...current,
+                          amount: Number(event.target.value),
+                        }))
+                      }
+                      step="100"
+                      type="number"
+                      value={paymentForm.amount}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Estado de cobro
+                    </span>
+                    <select
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        setPaymentForm((current) => ({
+                          ...current,
+                          paymentStatus: event.target.value as PaymentStatus,
+                        }))
+                      }
+                      value={paymentForm.paymentStatus}
+                    >
+                      {Object.entries(paymentStatusLabels).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Medio de pago
+                    </span>
+                    <select
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        setPaymentForm((current) => ({
+                          ...current,
+                          paymentMethod: event.target.value as PaymentMethod | "",
+                        }))
+                      }
+                      value={paymentForm.paymentMethod}
+                    >
+                      <option value="">Sin medio</option>
+                      {Object.entries(paymentMethodLabels).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Fecha de cobro
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        setPaymentForm((current) => ({
+                          ...current,
+                          paidAt: event.target.value,
+                        }))
+                      }
+                      type="date"
+                      value={paymentForm.paidAt}
+                    />
+                  </label>
+                </div>
+                <label className="mt-4 block">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Observación de pago
+                  </span>
+                  <textarea
+                    className="mt-2 min-h-24 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
+                    onChange={(event) =>
+                      setPaymentForm((current) => ({
+                        ...current,
+                        paymentNotes: event.target.value,
+                      }))
+                    }
+                    value={paymentForm.paymentNotes}
+                  />
+                </label>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                    onClick={() => setEditingPayment(null)}
+                    type="button"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 text-sm font-semibold text-white transition hover:bg-ocean-700 disabled:opacity-60"
+                    disabled={updatingId === editingPayment.id}
+                    type="submit"
+                  >
+                    Guardar cobro
                   </button>
                 </div>
               </form>

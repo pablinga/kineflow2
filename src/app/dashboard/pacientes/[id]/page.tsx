@@ -21,6 +21,7 @@ import {
   appointmentStatusStyles,
   getAppointmentDisplayStatus,
 } from "@/lib/appointment-ui";
+import { formatCurrency, paymentStatusStyles } from "@/lib/payment-ui";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const today = new Date().toISOString().slice(0, 10);
@@ -62,6 +63,24 @@ export default function PatientDetailPage() {
   );
   const attendedAppointments = appointments.filter(
     (appointment) => getAppointmentDisplayStatus(appointment) === "Asistió",
+  );
+  const totalPaid = appointments
+    .filter((appointment) => appointment.paymentStatus === "paid")
+    .reduce((total, appointment) => total + appointment.amount, 0);
+  const totalPending = appointments
+    .filter((appointment) => appointment.paymentStatus === "pending")
+    .reduce((total, appointment) => total + appointment.amount, 0);
+  const lastPaidAppointment = [...appointments]
+    .filter((appointment) => appointment.paymentStatus === "paid")
+    .sort(
+      (left, right) =>
+        new Date(right.paidAt ?? right.scheduledAt).getTime() -
+        new Date(left.paidAt ?? left.scheduledAt).getTime(),
+    )[0];
+  const evolutionByAppointment = new Map(
+    evolutions
+      .filter((item) => item.appointmentId)
+      .map((item) => [item.appointmentId, item]),
   );
 
   if (authError) {
@@ -295,6 +314,42 @@ export default function PatientDetailPage() {
 
                 <div className="space-y-6">
                   <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+                    <h2 className="text-lg font-bold text-ink">
+                      Resumen económico
+                    </h2>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-lg bg-emerald-50 p-4">
+                        <p className="text-sm font-semibold text-emerald-700">
+                          Total cobrado
+                        </p>
+                        <p className="mt-2 text-2xl font-bold text-ink">
+                          {formatCurrency(totalPaid)}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-amber-50 p-4">
+                        <p className="text-sm font-semibold text-amber-700">
+                          Total pendiente
+                        </p>
+                        <p className="mt-2 text-2xl font-bold text-ink">
+                          {formatCurrency(totalPending)}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-ocean-50 p-4">
+                        <p className="text-sm font-semibold text-ocean-700">
+                          Última sesión cobrada
+                        </p>
+                        <p className="mt-2 text-sm font-bold text-ink">
+                          {lastPaidAppointment
+                            ? `${lastPaidAppointment.date} · ${formatCurrency(
+                                lastPaidAppointment.amount,
+                              )}`
+                            : "Sin cobros"}
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
                     <div className="flex items-center justify-between gap-4">
                       <h2 className="text-lg font-bold text-ink">
                         Turnos del paciente
@@ -308,7 +363,12 @@ export default function PatientDetailPage() {
                       </Link>
                     </div>
                     <div className="mt-5 space-y-3">
-                      {appointments.map((appointment) => (
+                      {appointments.map((appointment) => {
+                        const linkedEvolution = evolutionByAppointment.get(
+                          appointment.id,
+                        );
+
+                        return (
                         <article
                           className="rounded-lg border border-ocean-100 p-4"
                           key={appointment.id}
@@ -322,22 +382,50 @@ export default function PatientDetailPage() {
                                 {appointment.date} · {appointment.time}
                               </p>
                             </div>
-                            <span
-                              className={`w-fit rounded-full px-3 py-1 text-sm font-semibold ${
-                                appointmentStatusStyles[
-                                  getAppointmentDisplayStatus(appointment)
-                                ] ?? "bg-slate-100 text-slate-700"
-                              }`}
-                            >
-                              {getAppointmentDisplayStatus(appointment)}
-                            </span>
+                            <div className="flex flex-wrap gap-2">
+                              <span
+                                className={`w-fit rounded-full px-3 py-1 text-sm font-semibold ${
+                                  appointmentStatusStyles[
+                                    getAppointmentDisplayStatus(appointment)
+                                  ] ?? "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                {getAppointmentDisplayStatus(appointment)}
+                              </span>
+                              <span
+                                className={`w-fit rounded-full px-3 py-1 text-sm font-semibold ${
+                                  paymentStatusStyles[
+                                    appointment.paymentStatusLabel
+                                  ] ?? "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                {appointment.paymentStatusLabel}
+                              </span>
+                            </div>
                           </div>
                           <p className="mt-3 flex items-center gap-2 text-sm text-slate-600">
                             <Clock className="h-4 w-4 text-ocean-600" />
                             {appointment.duration} · {appointment.modality}
                           </p>
+                          <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+                            <p>
+                              Monto:{" "}
+                              <span className="font-semibold text-ink">
+                                {formatCurrency(appointment.amount)}
+                              </span>
+                            </p>
+                            <p>
+                              Evolución:{" "}
+                              <span className="font-semibold text-ink">
+                                {linkedEvolution
+                                  ? linkedEvolution.date
+                                  : "Sin evolución asociada"}
+                              </span>
+                            </p>
+                          </div>
                         </article>
-                      ))}
+                        );
+                      })}
                     </div>
                     {appointments.length === 0 ? (
                       <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">

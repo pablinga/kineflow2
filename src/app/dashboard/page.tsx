@@ -9,6 +9,7 @@ import {
   FileText,
   Search,
   UsersRound,
+  WalletCards,
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
@@ -21,6 +22,12 @@ import {
   isPastPendingAppointment,
   isUpcomingActiveAppointment,
 } from "@/lib/appointment-ui";
+import {
+  formatCurrency,
+  getPaymentDate,
+  isAttendedPendingPayment,
+  paymentStatusStyles,
+} from "@/lib/payment-ui";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
@@ -36,6 +43,14 @@ function endOfWeek(date: Date) {
   const next = startOfWeek(date);
   next.setDate(next.getDate() + 7);
   return next;
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+}
+
+function endOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 1).getTime();
 }
 
 export default function DashboardPage() {
@@ -85,12 +100,38 @@ export default function DashboardPage() {
     )
     .slice(0, 6);
   const actionRequired = appointments.filter(isPastPendingAppointment);
+  const paymentActionRequired = appointments.filter(isAttendedPendingPayment);
   const currentWeekStart = startOfWeek(new Date()).getTime();
   const currentWeekEnd = endOfWeek(new Date()).getTime();
+  const currentMonthStart = startOfMonth(new Date());
+  const currentMonthEnd = endOfMonth(new Date());
   const appointmentsThisWeek = appointments.filter((appointment) => {
     const scheduledAt = new Date(appointment.scheduledAt).getTime();
     return scheduledAt >= currentWeekStart && scheduledAt < currentWeekEnd;
   });
+  const paidAppointments = appointments.filter(
+    (appointment) => appointment.paymentStatus === "paid",
+  );
+  const weekIncome = paidAppointments
+    .filter((appointment) => {
+      const paymentDate = getPaymentDate(appointment).getTime();
+      return paymentDate >= currentWeekStart && paymentDate < currentWeekEnd;
+    })
+    .reduce((total, appointment) => total + appointment.amount, 0);
+  const monthIncome = paidAppointments
+    .filter((appointment) => {
+      const paymentDate = getPaymentDate(appointment).getTime();
+      return paymentDate >= currentMonthStart && paymentDate < currentMonthEnd;
+    })
+    .reduce((total, appointment) => total + appointment.amount, 0);
+  const pendingPaymentAppointments = appointments.filter(
+    (appointment) =>
+      appointment.paymentStatus === "pending" && appointment.amount > 0,
+  );
+  const pendingPaymentAmount = pendingPaymentAppointments.reduce(
+    (total, appointment) => total + appointment.amount,
+    0,
+  );
 
   const summaryCards = [
     {
@@ -118,6 +159,28 @@ export default function DashboardPage() {
       label: "Evoluciones registradas",
       value: String(evolutions.length),
       detail: "Historial clínico",
+    },
+  ];
+  const economicCards = [
+    {
+      label: "Ingresos de la semana",
+      value: formatCurrency(weekIncome),
+      detail: "Cobros registrados",
+    },
+    {
+      label: "Ingresos del mes",
+      value: formatCurrency(monthIncome),
+      detail: "Cobros registrados",
+    },
+    {
+      label: "Sesiones pendientes de cobro",
+      value: String(pendingPaymentAppointments.length),
+      detail: "Con monto pendiente",
+    },
+    {
+      label: "Monto pendiente",
+      value: formatCurrency(pendingPaymentAmount),
+      detail: "Por cobrar",
     },
   ];
 
@@ -205,6 +268,32 @@ export default function DashboardPage() {
             ))}
           </section>
 
+          <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {economicCards.map((card) => (
+              <article
+                className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm"
+                key={card.label}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">
+                      {card.label}
+                    </p>
+                    <p className="mt-3 text-2xl font-bold text-ink">
+                      {card.value}
+                    </p>
+                  </div>
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                    <WalletCards className="h-5 w-5" />
+                  </span>
+                </div>
+                <p className="mt-3 text-sm font-medium text-ocean-700">
+                  {card.detail}
+                </p>
+              </article>
+            ))}
+          </section>
+
           <section className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_0.8fr]">
             <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-4">
@@ -255,6 +344,15 @@ export default function DashboardPage() {
                         >
                           {status}
                         </span>
+                        <span
+                          className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                            paymentStatusStyles[
+                              appointment.paymentStatusLabel
+                            ] ?? "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {appointment.paymentStatusLabel}
+                        </span>
                       </div>
                     </div>
                   );
@@ -287,8 +385,24 @@ export default function DashboardPage() {
                       </p>
                     </Link>
                   ))}
+                  {paymentActionRequired.map((appointment) => (
+                    <Link
+                      className="block rounded-lg border border-amber-100 bg-amber-50 p-3 transition hover:bg-amber-100"
+                      href="/dashboard/ingresos"
+                      key={`payment-${appointment.id}`}
+                    >
+                      <p className="text-sm font-semibold text-amber-800">
+                        Cobro pendiente
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">
+                        {appointment.patient} · {appointment.date}{" "}
+                        {appointment.time} · {formatCurrency(appointment.amount)}
+                      </p>
+                    </Link>
+                  ))}
                 </div>
-                {actionRequired.length === 0 ? (
+                {actionRequired.length === 0 &&
+                paymentActionRequired.length === 0 ? (
                   <p className="mt-4 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-4 text-sm text-slate-600">
                     No hay alertas pendientes.
                   </p>
@@ -318,6 +432,11 @@ export default function DashboardPage() {
                       label: "Crear informe",
                       href: "/dashboard/pacientes",
                       icon: FileText,
+                    },
+                    {
+                      label: "Ver ingresos",
+                      href: "/dashboard/ingresos",
+                      icon: WalletCards,
                     },
                   ].map((item) => {
                     const Icon = item.icon;

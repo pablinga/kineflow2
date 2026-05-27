@@ -14,6 +14,13 @@ export type Appointment = {
   status: string;
   modality: string;
   duration: string;
+  amount: number;
+  paymentStatus: PaymentStatus;
+  paymentStatusLabel: string;
+  paymentMethod: PaymentMethod | "";
+  paymentMethodLabel: string;
+  paidAt: string | null;
+  paymentNotes: string;
 };
 
 export type AppointmentStatus =
@@ -24,6 +31,13 @@ export type AppointmentStatus =
   | "rescheduled";
 
 export type AppointmentModality = "presencial" | "domicilio" | "virtual";
+export type PaymentStatus = "pending" | "paid" | "waived" | "not_applicable";
+export type PaymentMethod =
+  | "cash"
+  | "transfer"
+  | "mercado_pago"
+  | "insurance"
+  | "other";
 
 export type NewAppointmentInput = {
   patientId: string;
@@ -35,6 +49,14 @@ export type NewAppointmentInput = {
   notes: string;
 };
 
+export type AppointmentPaymentInput = {
+  amount: number;
+  paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod | "";
+  paidAt: string;
+  paymentNotes: string;
+};
+
 type AppointmentRow = {
   id: string;
   patient_id: string;
@@ -43,6 +65,11 @@ type AppointmentRow = {
   modality: AppointmentModality;
   reason: string;
   status: AppointmentStatus | "confirmed" | "completed";
+  session_amount: number | null;
+  payment_status: PaymentStatus | null;
+  payment_method: PaymentMethod | null;
+  paid_at: string | null;
+  payment_notes: string | null;
   patients: { full_name: string } | Array<{ full_name: string }> | null;
 };
 
@@ -60,6 +87,21 @@ const modalityLabels: Record<AppointmentModality, string> = {
   presencial: "Presencial",
   domicilio: "Domicilio",
   virtual: "Virtual",
+};
+
+export const paymentStatusLabels: Record<PaymentStatus, string> = {
+  pending: "Pendiente",
+  paid: "Cobrado",
+  waived: "Bonificado",
+  not_applicable: "No corresponde",
+};
+
+export const paymentMethodLabels: Record<PaymentMethod, string> = {
+  cash: "Efectivo",
+  transfer: "Transferencia",
+  mercado_pago: "Mercado Pago",
+  insurance: "Obra social",
+  other: "Otro",
 };
 
 function mapAppointment(row: AppointmentRow): Appointment {
@@ -81,6 +123,15 @@ function mapAppointment(row: AppointmentRow): Appointment {
     status: statusLabels[row.status],
     modality: modalityLabels[row.modality],
     duration: `${row.duration_minutes} min`,
+    amount: Number(row.session_amount ?? 0),
+    paymentStatus: row.payment_status ?? "pending",
+    paymentStatusLabel: paymentStatusLabels[row.payment_status ?? "pending"],
+    paymentMethod: row.payment_method ?? "",
+    paymentMethodLabel: row.payment_method
+      ? paymentMethodLabels[row.payment_method]
+      : "Sin medio",
+    paidAt: row.paid_at,
+    paymentNotes: row.payment_notes ?? "",
   };
 }
 
@@ -98,7 +149,7 @@ export function useAppointments(patientId?: string) {
       let query = supabase
         .from("appointments")
         .select(
-          "id, patient_id, scheduled_at, duration_minutes, modality, reason, status, patients(full_name)",
+          "id, patient_id, scheduled_at, duration_minutes, modality, reason, status, session_amount, payment_status, payment_method, paid_at, payment_notes, patients(full_name)",
         )
         .order("scheduled_at", { ascending: true });
 
@@ -194,6 +245,29 @@ export function useAppointments(patientId?: string) {
     await loadAppointments();
   }
 
+  async function updateAppointmentPayment(
+    id: string,
+    input: AppointmentPaymentInput,
+  ) {
+    const supabase = getSupabaseClient();
+    const { error: updateError } = await supabase
+      .from("appointments")
+      .update({
+        session_amount: input.amount || 0,
+        payment_status: input.paymentStatus,
+        payment_method: input.paymentMethod || null,
+        paid_at: input.paidAt || null,
+        payment_notes: input.paymentNotes || null,
+      })
+      .eq("id", id);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
+    await loadAppointments();
+  }
+
   return {
     addAppointment,
     appointments,
@@ -202,5 +276,6 @@ export function useAppointments(patientId?: string) {
     rescheduleAppointment,
     refreshAppointments: loadAppointments,
     updateAppointmentStatus,
+    updateAppointmentPayment,
   };
 }

@@ -11,6 +11,7 @@ import {
   Menu,
   PanelLeftClose,
   Users,
+  WalletCards,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -19,6 +20,7 @@ const navigation = [
   { href: "/dashboard", label: "Inicio", icon: Home },
   { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
   { href: "/dashboard/turnos", label: "Turnos", icon: CalendarDays },
+  { href: "/dashboard/ingresos", label: "Ingresos", icon: WalletCards },
   { href: "/dashboard/planes", label: "Planes", icon: CreditCard },
 ];
 
