@@ -16,22 +16,38 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { getSupabaseClient } from "@/lib/supabase";
+import { useRequireAuth, type AccountType } from "@/hooks/useRequireAuth";
 
-const navigation = [
-  { href: "/dashboard", label: "Inicio", icon: Home },
-  { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
-  { href: "/dashboard/turnos", label: "Turnos", icon: CalendarDays },
-  { href: "/dashboard/mis-consultorios", label: "Mis consultorios", icon: Building2 },
-  { href: "/dashboard/consultorios", label: "Consultorios", icon: Building2 },
-  { href: "/dashboard/ingresos", label: "Ingresos", icon: WalletCards },
-  { href: "/dashboard/planes", label: "Planes", icon: CreditCard },
-];
+const navigation = {
+  KINESIOLOGO: [
+    { href: "/dashboard", label: "Inicio", icon: Home },
+    { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
+    { href: "/dashboard/turnos", label: "Turnos", icon: CalendarDays },
+    {
+      href: "/dashboard/mis-consultorios",
+      label: "Mis consultorios",
+      icon: Building2,
+    },
+    { href: "/dashboard/ingresos", label: "Ingresos", icon: WalletCards },
+    { href: "/dashboard/planes", label: "Planes", icon: CreditCard },
+  ],
+  CONSULTORIO: [
+    { href: "/dashboard", label: "Inicio", icon: Home },
+    { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
+    { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
+    { href: "/dashboard/consultorios", label: "Profesionales", icon: Building2 },
+    { href: "/dashboard/ingresos", label: "Ingresos", icon: WalletCards },
+    { href: "/dashboard/planes", label: "Planes", icon: CreditCard },
+  ],
+} satisfies Record<AccountType, Array<{ href: string; label: string; icon: typeof Home }>>;
 
 export function DashboardSidebar() {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const { accountType } = useRequireAuth();
+  const visibleNavigation = navigation[accountType];
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -76,7 +92,7 @@ export function DashboardSidebar() {
           </button>
         </div>
         <nav className="space-y-1">
-          {navigation.map((item) => {
+          {visibleNavigation.map((item) => {
             const Icon = item.icon;
             const active =
               item.href === "/dashboard"

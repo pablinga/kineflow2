@@ -18,7 +18,7 @@ const statusStyles = {
 };
 
 export default function MyClinicsPage() {
-  const { authError, loading, redirecting } = useRequireAuth();
+  const { accountType, authError, loading, redirecting } = useRequireAuth();
   const {
     acceptInvitation,
     error,
@@ -42,6 +42,22 @@ export default function MyClinicsPage() {
 
   if (loading || !loaded) {
     return <DashboardLoading />;
+  }
+
+  if (accountType !== "KINESIOLOGO") {
+    return (
+      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+        <DashboardSidebar />
+        <section className="px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl rounded-lg border border-ocean-100 bg-white p-6 shadow-sm">
+            <h1 className="text-2xl font-bold text-ink">Acceso no disponible</h1>
+            <p className="mt-2 text-slate-600">
+              Esta seccion es solo para kinesiologos independientes.
+            </p>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (

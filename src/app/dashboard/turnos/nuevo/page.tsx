@@ -10,6 +10,14 @@ import { useAppointments, type NewAppointmentInput } from "@/hooks/useAppointmen
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
+type ClinicProfessionalOption = {
+  id: string;
+  professional_id: string;
+  clinic_id: string;
+  profiles: { full_name: string; license_number: string | null } | Array<{ full_name: string; license_number: string | null }> | null;
+  clinics: { name: string } | Array<{ name: string }> | null;
+};
+
 const today = new Date().toISOString().slice(0, 10);
 
 const emptyAppointment: NewAppointmentInput = {
@@ -24,9 +32,14 @@ const emptyAppointment: NewAppointmentInput = {
 
 export default function NewAppointmentPage() {
   const router = useRouter();
-  const { authError, loading, redirecting } = useRequireAuth();
-  const { addAppointment } = useAppointments();
+  const { accountType, authError, loading, redirecting } = useRequireAuth();
+  const { addAppointment, addClinicAppointment } = useAppointments();
   const { activePatients, loaded } = usePatients();
+  const [clinicProfessionals, setClinicProfessionals] = useState<
+    ClinicProfessionalOption[]
+  >([]);
+  const [selectedClinicProfessionalId, setSelectedClinicProfessionalId] =
+    useState("");
   const [patientFromUrl, setPatientFromUrl] = useState("");
   const [appointment, setAppointment] =
     useState<NewAppointmentInput>(emptyAppointment);
@@ -42,6 +55,30 @@ export default function NewAppointmentPage() {
       setAppointment((current) => ({ ...current, patientId }));
     }
   }, []);
+
+  useEffect(() => {
+    async function loadClinicProfessionals() {
+      if (accountType !== "CONSULTORIO") {
+        return;
+      }
+
+      const { getSupabaseClient } = await import("@/lib/supabase");
+      const supabase = getSupabaseClient();
+      const { data } = await supabase
+        .from("clinic_professionals")
+        .select(
+          "id, professional_id, clinic_id, profiles(full_name, license_number), clinics(name)",
+        )
+        .eq("status", "accepted")
+        .order("invited_at", { ascending: false });
+
+      setClinicProfessionals(
+        (data ?? []) as unknown as ClinicProfessionalOption[],
+      );
+    }
+
+    loadClinicProfessionals();
+  }, [accountType]);
 
   if (authError) {
     return <DashboardLoading error={authError} />;
@@ -77,7 +114,25 @@ export default function NewAppointmentPage() {
     setError("");
 
     try {
-      await addAppointment(appointment);
+      if (accountType === "CONSULTORIO") {
+        const selectedProfessional = clinicProfessionals.find(
+          (professional) => professional.id === selectedClinicProfessionalId,
+        );
+
+        if (!selectedProfessional) {
+          setError("Selecciona un kinesiologo vinculado al consultorio.");
+          return;
+        }
+
+        await addClinicAppointment({
+          ...appointment,
+          clinicId: selectedProfessional.clinic_id,
+          clinicProfessionalId: selectedProfessional.id,
+          professionalId: selectedProfessional.professional_id,
+        });
+      } else {
+        await addAppointment(appointment);
+      }
       router.push(
         preselectedPatient
           ? `/dashboard/pacientes/${preselectedPatient.id}`
@@ -122,6 +177,38 @@ export default function NewAppointmentPage() {
             onSubmit={handleSubmit}
           >
             <div className="grid gap-5 md:grid-cols-2">
+              {accountType === "CONSULTORIO" ? (
+                <label className="block md:col-span-2">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Kinesiologo
+                  </span>
+                  <select
+                    className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                    onChange={(event) =>
+                      setSelectedClinicProfessionalId(event.target.value)
+                    }
+                    required
+                    value={selectedClinicProfessionalId}
+                  >
+                    <option value="">Seleccionar profesional vinculado</option>
+                    {clinicProfessionals.map((professional) => {
+                      const profile = Array.isArray(professional.profiles)
+                        ? professional.profiles[0]
+                        : professional.profiles;
+                      const clinic = Array.isArray(professional.clinics)
+                        ? professional.clinics[0]
+                        : professional.clinics;
+
+                      return (
+                        <option key={professional.id} value={professional.id}>
+                          {profile?.full_name ?? "Kinesiologo"} ·{" "}
+                          {clinic?.name ?? "Consultorio"}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+              ) : null}
               <label className="block">
                 <span className="text-sm font-semibold text-slate-700">
                   Paciente

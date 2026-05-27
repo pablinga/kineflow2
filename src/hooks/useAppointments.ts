@@ -58,6 +58,12 @@ export type NewAppointmentInput = {
   notes: string;
 };
 
+export type NewClinicAppointmentInput = NewAppointmentInput & {
+  clinicId: string;
+  clinicProfessionalId: string;
+  professionalId: string;
+};
+
 export type AppointmentPaymentInput = {
   amount: number;
   paymentStatus: PaymentStatus;
@@ -416,6 +422,30 @@ export function useAppointments(patientId?: string) {
     await loadAppointments();
   }
 
+  async function addClinicAppointment(input: NewClinicAppointmentInput) {
+    const scheduledAt = new Date(`${input.date}T${input.time}`).toISOString();
+    const supabase = getSupabaseClient();
+    const { error: insertError } = await supabase.from("appointments").insert({
+      owner_id: input.professionalId,
+      patient_id: input.patientId,
+      scheduled_at: scheduledAt,
+      duration_minutes: input.durationMinutes,
+      modality: input.modality,
+      reason: input.reason,
+      notes: input.notes || null,
+      appointment_origin: "clinic",
+      clinic_id: input.clinicId,
+      clinic_professional_id: input.clinicProfessionalId,
+      status: "pending",
+    });
+
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
+
+    await loadAppointments();
+  }
+
   async function updateAppointmentStatus(
     id: string,
     status: AppointmentStatus,
@@ -488,6 +518,7 @@ export function useAppointments(patientId?: string) {
 
   return {
     addAppointment,
+    addClinicAppointment,
     appointments,
     error,
     loaded,

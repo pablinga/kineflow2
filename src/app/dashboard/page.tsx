@@ -54,7 +54,8 @@ function endOfMonth(date: Date) {
 }
 
 export default function DashboardPage() {
-  const { authError, displayName, loading, redirecting } = useRequireAuth();
+  const { accountType, authError, displayName, loading, redirecting } =
+    useRequireAuth();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const {
     activePatients,
@@ -143,6 +144,7 @@ export default function DashboardPage() {
     0,
   );
 
+  const isClinicAccount = accountType === "CONSULTORIO";
   const summaryCards = [
     {
       label: "Turnos de hoy",
@@ -150,7 +152,9 @@ export default function DashboardPage() {
       detail:
         appointmentsToday.length === 0
           ? "Sin turnos para hoy"
-          : "Agenda del dia",
+          : isClinicAccount
+            ? "Agenda del consultorio"
+            : "Agenda del dia",
     },
     {
       label: "Pacientes activos",
@@ -206,7 +210,9 @@ export default function DashboardPage() {
                 Hola, {displayName}
               </h1>
               <p className="mt-2 text-slate-600">
-                Pacientes, turnos, evoluciones y cobros en un solo lugar.
+                {isClinicAccount
+                  ? "Pacientes, agenda y profesionales del consultorio."
+                  : "Pacientes, turnos, evoluciones y cobros en un solo lugar."}
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -434,11 +440,17 @@ export default function DashboardPage() {
                       href: "/dashboard/turnos/nuevo",
                       icon: CalendarPlus,
                     },
-                    {
-                      label: "Registrar evolución",
-                      href: "/dashboard/pacientes",
-                      icon: ClipboardPlus,
-                    },
+                    isClinicAccount
+                      ? {
+                          label: "Agregar profesional",
+                          href: "/dashboard/consultorios",
+                          icon: ClipboardPlus,
+                        }
+                      : {
+                          label: "Registrar evolución",
+                          href: "/dashboard/pacientes",
+                          icon: ClipboardPlus,
+                        },
                     {
                       label: "Ver ingresos",
                       href: "/dashboard/ingresos",

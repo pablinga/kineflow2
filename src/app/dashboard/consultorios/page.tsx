@@ -1,20 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, MailPlus, Plus, Trash2 } from "lucide-react";
+import { BadgeCheck, MailPlus, Plus, Search, Trash2, UserRound } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
-import { useClinicAdmin } from "@/hooks/useClinicAdmin";
+import {
+  type ProfessionalSearchResult,
+  useClinicAdmin,
+} from "@/hooks/useClinicAdmin";
 import { weekdayLabels } from "@/hooks/useClinicLinks";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-
-const emptyClinic = {
-  name: "",
-  email: "",
-  phone: "",
-  address: "",
-  color: "#0b97dc",
-};
 
 const emptyAvailability = {
   weekday: 1,
@@ -23,14 +18,24 @@ const emptyAvailability = {
 };
 
 export default function ClinicsAdminPage() {
-  const { authError, loading, redirecting } = useRequireAuth();
-  const { clinics, createClinic, error, inviteProfessional, loaded } =
-    useClinicAdmin();
-  const [clinicForm, setClinicForm] = useState(emptyClinic);
+  const {
+    accountType,
+    authError,
+    loading,
+    redirecting,
+  } = useRequireAuth();
+  const {
+    clinics,
+    error,
+    inviteProfessional,
+    loaded,
+    searchProfessionalByLicense,
+  } = useClinicAdmin();
+  const [licenseQuery, setLicenseQuery] = useState("");
+  const [foundProfessional, setFoundProfessional] =
+    useState<ProfessionalSearchResult | null>(null);
   const [inviteClinicId, setInviteClinicId] = useState("");
-  const [inviteEmail, setInviteEmail] = useState("");
   const [inviteColor, setInviteColor] = useState("#14b8a6");
-  const [inviteRole, setInviteRole] = useState("kinesiologist");
   const [availability, setAvailability] = useState([emptyAvailability]);
   const [saving, setSaving] = useState("");
   const [actionError, setActionError] = useState("");
@@ -43,7 +48,7 @@ export default function ClinicsAdminPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesiÃ³n activa. Te estamos llevando al login."
+        message="No hay una sesion activa. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -53,21 +58,43 @@ export default function ClinicsAdminPage() {
     return <DashboardLoading />;
   }
 
-  async function handleCreateClinic(event: React.FormEvent<HTMLFormElement>) {
+  if (accountType !== "CONSULTORIO") {
+    return (
+      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+        <DashboardSidebar />
+        <section className="px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl rounded-lg border border-ocean-100 bg-white p-6 shadow-sm">
+            <h1 className="text-2xl font-bold text-ink">Acceso no disponible</h1>
+            <p className="mt-2 text-slate-600">
+              Esta seccion es solo para cuentas de consultorio.
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  async function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving("clinic");
+    setSaving("search");
     setActionError("");
     setMessage("");
+    setFoundProfessional(null);
 
     try {
-      await createClinic(clinicForm);
-      setClinicForm(emptyClinic);
-      setMessage("Consultorio creado.");
+      const professional = await searchProfessionalByLicense(licenseQuery);
+
+      if (!professional) {
+        setActionError("No encontramos un kinesiologo registrado con esa matricula.");
+        return;
+      }
+
+      setFoundProfessional(professional);
     } catch (submitError) {
       setActionError(
         submitError instanceof Error
           ? submitError.message
-          : "No pudimos crear el consultorio.",
+          : "No pudimos buscar el profesional.",
       );
     } finally {
       setSaving("");
@@ -76,6 +103,12 @@ export default function ClinicsAdminPage() {
 
   async function handleInvite(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!foundProfessional) {
+      setActionError("Primero busca y selecciona un kinesiologo registrado.");
+      return;
+    }
+
     setSaving("invite");
     setActionError("");
     setMessage("");
@@ -83,24 +116,26 @@ export default function ClinicsAdminPage() {
     try {
       await inviteProfessional({
         availability,
-        clinicId: inviteClinicId,
+        clinicId: selectedClinicId,
         color: inviteColor,
-        email: inviteEmail,
-        role: inviteRole,
+        professional: foundProfessional,
       });
-      setInviteEmail("");
+      setLicenseQuery("");
+      setFoundProfessional(null);
       setAvailability([emptyAvailability]);
-      setMessage("InvitaciÃ³n creada en estado pendiente.");
+      setMessage("Invitacion creada en estado pendiente.");
     } catch (submitError) {
       setActionError(
         submitError instanceof Error
           ? submitError.message
-          : "No pudimos crear la invitaciÃ³n.",
+          : "No pudimos crear la invitacion.",
       );
     } finally {
       setSaving("");
     }
   }
+
+  const selectedClinicId = inviteClinicId || clinics[0]?.id || "";
 
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
@@ -109,13 +144,14 @@ export default function ClinicsAdminPage() {
         <div className="mx-auto max-w-6xl">
           <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-ocean-700">
-              Consultorios
+              Profesionales
             </p>
             <h1 className="mt-1 text-3xl font-bold text-ink">
-              Invitaciones y horarios
+              Agregar kinesiologo
             </h1>
             <p className="mt-2 text-slate-600">
-              CargÃ¡ consultorios e invitÃ¡ kinesiolÃ³gos externos por email.
+              Busca kinesiologos registrados por matricula y enviales una
+              invitacion de vinculacion.
             </p>
           </header>
 
@@ -133,98 +169,67 @@ export default function ClinicsAdminPage() {
           <section className="mt-6 grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
             <form
               className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm"
-              onSubmit={handleCreateClinic}
+              onSubmit={handleSearch}
             >
               <div className="flex items-center gap-3">
                 <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
-                  <Building2 className="h-5 w-5" />
+                  <Search className="h-5 w-5" />
                 </span>
                 <div>
                   <h2 className="text-lg font-bold text-ink">
-                    Nuevo consultorio
+                    Buscar por matricula
                   </h2>
                   <p className="text-sm text-slate-500">
-                    Datos base para agenda y pacientes.
+                    Solo se pueden invitar usuarios ya registrados.
                   </p>
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-4">
-                <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">
-                    Nombre
-                  </span>
-                  <input
-                    className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                    onChange={(event) =>
-                      setClinicForm((current) => ({
-                        ...current,
-                        name: event.target.value,
-                      }))
-                    }
-                    required
-                    value={clinicForm.name}
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">
-                    DirecciÃ³n
-                  </span>
-                  <input
-                    className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                    onChange={(event) =>
-                      setClinicForm((current) => ({
-                        ...current,
-                        address: event.target.value,
-                      }))
-                    }
-                    value={clinicForm.address}
-                  />
-                </label>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Email
-                    </span>
-                    <input
-                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) =>
-                        setClinicForm((current) => ({
-                          ...current,
-                          email: event.target.value,
-                        }))
-                      }
-                      type="email"
-                      value={clinicForm.email}
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Color
-                    </span>
-                    <input
-                      className="mt-2 h-11 w-full rounded-lg border border-ocean-100 px-2"
-                      onChange={(event) =>
-                        setClinicForm((current) => ({
-                          ...current,
-                          color: event.target.value,
-                        }))
-                      }
-                      type="color"
-                      value={clinicForm.color}
-                    />
-                  </label>
-                </div>
-              </div>
+              <label className="mt-5 block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Matricula
+                </span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => setLicenseQuery(event.target.value)}
+                  placeholder="MN 12345"
+                  required
+                  value={licenseQuery}
+                />
+              </label>
 
               <button
-                className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 text-sm font-semibold text-white transition hover:bg-ocean-700 disabled:opacity-60"
-                disabled={saving === "clinic"}
+                className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 text-sm font-semibold text-white transition hover:bg-ocean-700 disabled:opacity-60"
+                disabled={saving === "search"}
                 type="submit"
               >
-                <Plus className="h-4 w-4" />
-                {saving === "clinic" ? "Guardando..." : "Crear consultorio"}
+                <Search className="h-4 w-4" />
+                {saving === "search" ? "Buscando..." : "Buscar"}
               </button>
+
+              {foundProfessional ? (
+                <div className="mt-5 rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700">
+                      <UserRound className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <p className="font-bold text-ink">
+                        {foundProfessional.fullName}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">
+                        Matricula {foundProfessional.licenseNumber}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">
+                        {foundProfessional.specialty}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">
+                        {foundProfessional.maskedEmail}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </form>
 
             <form
@@ -237,10 +242,10 @@ export default function ClinicsAdminPage() {
                 </span>
                 <div>
                   <h2 className="text-lg font-bold text-ink">
-                    Invitar kinesiolÃ³go
+                    Enviar invitacion
                   </h2>
                   <p className="text-sm text-slate-500">
-                    La invitaciÃ³n queda pendiente hasta su respuesta.
+                    Define el color y los horarios de atencion.
                   </p>
                 </div>
               </div>
@@ -254,37 +259,14 @@ export default function ClinicsAdminPage() {
                     className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
                     onChange={(event) => setInviteClinicId(event.target.value)}
                     required
-                    value={inviteClinicId}
+                    value={selectedClinicId}
                   >
-                    <option value="">Seleccionar</option>
                     {clinics.map((clinic) => (
                       <option key={clinic.id} value={clinic.id}>
                         {clinic.name}
                       </option>
                     ))}
                   </select>
-                </label>
-                <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">
-                    Email del kinesiolÃ³go
-                  </span>
-                  <input
-                    className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                    onChange={(event) => setInviteEmail(event.target.value)}
-                    required
-                    type="email"
-                    value={inviteEmail}
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">
-                    Rol
-                  </span>
-                  <input
-                    className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                    onChange={(event) => setInviteRole(event.target.value)}
-                    value={inviteRole}
-                  />
                 </label>
                 <label className="block">
                   <span className="text-sm font-semibold text-slate-700">
@@ -301,7 +283,7 @@ export default function ClinicsAdminPage() {
 
               <div className="mt-5 space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="font-bold text-ink">DÃ­as y horarios</h3>
+                  <h3 className="font-bold text-ink">Dias y horarios</h3>
                   <button
                     className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
                     onClick={() =>
@@ -399,11 +381,15 @@ export default function ClinicsAdminPage() {
 
               <button
                 className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 text-sm font-semibold text-white transition hover:bg-ocean-700 disabled:opacity-60"
-                disabled={saving === "invite" || clinics.length === 0}
+                disabled={
+                  saving === "invite" ||
+                  clinics.length === 0 ||
+                  !foundProfessional
+                }
                 type="submit"
               >
-                <MailPlus className="h-4 w-4" />
-                {saving === "invite" ? "Enviando..." : "Crear invitaciÃ³n"}
+                <BadgeCheck className="h-4 w-4" />
+                {saving === "invite" ? "Enviando..." : "Enviar invitacion"}
               </button>
             </form>
           </section>

@@ -39,6 +39,14 @@ type PatientRow = {
   clinic_id: string | null;
 };
 
+type ProfileAccountRow = {
+  account_type: "KINESIOLOGO" | "CONSULTORIO";
+};
+
+type ClinicIdRow = {
+  id: string;
+};
+
 type PatientAppointmentRow = {
   patient_id: string;
   scheduled_at: string;
@@ -119,6 +127,8 @@ export function usePatients() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
+  const [accountType, setAccountType] =
+    useState<ProfileAccountRow["account_type"]>("KINESIOLOGO");
 
   const loadPatients = useCallback(async () => {
     setLoaded(false);
@@ -126,6 +136,19 @@ export function usePatients() {
 
     try {
       const supabase = getSupabaseClient();
+      const { data: sessionData } = await supabase.auth.getUser();
+
+      if (sessionData.user) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("account_type")
+          .eq("id", sessionData.user.id)
+          .maybeSingle();
+        const profile = profileData as ProfileAccountRow | null;
+
+        setAccountType(profile?.account_type ?? "KINESIOLOGO");
+      }
+
       const { data, error: queryError } = await supabase
         .from("patients")
         .select(
@@ -196,9 +219,13 @@ export function usePatients() {
   const activePatients = useMemo(
     () =>
       patients.filter(
-        (patient) => patient.status === "Activo" && !patient.clinicId,
+        (patient) =>
+          patient.status === "Activo" &&
+          (accountType === "CONSULTORIO"
+            ? Boolean(patient.clinicId)
+            : !patient.clinicId),
       ),
-    [patients],
+    [accountType, patients],
   );
 
   async function addPatient(input: NewPatientInput) {
@@ -212,8 +239,30 @@ export function usePatients() {
       throw new Error("No pudimos identificar al usuario.");
     }
 
+    let clinicId: string | null = null;
+
+    if (accountType === "CONSULTORIO") {
+      const { data: clinicData, error: clinicError } = await supabase
+        .from("clinics")
+        .select("id")
+        .eq("owner_id", sessionData.user.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (clinicError) {
+        throw new Error(clinicError.message);
+      }
+
+      clinicId = ((clinicData as ClinicIdRow | null)?.id ?? null);
+
+      if (!clinicId) {
+        throw new Error("La cuenta consultorio no tiene un consultorio asociado.");
+      }
+    }
+
     const { error: insertError } = await supabase.from("patients").insert({
       owner_id: sessionData.user.id,
+      clinic_id: clinicId,
       full_name: input.name,
       document_number: input.document,
       phone: input.phone,

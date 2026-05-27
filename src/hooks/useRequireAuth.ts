@@ -7,6 +7,14 @@ import { getSupabaseClient } from "@/lib/supabase";
 
 const SESSION_TIMEOUT_MS = 8000;
 
+export type AccountType = "KINESIOLOGO" | "CONSULTORIO";
+
+type ProfileRow = {
+  account_type: AccountType | null;
+  full_name: string | null;
+  organization_name: string | null;
+};
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   return Promise.race([
     promise,
@@ -26,10 +34,33 @@ export function useRequireAuth() {
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [accountType, setAccountType] = useState<AccountType>("KINESIOLOGO");
+  const [profileName, setProfileName] = useState("");
 
   useEffect(() => {
     let mounted = true;
     let subscription: { unsubscribe: () => void } | undefined;
+
+    async function loadProfile(currentUser: User) {
+      const supabase = getSupabaseClient();
+      const { data } = await supabase
+        .from("profiles")
+        .select("account_type, full_name, organization_name")
+        .eq("id", currentUser.id)
+        .maybeSingle();
+      const profile = data as ProfileRow | null;
+      const metadataAccountType = currentUser.user_metadata
+        ?.account_type as AccountType | undefined;
+      const nextAccountType =
+        profile?.account_type ?? metadataAccountType ?? "KINESIOLOGO";
+
+      setAccountType(nextAccountType);
+      setProfileName(
+        nextAccountType === "CONSULTORIO"
+          ? profile?.organization_name || profile?.full_name || ""
+          : profile?.full_name || "",
+      );
+    }
 
     async function verifySession() {
       try {
@@ -58,6 +89,7 @@ export function useRequireAuth() {
         }
 
         setUser(data.session.user);
+        await loadProfile(data.session.user);
         setRedirecting(false);
         setAuthError("");
         setLoading(false);
@@ -79,7 +111,7 @@ export function useRequireAuth() {
     try {
       const supabase = getSupabaseClient();
       const { data: listener } = supabase.auth.onAuthStateChange(
-        (_event, session) => {
+        async (_event, session) => {
           if (!mounted) {
             return;
           }
@@ -93,6 +125,7 @@ export function useRequireAuth() {
           }
 
           setUser(session.user);
+          await loadProfile(session.user);
           setRedirecting(false);
           setAuthError("");
           setLoading(false);
@@ -118,6 +151,10 @@ export function useRequireAuth() {
   }, [pathname, router]);
 
   const displayName = useMemo(() => {
+    if (profileName.trim()) {
+      return profileName.trim().split(" ")[0];
+    }
+
     const metadataName = user?.user_metadata?.full_name;
 
     if (typeof metadataName === "string" && metadataName.trim()) {
@@ -125,11 +162,14 @@ export function useRequireAuth() {
     }
 
     return user?.email?.split("@")[0] || "profesional";
-  }, [user]);
+  }, [profileName, user]);
 
   return {
+    accountType,
     authError,
     displayName,
+    isClinicAccount: accountType === "CONSULTORIO",
+    isKinesiologistAccount: accountType === "KINESIOLOGO",
     isAuthenticated: Boolean(user),
     loading,
     redirecting,
