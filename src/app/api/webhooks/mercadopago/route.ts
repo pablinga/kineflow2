@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import {
   getMercadoPagoSubscription,
   mapMercadoPagoStatus,
@@ -39,6 +40,54 @@ function getEventType(payload: Record<string, unknown>, url: URL) {
   );
 }
 
+function getSignaturePart(signature: string, key: string) {
+  return signature
+    .split(",")
+    .map((part) => part.trim().split("="))
+    .find(([partKey]) => partKey === key)?.[1];
+}
+
+function signaturesMatch(expected: string, received: string) {
+  const expectedBuffer = Buffer.from(expected, "hex");
+  const receivedBuffer = Buffer.from(received, "hex");
+
+  return (
+    expectedBuffer.length === receivedBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
+  );
+}
+
+function verifyMercadoPagoWebhookSignature(request: Request, url: URL) {
+  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET?.trim();
+
+  if (!secret) {
+    return true;
+  }
+
+  const signature = request.headers.get("x-signature");
+  const requestId = request.headers.get("x-request-id");
+  const dataId = url.searchParams.get("data.id") ?? url.searchParams.get("id");
+
+  if (!signature || !requestId || !dataId) {
+    return false;
+  }
+
+  const ts = getSignaturePart(signature, "ts");
+  const hash = getSignaturePart(signature, "v1");
+
+  if (!ts || !hash) {
+    return false;
+  }
+
+  const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
+  const expectedHash = crypto
+    .createHmac("sha256", secret)
+    .update(manifest)
+    .digest("hex");
+
+  return signaturesMatch(expectedHash, hash);
+}
+
 function parseExternalReference(reference: unknown) {
   if (typeof reference !== "string") {
     return null;
@@ -59,6 +108,14 @@ function parseExternalReference(reference: unknown) {
 
 export async function POST(request: Request) {
   const url = new URL(request.url);
+
+  if (!verifyMercadoPagoWebhookSignature(request, url)) {
+    return NextResponse.json(
+      { error: "Firma de Mercado Pago invalida." },
+      { status: 401 },
+    );
+  }
+
   const payload = (await request.json().catch(() => ({}))) as Record<
     string,
     unknown

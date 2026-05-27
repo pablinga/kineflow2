@@ -35,17 +35,21 @@ La app incluye tres planes comerciales:
 - Independiente: pacientes ilimitados para un kinesiologo individual.
 - Clinica / Consultorio: estructura preparada para varios profesionales.
 
-Para habilitar checkout real con Mercado Pago, agrega estas variables solo en el entorno server-side:
+Para habilitar suscripciones con Mercado Pago, agrega estas variables:
 
 ```bash
+NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=TEST-tu-public-key
 MERCADOPAGO_ACCESS_TOKEN=TEST-tu-token
+MERCADOPAGO_TEST_PAYER_EMAIL=comprador-test@example.com
 MERCADOPAGO_WEBHOOK_SECRET=tu-secreto-si-lo-configuras
 SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
 ```
 
-El boton interno de upgrade llama a `/api/billing/checkout`. Si falta `MERCADOPAGO_ACCESS_TOKEN`, la app muestra un mensaje controlado y no rompe el flujo. Cuando Mercado Pago envie el webhook a `/api/billing/webhook`, el backend actualiza el plan usando `SUPABASE_SERVICE_ROLE_KEY`; el cliente no activa planes pagos por su cuenta.
+El boton interno de upgrade llama a `/api/billing/create-subscription`. Si falta `MERCADOPAGO_ACCESS_TOKEN`, la app muestra un mensaje controlado y no rompe el flujo. Cuando Mercado Pago envie el webhook a `/api/webhooks/mercadopago`, el backend consulta la suscripcion en Mercado Pago y actualiza el plan usando `SUPABASE_SERVICE_ROLE_KEY`; el cliente no activa planes pagos por su cuenta.
 
 Pendiente para produccion real: configurar credenciales definitivas, URL publica de webhook, validacion completa de firma de Mercado Pago segun el panel usado, y probar pagos sandbox/end-to-end antes de cobrar.
+
+Guia completa: [docs/mercadopago-suscripciones.md](docs/mercadopago-suscripciones.md).
 
 3. Inicia el entorno local:
 

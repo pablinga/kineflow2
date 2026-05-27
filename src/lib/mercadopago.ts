@@ -87,7 +87,7 @@ export function mapMercadoPagoStatus(status?: string): SubscriptionStatus {
     return "PAUSED";
   }
 
-  if (status === "cancelled") {
+  if (status === "canceled" || status === "cancelled") {
     return "CANCELLED";
   }
 
@@ -160,6 +160,7 @@ export async function createMercadoPagoPreapproval(params: {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
+      ...(mercadoPagoMode === "TEST" ? { "X-scope": "stage" } : {}),
     },
     body: JSON.stringify({
       reason: `KineFlow ${plan.name}`,
@@ -254,7 +255,7 @@ export async function cancelMercadoPagoSubscription(subscriptionId: string) {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ status: "cancelled" }),
+      body: JSON.stringify({ status: "canceled" }),
     },
   );
 
