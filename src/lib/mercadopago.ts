@@ -31,6 +31,14 @@ export function isMercadoPagoTestMode(accessToken: string) {
   return accessToken.startsWith("TEST-");
 }
 
+function getMercadoPagoTokenMode(accessToken: string) {
+  return isMercadoPagoTestMode(accessToken) ? "TEST" : "PROD";
+}
+
+function getSafeTokenPrefix(accessToken: string) {
+  return accessToken.slice(0, Math.min(accessToken.indexOf("-") + 1 || 4, 8));
+}
+
 export function getMercadoPagoPayerEmail(fallbackEmail: string) {
   const accessToken = getMercadoPagoAccessToken();
 
@@ -38,19 +46,16 @@ export function getMercadoPagoPayerEmail(fallbackEmail: string) {
     throw new Error("Mercado Pago no está configurado.");
   }
 
-  if (!isMercadoPagoTestMode(accessToken)) {
-    return fallbackEmail;
-  }
-
+  const mode = getMercadoPagoTokenMode(accessToken);
   const testPayerEmail = process.env.MERCADOPAGO_TEST_PAYER_EMAIL?.trim();
 
-  if (!testPayerEmail) {
+  if (mode === "TEST" && !testPayerEmail) {
     throw new Error(
       "Falta configurar MERCADOPAGO_TEST_PAYER_EMAIL para modo prueba",
     );
   }
 
-  return testPayerEmail;
+  return testPayerEmail || fallbackEmail;
 }
 
 export function getSiteUrl() {
@@ -134,12 +139,20 @@ export async function createMercadoPagoPreapproval(params: {
     throw new Error("Mercado Pago no está configurado.");
   }
 
-  const mercadoPagoMode = isMercadoPagoTestMode(accessToken) ? "TEST" : "PROD";
+  const mercadoPagoMode = getMercadoPagoTokenMode(accessToken);
+  const testPayerConfigured = Boolean(
+    process.env.MERCADOPAGO_TEST_PAYER_EMAIL?.trim(),
+  );
+  const payerEmailSource =
+    payerEmail === params.userEmail ? "authenticated_user" : "env_test_payer";
 
   console.info("Mercado Pago preapproval request", {
     mode: mercadoPagoMode,
     payerEmail,
+    payerEmailSource,
     planId: params.planId,
+    safeTokenPrefix: getSafeTokenPrefix(accessToken),
+    testPayerConfigured,
   });
 
   const response = await fetch(`${MERCADOPAGO_API_URL}/preapproval`, {
@@ -179,8 +192,11 @@ export async function createMercadoPagoPreapproval(params: {
       body: safeBody,
       mode: mercadoPagoMode,
       payerEmail,
+      payerEmailSource,
       planId: params.planId,
+      safeTokenPrefix: getSafeTokenPrefix(accessToken),
       status: response.status,
+      testPayerConfigured,
     });
 
     const detail =
@@ -191,7 +207,7 @@ export async function createMercadoPagoPreapproval(params: {
       "Mercado Pago no pudo crear la suscripción.";
 
     throw new Error(
-      `${detail} (${response.status}). Revisá las credenciales TEST y el comprador de prueba.`,
+      `${detail} (${response.status}). Modo=${mercadoPagoMode}. PayerSource=${payerEmailSource}. Revisá las credenciales y el comprador de prueba.`,
     );
   }
 
