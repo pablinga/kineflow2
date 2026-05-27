@@ -147,26 +147,6 @@ export default function AppointmentsPage() {
     [appointments, mobileCenterDate],
   );
   const visibleAppointments = mobileDays.flatMap((day) => day.appointments);
-  const weekDays = useMemo(() => {
-    const start = addDays(mobileCenterDate, -((mobileCenterDate.getDay() || 7) - 1));
-
-    return [0, 1, 2, 3, 4, 5, 6].map((offset) => {
-      const date = addDays(start, offset);
-      const appointmentsForDay = appointments
-        .filter((appointment) => sameDay(new Date(appointment.scheduledAt), date))
-        .sort(
-          (a, b) =>
-            new Date(a.scheduledAt).getTime() -
-            new Date(b.scheduledAt).getTime(),
-        );
-
-      return {
-        appointments: appointmentsForDay,
-        date,
-        isToday: sameDay(date, new Date()),
-      };
-    });
-  }, [appointments, mobileCenterDate]);
   const visibleRangeLabel = `${formatDate(mobileDays[0]?.date)} - ${formatDate(
     mobileDays[2]?.date,
   )}`;
@@ -572,68 +552,36 @@ export default function AppointmentsPage() {
             </div>
           ) : null}
 
-          <section className="mt-6 space-y-4 lg:hidden">
-            {mobileDays.map((day) => (
-              <div
-                className={`rounded-lg border bg-white p-3 shadow-sm ${
-                  day.isToday
-                    ? "border-ocean-300 ring-2 ring-ocean-100"
-                    : "border-ocean-100"
-                }`}
-                key={day.date.toISOString()}
-              >
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-bold capitalize text-ink">
-                      {compactDayLabel(day.date)}
-                    </p>
-                    <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                      {formatDate(day.date)}
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-ocean-50 px-3 py-1 text-xs font-semibold text-ocean-800">
-                    {day.appointments.length}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {day.appointments.map(renderAppointment)}
-                  {day.appointments.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-ocean-100 bg-ocean-50 p-4 text-center">
-                      <p className="text-sm font-medium text-slate-500">
-                        No hay turnos para este dia.
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </section>
-
-          <section className="mt-6 hidden lg:block">
-            <div className="grid grid-cols-7 gap-3">
-              {weekDays.map((day) => (
+          <section className="mt-6">
+            <div className="grid gap-4 lg:grid-cols-3">
+              {mobileDays.map((day) => (
                 <div
-                  className={`min-w-0 rounded-lg border bg-white p-3 shadow-sm ${
+                  className={`rounded-lg border bg-white p-3 shadow-sm ${
                     day.isToday
                       ? "border-ocean-300 ring-2 ring-ocean-100"
                       : "border-ocean-100"
                   }`}
                   key={day.date.toISOString()}
                 >
-                  <div className="mb-3 border-b border-ocean-100 pb-2">
-                    <p className="text-sm font-bold capitalize text-ink">
-                      {day.date.toLocaleDateString("es-AR", { weekday: "short" })}
-                    </p>
-                    <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                      {formatDate(day.date)}
-                    </p>
+                  <div className="mb-3 flex items-center justify-between gap-3 border-b border-ocean-100 pb-3">
+                    <div>
+                      <p className="text-sm font-bold capitalize text-ink">
+                        {compactDayLabel(day.date)}
+                      </p>
+                      <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                        {formatDate(day.date)}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-ocean-50 px-3 py-1 text-xs font-semibold text-ocean-800">
+                      {day.appointments.length}
+                    </span>
                   </div>
                   <div className="space-y-2">
                     {day.appointments.map(renderAppointment)}
                     {day.appointments.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-ocean-100 bg-ocean-50 p-3 text-center">
-                        <p className="text-xs font-medium text-slate-500">
-                          Sin turnos
+                      <div className="rounded-lg border border-dashed border-ocean-100 bg-ocean-50 p-4 text-center">
+                        <p className="text-sm font-medium text-slate-500">
+                          No hay turnos para este dia.
                         </p>
                       </div>
                     ) : null}
