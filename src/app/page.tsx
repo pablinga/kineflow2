@@ -51,13 +51,13 @@ export default function Home() {
           <div className="flex flex-col justify-center">
             <div className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-ocean-200 bg-white px-4 py-2 text-sm font-semibold text-ocean-800 shadow-sm">
               <Sparkles className="h-4 w-4" />
-              Gestion simple para kinesiologos y consultorios
+              Gestión simple para kinesiólogos y consultorios
             </div>
             <h1 className="max-w-3xl text-4xl font-bold tracking-normal text-ink sm:text-5xl lg:text-6xl">
               KineFlow
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-              Organiza pacientes, turnos, evoluciones y cobros en un solo
+              Organiza pacientes, turnos, evoluciónes y cobros en un solo
               lugar. Deja de depender de papel, WhatsApp y la agenda del
               celular para seguir cada tratamiento.
             </p>
@@ -72,7 +72,7 @@ export default function Home() {
             </div>
             <div className="mt-10 grid max-w-xl grid-cols-3 gap-4">
               {[
-                ["+120", "sesiones/mes"],
+                ["+120", "sesiónes/mes"],
                 ["24h", "acceso seguro"],
                 ["100%", "responsive"],
               ].map(([value, label]) => (
@@ -171,7 +171,7 @@ export default function Home() {
               Planes
             </p>
             <h2 className="mt-3 text-3xl font-bold text-ink">
-              Elegi como queres empezar y escala cuando tu practica lo necesite.
+              Elegí como queres empezar y escala cuando tu practica lo necesite.
             </h2>
             <p className="mt-4 leading-7 text-slate-600">
               Los planes estan preparados para profesionales independientes,

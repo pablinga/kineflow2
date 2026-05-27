@@ -32,6 +32,7 @@ import {
 import { paymentStatusStyles } from "@/lib/payment-ui";
 import { formatDate, formatSessionAmount } from "@/lib/format";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 type PendingAction = {
   appointment: Appointment;
@@ -91,7 +92,8 @@ function actionToneClass(tone: PendingAction["tone"]) {
 }
 
 export default function AppointmentsPage() {
-  const { authError, loading, redirecting } = useRequireAuth();
+  const { accountType, authError, loading, redirecting } = useRequireAuth();
+  const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const {
     appointments,
     error,
@@ -279,15 +281,18 @@ export default function AppointmentsPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activa. Te estamos llevando al login."
+        message="No hay una sesión activá. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
   }
 
-  if (loading || !loaded) {
+  if (loading || !loaded || !planLoaded) {
     return <DashboardLoading />;
   }
+
+  const canCreateAppointment =
+    accountType === "CONSULTORIO" || plan.plan === "INDEPENDIENTE";
 
   async function confirmStatusChange() {
     if (!pendingAction) {
@@ -569,15 +574,24 @@ export default function AppointmentsPage() {
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
-              <Link
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
-                href="/dashboard/turnos/nuevo"
-              >
-                <CalendarPlus className="h-4 w-4" />
-                Nuevo turno
-              </Link>
+              {canCreateAppointment ? (
+                <Link
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+                  href="/dashboard/turnos/nuevo"
+                >
+                  <CalendarPlus className="h-4 w-4" />
+                  Nuevo turno
+                </Link>
+              ) : null}
             </div>
           </header>
+
+          {accountType === "KINESIOLOGO" && !canCreateAppointment ? (
+            <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm">
+              Podés ver tus turnos de consultorio e invitaciónes. Para crear
+              turnos propios, activá el Plan Independiente.
+            </section>
+          ) : null}
 
           {error || actionError ? (
             <p className="mt-6 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
@@ -627,7 +641,7 @@ export default function AppointmentsPage() {
                 No hay turnos para estos días.
               </p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-                Usá Nuevo turno para programar sesiones.
+                Usá Nuevo turno para programar sesiónes.
               </p>
             </div>
           ) : null}

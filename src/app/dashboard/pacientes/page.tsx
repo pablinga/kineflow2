@@ -26,7 +26,7 @@ const emptyPatient: NewPatientInput = {
 };
 
 export default function PatientsPage() {
-  const { authError, loading, redirecting } = useRequireAuth();
+  const { accountType, authError, loading, redirecting } = useRequireAuth();
   const { addPatient, disablePatient, error, loaded, patients } = usePatients();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const [query, setQuery] = useState("");
@@ -72,7 +72,7 @@ export default function PatientsPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activa. Te estamos llevando al login."
+        message="No hay una sesión activá. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -81,6 +81,11 @@ export default function PatientsPage() {
   if (loading || !loaded || !planLoaded) {
     return <DashboardLoading />;
   }
+
+  const independentPracticeBlocked =
+    accountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE";
+  const independentPlanMessage =
+    "Esta funcionalidad está disponible en el Plan Independiente. Podés activárlo para gestionar tus pacientes, turnos y cobros propios.";
 
   function updateField(field: keyof NewPatientInput, value: string) {
     setNewPatient((current) => ({ ...current, [field]: value }));
@@ -96,13 +101,18 @@ export default function PatientsPage() {
         (patient) => patient.status === "Activo",
       );
 
+      if (independentPracticeBlocked) {
+        setActionError(independentPlanMessage);
+        return;
+      }
+
       if (
         plan.plan === "FREE" &&
-        plan.limitePacientes !== null &&
-        activePatients.length >= plan.limitePacientes
+        plan.límitePacientes !== null &&
+        activePatients.length >= plan.límitePacientes
       ) {
         setActionError(
-          "El Plan Free permite hasta 5 pacientes. Para continuar, activa un plan pago.",
+          "El Plan Free permite hasta 5 pacientes. Para continuar, activá un plan pago.",
         );
         return;
       }
@@ -147,7 +157,7 @@ export default function PatientsPage() {
                 Gestión de pacientes
               </h1>
               <p className="mt-2 text-slate-600">
-                Carga pacientes, revisa su historial y agenda nuevas sesiones.
+                Carga pacientes, revisa su historial y agenda nuevas sesiónes.
               </p>
             </div>
             <button
@@ -158,12 +168,17 @@ export default function PatientsPage() {
                 );
 
                 if (
+                  independentPracticeBlocked ||
+                  (
                   plan.plan === "FREE" &&
-                  plan.limitePacientes !== null &&
-                  activePatients.length >= plan.limitePacientes
+                  plan.límitePacientes !== null &&
+                  activePatients.length >= plan.límitePacientes
+                  )
                 ) {
                   setActionError(
-                    "El Plan Free permite hasta 5 pacientes. Para continuar, activa un plan pago.",
+                    independentPracticeBlocked
+                      ? independentPlanMessage
+                      : "El Plan Free permite hasta 5 pacientes. Para continuar, activá un plan pago.",
                   );
                   return;
                 }
@@ -178,16 +193,31 @@ export default function PatientsPage() {
             </button>
           </header>
 
-          {plan.plan === "FREE" ? (
+          {independentPracticeBlocked ? (
+            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 shadow-sm">
+              <p className="font-bold text-amber-900">
+                Práctica particular bloqueada
+              </p>
+              <p className="mt-1 text-sm leading-6 text-amber-800">
+                {independentPlanMessage}
+              </p>
+              <Link
+                className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
+                href="/dashboard/planes"
+              >
+                Ver Plan Independiente
+              </Link>
+            </section>
+          ) : plan.plan === "FREE" ? (
             <section className="mt-6 rounded-lg border border-ocean-200 bg-white p-5 shadow-sm">
               <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div>
                   <p className="font-bold text-ink">
                     Plan Free: {patients.filter((patient) => patient.status === "Activo").length}
-                    /{plan.limitePacientes} pacientes activos
+                    /{plan.límitePacientes} pacientes activos
                   </p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Actualmente estas usando el Plan Free. Activa un plan pago
+                    Actualmente estás usando el Plan Free. Activá un plan pago
                     para acceder a pacientes ilimitados y funciones avanzadas.
                   </p>
                 </div>
@@ -206,7 +236,7 @@ export default function PatientsPage() {
               <p>{actionError || error}</p>
               {(actionError || error).includes("Plan Free") ? (
                 <Link className="mt-2 inline-flex font-bold" href="/dashboard/planes">
-                  Activar plan
+                  Activár plan
                 </Link>
               ) : null}
             </div>
@@ -327,7 +357,7 @@ export default function PatientsPage() {
                 </p>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
                   Creá el primer paciente para empezar a programar turnos y
-                  registrar evoluciones.
+                  registrar evoluciónes.
                 </p>
               </div>
             ) : (

@@ -34,7 +34,7 @@ export default function MyClinicsPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesiÃ³n activa. Te estamos llevando al login."
+        message="No hay una sesión activá. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -52,7 +52,7 @@ export default function MyClinicsPage() {
           <div className="mx-auto max-w-3xl rounded-lg border border-ocean-100 bg-white p-6 shadow-sm">
             <h1 className="text-2xl font-bold text-ink">Acceso no disponible</h1>
             <p className="mt-2 text-slate-600">
-              Esta seccion es solo para kinesiologos independientes.
+              Esta seccion es solo para kinesiólogos independientes.
             </p>
           </div>
         </section>
@@ -70,10 +70,10 @@ export default function MyClinicsPage() {
               Mis consultorios
             </p>
             <h1 className="mt-1 text-3xl font-bold text-ink">
-              VÃ­nculos e invitaciones
+              Vínculos e invitaciónes
             </h1>
             <p className="mt-2 text-slate-600">
-              RevisÃ¡ consultorios asociados, horarios asignados y colores de
+              Revisá consultorios asociados, horarios asignados y colores de
               agenda.
             </p>
           </header>
@@ -170,11 +170,11 @@ export default function MyClinicsPage() {
           {links.length === 0 ? (
             <div className="mt-6 rounded-lg border border-dashed border-ocean-200 bg-white p-8 text-center shadow-sm">
               <p className="font-semibold text-ink">
-                TodavÃ­a no tenÃ©s consultorios vinculados.
+                Todavía no tenés consultorios vinculados.
               </p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
                 Cuando un consultorio te invite, vas a poder aceptar o rechazar
-                desde esta secciÃ³n.
+                desde esta sección.
               </p>
             </div>
           ) : null}

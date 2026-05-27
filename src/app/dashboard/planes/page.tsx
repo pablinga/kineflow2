@@ -11,7 +11,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { plans, type CommercialPlan } from "@/lib/plans";
 
 export default function PlansPage() {
-  const { authError, loading, redirecting } = useRequireAuth();
+  const { accountType, authError, loading, redirecting } = useRequireAuth();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const { loaded: patientsLoaded, patients } = usePatients();
   const [selectedPlan, setSelectedPlan] = useState<CommercialPlan | null>(null);
@@ -26,7 +26,7 @@ export default function PlansPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesion activa. Te estamos llevando al login."
+        message="No hay una sesión activá. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -40,9 +40,10 @@ export default function PlansPage() {
     (patient) => patient.status === "Activo",
   );
   const reachedFreeLimit =
+    accountType === "KINESIOLOGO" &&
     plan.plan === "FREE" &&
-    plan.limitePacientes !== null &&
-    activePatients.length >= plan.limitePacientes;
+    plan.límitePacientes !== null &&
+    activePatients.length >= plan.límitePacientes;
 
   async function handleCheckout(planId: CommercialPlan) {
     setSelectedPlan(planId);
@@ -54,7 +55,7 @@ export default function PlansPage() {
     }
 
     if (planId === "FREE") {
-      setCheckoutMessage("Ya podes empezar gratis desde tu cuenta actual.");
+      setCheckoutMessage("Ya podés empezar gratis desde tu cuenta actual.");
       return;
     }
 
@@ -66,7 +67,7 @@ export default function PlansPage() {
       const accessToken = data.session?.access_token;
 
       if (!accessToken) {
-        throw new Error("Necesitas iniciar sesion nuevamente.");
+        throw new Error("Necesitás iniciar sesión nuevamente.");
       }
 
       const response = await fetch("/api/billing/checkout", {
@@ -90,7 +91,7 @@ export default function PlansPage() {
 
       setCheckoutMessage(
         result.message ??
-          "Mercado Pago todavia no esta configurado. El flujo quedo preparado.",
+          "Mercado Pago todavía no está configurado. El flujo quedó preparado.",
       );
     } catch (error) {
       setCheckoutError(
@@ -111,11 +112,12 @@ export default function PlansPage() {
           <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-ocean-700">Planes</p>
             <h1 className="mt-1 text-3xl font-bold text-ink">
-              Activar o mejorar plan
+              Activár o mejorar plan
             </h1>
             <p className="mt-2 max-w-3xl text-slate-600">
-              Actualmente estas usando el Plan {plan.plan}. Revisa el uso de
-              pacientes y activa un plan pago cuando necesites crecer.
+              Actualmente estás usando el Plan {plan.plan}. Revisá qué incluye
+              cada opción y activá un plan pago cuando necesites gestionar una
+              práctica propia o un consultorio.
             </p>
           </header>
 
@@ -124,10 +126,10 @@ export default function PlansPage() {
               ["Plan actual", plan.plan],
               ["Estado", plan.estadoPlan],
               [
-                "Limite de pacientes",
-                plan.limitePacientes === null || plan.limitePacientes < 0
+                "Límite de pacientes",
+                plan.límitePacientes === null || plan.límitePacientes < 0
                   ? "Ilimitado"
-                  : String(plan.limitePacientes),
+                  : String(plan.límitePacientes),
               ],
               ["Pacientes usados", String(activePatients.length)],
             ].map(([label, value]) => (
@@ -143,10 +145,23 @@ export default function PlansPage() {
 
           {reachedFreeLimit ? (
             <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-              Llegaste al limite de 5 pacientes del Plan Free. Para cargar
-              nuevos pacientes, activa el Plan Independiente o Clinica.
+              Llegaste al límite de 5 pacientes del Plan Free. Para cargar
+              nuevos pacientes propios, activá el Plan Independiente.
             </section>
           ) : null}
+
+          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+            <p className="font-bold text-ink">
+              Kinesiólogos que trabajan solo para consultorios
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Si sos kinesiólogo y trabajás únicamente para consultorios, no
+              necesitás contratar el Plan Independiente. Podés usar KineFlow
+              para ver tus turnos y cargar evoluciónes de los consultorios donde
+              estés vinculado. Solo necesitás el Plan Independiente si querés
+              gestionar tus propios pacientes particulares.
+            </p>
+          </section>
 
           <section className="mt-6 grid gap-5 lg:grid-cols-3">
             {plans.map((item) => {
@@ -215,6 +230,13 @@ export default function PlansPage() {
                           ? "Preparando..."
                           : item.cta}
                     </button>
+                    {item.id === "CLINICA" ? (
+                      <p className="mt-3 text-xs leading-5 text-slate-500">
+                        Cada consultorio paga por los kinesiólogos activos
+                        dentro de su propia cuenta, incluso si el profesional
+                        trabaja en otros consultorios.
+                      </p>
+                    ) : null}
                   </div>
                 </article>
               );
@@ -229,11 +251,13 @@ export default function PlansPage() {
                     <Clock className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="font-bold text-ink">Activacion proximamente</p>
+                    <p className="font-bold text-ink">
+                      Activáción próximamente
+                    </p>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
                       {checkoutError ||
                         checkoutMessage ||
-                        `La seleccion del plan ${
+                        `La selección del plan ${
                           plans.find((item) => item.id === selectedPlan)?.name
                         } queda lista para conectar con Mercado Pago.`}
                     </p>

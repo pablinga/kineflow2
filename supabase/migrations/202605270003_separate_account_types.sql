@@ -256,3 +256,125 @@ with check (
   and status in ('accepted', 'rejected')
   and public.current_account_type() = 'KINESIOLOGO'
 );
+
+create or replace function public.can_create_independent_practice_records()
+returns boolean
+stable
+language sql
+security definer
+set search_path = public
+as $function$
+  select exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.account_type = 'KINESIOLOGO'
+      and profiles.plan = 'INDEPENDIENTE'
+      and profiles.estado_plan = 'ACTIVO'
+  );
+$function$;
+
+create or replace function public.enforce_patient_plan_limit()
+returns trigger
+as $function$
+declare
+  current_plan text;
+  current_account_type text;
+  patient_limit integer;
+  active_patients integer;
+begin
+  select profiles.plan, profiles.account_type, profiles.limite_pacientes
+    into current_plan, current_account_type, patient_limit
+  from public.profiles
+  where profiles.id = new.owner_id;
+
+  if current_account_type = 'KINESIOLOGO' and coalesce(current_plan, 'FREE') <> 'INDEPENDIENTE' then
+    raise exception 'Esta funcionalidad está disponible en el Plan Independiente. Podés activarlo para gestionar tus pacientes, turnos y cobros propios.';
+  end if;
+
+  if current_account_type = 'KINESIOLOGO' and coalesce(current_plan, 'FREE') = 'FREE' then
+    select count(*)
+      into active_patients
+    from public.patients
+    where owner_id = new.owner_id
+      and clinic_id is null
+      and status = 'active';
+
+    if active_patients >= coalesce(patient_limit, 5) then
+      raise exception 'El Plan Free permite hasta 5 pacientes. Para continuar, activá un plan pago.';
+    end if;
+  end if;
+
+  return new;
+end;
+$function$ language plpgsql security definer set search_path = public;
+
+drop policy if exists "Users can create own appointments" on public.appointments;
+create policy "Users can create own appointments"
+on public.appointments for insert
+to authenticated
+with check (
+  (
+    appointment_origin = 'independent'
+    and auth.uid() = owner_id
+    and public.can_create_independent_practice_records()
+    and exists (
+      select 1 from public.patients
+      where patients.id = patient_id
+        and patients.owner_id = auth.uid()
+        and patients.status = 'active'
+        and patients.clinic_id is null
+    )
+  )
+  or (
+    appointment_origin = 'clinic'
+    and public.is_clinic_owner(clinic_id)
+    and exists (
+      select 1
+      from public.clinic_professionals
+      where clinic_professionals.id = clinic_professional_id
+        and clinic_professionals.clinic_id = clinic_id
+        and clinic_professionals.professional_id = owner_id
+        and clinic_professionals.status = 'accepted'
+    )
+    and exists (
+      select 1 from public.patients
+      where patients.id = patient_id
+        and patients.owner_id = auth.uid()
+        and patients.clinic_id = appointments.clinic_id
+        and patients.status = 'active'
+    )
+  )
+);
+
+drop policy if exists "Users can create own evolutions" on public.evolutions;
+create policy "Users can create own evolutions"
+on public.evolutions for insert
+to authenticated
+with check (
+  (
+    auth.uid() = owner_id
+    and public.can_create_independent_practice_records()
+    and exists (
+      select 1 from public.patients
+      where patients.id = patient_id
+        and patients.owner_id = auth.uid()
+        and patients.status = 'active'
+        and patients.clinic_id is null
+    )
+  )
+  or (
+    auth.uid() = owner_id
+    and exists (
+      select 1
+      from public.appointments
+      join public.clinic_professionals
+        on clinic_professionals.id = appointments.clinic_professional_id
+      where appointments.id = appointment_id
+        and appointments.patient_id = patient_id
+        and clinic_professionals.professional_id = auth.uid()
+        and clinic_professionals.status = 'accepted'
+        and clinic_professionals.can_register_evolutions
+    )
+  )
+);

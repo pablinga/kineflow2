@@ -48,7 +48,7 @@ export default function ClinicsAdminPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesion activa. Te estamos llevando al login."
+        message="No hay una sesión activá. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -85,7 +85,7 @@ export default function ClinicsAdminPage() {
       const professional = await searchProfessionalByLicense(licenseQuery);
 
       if (!professional) {
-        setActionError("No encontramos un kinesiologo registrado con esa matricula.");
+        setActionError("No encontramos un kinesiólogo registrado con esa matrícula.");
         return;
       }
 
@@ -105,7 +105,7 @@ export default function ClinicsAdminPage() {
     event.preventDefault();
 
     if (!foundProfessional) {
-      setActionError("Primero busca y selecciona un kinesiologo registrado.");
+      setActionError("Primero busca y seleccióna un kinesiólogo registrado.");
       return;
     }
 
@@ -123,12 +123,12 @@ export default function ClinicsAdminPage() {
       setLicenseQuery("");
       setFoundProfessional(null);
       setAvailability([emptyAvailability]);
-      setMessage("Invitacion creada en estado pendiente.");
+      setMessage("Invitación creada en estado pendiente.");
     } catch (submitError) {
       setActionError(
         submitError instanceof Error
           ? submitError.message
-          : "No pudimos crear la invitacion.",
+          : "No pudimos crear la invitación.",
       );
     } finally {
       setSaving("");
@@ -147,11 +147,11 @@ export default function ClinicsAdminPage() {
               Profesionales
             </p>
             <h1 className="mt-1 text-3xl font-bold text-ink">
-              Agregar kinesiologo
+              Agregar kinesiólogo
             </h1>
             <p className="mt-2 text-slate-600">
-              Busca kinesiologos registrados por matricula y enviales una
-              invitacion de vinculacion.
+              Busca kinesiólogos registrados por matrícula y enviales una
+              invitación de vinculacion.
             </p>
           </header>
 
@@ -177,7 +177,7 @@ export default function ClinicsAdminPage() {
                 </span>
                 <div>
                   <h2 className="text-lg font-bold text-ink">
-                    Buscar por matricula
+                    Buscar por matrícula
                   </h2>
                   <p className="text-sm text-slate-500">
                     Solo se pueden invitar usuarios ya registrados.
@@ -187,7 +187,7 @@ export default function ClinicsAdminPage() {
 
               <label className="mt-5 block">
                 <span className="text-sm font-semibold text-slate-700">
-                  Matricula
+                  Matrícula
                 </span>
                 <input
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
@@ -218,7 +218,7 @@ export default function ClinicsAdminPage() {
                         {foundProfessional.fullName}
                       </p>
                       <p className="mt-1 text-sm text-slate-700">
-                        Matricula {foundProfessional.licenseNumber}
+                        Matrícula {foundProfessional.licenseNumber}
                       </p>
                       <p className="mt-1 text-sm text-slate-700">
                         {foundProfessional.specialty}
@@ -242,7 +242,7 @@ export default function ClinicsAdminPage() {
                 </span>
                 <div>
                   <h2 className="text-lg font-bold text-ink">
-                    Enviar invitacion
+                    Enviar invitación
                   </h2>
                   <p className="text-sm text-slate-500">
                     Define el color y los horarios de atencion.
@@ -389,7 +389,7 @@ export default function ClinicsAdminPage() {
                 type="submit"
               >
                 <BadgeCheck className="h-4 w-4" />
-                {saving === "invite" ? "Enviando..." : "Enviar invitacion"}
+                {saving === "invite" ? "Enviando..." : "Enviar invitación"}
               </button>
             </form>
           </section>

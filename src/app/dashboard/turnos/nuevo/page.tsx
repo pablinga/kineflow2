@@ -9,6 +9,7 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { useAppointments, type NewAppointmentInput } from "@/hooks/useAppointments";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 type ClinicProfessionalOption = {
   id: string;
@@ -33,6 +34,7 @@ const emptyAppointment: NewAppointmentInput = {
 export default function NewAppointmentPage() {
   const router = useRouter();
   const { accountType, authError, loading, redirecting } = useRequireAuth();
+  const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const { addAppointment, addClinicAppointment } = useAppointments();
   const { activePatients, loaded } = usePatients();
   const [clinicProfessionals, setClinicProfessionals] = useState<
@@ -87,15 +89,20 @@ export default function NewAppointmentPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activa. Te estamos llevando al login."
+        message="No hay una sesión activá. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
   }
 
-  if (loading || !loaded) {
+  if (loading || !loaded || !planLoaded) {
     return <DashboardLoading />;
   }
+
+  const independentPracticeBlocked =
+    accountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE";
+  const independentPlanMessage =
+    "Esta funcionalidad está disponible en el Plan Independiente. Podés activárlo para gestionar tus pacientes, turnos y cobros propios.";
 
   const preselectedPatient = activePatients.find(
     (patient) => patient.id === patientFromUrl,
@@ -115,12 +122,19 @@ export default function NewAppointmentPage() {
 
     try {
       if (accountType === "CONSULTORIO") {
+        if (clinicProfessionals.length === 0) {
+          setError(
+            "Todavía no tenés kinesiólogos activos. Cuando el profesional acepte la invitación, vas a poder asignarle turnos.",
+          );
+          return;
+        }
+
         const selectedProfessional = clinicProfessionals.find(
           (professional) => professional.id === selectedClinicProfessionalId,
         );
 
         if (!selectedProfessional) {
-          setError("Selecciona un kinesiologo vinculado al consultorio.");
+          setError("Seleccioná un kinesiólogo vinculado al consultorio.");
           return;
         }
 
@@ -131,6 +145,11 @@ export default function NewAppointmentPage() {
           professionalId: selectedProfessional.professional_id,
         });
       } else {
+        if (independentPracticeBlocked) {
+          setError(independentPlanMessage);
+          return;
+        }
+
         await addAppointment(appointment);
       }
       router.push(
@@ -172,6 +191,19 @@ export default function NewAppointmentPage() {
             </p>
           </header>
 
+          {independentPracticeBlocked ? (
+            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+              {independentPlanMessage}
+            </section>
+          ) : null}
+
+          {accountType === "CONSULTORIO" && clinicProfessionals.length === 0 ? (
+            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+              Para crear un turno, primero tenés que agregar un kinesiólogo al
+              consultorio y esperar que acepte la invitación.
+            </section>
+          ) : null}
+
           <form
             className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm"
             onSubmit={handleSubmit}
@@ -180,7 +212,7 @@ export default function NewAppointmentPage() {
               {accountType === "CONSULTORIO" ? (
                 <label className="block md:col-span-2">
                   <span className="text-sm font-semibold text-slate-700">
-                    Kinesiologo
+                    Kinesiólogo
                   </span>
                   <select
                     className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
@@ -201,7 +233,7 @@ export default function NewAppointmentPage() {
 
                       return (
                         <option key={professional.id} value={professional.id}>
-                          {profile?.full_name ?? "Kinesiologo"} ·{" "}
+                          {profile?.full_name ?? "Kinesiólogo"} ·{" "}
                           {clinic?.name ?? "Consultorio"}
                         </option>
                       );
@@ -234,7 +266,7 @@ export default function NewAppointmentPage() {
                 ) : null}
                 {preselectedPatient ? (
                   <p className="mt-2 text-sm text-ocean-700">
-                    Paciente preseleccionado desde su historial.
+                    Paciente preselecciónado desde su historial.
                   </p>
                 ) : null}
               </label>
@@ -334,7 +366,13 @@ export default function NewAppointmentPage() {
               </Link>
               <button
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={activePatients.length === 0 || saving}
+                disabled={
+                  activePatients.length === 0 ||
+                  saving ||
+                  independentPracticeBlocked ||
+                  (accountType === "CONSULTORIO" &&
+                    clinicProfessionals.length === 0)
+                }
                 type="submit"
               >
                 <Save className="h-4 w-4" />

@@ -102,7 +102,7 @@ function mapPatient(
     ? formatDateTime(lastAttendedAppointment.scheduled_at)
     : lastEvolution
       ? formatDate(lastEvolution.session_date)
-      : "Sin sesiones";
+      : "Sin sesiónes";
 
   return {
     id: row.id,
@@ -115,7 +115,7 @@ function mapPatient(
     status: row.status === "active" ? "Activo" : "Inactivo",
     progress: lastEvolution
       ? formatDate(lastEvolution.session_date)
-      : "Sin evolucion registrada",
+      : "Sin evolución registrada",
     lastSession,
     nextAppointment: nextAppointment
       ? formatDateTime(nextAppointment.scheduled_at)

@@ -10,7 +10,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "KineFlow | Gestión clínica para kinesiólogos",
   description:
-    "Aplicación web para gestionar pacientes, sesiones y evolución clínica en consultorios de kinesiología.",
+    "Aplicación web para gestionar pacientes, sesiónes y evolución clínica en consultorios de kinesiología.",
 };
 
 export default function RootLayout({

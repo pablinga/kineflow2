@@ -72,7 +72,7 @@ export default function DashboardPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activa. Te estamos llevando al login."
+        message="No hay una sesión activá. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -172,7 +172,7 @@ export default function DashboardPage() {
       detail:
         pendingPaymentAppointments.length === 0
           ? "Sin cobros pendientes"
-          : `${pendingPaymentAppointments.length} sesiones`,
+          : `${pendingPaymentAppointments.length} sesiónes`,
     },
   ];
   const economicCards = [
@@ -212,7 +212,7 @@ export default function DashboardPage() {
               <p className="mt-2 text-slate-600">
                 {isClinicAccount
                   ? "Pacientes, agenda y profesionales del consultorio."
-                  : "Pacientes, turnos, evoluciones y cobros en un solo lugar."}
+                  : "Pacientes, turnos, evoluciónes y cobros en un solo lugar."}
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -241,10 +241,10 @@ export default function DashboardPage() {
                 </span>
                 <div>
                   <p className="font-bold text-ink">
-                    Actualmente estas usando el Plan Free.
+                    Actualmente estás usando el Plan Free.
                   </p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Activa un plan pago para acceder a pacientes ilimitados y
+                    Activá un plan pago para acceder a pacientes ilimitados y
                     funciones avanzadas.
                   </p>
                 </div>
@@ -253,7 +253,7 @@ export default function DashboardPage() {
                 className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
                 href="/dashboard/planes"
               >
-                Activar plan
+                Activár plan
               </Link>
             </section>
           ) : null}

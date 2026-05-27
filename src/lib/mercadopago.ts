@@ -32,14 +32,14 @@ export async function createMercadoPagoSubscription(params: {
   const plan = getCheckoutPlan(params.planId);
 
   if (!plan || !plan.priceAmount) {
-    throw new Error("El plan seleccionado no requiere checkout.");
+    throw new Error("El plan selecciónado no requiere checkout.");
   }
 
   if (!accessToken) {
     return {
       status: "not_configured",
       message:
-        "Mercado Pago todavia no esta configurado. El plan quedo preparado para activarse cuando se carguen las credenciales.",
+        "Mercado Pago todavía no está configurado. El plan quedo preparado para activárse cuando se carguen las credenciales.",
     };
   }
 
@@ -84,7 +84,7 @@ export async function getMercadoPagoSubscription(subscriptionId: string) {
   const accessToken = getMercadoPagoAccessToken();
 
   if (!accessToken) {
-    throw new Error("Mercado Pago no esta configurado.");
+    throw new Error("Mercado Pago no está configurado.");
   }
 
   const response = await fetch(

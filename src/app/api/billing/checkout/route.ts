@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
     if (!token) {
       return NextResponse.json(
-        { error: "Necesitas iniciar sesion para activar un plan." },
+        { error: "Necesitás iniciar sesión para activár un plan." },
         { status: 401 },
       );
     }
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
     if (error || !user?.email) {
       return NextResponse.json(
-        { error: "No pudimos validar tu sesion." },
+        { error: "No pudimos validar tu sesión." },
         { status: 401 },
       );
     }

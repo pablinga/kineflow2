@@ -5,7 +5,7 @@ export function getSupabaseServerClient() {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Supabase no esta configurado.");
+    throw new Error("Supabase no está configurado.");
   }
 
   return createClient(supabaseUrl, supabaseAnonKey, {

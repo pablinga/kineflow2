@@ -116,7 +116,7 @@ export default function RegisterPage() {
       onChange: setFullName,
     },
     {
-      label: "Matricula profesional",
+      label: "Matrícula profesional",
       placeholder: "MN 12345",
       type: "text",
       icon: BadgeCheck,
@@ -160,7 +160,7 @@ export default function RegisterPage() {
       onChange: setResponsibleName,
     },
     {
-      label: "Direccion",
+      label: "Dirección",
       placeholder: "Av. Siempre Viva 123",
       type: "text",
       icon: MapPin,
@@ -204,7 +204,7 @@ export default function RegisterPage() {
           <div className="mt-8">
             <h1 className="text-3xl font-bold text-ink">Crear cuenta</h1>
             <p className="mt-2 text-slate-600">
-              Elegi el tipo de cuenta para activar las funciones correctas.
+              Elegí el tipo de cuenta para activár las funciones correctas.
             </p>
           </div>
           <form className="mt-8 space-y-5" onSubmit={handleRegister}>
@@ -297,7 +297,7 @@ export default function RegisterPage() {
             </Button>
           </form>
           <p className="mt-6 text-center text-sm text-slate-600">
-            Ya tenes cuenta?{" "}
+            Ya tenés cuenta?{" "}
             <Link className="font-semibold text-ocean-700" href="/login">
               Ingresar
             </Link>
@@ -307,7 +307,7 @@ export default function RegisterPage() {
       <section className="hidden items-center justify-center bg-[radial-gradient(circle_at_top_right,#aee3ff,transparent_32%),linear-gradient(180deg,#0b97dc,#075f96)] p-10 text-white lg:flex">
         <div className="max-w-lg">
           <p className="text-sm font-bold uppercase tracking-wider text-ocean-100">
-            SaaS clinico
+            SaaS clínico
           </p>
           <h2 className="mt-4 text-4xl font-bold">
             Dos perfiles claros para gestionar atencion independiente o un
@@ -315,7 +315,7 @@ export default function RegisterPage() {
           </h2>
           <div className="mt-8 grid gap-3">
             {[
-              "Kinesiologos con agenda propia",
+              "Kinesiólogos con agenda propia",
               "Consultorios con profesionales vinculados",
               "Permisos separados por cuenta",
             ].map((item) => (

@@ -120,7 +120,7 @@ export default function PatientDetailPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activa. Te estamos llevando al login."
+        message="No hay una sesión activá. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -340,8 +340,8 @@ export default function PatientDetailPage() {
                       </select>
                       {attendedAppointments.length === 0 ? (
                         <p className="mt-2 text-sm text-slate-500">
-                          Para asociar esta evolucion a una sesion, primero
-                          marca un turno como asistido o crea una nueva sesion.
+                          Para asociar esta evolución a una sesión, primero
+                          marca un turno como asistido o crea una nueva sesión.
                         </p>
                       ) : null}
                     </label>
@@ -563,7 +563,7 @@ export default function PatientDetailPage() {
                               }
                               type="button"
                             >
-                              Registrar evolucion
+                              Registrar evolución
                             </button>
                             <Link
                               className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
@@ -604,7 +604,7 @@ export default function PatientDetailPage() {
 
                   <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
                     <h2 className="text-lg font-bold text-ink">
-                      Evoluciones / sesiones
+                      Evoluciones / sesiónes
                     </h2>
                     <div className="mt-5 space-y-3">
                       {evolutions.map((item) => (
@@ -638,7 +638,7 @@ export default function PatientDetailPage() {
                     {evolutions.length === 0 ? (
                       <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
                         <p className="font-semibold text-ink">
-                          Este paciente todavía no tiene evoluciones.
+                          Este paciente todavía no tiene evoluciónes.
                         </p>
                       </div>
                     ) : null}

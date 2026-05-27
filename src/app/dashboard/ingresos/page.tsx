@@ -20,9 +20,12 @@ import {
 import { formatCurrency, paymentStatusStyles } from "@/lib/payment-ui";
 import { formatSessionAmount } from "@/lib/format";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 export default function IncomePage() {
-  const { authError, displayName, loading, redirecting } = useRequireAuth();
+  const { accountType, authError, displayName, loading, redirecting } =
+    useRequireAuth();
+  const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const { appointments, error: appointmentsError, loaded: appointmentsLoaded } =
     useAppointments();
   const { activePatients, loaded: patientsLoaded } = usePatients();
@@ -70,14 +73,34 @@ export default function IncomePage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activa. Te estamos llevando al login."
+        message="No hay una sesión activá. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
   }
 
-  if (loading || !appointmentsLoaded || !patientsLoaded) {
+  if (loading || !appointmentsLoaded || !patientsLoaded || !planLoaded) {
     return <DashboardLoading />;
+  }
+
+  if (accountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE") {
+    return (
+      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+        <DashboardSidebar />
+        <section className="px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl rounded-lg border border-amber-100 bg-amber-50 p-6 shadow-sm">
+            <h1 className="text-2xl font-bold text-amber-950">
+              Ingresos propios bloqueados
+            </h1>
+            <p className="mt-2 leading-6 text-amber-800">
+              Esta funcionalidad está disponible en el Plan Independiente.
+              Podés activárlo para gestionar tus pacientes, turnos y cobros
+              propios.
+            </p>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -343,7 +366,7 @@ export default function IncomePage() {
             {filteredAppointments.length === 0 ? (
               <div className="p-8 text-center">
                 <p className="font-semibold text-ink">
-                  No hay ingresos para los filtros seleccionados.
+                  No hay ingresos para los filtros selecciónados.
                 </p>
               </div>
             ) : null}

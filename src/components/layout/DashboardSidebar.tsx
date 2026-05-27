@@ -17,6 +17,7 @@ import {
 import { Logo } from "@/components/ui/Logo";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useRequireAuth, type AccountType } from "@/hooks/useRequireAuth";
+import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 const navigation = {
   KINESIOLOGO: [
@@ -47,7 +48,16 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { accountType } = useRequireAuth();
-  const visibleNavigation = navigation[accountType];
+  const { plan } = useSubscriptionPlan();
+  const visibleNavigation =
+    accountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE"
+      ? navigation.KINESIOLOGO.filter(
+          (item) =>
+            !["/dashboard/pacientes", "/dashboard/ingresos"].includes(
+              item.href,
+            ),
+        )
+      : navigation[accountType];
 
   async function handleLogout() {
     setLoggingOut(true);

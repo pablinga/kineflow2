@@ -85,7 +85,7 @@ export function useEvolutions(patientId?: string) {
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "No pudimos cargar evoluciones.",
+          : "No pudimos cargar evoluciónes.",
       );
     } finally {
       setLoaded(true);

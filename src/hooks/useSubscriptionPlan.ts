@@ -12,8 +12,8 @@ import {
 export type UserPlan = {
   plan: CommercialPlan;
   estadoPlan: PlanStatus;
-  limitePacientes: number | null;
-  cantidadKinesiologos: number;
+  límitePacientes: number | null;
+  cantidadKinesiólogos: number;
 };
 
 function normalizePlan(value: unknown): CommercialPlan {
@@ -64,8 +64,8 @@ export function useSubscriptionPlan() {
           setPlan({
             plan: currentPlan,
             estadoPlan: normalizeStatus(data.estado_plan),
-            limitePacientes: configuredLimit,
-            cantidadKinesiologos:
+            límitePacientes: configuredLimit,
+            cantidadKinesiólogos:
               typeof data.cantidad_kinesiologos === "number"
                 ? data.cantidad_kinesiologos
                 : currentPlan === "CLINICA"

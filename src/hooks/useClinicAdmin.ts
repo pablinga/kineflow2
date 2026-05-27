@@ -124,7 +124,7 @@ export function useClinicAdmin() {
     const normalizedLicense = licenseNumber.trim();
 
     if (!normalizedLicense) {
-      throw new Error("Ingresa una matricula para buscar.");
+      throw new Error("Ingresa una matrícula para buscar.");
     }
 
     const supabase = getSupabaseClient();

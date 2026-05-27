@@ -69,7 +69,7 @@ export default function LoginPage() {
             Volvé a tu panel clínico en segundos.
           </h1>
           <p className="mt-5 leading-8 text-ocean-100">
-            Revisá turnos, continuá evoluciones y mantené cada tratamiento
+            Revisá turnos, continuá evoluciónes y mantené cada tratamiento
             organizado desde cualquier dispositivo.
           </p>
         </div>
