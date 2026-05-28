@@ -4,10 +4,6 @@ const MERCADOPAGO_API_URL = "https://api.mercadopago.com";
 const MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL =
   "https://www.mercadopago.com.ar/subscriptions/checkout";
 
-const MERCADOPAGO_PREAPPROVAL_PLAN_IDS: Partial<Record<CommercialPlan, string>> = {
-  INDEPENDIENTE: "a7be629d2d77468a94dac3e415d487e4",
-};
-
 export type SubscriptionStatus =
   | "PENDING_PAYMENT"
   | "ACTIVE"
@@ -60,7 +56,11 @@ export function isConsultorioPlan(plan: CommercialPlan) {
 }
 
 export function getMercadoPagoPreapprovalPlanId(planId: CommercialPlan) {
-  return MERCADOPAGO_PREAPPROVAL_PLAN_IDS[planId] ?? null;
+  if (planId === "INDEPENDIENTE") {
+    return process.env.NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID?.trim() || null;
+  }
+
+  return null;
 }
 
 export function getMercadoPagoSubscriptionCheckoutUrl(planId: CommercialPlan) {

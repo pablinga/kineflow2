@@ -7,8 +7,10 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
-import { getSupabaseClient } from "@/lib/supabase";
 import { plans, type CommercialPlan } from "@/lib/plans";
+
+const MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL =
+  "https://www.mercadopago.com.ar/subscriptions/checkout";
 
 export default function PlansPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
@@ -45,7 +47,7 @@ export default function PlansPage() {
     plan.limitePacientes !== null &&
     activePatients.length >= plan.limitePacientes;
 
-  async function handleCheckout(planId: CommercialPlan) {
+  function handleCheckout(planId: CommercialPlan) {
     setSelectedPlan(planId);
     setCheckoutError("");
     setCheckoutMessage("");
@@ -62,37 +64,25 @@ export default function PlansPage() {
     setCheckoutLoading(planId);
 
     try {
-      const supabase = getSupabaseClient();
-      const { data } = await supabase.auth.getSession();
-      const accessToken = data.session?.access_token;
-
-      if (!accessToken) {
-        throw new Error("Necesitás iniciar sesión nuevamente.");
+      if (planId !== "INDEPENDIENTE") {
+        throw new Error("Este plan todavia no tiene checkout configurado.");
       }
 
-      const response = await fetch("/api/billing/create-subscription", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ planId }),
-      });
-      const result = await response.json();
+      const preapprovalPlanId =
+        process.env.NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID?.trim();
 
-      if (!response.ok) {
-        throw new Error(result.error ?? "No pudimos preparar el pago.");
+      if (!preapprovalPlanId) {
+        throw new Error(
+          "Falta configurar NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID.",
+        );
       }
 
-      if (result.status === "ready" && result.initPoint) {
-        window.location.href = result.initPoint;
-        return;
-      }
+      const initPoint = new URL(MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL);
+      initPoint.searchParams.set("preapproval_plan_id", preapprovalPlanId);
 
-      setCheckoutMessage(
-        result.message ??
-          "Mercado Pago todavía no está configurado. El flujo quedó preparado.",
-      );
+      window.location.href = initPoint.toString();
+      return;
+
     } catch (error) {
       setCheckoutError(
         error instanceof Error
