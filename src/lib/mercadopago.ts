@@ -6,6 +6,12 @@ const MERCADOPAGO_PREAPPROVAL_PLAN_IDS: Partial<Record<CommercialPlan, string>> 
   INDEPENDIENTE: "a7be629d2d77468a94dac3e415d487e4",
 };
 
+const MERCADOPAGO_PLAN_EXTERNAL_REFERENCES: Partial<
+  Record<CommercialPlan, string>
+> = {
+  INDEPENDIENTE: "KINEINDEP",
+};
+
 export type SubscriptionStatus =
   | "PENDING_PAYMENT"
   | "ACTIVE"
@@ -100,6 +106,17 @@ export function getMercadoPagoPreapprovalPlanId(planId: CommercialPlan) {
   return MERCADOPAGO_PREAPPROVAL_PLAN_IDS[planId] ?? null;
 }
 
+export function getMercadoPagoExternalReference(params: {
+  planId: CommercialPlan;
+  subscriptionId: string;
+  userId: string;
+}) {
+  return (
+    MERCADOPAGO_PLAN_EXTERNAL_REFERENCES[params.planId] ??
+    `${params.userId}:${params.planId}:${params.subscriptionId}`
+  );
+}
+
 export function mapMercadoPagoStatus(status?: string): SubscriptionStatus {
   if (status === "authorized") {
     return "ACTIVE";
@@ -164,31 +181,33 @@ export async function createMercadoPagoPreapproval(params: {
   const mercadoPagoMode = getMercadoPagoTokenMode(accessToken);
   const publicKey = getMercadoPagoPublicKey();
   const preapprovalPlanId = getMercadoPagoPreapprovalPlanId(params.planId);
-  const backUrl = `${siteUrl}/billing/success`;
-  const notificationUrl = `${siteUrl}/api/webhooks/mercadopago`;
+  const backUrl = `${siteUrl}/suscripcion/resultado`;
+  const externalReference = getMercadoPagoExternalReference(params);
   const testPayerConfigured = Boolean(
     process.env.MERCADOPAGO_TEST_PAYER_EMAIL?.trim(),
   );
   const payerEmailSource =
     payerEmail === params.userEmail ? "authenticated_user" : "env_test_payer";
-  const body = {
-    reason: `KineFlow ${plan.name}`,
-    external_reference: `${params.userId}:${params.planId}:${params.subscriptionId}`,
-    payer_email: payerEmail,
-    back_url: backUrl,
-    notification_url: notificationUrl,
-    ...(preapprovalPlanId
-      ? { preapproval_plan_id: preapprovalPlanId }
-      : {
-          auto_recurring: {
-            frequency: 1,
-            frequency_type: "months",
-            transaction_amount: plan.priceAmount,
-            currency_id: "ARS",
-          },
-        }),
-    status: "pending",
-  };
+  const body = preapprovalPlanId
+    ? {
+        back_url: backUrl,
+        external_reference: externalReference,
+        payer_email: payerEmail,
+        preapproval_plan_id: preapprovalPlanId,
+      }
+    : {
+        auto_recurring: {
+          currency_id: "ARS",
+          frequency: 1,
+          frequency_type: "months",
+          transaction_amount: plan.priceAmount,
+        },
+        back_url: backUrl,
+        external_reference: externalReference,
+        notification_url: `${siteUrl}/api/webhooks/mercadopago`,
+        payer_email: payerEmail,
+        reason: `KineFlow ${plan.name}`,
+      };
 
   console.info("Mercado Pago preapproval request", {
     backUrl,
@@ -198,6 +217,9 @@ export async function createMercadoPagoPreapproval(params: {
     payerEmailSource,
     planId: params.planId,
     preapprovalPlanId,
+    preapprovalResponseFlow: preapprovalPlanId
+      ? "with_preapproval_plan"
+      : "without_preapproval_plan",
     publicKeyConfigured: Boolean(publicKey),
     publicKeyStartsWithTest: publicKey?.startsWith("TEST-") ?? false,
     safeTokenPrefix: getSafeTokenPrefix(accessToken),
@@ -212,6 +234,18 @@ export async function createMercadoPagoPreapproval(params: {
   });
 
   const data = await response.json();
+  const hasInitPoint = Boolean(data?.init_point);
+  const hasSandboxInitPoint = Boolean(data?.sandbox_init_point);
+
+  console.info("Mercado Pago preapproval response", {
+    environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
+    hasInitPoint,
+    hasSandboxInitPoint,
+    mode: mercadoPagoMode,
+    planId: params.planId,
+    preapprovalPlanId,
+    status: response.status,
+  });
 
   if (!response.ok) {
     const safeBody = {
@@ -231,6 +265,9 @@ export async function createMercadoPagoPreapproval(params: {
       payerEmailSource,
       planId: params.planId,
       preapprovalPlanId,
+      preapprovalResponseFlow: preapprovalPlanId
+        ? "with_preapproval_plan"
+        : "without_preapproval_plan",
       publicKeyConfigured: Boolean(publicKey),
       publicKeyStartsWithTest: publicKey?.startsWith("TEST-") ?? false,
       safeTokenPrefix: getSafeTokenPrefix(accessToken),

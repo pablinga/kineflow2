@@ -106,6 +106,38 @@ function parseExternalReference(reference: unknown) {
   };
 }
 
+async function resolveParsedReference(params: {
+  admin: ReturnType<typeof getSupabaseAdminClient>;
+  providerSubscriptionId: string;
+  reference: unknown;
+}) {
+  const parsed = parseExternalReference(params.reference);
+
+  if (parsed) {
+    return parsed;
+  }
+
+  if (params.reference !== "KINEINDEP" || !params.admin) {
+    return null;
+  }
+
+  const { data: subscription } = await params.admin
+    .from("subscriptions")
+    .select("id, account_id")
+    .eq("provider_subscription_id", params.providerSubscriptionId)
+    .maybeSingle();
+
+  if (!subscription?.id || !subscription.account_id) {
+    return null;
+  }
+
+  return {
+    accountId: subscription.account_id as string,
+    planCode: "INDEPENDIENTE" as CommercialPlan,
+    subscriptionId: subscription.id as string,
+  };
+}
+
 export async function POST(request: Request) {
   const url = new URL(request.url);
 
@@ -159,9 +191,11 @@ export async function POST(request: Request) {
     }
 
     const providerSubscription = await getMercadoPagoSubscription(resourceId);
-    const parsed = parseExternalReference(
-      providerSubscription.external_reference,
-    );
+    const parsed = await resolveParsedReference({
+      admin,
+      providerSubscriptionId: providerSubscription.id,
+      reference: providerSubscription.external_reference,
+    });
 
     if (!parsed) {
       await admin

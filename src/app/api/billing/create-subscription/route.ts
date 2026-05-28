@@ -202,8 +202,18 @@ export async function POST(request: Request) {
     });
     const internalStatus = mapMercadoPagoStatus(mercadoPagoSubscription.status);
     const initPoint =
-      mercadoPagoSubscription.init_point ??
-      mercadoPagoSubscription.sandbox_init_point;
+      mercadoPagoSubscription.sandbox_init_point ??
+      mercadoPagoSubscription.init_point;
+
+    console.info("Mercado Pago redirect link selected", {
+      environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
+      hasInitPoint: Boolean(mercadoPagoSubscription.init_point),
+      hasSandboxInitPoint: Boolean(mercadoPagoSubscription.sandbox_init_point),
+      linkSource: mercadoPagoSubscription.sandbox_init_point
+        ? "sandbox_init_point"
+        : "init_point",
+      planId: planCode,
+    });
 
     await admin
       .from("subscriptions")
