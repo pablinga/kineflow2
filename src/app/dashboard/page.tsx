@@ -256,7 +256,33 @@ export default function DashboardPage() {
                 Activár plan
               </Link>
             </section>
-          ) : null}
+          ) : (
+            <section className="mt-6 flex flex-col justify-between gap-4 rounded-lg border border-emerald-100 bg-emerald-50 p-5 shadow-sm md:flex-row md:items-center">
+              <div className="flex gap-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700">
+                  <CreditCard className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="font-bold text-emerald-950">
+                    {plan.estadoPlan === "ACTIVO"
+                      ? `Plan activo: ${plan.plan}`
+                      : `Plan actual: ${plan.plan}`}
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-emerald-800">
+                    {plan.estadoPlan === "ACTIVO"
+                      ? "Tu suscripcion esta activa."
+                      : "Estado: pendiente de confirmacion de Mercado Pago."}
+                  </p>
+                </div>
+              </div>
+              <Link
+                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                href="/dashboard/planes"
+              >
+                Ver mi plan
+              </Link>
+            </section>
+          )}
 
           <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {summaryCards.map((card) => (

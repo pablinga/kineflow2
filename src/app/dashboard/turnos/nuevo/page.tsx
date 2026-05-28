@@ -99,8 +99,7 @@ export default function NewAppointmentPage() {
     return <DashboardLoading />;
   }
 
-  const independentPracticeBlocked =
-    accountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE";
+  const independentPracticeBlocked = false;
   const clinicPlanBlocked =
     accountType === "CONSULTORIO" &&
     !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));

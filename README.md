@@ -51,6 +51,16 @@ Pendiente para produccion real: configurar credenciales definitivas, URL publica
 
 Guia completa: [docs/mercadopago-suscripciones.md](docs/mercadopago-suscripciones.md).
 
+URL de retorno del plan de suscripcion en Mercado Pago:
+
+```bash
+# QA / Preview
+https://tu-preview-o-dominio-qa/suscripcion/resultado
+
+# Produccion
+https://tudominio.com/suscripcion/resultado
+```
+
 3. Inicia el entorno local:
 
 ```bash

@@ -25,6 +25,30 @@ export type BillingPermissions = {
   maxProfessionals: number | null;
 };
 
+export function canCreatePatient(params: {
+  accountType: AccountType;
+  activePatientCount: number;
+  patientLimit: number | null;
+  plan: CommercialPlan;
+  planStatus: "ACTIVO" | "PENDIENTE" | "VENCIDO" | "CANCELADO";
+}) {
+  if (params.accountType === "CONSULTORIO") {
+    return params.planStatus === "ACTIVO" && params.plan.startsWith("CONSULTORIO_");
+  }
+
+  if (params.plan === "INDEPENDIENTE") {
+    return params.planStatus === "ACTIVO" || params.planStatus === "PENDIENTE";
+  }
+
+  if (params.plan === "FREE") {
+    const limit = params.patientLimit ?? 5;
+
+    return limit < 0 || params.activePatientCount < limit;
+  }
+
+  return false;
+}
+
 export function isPlanAllowedForAccount(
   plan: CommercialPlan,
   accountType: AccountType,

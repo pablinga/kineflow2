@@ -7,6 +7,7 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { isPlanAllowedForAccount } from "@/lib/billing";
 import { plans, type CommercialPlan } from "@/lib/plans";
 
 const MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL =
@@ -46,6 +47,10 @@ export default function PlansPage() {
     plan.plan === "FREE" &&
     plan.limitePacientes !== null &&
     activePatients.length >= plan.limitePacientes;
+  const visiblePlans = plans.filter((item) =>
+    isPlanAllowedForAccount(item.id, accountType),
+  );
+  const hasPaidPlan = plan.plan !== "FREE";
 
   function handleCheckout(planId: CommercialPlan) {
     setSelectedPlan(planId);
@@ -111,6 +116,21 @@ export default function PlansPage() {
             </p>
           </header>
 
+          {hasPaidPlan ? (
+            <section className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
+              <p className="font-bold text-emerald-900">
+                {plan.estadoPlan === "ACTIVO"
+                  ? `Plan activo: ${plan.plan}`
+                  : `Plan actual: ${plan.plan}`}
+              </p>
+              <p className="mt-1 text-sm leading-6 text-emerald-800">
+                {plan.estadoPlan === "ACTIVO"
+                  ? "Tu suscripcion esta activa."
+                  : "Estado: pendiente de confirmacion de Mercado Pago."}
+              </p>
+            </section>
+          ) : null}
+
           <section className="mt-6 grid gap-4 md:grid-cols-4">
             {[
               ["Plan actual", plan.plan],
@@ -154,7 +174,7 @@ export default function PlansPage() {
           </section>
 
           <section className="mt-6 grid gap-5 lg:grid-cols-3">
-            {plans.map((item) => {
+            {visiblePlans.map((item) => {
               const Icon = item.icon;
               const isCurrent = item.id === plan.plan;
 
