@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import {
-  createMercadoPagoPreapproval,
+  getMercadoPagoPreapprovalPlanId,
+  getMercadoPagoSubscriptionCheckoutUrl,
   isPaidPlan,
-  mapMercadoPagoStatus,
 } from "@/lib/mercadopago";
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase-server";
 import { isPlanAllowedForAccount } from "@/lib/billing";
@@ -194,42 +194,21 @@ export async function POST(request: Request) {
       throw subscriptionError ?? new Error("No pudimos crear la suscripción.");
     }
 
-    const mercadoPagoSubscription = await createMercadoPagoPreapproval({
-      planId: planCode,
-      subscriptionId: subscription.id,
-      userEmail: user.email,
-      userId: user.id,
-    });
-    const internalStatus = mapMercadoPagoStatus(mercadoPagoSubscription.status);
-    const initPoint =
-      mercadoPagoSubscription.sandbox_init_point ??
-      mercadoPagoSubscription.init_point;
+    const initPoint = getMercadoPagoSubscriptionCheckoutUrl(planCode);
+    const preapprovalPlanId = getMercadoPagoPreapprovalPlanId(planCode);
 
-    console.info("Mercado Pago redirect link selected", {
+    console.info("Mercado Pago subscription checkout selected", {
       environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
-      hasInitPoint: Boolean(mercadoPagoSubscription.init_point),
-      hasSandboxInitPoint: Boolean(mercadoPagoSubscription.sandbox_init_point),
-      linkSource: mercadoPagoSubscription.sandbox_init_point
-        ? "sandbox_init_point"
-        : "init_point",
+      linkSource: "preapproval_plan_checkout",
       planId: planCode,
+      preapprovalPlanId,
     });
-
-    await admin
-      .from("subscriptions")
-      .update({
-        provider_subscription_id: mercadoPagoSubscription.id,
-        provider_status: mercadoPagoSubscription.status ?? null,
-        status: internalStatus,
-      })
-      .eq("id", subscription.id);
 
     await admin
       .from("profiles")
       .update({
         plan: planCode,
         estado_plan: "PENDIENTE",
-        mercadopago_subscription_id: mercadoPagoSubscription.id,
       })
       .eq("id", user.id);
 
