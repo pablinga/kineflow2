@@ -2,6 +2,10 @@ import { plans, type CommercialPlan } from "@/lib/plans";
 
 const MERCADOPAGO_API_URL = "https://api.mercadopago.com";
 
+const MERCADOPAGO_PREAPPROVAL_PLAN_IDS: Partial<Record<CommercialPlan, string>> = {
+  INDEPENDIENTE: "a7be629d2d77468a94dac3e415d487e4",
+};
+
 export type SubscriptionStatus =
   | "PENDING_PAYMENT"
   | "ACTIVE"
@@ -27,6 +31,10 @@ export function getMercadoPagoAccessToken() {
   return process.env.MERCADOPAGO_ACCESS_TOKEN;
 }
 
+export function getMercadoPagoPublicKey() {
+  return process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY;
+}
+
 export function isMercadoPagoTestMode(accessToken: string) {
   return accessToken.startsWith("TEST-");
 }
@@ -37,6 +45,16 @@ function getMercadoPagoTokenMode(accessToken: string) {
 
 function getSafeTokenPrefix(accessToken: string) {
   return accessToken.slice(0, Math.min(accessToken.indexOf("-") + 1 || 4, 8));
+}
+
+function getMercadoPagoHeaders(accessToken: string) {
+  const mode = getMercadoPagoTokenMode(accessToken);
+
+  return {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+    ...(mode === "TEST" ? { "X-scope": "stage" } : {}),
+  };
 }
 
 export function getMercadoPagoPayerEmail(fallbackEmail: string) {
@@ -76,6 +94,10 @@ export function isConsultorioPlan(plan: CommercialPlan) {
 
 export function getCheckoutPlan(planId: CommercialPlan) {
   return plans.find((plan) => plan.id === planId && isPaidPlan(plan.id));
+}
+
+export function getMercadoPagoPreapprovalPlanId(planId: CommercialPlan) {
+  return MERCADOPAGO_PREAPPROVAL_PLAN_IDS[planId] ?? null;
 }
 
 export function mapMercadoPagoStatus(status?: string): SubscriptionStatus {
@@ -140,42 +162,53 @@ export async function createMercadoPagoPreapproval(params: {
   }
 
   const mercadoPagoMode = getMercadoPagoTokenMode(accessToken);
+  const publicKey = getMercadoPagoPublicKey();
+  const preapprovalPlanId = getMercadoPagoPreapprovalPlanId(params.planId);
+  const backUrl = `${siteUrl}/billing/success`;
+  const notificationUrl = `${siteUrl}/api/webhooks/mercadopago`;
   const testPayerConfigured = Boolean(
     process.env.MERCADOPAGO_TEST_PAYER_EMAIL?.trim(),
   );
   const payerEmailSource =
     payerEmail === params.userEmail ? "authenticated_user" : "env_test_payer";
+  const body = {
+    reason: `KineFlow ${plan.name}`,
+    external_reference: `${params.userId}:${params.planId}:${params.subscriptionId}`,
+    payer_email: payerEmail,
+    back_url: backUrl,
+    notification_url: notificationUrl,
+    ...(preapprovalPlanId
+      ? { preapproval_plan_id: preapprovalPlanId }
+      : {
+          auto_recurring: {
+            frequency: 1,
+            frequency_type: "months",
+            transaction_amount: plan.priceAmount,
+            currency_id: "ARS",
+          },
+        }),
+    status: "pending",
+  };
 
   console.info("Mercado Pago preapproval request", {
+    backUrl,
+    environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
     mode: mercadoPagoMode,
     payerEmail,
     payerEmailSource,
     planId: params.planId,
+    preapprovalPlanId,
+    publicKeyConfigured: Boolean(publicKey),
+    publicKeyStartsWithTest: publicKey?.startsWith("TEST-") ?? false,
     safeTokenPrefix: getSafeTokenPrefix(accessToken),
     testPayerConfigured,
+    tokenStartsWithTest: isMercadoPagoTestMode(accessToken),
   });
 
   const response = await fetch(`${MERCADOPAGO_API_URL}/preapproval`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      ...(mercadoPagoMode === "TEST" ? { "X-scope": "stage" } : {}),
-    },
-    body: JSON.stringify({
-      reason: `KineFlow ${plan.name}`,
-      external_reference: `${params.userId}:${params.planId}:${params.subscriptionId}`,
-      payer_email: payerEmail,
-      back_url: `${siteUrl}/billing/success`,
-      notification_url: `${siteUrl}/api/webhooks/mercadopago`,
-      auto_recurring: {
-        frequency: 1,
-        frequency_type: "months",
-        transaction_amount: plan.priceAmount,
-        currency_id: "ARS",
-      },
-      status: "pending",
-    }),
+    headers: getMercadoPagoHeaders(accessToken),
+    body: JSON.stringify(body),
   });
 
   const data = await response.json();
@@ -191,13 +224,19 @@ export async function createMercadoPagoPreapproval(params: {
 
     console.error("Mercado Pago preapproval error", {
       body: safeBody,
+      backUrl,
+      environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
       mode: mercadoPagoMode,
       payerEmail,
       payerEmailSource,
       planId: params.planId,
+      preapprovalPlanId,
+      publicKeyConfigured: Boolean(publicKey),
+      publicKeyStartsWithTest: publicKey?.startsWith("TEST-") ?? false,
       safeTokenPrefix: getSafeTokenPrefix(accessToken),
       status: response.status,
       testPayerConfigured,
+      tokenStartsWithTest: isMercadoPagoTestMode(accessToken),
     });
 
     const detail =
@@ -225,9 +264,7 @@ export async function getMercadoPagoSubscription(subscriptionId: string) {
   const response = await fetch(
     `${MERCADOPAGO_API_URL}/preapproval/${subscriptionId}`,
     {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+      headers: getMercadoPagoHeaders(accessToken),
     },
   );
 
@@ -251,10 +288,7 @@ export async function cancelMercadoPagoSubscription(subscriptionId: string) {
     `${MERCADOPAGO_API_URL}/preapproval/${subscriptionId}`,
     {
       method: "PUT",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
+      headers: getMercadoPagoHeaders(accessToken),
       body: JSON.stringify({ status: "canceled" }),
     },
   );
