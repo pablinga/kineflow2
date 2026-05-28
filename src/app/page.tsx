@@ -334,7 +334,12 @@ export default function Home() {
 
       <footer className="border-t border-ocean-100 bg-white px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 text-sm text-slate-500 md:flex-row">
-          <p>© 2026 KineFlow. Gestión clínica para kinesiólogos.</p>
+          <div>
+            <p>© 2026 KineFlow. Gestión clínica para kinesiólogos.</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Ambiente QA / Preview
+            </p>
+          </div>
           <div className="flex gap-5">
             <a href={instagramUrl} rel="noreferrer" target="_blank">
               Instagram
