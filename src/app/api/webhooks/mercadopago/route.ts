@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { applyMercadoPagoSubscriptionToAccount } from "@/lib/billing-server";
 import {
   getMercadoPagoSubscription,
-  mapMercadoPagoStatus,
-  mapSubscriptionStatusToProfileStatus,
+  type MercadoPagoPreapproval,
 } from "@/lib/mercadopago";
-import { getPlanDefinition, type CommercialPlan } from "@/lib/plans";
+import type { CommercialPlan } from "@/lib/plans";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
 
 function getEventId(payload: Record<string, unknown>, url: URL) {
@@ -109,6 +109,7 @@ function parseExternalReference(reference: unknown) {
 async function resolveParsedReference(params: {
   admin: ReturnType<typeof getSupabaseAdminClient>;
   providerSubscriptionId: string;
+  providerSubscription: MercadoPagoPreapproval;
   reference: unknown;
 }) {
   const parsed = parseExternalReference(params.reference);
@@ -117,25 +118,50 @@ async function resolveParsedReference(params: {
     return parsed;
   }
 
-  if (params.reference !== "KINEINDEP" || !params.admin) {
+  if (!params.admin) {
     return null;
   }
 
   const { data: subscription } = await params.admin
     .from("subscriptions")
-    .select("id, account_id")
+    .select("id, account_id, plans(code)")
     .eq("provider_subscription_id", params.providerSubscriptionId)
     .maybeSingle();
 
-  if (!subscription?.id || !subscription.account_id) {
-    return null;
+  if (subscription?.id && subscription.account_id) {
+    return {
+      accountId: subscription.account_id as string,
+      planCode:
+        ((subscription as { plans?: { code?: string } }).plans
+          ?.code as CommercialPlan) ?? ("INDEPENDIENTE" as CommercialPlan),
+      subscriptionId: subscription.id as string,
+    };
   }
 
-  return {
-    accountId: subscription.account_id as string,
-    planCode: "INDEPENDIENTE" as CommercialPlan,
-    subscriptionId: subscription.id as string,
-  };
+  if (params.reference === "KINEINDEP" || !params.reference) {
+    const payerEmail = params.providerSubscription.payer_email?.toLowerCase();
+
+    if (!payerEmail) {
+      return null;
+    }
+
+    const { data: profiles } = await params.admin
+      .from("profiles")
+      .select("id")
+      .eq("email", payerEmail)
+      .eq("account_type", "KINESIOLOGO")
+      .limit(2);
+
+    if (profiles?.length === 1 && profiles[0]?.id) {
+      return {
+        accountId: profiles[0].id as string,
+        planCode: "INDEPENDIENTE" as CommercialPlan,
+        subscriptionId: null,
+      };
+    }
+  }
+
+  return null;
 }
 
 export async function POST(request: Request) {
@@ -193,6 +219,7 @@ export async function POST(request: Request) {
     const providerSubscription = await getMercadoPagoSubscription(resourceId);
     const parsed = await resolveParsedReference({
       admin,
+      providerSubscription,
       providerSubscriptionId: providerSubscription.id,
       reference: providerSubscription.external_reference,
     });
@@ -205,40 +232,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
-    const internalStatus = mapMercadoPagoStatus(providerSubscription.status);
-    const profileStatus = mapSubscriptionStatusToProfileStatus(internalStatus);
-    const planDefinition = getPlanDefinition(parsed.planCode);
-    const periodStart = providerSubscription.date_created ?? null;
-    const periodEnd = providerSubscription.next_payment_date ?? null;
-
-    await admin
-      .from("subscriptions")
-      .update({
-        current_period_end: periodEnd,
-        current_period_start: periodStart,
-        provider_status: providerSubscription.status ?? null,
-        provider_subscription_id: providerSubscription.id,
-        status: internalStatus,
-      })
-      .eq("id", parsed.subscriptionId);
-
-    await admin
-      .from("profiles")
-      .update({
-        cantidad_kinesiologos: planDefinition.kinesiologistCount,
-        estado_plan: profileStatus,
-        fecha_fin_plan: periodEnd,
-        fecha_inicio_plan: periodStart ?? new Date().toISOString(),
-        limite_pacientes:
-          planDefinition.patientLimit === null ? -1 : planDefinition.patientLimit,
-        mercadopago_customer_id:
-          providerSubscription.payer_id?.toString() ??
-          providerSubscription.payer_email ??
-          null,
-        mercadopago_subscription_id: providerSubscription.id,
-        plan: parsed.planCode,
-      })
-      .eq("id", parsed.accountId);
+    await applyMercadoPagoSubscriptionToAccount({
+      accountId: parsed.accountId,
+      accountType: "KINESIOLOGO",
+      admin,
+      planCode: parsed.planCode,
+      providerSubscription,
+    });
 
     await admin
       .from("payment_events")

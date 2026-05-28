@@ -2,21 +2,33 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase";
 
-type UpdateState = "checking" | "updated" | "signed_out" | "error";
+type UpdateState = "checking" | "active" | "pending" | "signed_out" | "error";
+
+function getMercadoPagoReturnParams() {
+  const params = new URLSearchParams(window.location.search);
+  const preapprovalId =
+    params.get("preapproval_id") ??
+    params.get("id") ??
+    params.get("data.id") ??
+    "";
+
+  return {
+    preapprovalId,
+    returnParams: Object.fromEntries(params.entries()),
+  };
+}
 
 export function SuccessContent() {
   const [state, setState] = useState<UpdateState>("checking");
-  const [message, setMessage] = useState(
-    "Recibimos la confirmacion de Mercado Pago. Estamos actualizando tu plan.",
-  );
+  const [message, setMessage] = useState("Estamos verificando tu suscripcion.");
 
   useEffect(() => {
     let mounted = true;
 
-    async function markPending() {
+    async function confirmReturn() {
       try {
         const supabase = getSupabaseClient();
         const { data } = await supabase.auth.getSession();
@@ -32,11 +44,14 @@ export function SuccessContent() {
           return;
         }
 
-        const response = await fetch("/api/billing/mark-pending", {
-          method: "POST",
+        const { preapprovalId, returnParams } = getMercadoPagoReturnParams();
+        const response = await fetch("/api/billing/confirm-return", {
+          body: JSON.stringify({ preapprovalId, returnParams }),
           headers: {
             Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
           },
+          method: "POST",
         });
         const result = await response.json();
 
@@ -45,11 +60,13 @@ export function SuccessContent() {
         }
 
         if (mounted) {
-          setState("updated");
+          const isActive = result.status === "ACTIVO";
+
+          setState(isActive ? "active" : "pending");
           setMessage(
-            result.status === "ACTIVO"
-              ? "Tu Plan Independiente ya figura activo. Ya podes continuar al panel."
-              : "Tu Plan Independiente quedo pendiente de confirmacion. Ya podes continuar al panel.",
+            isActive
+              ? "Tu Plan Independiente ya esta activo."
+              : "Tu pago esta pendiente de confirmacion. Te avisaremos apenas Mercado Pago confirme el estado.",
           );
         }
       } catch (error) {
@@ -64,7 +81,7 @@ export function SuccessContent() {
       }
     }
 
-    markPending();
+    confirmReturn();
 
     return () => {
       mounted = false;
@@ -73,17 +90,20 @@ export function SuccessContent() {
 
   const isChecking = state === "checking";
   const isSignedOut = state === "signed_out";
+  const isError = state === "error";
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-ocean-50 px-4">
       <section className="w-full max-w-lg rounded-lg border border-ocean-100 bg-white p-6 text-center shadow-sm">
         {isChecking ? (
           <Loader2 className="mx-auto h-10 w-10 animate-spin text-ocean-600" />
+        ) : isError ? (
+          <AlertCircle className="mx-auto h-10 w-10 text-amber-600" />
         ) : (
           <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
         )}
         <h1 className="mt-4 text-2xl font-bold text-ink">
-          Suscripcion procesada
+          {isChecking ? "Estamos verificando tu suscripcion..." : "Suscripcion procesada"}
         </h1>
         <p className="mt-3 leading-6 text-slate-600">{message}</p>
         <p className="mt-3 rounded-lg bg-ocean-50 px-4 py-3 text-sm font-semibold text-ocean-800">

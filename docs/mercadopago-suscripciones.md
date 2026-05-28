@@ -1,23 +1,22 @@
 # Configuracion de Mercado Pago para suscripciones
 
-Esta app usa suscripciones de Mercado Pago sin plan asociado. El backend crea una suscripcion `preapproval` con estado `pending`, redirige al usuario a Mercado Pago y despues confirma el estado real con el webhook.
+Esta app usa un plan de suscripcion ya creado en Mercado Pago. El frontend redirige directo al checkout del plan y el backend solo verifica el estado real cuando Mercado Pago devuelve el `preapproval_id` o cuando llega el webhook. No se crea una `preapproval` por API.
 
 ## 1. Credenciales de prueba
 
 En Mercado Pago, usa la cuenta vendedora de prueba para copiar:
 
-- Public key de prueba.
 - Access token de prueba.
+- ID del plan de suscripcion activo.
 
 Despues completa `.env.local`:
 
 ```bash
-NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=TEST-tu-public-key
+NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID=a7be629d2d77468a94dac3e415d487e4
 MERCADOPAGO_ACCESS_TOKEN=TEST-tu-access-token-del-vendedor
-MERCADOPAGO_TEST_PAYER_EMAIL=email-del-comprador-de-prueba
 ```
 
-El access token tiene que ser del vendedor de prueba. El email tiene que ser del comprador de prueba. No uses el mismo usuario para vender y comprar.
+El access token tiene que ser del vendedor de prueba. No uses el mismo usuario para vender y comprar durante la prueba.
 
 ## 2. Variables de la app
 
@@ -69,17 +68,17 @@ Si esa variable esta configurada, la app valida la firma `x-signature` antes de 
 2. Entra con un usuario de KineFlow.
 3. Ve a Dashboard > Planes.
 4. Elegi un plan pago.
-5. La app llama a `/api/billing/create-subscription`.
-6. El backend crea una suscripcion en Mercado Pago con `/preapproval`.
-7. Mercado Pago devuelve un link de checkout y la app redirige al comprador.
-8. Paga usando el comprador de prueba y una tarjeta de prueba.
-9. Mercado Pago llama al webhook.
-10. La app consulta `/preapproval/{id}` y actualiza el plan en Supabase.
+5. La app redirige al checkout del plan con `preapproval_plan_id`.
+6. Paga usando el comprador de prueba y una tarjeta de prueba.
+7. Mercado Pago vuelve a `/suscripcion/resultado`.
+8. La app consulta `/preapproval/{id}` con el `preapproval_id` recibido.
+9. Si Mercado Pago confirma la suscripcion, la app actualiza el plan en Supabase.
+10. El webhook mantiene sincronizados los cambios posteriores.
 
 ## 6. Checklist antes de produccion
 
 - Cambiar `MERCADOPAGO_ACCESS_TOKEN` por el access token productivo del vendedor real.
-- Cambiar `NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY` por la public key productiva.
+- Cambiar `NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID` por el plan productivo.
 - Usar un dominio HTTPS real en `NEXT_PUBLIC_SITE_URL`.
 - Configurar el webhook productivo con `/api/webhooks/mercadopago`.
 - Cargar `MERCADOPAGO_WEBHOOK_SECRET` si Mercado Pago lo entrega en el panel.

@@ -3,6 +3,11 @@ import {
   type CommercialPlan,
   type PlanDefinition,
 } from "@/lib/plans";
+import {
+  canCreatePatientByPolicy,
+  isPlanVisibleForAccount,
+  type BillingPlanStatus,
+} from "@/lib/billing-policy";
 import type { AccountType } from "@/hooks/useRequireAuth";
 
 export type InternalSubscriptionStatus =
@@ -30,38 +35,16 @@ export function canCreatePatient(params: {
   activePatientCount: number;
   patientLimit: number | null;
   plan: CommercialPlan;
-  planStatus: "ACTIVO" | "PENDIENTE" | "VENCIDO" | "CANCELADO";
+  planStatus: BillingPlanStatus;
 }) {
-  if (params.accountType === "CONSULTORIO") {
-    return params.planStatus === "ACTIVO" && params.plan.startsWith("CONSULTORIO_");
-  }
-
-  if (params.plan === "INDEPENDIENTE") {
-    return params.planStatus === "ACTIVO" || params.planStatus === "PENDIENTE";
-  }
-
-  if (params.plan === "FREE") {
-    const limit = params.patientLimit ?? 5;
-
-    return limit < 0 || params.activePatientCount < limit;
-  }
-
-  return false;
+  return canCreatePatientByPolicy(params);
 }
 
 export function isPlanAllowedForAccount(
   plan: CommercialPlan,
   accountType: AccountType,
 ) {
-  if (plan === "FREE") {
-    return accountType === "KINESIOLOGO";
-  }
-
-  if (plan === "INDEPENDIENTE") {
-    return accountType === "KINESIOLOGO";
-  }
-
-  return accountType === "CONSULTORIO";
+  return isPlanVisibleForAccount(plan, accountType);
 }
 
 export function getPermissionsFromPlan(params: {

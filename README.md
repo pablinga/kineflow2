@@ -38,14 +38,13 @@ La app incluye tres planes comerciales:
 Para habilitar suscripciones con Mercado Pago, agrega estas variables:
 
 ```bash
-NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=TEST-tu-public-key
+NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID=a7be629d2d77468a94dac3e415d487e4
 MERCADOPAGO_ACCESS_TOKEN=TEST-tu-token
-MERCADOPAGO_TEST_PAYER_EMAIL=comprador-test@example.com
 MERCADOPAGO_WEBHOOK_SECRET=tu-secreto-si-lo-configuras
 SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
 ```
 
-El boton interno de upgrade llama a `/api/billing/create-subscription`. Si falta `MERCADOPAGO_ACCESS_TOKEN`, la app muestra un mensaje controlado y no rompe el flujo. Cuando Mercado Pago envie el webhook a `/api/webhooks/mercadopago`, el backend consulta la suscripcion en Mercado Pago y actualiza el plan usando `SUPABASE_SERVICE_ROLE_KEY`; el cliente no activa planes pagos por su cuenta.
+El boton interno de upgrade redirige directo al checkout del plan de Mercado Pago usando `NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID`; no crea preapprovals por API. Al volver a `/suscripcion/resultado`, el backend valida el `preapproval_id` contra Mercado Pago con `MERCADOPAGO_ACCESS_TOKEN` y actualiza el plan usando `SUPABASE_SERVICE_ROLE_KEY`. El webhook `/api/webhooks/mercadopago` mantiene el estado sincronizado ante cambios posteriores.
 
 Pendiente para produccion real: configurar credenciales definitivas, URL publica de webhook, validacion completa de firma de Mercado Pago segun el panel usado, y probar pagos sandbox/end-to-end antes de cobrar.
 
