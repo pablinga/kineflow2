@@ -24,12 +24,12 @@ export function formatDateTime(value: string) {
 }
 
 export function formatCurrency(value: number) {
-  return new Intl.NumberFormat("es-AR", {
-    currency: "ARS",
+  return `$ ${new Intl.NumberFormat("es-AR", {
     maximumFractionDigits: 0,
-    style: "currency",
-  }).format(value || 0);
+  }).format(value || 0)}`;
 }
+
+export const formatMonto = formatCurrency;
 
 export function formatSessionAmount(value: number) {
   return value > 0 ? formatCurrency(value) : "Sin monto";

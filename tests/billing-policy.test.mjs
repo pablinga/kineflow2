@@ -4,6 +4,7 @@ import {
   isPlanVisibleForAccount,
   PLAN_LIMITS,
 } from "../src/lib/billing-policy.ts";
+import { formatMonto } from "../src/lib/format.ts";
 
 function test(name, fn) {
   fn();
@@ -53,4 +54,9 @@ test("Un usuario individual no ve planes de consultorio como flujo principal", (
   assert.equal(isPlanVisibleForAccount("CONSULTORIO_2", "KINESIOLOGO"), false);
   assert.equal(isPlanVisibleForAccount("CONSULTORIO_5", "KINESIOLOGO"), false);
   assert.equal(isPlanVisibleForAccount("CONSULTORIO_10", "KINESIOLOGO"), false);
+});
+
+test("Los montos se muestran con separador de miles argentino", () => {
+  assert.equal(formatMonto(14900), "$ 14.900");
+  assert.equal(formatMonto(20000), "$ 20.000");
 });

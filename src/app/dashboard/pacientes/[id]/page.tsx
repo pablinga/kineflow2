@@ -114,7 +114,12 @@ export default function PatientDetailPage() {
   }, [appointments, searchParams]);
 
   if (authError) {
-    return <DashboardLoading error={authError} />;
+    return (
+      <DashboardLoading
+        error={authError}
+        retryHref={`/dashboard/pacientes/${patientId}`}
+      />
+    );
   }
 
   if (redirecting) {
@@ -122,6 +127,16 @@ export default function PatientDetailPage() {
       <DashboardLoading
         message="No hay una sesión activá. Te estamos llevando al login."
         title="Redirigiendo..."
+      />
+    );
+  }
+
+  if (patientsError || appointmentsError || evolutionsError) {
+    return (
+      <DashboardLoading
+        error={patientsError || appointmentsError || evolutionsError}
+        retryHref={`/dashboard/pacientes/${patientId}`}
+        title="No pudimos cargar la ficha"
       />
     );
   }
@@ -553,7 +568,7 @@ export default function PatientDetailPage() {
                                 }
                                 type="button"
                               >
-                                Marcar asistio
+                                Marcar asistió
                               </button>
                             ) : null}
                             <button
@@ -569,7 +584,9 @@ export default function PatientDetailPage() {
                               className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
                               href="/dashboard/turnos"
                             >
-                              Registrar cobro
+                              {appointment.paymentStatus === "pending"
+                                ? "Registrar cobro"
+                                : "Editar cobro"}
                             </Link>
                             <button
                               className="inline-flex min-h-9 items-center justify-center rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"

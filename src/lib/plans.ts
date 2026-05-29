@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { Building2, UserRound, UsersRound } from "lucide-react";
+import { formatMonto } from "@/lib/format";
 
 export type CommercialPlan =
   | "FREE"
@@ -56,7 +57,7 @@ export const plans: PlanDefinition[] = [
   {
     id: "INDEPENDIENTE",
     name: "Plan Independiente",
-    price: `$${INDEPENDENT_PLAN_PRICE.toLocaleString("es-AR")}/mes`,
+    price: `${formatMonto(INDEPENDENT_PLAN_PRICE)}/mes`,
     priceAmount: INDEPENDENT_PLAN_PRICE,
     limit: "Pacientes ilimitados",
     audience:
@@ -80,7 +81,7 @@ export const plans: PlanDefinition[] = [
   {
     id: "CONSULTORIO_2",
     name: "Plan Consultorio 2",
-    price: `$${CONSULTORIO_2_PRICE.toLocaleString("es-AR")}/mes`,
+    price: `${formatMonto(CONSULTORIO_2_PRICE)}/mes`,
     priceAmount: CONSULTORIO_2_PRICE,
     limit: "Hasta 2 kinesiólogos activos",
     audience:
@@ -104,7 +105,7 @@ export const plans: PlanDefinition[] = [
   {
     id: "CONSULTORIO_5",
     name: "Plan Consultorio 5",
-    price: `$${CONSULTORIO_5_PRICE.toLocaleString("es-AR")}/mes`,
+    price: `${formatMonto(CONSULTORIO_5_PRICE)}/mes`,
     priceAmount: CONSULTORIO_5_PRICE,
     limit: "Hasta 5 kinesiólogos activos",
     audience:
@@ -124,7 +125,7 @@ export const plans: PlanDefinition[] = [
   {
     id: "CONSULTORIO_10",
     name: "Plan Consultorio 10",
-    price: `$${CONSULTORIO_10_PRICE.toLocaleString("es-AR")}/mes`,
+    price: `${formatMonto(CONSULTORIO_10_PRICE)}/mes`,
     priceAmount: CONSULTORIO_10_PRICE,
     limit: "Hasta 10 kinesiólogos activos",
     audience:

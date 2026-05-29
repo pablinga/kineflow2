@@ -4,11 +4,11 @@ import { type FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   CalendarPlus,
-  CheckCircle2,
+  CheckCircle,
   ChevronLeft,
   ChevronRight,
   Filter,
-  MoreHorizontal,
+  MoreVertical,
   RotateCcw,
   XCircle,
 } from "lucide-react";
@@ -103,6 +103,7 @@ export default function AppointmentsPage() {
     updateAppointmentStatus,
   } = useAppointments();
   const [actionError, setActionError] = useState("");
+  const [actionNotice, setActionNotice] = useState("");
   const [updatingId, setUpdatingId] = useState("");
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [actionsAppointment, setActionsAppointment] =
@@ -303,6 +304,7 @@ export default function AppointmentsPage() {
     }
 
     setActionError("");
+    setActionNotice("");
     setUpdatingId(pendingAction.appointment.id);
 
     try {
@@ -313,6 +315,11 @@ export default function AppointmentsPage() {
       if (pendingAction.status === "attended") {
         openPaymentModal(pendingAction.appointment);
       }
+      setActionNotice(
+        pendingAction.status === "cancelled"
+          ? "Turno cancelado"
+          : "Asistencia actualizada",
+      );
       setPendingAction(null);
     } catch (updateError) {
       setActionError(
@@ -333,6 +340,7 @@ export default function AppointmentsPage() {
     }
 
     setActionError("");
+    setActionNotice("");
     setUpdatingId(rescheduling.id);
 
     try {
@@ -342,6 +350,7 @@ export default function AppointmentsPage() {
         rescheduleTime,
       );
       setRescheduling(null);
+      setActionNotice("Turno reprogramado");
     } catch (rescheduleError) {
       setActionError(
         rescheduleError instanceof Error
@@ -361,11 +370,17 @@ export default function AppointmentsPage() {
     }
 
     setActionError("");
+    setActionNotice("");
     setUpdatingId(editingPayment.id);
 
     try {
       await updateAppointmentPayment(editingPayment.id, paymentForm);
       setEditingPayment(null);
+      setActionNotice(
+        editingPayment.paymentStatus === "pending"
+          ? "Cobro registrado"
+          : "Cobro actualizado",
+      );
     } catch (paymentError) {
       setActionError(
         paymentError instanceof Error
@@ -394,7 +409,7 @@ export default function AppointmentsPage() {
           }
           type="button"
         >
-          <CheckCircle2 className="h-4 w-4" />
+          <CheckCircle className="h-4 w-4" />
           Marcar como asistió
         </button>
         <button
@@ -504,7 +519,7 @@ export default function AppointmentsPage() {
               onClick={() => openStatusModal(appointment, "attended")}
               type="button"
             >
-              Marcar asistio
+              Marcar asistió
             </button>
           ) : isAttended ? (
             <Link
@@ -519,13 +534,13 @@ export default function AppointmentsPage() {
             onClick={() => setActionsAppointment(appointment)}
             type="button"
           >
-            <MoreHorizontal className="h-3.5 w-3.5" />
+            <MoreVertical className="h-3.5 w-3.5" />
             Acciones
           </button>
 
           <details className="relative hidden flex-1 xl:block">
             <summary className="flex min-h-8 cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 text-[0.68rem] font-semibold text-slate-600 transition hover:bg-slate-50">
-              <MoreHorizontal className="h-3.5 w-3.5" />
+              <MoreVertical className="h-3.5 w-3.5" />
               Acciones
             </summary>
             <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
@@ -602,6 +617,12 @@ export default function AppointmentsPage() {
             </p>
           ) : null}
 
+          {actionNotice ? (
+            <p className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+              {actionNotice}
+            </p>
+          ) : null}
+
           <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <div className="flex items-center gap-2 font-semibold text-ink">
@@ -651,9 +672,11 @@ export default function AppointmentsPage() {
 
           <section className="mt-6">
             <div className="grid gap-4 lg:grid-cols-3">
-              {mobileDays.map((day) => (
+              {mobileDays.map((day, index) => (
                 <div
-                  className={`rounded-lg border bg-white p-3 shadow-sm ${
+                  className={`${
+                    index === 1 ? "block" : "hidden lg:block"
+                  } rounded-lg border bg-white p-3 shadow-sm ${
                     day.isToday
                       ? "border-ocean-300 ring-2 ring-ocean-100"
                       : "border-ocean-100"
@@ -807,6 +830,29 @@ export default function AppointmentsPage() {
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   {pendingAction.message}
                 </p>
+                <div className="mt-4 rounded-lg bg-ocean-50 p-4 text-sm text-slate-700">
+                  <p>
+                    <span className="font-semibold text-ink">Paciente:</span>{" "}
+                    {pendingAction.appointment.patient}
+                  </p>
+                  <p className="mt-1">
+                    <span className="font-semibold text-ink">Turno:</span>{" "}
+                    {pendingAction.appointment.date} a las{" "}
+                    {pendingAction.appointment.time}
+                  </p>
+                  <p className="mt-1">
+                    <span className="font-semibold text-ink">
+                      Estado actual:
+                    </span>{" "}
+                    {getAppointmentDisplayStatus(pendingAction.appointment)}
+                  </p>
+                  <p className="mt-1">
+                    <span className="font-semibold text-ink">
+                      Acción a confirmar:
+                    </span>{" "}
+                    {pendingAction.buttonLabel}
+                  </p>
+                </div>
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
                   <button
                     className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"

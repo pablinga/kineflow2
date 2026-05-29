@@ -196,7 +196,7 @@ export default function NewAppointmentPage() {
               Programar una sesión
             </h1>
             <p className="mt-2 text-slate-600">
-              Cargá los datos del turno y guardalo en Supabase.
+              Completá los datos de la sesión.
             </p>
           </header>
 
