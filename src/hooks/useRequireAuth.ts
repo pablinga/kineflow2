@@ -5,8 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 
-const SESSION_TIMEOUT_MS = 8000;
-
 export type AccountType = "KINESIOLOGO" | "CONSULTORIO";
 
 type ProfileRow = {
@@ -15,31 +13,71 @@ type ProfileRow = {
   organization_name: string | null;
 };
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) => {
-      window.setTimeout(
-        () => reject(new Error("Supabase no respondió al verificar la sesión.")),
-        timeoutMs,
-      );
-    }),
-  ]);
-}
+type AuthSnapshot = {
+  accountType: AccountType;
+  authError: string;
+  loaded: boolean;
+  profileName: string;
+  redirecting: boolean;
+  user: User | null;
+};
+
+const authSnapshot: AuthSnapshot = {
+  accountType: "KINESIOLOGO",
+  authError: "",
+  loaded: false,
+  profileName: "",
+  redirecting: false,
+  user: null,
+};
 
 export function useRequireAuth() {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [redirecting, setRedirecting] = useState(false);
-  const [authError, setAuthError] = useState("");
-  const [accountType, setAccountType] = useState<AccountType>("KINESIOLOGO");
-  const [profileName, setProfileName] = useState("");
+  const [user, setUser] = useState<User | null>(authSnapshot.user);
+  const [loading, setLoading] = useState(!authSnapshot.loaded);
+  const [redirecting, setRedirecting] = useState(authSnapshot.redirecting);
+  const [authError, setAuthError] = useState(authSnapshot.authError);
+  const [accountType, setAccountType] = useState<AccountType>(
+    authSnapshot.accountType,
+  );
+  const [profileName, setProfileName] = useState(authSnapshot.profileName);
 
   useEffect(() => {
     let mounted = true;
     let subscription: { unsubscribe: () => void } | undefined;
+
+    function commitSnapshot(next: Partial<AuthSnapshot>) {
+      Object.assign(authSnapshot, next);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (next.user !== undefined) {
+        setUser(next.user);
+      }
+
+      if (next.loaded !== undefined) {
+        setLoading(!next.loaded);
+      }
+
+      if (next.redirecting !== undefined) {
+        setRedirecting(next.redirecting);
+      }
+
+      if (next.authError !== undefined) {
+        setAuthError(next.authError);
+      }
+
+      if (next.accountType !== undefined) {
+        setAccountType(next.accountType);
+      }
+
+      if (next.profileName !== undefined) {
+        setProfileName(next.profileName);
+      }
+    }
 
     async function loadProfile(currentUser: User) {
       const supabase = getSupabaseClient();
@@ -54,57 +92,67 @@ export function useRequireAuth() {
       const nextAccountType =
         profile?.account_type ?? metadataAccountType ?? "KINESIOLOGO";
 
-      setAccountType(nextAccountType);
-      setProfileName(
-        nextAccountType === "CONSULTORIO"
-          ? profile?.organization_name || profile?.full_name || ""
-          : profile?.full_name || "",
-      );
+      return {
+        accountType: nextAccountType,
+        profileName:
+          nextAccountType === "CONSULTORIO"
+            ? profile?.organization_name || profile?.full_name || ""
+            : profile?.full_name || "",
+      };
     }
 
     async function verifySession() {
       try {
         const supabase = getSupabaseClient();
-        const { data, error } = await withTimeout(
-          supabase.auth.getSession(),
-          SESSION_TIMEOUT_MS,
-        );
+        const { data, error } = await supabase.auth.getSession();
 
         if (!mounted) {
           return;
         }
 
         if (error) {
-          setAuthError(error.message);
-          setLoading(false);
+          commitSnapshot({
+            authError: error.message,
+            loaded: true,
+            redirecting: false,
+            user: null,
+          });
           return;
         }
 
         if (!data.session) {
-          setUser(null);
-          setRedirecting(true);
-          setLoading(false);
+          commitSnapshot({
+            authError: "",
+            loaded: true,
+            redirecting: true,
+            user: null,
+          });
           router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
           return;
         }
 
-        setUser(data.session.user);
-        await loadProfile(data.session.user);
-        setRedirecting(false);
-        setAuthError("");
-        setLoading(false);
+        const profile = await loadProfile(data.session.user);
+        commitSnapshot({
+          ...profile,
+          authError: "",
+          loaded: true,
+          redirecting: false,
+          user: data.session.user,
+        });
       } catch (error) {
         if (!mounted) {
           return;
         }
 
-        setUser(null);
-        setAuthError(
-          error instanceof Error
-            ? error.message
-            : "No pudimos verificar tu sesión.",
-        );
-        setLoading(false);
+        commitSnapshot({
+          authError:
+            error instanceof Error
+              ? error.message
+              : "No pudimos verificar tu sesion.",
+          loaded: true,
+          redirecting: false,
+          user: null,
+        });
       }
     }
 
@@ -117,31 +165,42 @@ export function useRequireAuth() {
           }
 
           if (!session) {
-            setUser(null);
-            setRedirecting(true);
-            setLoading(false);
+            commitSnapshot({
+              authError: "",
+              loaded: true,
+              redirecting: true,
+              user: null,
+            });
             router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
             return;
           }
 
-          setUser(session.user);
-          await loadProfile(session.user);
-          setRedirecting(false);
-          setAuthError("");
-          setLoading(false);
+          const profile = await loadProfile(session.user);
+          commitSnapshot({
+            ...profile,
+            authError: "",
+            loaded: true,
+            redirecting: false,
+            user: session.user,
+          });
         },
       );
 
       subscription = listener.subscription;
-      verifySession();
+
+      if (!authSnapshot.loaded) {
+        verifySession();
+      }
     } catch (error) {
-      setUser(null);
-      setAuthError(
-        error instanceof Error
-          ? error.message
-          : "No pudimos inicializar Supabase.",
-      );
-      setLoading(false);
+      commitSnapshot({
+        authError:
+          error instanceof Error
+            ? error.message
+            : "No pudimos inicializar Supabase.",
+        loaded: true,
+        redirecting: false,
+        user: null,
+      });
     }
 
     return () => {
@@ -172,6 +231,7 @@ export function useRequireAuth() {
     isKinesiologistAccount: accountType === "KINESIOLOGO",
     isAuthenticated: Boolean(user),
     loading,
+    profileLoaded: !loading && !authError && Boolean(user),
     redirecting,
     user,
   };

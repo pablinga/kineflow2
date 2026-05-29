@@ -47,8 +47,8 @@ export function DashboardSidebar() {
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { accountType } = useRequireAuth();
-  const { plan } = useSubscriptionPlan();
+  const { accountType, loading } = useRequireAuth();
+  const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const visibleNavigation =
     accountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE"
       ? navigation.KINESIOLOGO.filter(
@@ -102,7 +102,16 @@ export function DashboardSidebar() {
           </button>
         </div>
         <nav className="space-y-1">
-          {visibleNavigation.map((item) => {
+          {loading || !planLoaded ? (
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5].map((item) => (
+                <div
+                  className="h-11 rounded-lg bg-ocean-50"
+                  key={item}
+                />
+              ))}
+            </div>
+          ) : visibleNavigation.map((item) => {
             const Icon = item.icon;
             const active =
               item.href === "/dashboard"

@@ -17,6 +17,16 @@ export type UserPlan = {
   cantidadKinesiologos: number;
 };
 
+const planSnapshot: {
+  loaded: boolean;
+  plan: UserPlan;
+  userId: string | null;
+} = {
+  loaded: false,
+  plan: defaultPlan,
+  userId: null,
+};
+
 function normalizePlan(value: unknown): CommercialPlan {
   if (
     value === "INDEPENDIENTE" ||
@@ -39,8 +49,8 @@ function normalizeStatus(value: unknown): PlanStatus {
 }
 
 export function useSubscriptionPlan() {
-  const [plan, setPlan] = useState<UserPlan>(defaultPlan);
-  const [loaded, setLoaded] = useState(false);
+  const [plan, setPlan] = useState<UserPlan>(planSnapshot.plan);
+  const [loaded, setLoaded] = useState(planSnapshot.loaded);
 
   useEffect(() => {
     let mounted = true;
@@ -51,6 +61,17 @@ export function useSubscriptionPlan() {
         const { data: userData } = await supabase.auth.getUser();
 
         if (!userData.user) {
+          return;
+        }
+
+        if (
+          planSnapshot.loaded &&
+          planSnapshot.userId === userData.user.id
+        ) {
+          if (mounted) {
+            setPlan(planSnapshot.plan);
+            setLoaded(true);
+          }
           return;
         }
 
@@ -69,17 +90,22 @@ export function useSubscriptionPlan() {
           typeof data.limite_pacientes === "number"
             ? data.limite_pacientes
             : getPatientLimit(currentPlan);
+        const nextPlan = {
+          plan: currentPlan,
+          estadoPlan: normalizeStatus(data.estado_plan),
+          limitePacientes: configuredLimit,
+          cantidadKinesiologos:
+            typeof data.cantidad_kinesiologos === "number"
+              ? data.cantidad_kinesiologos
+              : getPlanDefinition(currentPlan).kinesiologistCount,
+        };
+
+        planSnapshot.loaded = true;
+        planSnapshot.plan = nextPlan;
+        planSnapshot.userId = userData.user.id;
 
         if (mounted) {
-          setPlan({
-            plan: currentPlan,
-            estadoPlan: normalizeStatus(data.estado_plan),
-            limitePacientes: configuredLimit,
-            cantidadKinesiologos:
-              typeof data.cantidad_kinesiologos === "number"
-                ? data.cantidad_kinesiologos
-                : getPlanDefinition(currentPlan).kinesiologistCount,
-          });
+          setPlan(nextPlan);
         }
       } finally {
         if (mounted) {

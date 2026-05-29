@@ -95,9 +95,17 @@ export function useClinicAdmin() {
 
     try {
       const supabase = getSupabaseClient();
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getUser();
+
+      if (sessionError || !sessionData.user) {
+        throw new Error("No pudimos identificar la cuenta del consultorio.");
+      }
+
       const { data, error: queryError } = await supabase
         .from("clinics")
         .select("id, name, email, phone, address, color")
+        .eq("owner_id", sessionData.user.id)
         .order("created_at", { ascending: false });
 
       if (queryError) {

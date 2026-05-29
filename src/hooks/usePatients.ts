@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { useActiveClinic } from "@/hooks/useActiveClinic";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export type PatientStatus = "Activo" | "Inactivo";
 
@@ -37,10 +39,6 @@ type PatientRow = {
   initial_condition: string;
   status: "active" | "inactive";
   clinic_id: string | null;
-};
-
-type ProfileAccountRow = {
-  account_type: "KINESIOLOGO" | "CONSULTORIO";
 };
 
 type ClinicIdRow = {
@@ -124,37 +122,59 @@ function mapPatient(
 }
 
 export function usePatients() {
+  const { accountType } = useRequireAuth();
+  const {
+    clinic: activeClinic,
+    error: activeClinicError,
+    loaded: activeClinicLoaded,
+  } = useActiveClinic(accountType === "CONSULTORIO");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
-  const [accountType, setAccountType] =
-    useState<ProfileAccountRow["account_type"]>("KINESIOLOGO");
 
   const loadPatients = useCallback(async () => {
+    if (accountType === "CONSULTORIO" && !activeClinicLoaded) {
+      return;
+    }
+
     setLoaded(false);
     setError("");
 
     try {
       const supabase = getSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getUser();
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getUser();
 
-      if (sessionData.user) {
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("account_type")
-          .eq("id", sessionData.user.id)
-          .maybeSingle();
-        const profile = profileData as ProfileAccountRow | null;
-
-        setAccountType(profile?.account_type ?? "KINESIOLOGO");
+      if (sessionError || !sessionData.user) {
+        throw new Error("No pudimos identificar al usuario.");
       }
 
-      const { data, error: queryError } = await supabase
+      if (accountType === "CONSULTORIO" && activeClinicError) {
+        setError(activeClinicError);
+        setPatients([]);
+        return;
+      }
+
+      let patientQuery = supabase
         .from("patients")
         .select(
           "id, clinic_id, full_name, document_number, phone, email, initial_condition, status",
         )
         .order("created_at", { ascending: false });
+
+      if (accountType === "CONSULTORIO") {
+        if (!activeClinic?.id) {
+          setError("No encontramos un consultorio asociado a tu usuario.");
+          setPatients([]);
+          return;
+        }
+
+        patientQuery = patientQuery.eq("clinic_id", activeClinic.id);
+      } else {
+        patientQuery = patientQuery.is("clinic_id", null);
+      }
+
+      const { data, error: queryError } = await patientQuery;
 
       if (queryError) {
         setError(queryError.message);
@@ -210,7 +230,7 @@ export function usePatients() {
     } finally {
       setLoaded(true);
     }
-  }, []);
+  }, [accountType, activeClinic?.id, activeClinicError, activeClinicLoaded]);
 
   useEffect(() => {
     loadPatients();

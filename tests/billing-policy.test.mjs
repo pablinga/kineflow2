@@ -56,6 +56,14 @@ test("Un usuario individual no ve planes de consultorio como flujo principal", (
   assert.equal(isPlanVisibleForAccount("CONSULTORIO_10", "KINESIOLOGO"), false);
 });
 
+test("Un usuario consultorio ve solo planes de consultorio como flujo principal", () => {
+  assert.equal(isPlanVisibleForAccount("FREE", "CONSULTORIO"), false);
+  assert.equal(isPlanVisibleForAccount("INDEPENDIENTE", "CONSULTORIO"), false);
+  assert.equal(isPlanVisibleForAccount("CONSULTORIO_2", "CONSULTORIO"), true);
+  assert.equal(isPlanVisibleForAccount("CONSULTORIO_5", "CONSULTORIO"), true);
+  assert.equal(isPlanVisibleForAccount("CONSULTORIO_10", "CONSULTORIO"), true);
+});
+
 test("Los montos se muestran con separador de miles argentino", () => {
   assert.equal(formatMonto(14900), "$ 14.900");
   assert.equal(formatMonto(20000), "$ 20.000");

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
+import { useActiveClinic } from "@/hooks/useActiveClinic";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export type Appointment = {
   id: string;
@@ -243,11 +245,21 @@ function getClinicNameFromAvailability(row: AvailabilityRow) {
 }
 
 export function useAppointments(patientId?: string) {
+  const { accountType } = useRequireAuth();
+  const {
+    clinic: activeClinic,
+    error: activeClinicError,
+    loaded: activeClinicLoaded,
+  } = useActiveClinic(accountType === "CONSULTORIO");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
 
   const loadAppointments = useCallback(async () => {
+    if (accountType === "CONSULTORIO" && !activeClinicLoaded) {
+      return;
+    }
+
     setLoaded(false);
     setError("");
 
@@ -259,6 +271,24 @@ export function useAppointments(patientId?: string) {
           "id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, session_amount, payment_status, payment_method, paid_at, payment_notes, patients(full_name), clinics(name, color), clinic_professionals(color)",
         )
         .order("scheduled_at", { ascending: true });
+
+      if (accountType === "CONSULTORIO") {
+        if (activeClinicError) {
+          setError(activeClinicError);
+          setAppointments([]);
+          return;
+        }
+
+        if (!activeClinic?.id) {
+          setError("No encontramos un consultorio asociado a tu usuario.");
+          setAppointments([]);
+          return;
+        }
+
+        query = query.eq("clinic_id", activeClinic.id);
+      } else {
+        query = query.is("clinic_id", null);
+      }
 
       if (patientId) {
         query = query.eq("patient_id", patientId);
@@ -283,7 +313,7 @@ export function useAppointments(patientId?: string) {
     } finally {
       setLoaded(true);
     }
-  }, [patientId]);
+  }, [accountType, activeClinic?.id, activeClinicError, activeClinicLoaded, patientId]);
 
   useEffect(() => {
     loadAppointments();
