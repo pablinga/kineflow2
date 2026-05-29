@@ -203,13 +203,13 @@ export default function DashboardPage() {
       <DashboardSidebar />
       <section className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <header className="flex flex-col justify-between gap-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm md:flex-row md:items-center">
+          <header className="flex flex-col justify-between gap-4 border-b border-ocean-100 bg-white/70 pb-5 md:flex-row md:items-center">
             <div>
               <p className="text-sm font-semibold text-ocean-700">Dashboard</p>
-              <h1 className="mt-1 text-3xl font-bold text-ink">
+              <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
                 Hola, {displayName}
               </h1>
-              <p className="mt-2 text-slate-600">
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
                 {isClinicAccount
                   ? "Pacientes, agenda y profesionales del consultorio."
                   : "Pacientes, turnos, evoluciónes y cobros en un solo lugar."}
@@ -284,10 +284,10 @@ export default function DashboardPage() {
             </section>
           )}
 
-          <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {summaryCards.map((card) => (
               <article
-                className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm"
+                className="rounded-lg border border-ocean-100 bg-white p-4 shadow-sm"
                 key={card.label}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -295,12 +295,12 @@ export default function DashboardPage() {
                     <p className="text-sm font-medium text-slate-500">
                       {card.label}
                     </p>
-                    <p className="mt-3 text-3xl font-bold text-ink">
+                    <p className="mt-2 text-2xl font-bold text-ink">
                       {card.value}
                     </p>
                   </div>
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
-                    <ArrowUpRight className="h-5 w-5" />
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
+                    <ArrowUpRight className="h-4 w-4" />
                   </span>
                 </div>
                 <p className="mt-3 text-sm font-medium text-ocean-700">
@@ -310,10 +310,10 @@ export default function DashboardPage() {
             ))}
           </section>
 
-          <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {economicCards.map((card) => (
               <article
-                className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm"
+                className="rounded-lg border border-ocean-100 bg-white p-4 shadow-sm"
                 key={card.label}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -321,12 +321,12 @@ export default function DashboardPage() {
                     <p className="text-sm font-medium text-slate-500">
                       {card.label}
                     </p>
-                    <p className="mt-3 text-2xl font-bold text-ink">
+                    <p className="mt-2 text-xl font-bold text-ink">
                       {card.value}
                     </p>
                   </div>
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-                    <WalletCards className="h-5 w-5" />
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                    <WalletCards className="h-4 w-4" />
                   </span>
                 </div>
                 <p className="mt-3 text-sm font-medium text-ocean-700">
@@ -337,7 +337,7 @@ export default function DashboardPage() {
           </section>
 
           <section className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_0.8fr]">
-            <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+            <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-sm sm:p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-bold text-ink">Próximos turnos</h2>
@@ -352,7 +352,7 @@ export default function DashboardPage() {
                   Ver agenda
                 </Link>
               </div>
-              <div className="mt-5 divide-y divide-ocean-100">
+              <div className="mt-4 divide-y divide-ocean-100">
                 {upcomingAppointments.map((appointment) => {
                   const status = getAppointmentDisplayStatus(appointment);
 
@@ -410,7 +410,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-6">
-              <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+              <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-sm">
                 <h2 className="text-lg font-bold text-ink">Requieren acción</h2>
                 <div className="mt-4 space-y-3">
                   {actionRequired.map((appointment) => (
@@ -452,7 +452,7 @@ export default function DashboardPage() {
                 ) : null}
               </div>
 
-              <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+              <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-sm">
                 <h2 className="text-lg font-bold text-ink">Accesos rápidos</h2>
                 <div className="mt-4 grid gap-2">
                   {[

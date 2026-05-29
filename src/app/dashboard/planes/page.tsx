@@ -104,12 +104,12 @@ export default function PlansPage() {
       <DashboardSidebar />
       <section className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+          <header className="border-b border-ocean-100 bg-white/70 pb-5">
             <p className="text-sm font-semibold text-ocean-700">Planes</p>
-            <h1 className="mt-1 text-3xl font-bold text-ink">
+            <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
               Activár o mejorar plan
             </h1>
-            <p className="mt-2 max-w-3xl text-slate-600">
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
               Actualmente estás usando el Plan {plan.plan}. Revisá qué incluye
               cada opción y activá un plan pago cuando necesites gestionar una
               práctica propia o un consultorio.
@@ -117,7 +117,7 @@ export default function PlansPage() {
           </header>
 
           {hasPaidPlan ? (
-            <section className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
+            <section className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 p-4">
               <p className="font-bold text-emerald-900">
                 {plan.estadoPlan === "ACTIVO"
                   ? `Plan activo: ${plan.plan}`
@@ -131,7 +131,7 @@ export default function PlansPage() {
             </section>
           ) : null}
 
-          <section className="mt-6 grid gap-4 md:grid-cols-4">
+          <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
               ["Plan actual", plan.plan],
               ["Estado", plan.estadoPlan],
@@ -144,11 +144,11 @@ export default function PlansPage() {
               ["Pacientes usados", String(activePatients.length)],
             ].map(([label, value]) => (
               <article
-                className="rounded-lg border border-ocean-100 bg-white p-4 shadow-sm"
+                className="rounded-lg border border-ocean-100 bg-white p-4"
                 key={label}
               >
                 <p className="text-sm font-medium text-slate-500">{label}</p>
-                <p className="mt-2 text-xl font-bold text-ink">{value}</p>
+                <p className="mt-1 text-xl font-bold text-ink">{value}</p>
               </article>
             ))}
           </section>
@@ -160,7 +160,7 @@ export default function PlansPage() {
             </section>
           ) : null}
 
-          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-4">
             <p className="font-bold text-ink">
               Kinesiólogos que trabajan solo para consultorios
             </p>
@@ -173,14 +173,14 @@ export default function PlansPage() {
             </p>
           </section>
 
-          <section className="mt-6 grid gap-5 lg:grid-cols-3">
+          <section className="mt-6 grid gap-4 lg:grid-cols-3">
             {visiblePlans.map((item) => {
               const Icon = item.icon;
               const isCurrent = item.id === plan.plan;
 
               return (
                 <article
-                  className={`relative flex rounded-lg border bg-white p-6 shadow-sm ${
+                  className={`relative flex rounded-lg border bg-white p-5 shadow-sm ${
                     item.recommended
                       ? "border-ocean-500 ring-2 ring-ocean-100"
                       : "border-ocean-100"
@@ -194,8 +194,8 @@ export default function PlansPage() {
                     </div>
                   ) : null}
                   <div className="flex w-full flex-col">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
-                      <Icon className="h-6 w-6" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
+                      <Icon className="h-5 w-5" />
                     </div>
                     <h2
                       className={`mt-5 text-xl font-bold text-ink ${
@@ -204,22 +204,22 @@ export default function PlansPage() {
                     >
                       {item.name}
                     </h2>
-                    <p className="mt-2 text-3xl font-bold text-ocean-800">
+                    <p className="mt-2 text-2xl font-bold text-ocean-800">
                       {item.price}
                     </p>
                     <p className="mt-2 font-semibold text-slate-700">
                       {item.limit}
                     </p>
-                    <p className="mt-3 leading-7 text-slate-600">
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
                       {item.audience}
                     </p>
-                    <ul className="mt-5 space-y-3">
+                    <ul className="mt-5 space-y-2">
                       {item.features.map((feature) => (
                         <li
-                          className="flex gap-3 text-sm leading-6 text-slate-700"
+                          className="flex gap-2 text-sm leading-6 text-slate-700"
                           key={feature}
                         >
-                          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                          <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />
                           <span>{feature}</span>
                         </li>
                       ))}

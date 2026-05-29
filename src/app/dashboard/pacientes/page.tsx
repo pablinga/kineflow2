@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   CalendarPlus,
   Mail,
+  MoreVertical,
   Phone,
   Plus,
   Search,
@@ -159,13 +160,13 @@ export default function PatientsPage() {
       <DashboardSidebar />
       <section className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <header className="flex flex-col justify-between gap-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm md:flex-row md:items-center">
+          <header className="flex flex-col justify-between gap-4 border-b border-ocean-100 bg-white/70 pb-5 md:flex-row md:items-center">
             <div>
               <p className="text-sm font-semibold text-ocean-700">Pacientes</p>
-              <h1 className="mt-1 text-3xl font-bold text-ink">
+              <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
                 Gestión de pacientes
               </h1>
-              <p className="mt-2 text-slate-600">
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
                 Carga pacientes, revisa su historial y agenda nuevas sesiónes.
               </p>
             </div>
@@ -346,7 +347,7 @@ export default function PatientsPage() {
             </form>
           ) : null}
 
-          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+          <section className="mt-6">
             <label className="flex items-center gap-3 rounded-lg border border-ocean-100 bg-ocean-50 px-4 py-3 focus-within:border-ocean-400">
               <Search className="h-5 w-5 text-ocean-600" />
               <input
@@ -370,10 +371,10 @@ export default function PatientsPage() {
                 </p>
               </div>
             ) : (
-              <div className="mt-5 grid gap-4 xl:grid-cols-2">
+              <div className="mt-5 grid gap-3 xl:grid-cols-2">
                 {filteredPatients.map((patient) => (
                   <article
-                    className={`rounded-lg border p-5 ${
+                    className={`rounded-lg border p-4 shadow-sm ${
                       patient.status === "Activo"
                         ? "border-ocean-100 bg-white"
                         : "border-slate-200 bg-slate-50"
@@ -381,25 +382,25 @@ export default function PatientsPage() {
                     key={patient.id}
                   >
                     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                      <div className="flex gap-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-ocean-100 font-bold text-ocean-800">
+                      <div className="flex min-w-0 gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ocean-100 text-sm font-bold text-ocean-800">
                           {patient.name
                             .split(" ")
                             .map((part) => part[0])
                             .join("")}
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <Link
-                            className="font-bold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
+                            className="block truncate font-bold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
                             href={`/dashboard/pacientes/${patient.id}`}
                           >
                             {patient.name}
                           </Link>
-                          <p className="mt-1 text-sm text-slate-500">
+                          <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">
                             DNI {patient.document} · {patient.condition}
                           </p>
                           <span
-                            className={`mt-3 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${
+                            className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                               patient.status === "Activo"
                                 ? "bg-emerald-50 text-emerald-700"
                                 : "bg-slate-200 text-slate-700"
@@ -409,15 +410,15 @@ export default function PatientsPage() {
                           </span>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="grid grid-cols-[1fr_44px] gap-2 sm:flex sm:flex-wrap">
                         <Link
-                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white transition hover:bg-ocean-700"
+                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white transition hover:bg-ocean-700"
                           href={`/dashboard/pacientes/${patient.id}`}
                         >
                           Ver historial
                         </Link>
                         <Link
-                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                          className="hidden min-h-11 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:inline-flex"
                           href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
                         >
                           <CalendarPlus className="h-4 w-4" />
@@ -425,10 +426,20 @@ export default function PatientsPage() {
                         </Link>
                         {patient.status === "Activo" ? (
                           <details className="relative">
-                            <summary className="inline-flex min-h-10 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
-                              Mas
+                            <summary
+                              className="inline-flex min-h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                              title="Mas acciones"
+                            >
+                              <MoreVertical className="h-4 w-4" />
                             </summary>
-                            <div className="absolute right-0 z-20 mt-2 w-48 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
+                            <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
+                              <Link
+                                className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:hidden"
+                                href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
+                              >
+                                <CalendarPlus className="h-4 w-4" />
+                                Nuevo turno
+                              </Link>
                               <button
                                 className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-red-700 transition hover:bg-red-50"
                                 onClick={() => handleDisablePatient(patient.id)}
@@ -443,7 +454,7 @@ export default function PatientsPage() {
                       </div>
                     </div>
 
-                    <div className="mt-5 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
+                    <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
                       <p className="flex items-center gap-2">
                         <Phone className="h-4 w-4 text-ocean-600" />
                         {patient.phone}
@@ -453,7 +464,7 @@ export default function PatientsPage() {
                         {patient.email}
                       </p>
                     </div>
-                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
                       <div className="rounded-lg bg-ocean-50 p-3">
                         <p className="text-xs font-semibold uppercase text-slate-500">
                           Evolución
