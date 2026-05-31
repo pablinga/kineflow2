@@ -3,8 +3,11 @@
 @tailwind utilities;
 
 :root {
-  --background: #f8fcff;
-  --foreground: #102033;
+  --background: #f5f7fa;
+  --foreground: #0d1b2a;
+  --brand-blue: #1565ff;
+  --brand-green: #22c1a1;
+  --brand-border: #dce8ff;
 }
 
 * {
@@ -19,6 +22,7 @@ body {
   margin: 0;
   color: var(--foreground);
   background: var(--background);
+  text-rendering: optimizeLegibility;
 }
 
 a {
@@ -27,11 +31,15 @@ a {
 }
 
 ::selection {
-  background: #aee3ff;
-  color: #102033;
+  background: #b8cfff;
+  color: #0d1b2a;
 }
 
 @layer base {
+  :focus-visible {
+    outline-color: var(--brand-blue);
+  }
+
   input,
   select,
   textarea {
@@ -44,5 +52,11 @@ a {
   textarea,
   button {
     font: inherit;
+  }
+
+  input,
+  select,
+  textarea {
+    background: #ffffff;
   }
 }

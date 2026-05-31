@@ -160,7 +160,7 @@ export default function RegisterPage() {
     <main className="grid min-h-screen bg-white lg:grid-cols-[1.05fr_0.95fr]">
       <section className="flex items-center justify-center px-4 py-10 sm:px-6">
         <div className="w-full max-w-md rounded-lg border border-ocean-100 bg-white p-6 shadow-soft sm:p-8">
-          <Logo />
+          <Logo showSlogan />
           <div className="mt-8">
             <h1 className="text-3xl font-bold text-ink">Crear cuenta</h1>
             <p className="mt-2 text-slate-600">

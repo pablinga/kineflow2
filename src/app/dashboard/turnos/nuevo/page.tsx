@@ -180,7 +180,7 @@ export default function NewAppointmentPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <Link
             className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-ocean-700"
@@ -190,7 +190,7 @@ export default function NewAppointmentPage() {
             Volver a turnos
           </Link>
 
-          <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+          <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
             <p className="text-sm font-semibold text-ocean-700">Nuevo turno</p>
             <h1 className="mt-1 text-3xl font-bold text-ink">
               Programar una sesión
@@ -221,7 +221,7 @@ export default function NewAppointmentPage() {
           ) : null}
 
           <form
-            className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm"
+            className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card"
             onSubmit={handleSubmit}
           >
             <div className="grid gap-5 md:grid-cols-2">
@@ -398,7 +398,7 @@ export default function NewAppointmentPage() {
             </div>
           </form>
 
-          <div className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+          <div className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-ocean-100 text-ocean-700">
                 <CalendarCheck className="h-5 w-5" />

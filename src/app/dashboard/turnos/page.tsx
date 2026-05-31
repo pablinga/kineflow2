@@ -554,9 +554,9 @@ export default function AppointmentsPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <header className="flex flex-col justify-between gap-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm md:flex-row md:items-center">
+          <header className="flex flex-col justify-between gap-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-card md:flex-row md:items-center">
             <div>
               <p className="text-sm font-semibold text-ocean-700">Turnos</p>
               <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
@@ -660,7 +660,7 @@ export default function AppointmentsPage() {
           </section>
 
           {visibleAppointments.length === 0 ? (
-            <div className="mt-6 rounded-lg border border-dashed border-ocean-200 bg-white p-8 text-center shadow-sm">
+            <div className="mt-6 rounded-lg border border-dashed border-ocean-200 bg-white p-8 text-center shadow-card">
               <p className="font-semibold text-ink">
                 No hay turnos para estos días.
               </p>
@@ -676,7 +676,7 @@ export default function AppointmentsPage() {
                 <div
                   className={`${
                     index === 1 ? "block" : "hidden lg:block"
-                  } rounded-lg border bg-white p-3 shadow-sm ${
+                  } rounded-lg border bg-white p-3 shadow-card ${
                     day.isToday
                       ? "border-ocean-300 ring-2 ring-ocean-100"
                       : "border-ocean-100"
@@ -710,7 +710,7 @@ export default function AppointmentsPage() {
               ))}
             </div>
           </section>
-          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold text-ink">Próximos turnos</h2>

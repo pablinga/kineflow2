@@ -7,8 +7,8 @@ import { Logo } from "@/components/ui/Logo";
 
 const links = [
   { href: "#beneficios", label: "Beneficios" },
-  { href: "#planes", label: "Planes" },
-  { href: "#como-funciona", label: "Cómo funciona" },
+  { href: "#planes", label: "Plan" },
+  { href: "#como-funciona", label: "Como funciona" },
   { href: "#contacto", label: "Contacto" },
 ];
 
@@ -16,13 +16,13 @@ export function PublicNavbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-ocean-100 bg-white/90 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-ocean-100 bg-white/92 backdrop-blur">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <Logo />
+        <Logo showSlogan />
         <div className="hidden items-center gap-8 md:flex">
           {links.map((link) => (
             <a
-              className="text-sm font-medium text-slate-600 transition hover:text-ocean-700"
+              className="text-sm font-semibold text-slate-600 transition hover:text-ocean-600"
               href={link.href}
               key={link.href}
             >
@@ -34,11 +34,11 @@ export function PublicNavbar() {
           <LinkButton href="/login" variant="ghost">
             Ingresar
           </LinkButton>
-          <LinkButton href="/registro">Registrarse</LinkButton>
+          <LinkButton href="/registro">Comenzar ahora</LinkButton>
         </div>
         <button
-          aria-label="Abrir menú"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-ocean-100 text-slate-700 md:hidden"
+          aria-label="Abrir menu"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-ocean-100 bg-white text-slate-700 md:hidden"
           onClick={() => setOpen((value) => !value)}
           type="button"
         >
@@ -50,7 +50,7 @@ export function PublicNavbar() {
           <div className="flex flex-col gap-3">
             {links.map((link) => (
               <a
-                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-ocean-50"
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-ocean-50"
                 href={link.href}
                 key={link.href}
                 onClick={() => setOpen(false)}
@@ -62,7 +62,7 @@ export function PublicNavbar() {
               Ingresar
             </LinkButton>
             <LinkButton className="w-full" href="/registro">
-              Registrarse
+              Comenzar ahora
             </LinkButton>
           </div>
         </div>

@@ -2,15 +2,19 @@ import Link from "next/link";
 import { type AnchorHTMLAttributes, type ButtonHTMLAttributes } from "react";
 import { clsx } from "clsx";
 
-type ButtonVariant = "primary" | "secondary" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "success" | "danger";
 
 const styles: Record<ButtonVariant, string> = {
   primary:
-    "bg-ocean-600 text-white shadow-soft hover:bg-ocean-700 focus-visible:outline-ocean-400",
+    "bg-ocean-500 text-white shadow-soft hover:bg-ocean-600 focus-visible:outline-ocean-300",
   secondary:
-    "border border-ocean-200 bg-white text-ocean-800 hover:border-ocean-300 hover:bg-ocean-50 focus-visible:outline-ocean-300",
+    "border border-ocean-100 bg-white text-ocean-800 hover:border-ocean-200 hover:bg-ocean-50 focus-visible:outline-ocean-300",
   ghost:
     "text-slate-700 hover:bg-ocean-50 hover:text-ocean-800 focus-visible:outline-ocean-300",
+  success:
+    "bg-emerald-500 text-white shadow-soft hover:bg-emerald-600 focus-visible:outline-emerald-300",
+  danger:
+    "bg-red-600 text-white shadow-soft hover:bg-red-700 focus-visible:outline-red-300",
 };
 
 const base =

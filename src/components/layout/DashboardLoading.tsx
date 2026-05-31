@@ -16,7 +16,7 @@ export function DashboardLoading({
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="rounded-lg border border-ocean-100 bg-white p-6 shadow-sm">
             <p className="text-sm font-semibold text-ocean-700">KineFlow</p>

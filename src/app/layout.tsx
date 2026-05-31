@@ -9,9 +9,14 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "KineFlow | Gestión clínica para kinesiólogos",
+  title: "KineFlow | Gestion simple para kinesiologos",
   description:
-    "Aplicación web para gestionar pacientes, sesiónes y evolución clínica en consultorios de kinesiología.",
+    "App mobile-first para kinesiologos independientes: pacientes, turnos, sesiones, evolucion y cobros en un solo lugar.",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/kineflow-icon.svg",
+  },
 };
 
 export default function RootLayout({

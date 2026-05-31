@@ -29,9 +29,9 @@ export default function EvolutionsPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl">
-          <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+          <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
             <p className="text-sm font-semibold text-ocean-700">Evoluciones</p>
             <h1 className="mt-1 text-3xl font-bold text-ink">
               Historial por paciente
@@ -44,7 +44,7 @@ export default function EvolutionsPage() {
 
           <section className="mt-6 grid gap-5 md:grid-cols-2">
             <Link
-              className="rounded-lg border border-ocean-100 bg-white p-6 shadow-sm transition hover:border-ocean-200 hover:bg-ocean-50"
+              className="rounded-lg border border-ocean-100 bg-white p-6 shadow-card transition hover:border-ocean-200 hover:bg-ocean-50"
               href="/dashboard/pacientes"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-ocean-100 text-ocean-700">
@@ -63,7 +63,7 @@ export default function EvolutionsPage() {
               </span>
             </Link>
 
-            <div className="rounded-lg border border-ocean-100 bg-white p-6 shadow-sm">
+            <div className="rounded-lg border border-ocean-100 bg-white p-6 shadow-card">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-ocean-100 text-ocean-700">
                 <ClipboardList className="h-6 w-6" />
               </div>

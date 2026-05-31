@@ -158,7 +158,7 @@ export default function PatientsPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <header className="flex flex-col justify-between gap-4 border-b border-ocean-100 bg-white/70 pb-5 md:flex-row md:items-center">
             <div>
@@ -195,7 +195,7 @@ export default function PatientsPage() {
           </header>
 
           {clinicPracticeBlocked ? (
-            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 shadow-sm">
+            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 shadow-card">
               <p className="font-bold text-amber-900">
                 Plan Consultorio requerido
               </p>
@@ -211,7 +211,7 @@ export default function PatientsPage() {
               </Link>
             </section>
           ) : plan.plan === "FREE" ? (
-            <section className="mt-6 rounded-lg border border-ocean-200 bg-white p-5 shadow-sm">
+            <section className="mt-6 rounded-lg border border-ocean-200 bg-white p-5 shadow-card">
               <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div>
                   <p className="font-bold text-ink">
@@ -254,7 +254,7 @@ export default function PatientsPage() {
 
           {showForm ? (
             <form
-              className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm"
+              className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card"
               onSubmit={handleSubmit}
             >
               <h2 className="text-lg font-bold text-ink">Nuevo paciente</h2>
@@ -374,7 +374,7 @@ export default function PatientsPage() {
               <div className="mt-5 grid gap-3 xl:grid-cols-2">
                 {filteredPatients.map((patient) => (
                   <article
-                    className={`rounded-lg border p-4 shadow-sm ${
+                    className={`rounded-lg border p-4 shadow-card ${
                       patient.status === "Activo"
                         ? "border-ocean-100 bg-white"
                         : "border-slate-200 bg-slate-50"

@@ -43,6 +43,10 @@ export default function ClinicsAdminPage() {
     useState<ProfessionalSearchResult | null>(null);
   const [inviteClinicId, setInviteClinicId] = useState("");
   const [inviteColor, setInviteColor] = useState("#14b8a6");
+  const [availability, setAvailability] = useState([emptyAvailability]);
+  const [saving, setSaving] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     if (!clinicsEnabled) {
@@ -58,11 +62,6 @@ export default function ClinicsAdminPage() {
       />
     );
   }
-  const [availability, setAvailability] = useState([emptyAvailability]);
-  const [saving, setSaving] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [message, setMessage] = useState("");
-
   if (authError) {
     return <DashboardLoading error={authError} />;
   }
@@ -84,8 +83,8 @@ export default function ClinicsAdminPage() {
     return (
       <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
         <DashboardSidebar />
-        <section className="px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl rounded-lg border border-ocean-100 bg-white p-6 shadow-sm">
+        <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl rounded-lg border border-ocean-100 bg-white p-6 shadow-card">
             <h1 className="text-2xl font-bold text-ink">Acceso no disponible</h1>
             <p className="mt-2 text-slate-600">
               Esta seccion es solo para cuentas de consultorio.
@@ -103,8 +102,8 @@ export default function ClinicsAdminPage() {
     return (
       <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
         <DashboardSidebar />
-        <section className="px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl rounded-lg border border-amber-100 bg-amber-50 p-6 shadow-sm">
+        <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl rounded-lg border border-amber-100 bg-amber-50 p-6 shadow-card">
             <h1 className="text-2xl font-bold text-amber-950">
               Plan Consultorio requerido
             </h1>
@@ -185,9 +184,9 @@ export default function ClinicsAdminPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
-          <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+          <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
             <p className="text-sm font-semibold text-ocean-700">
               Profesionales
             </p>
@@ -213,7 +212,7 @@ export default function ClinicsAdminPage() {
 
           <section className="mt-6 grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
             <form
-              className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm"
+              className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card"
               onSubmit={handleSearch}
             >
               <div className="flex items-center gap-3">
@@ -278,7 +277,7 @@ export default function ClinicsAdminPage() {
             </form>
 
             <form
-              className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm"
+              className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card"
               onSubmit={handleInvite}
             >
               <div className="flex items-center gap-3">

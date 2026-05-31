@@ -264,7 +264,7 @@ export default function PatientDetailPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <Link
             className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-ocean-700"
@@ -276,7 +276,7 @@ export default function PatientDetailPage() {
 
           {patient ? (
             <>
-              <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+              <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
                 <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
                   <div>
                     <p className="text-sm font-semibold text-ocean-700">
@@ -323,7 +323,7 @@ export default function PatientDetailPage() {
 
               <section className="mt-6 grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
                 <form
-                  className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm"
+                  className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card"
                   onSubmit={handleSubmit}
                 >
                   <h2 className="text-lg font-bold text-ink">
@@ -448,7 +448,7 @@ export default function PatientDetailPage() {
                 </form>
 
                 <div className="space-y-6">
-                  <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+                  <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
                     <h2 className="text-lg font-bold text-ink">
                       Resumen económico
                     </h2>
@@ -484,7 +484,7 @@ export default function PatientDetailPage() {
                     </div>
                   </section>
 
-                  <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+                  <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
                     <div className="flex items-center justify-between gap-4">
                       <h2 className="text-lg font-bold text-ink">
                         Turnos del paciente
@@ -619,7 +619,7 @@ export default function PatientDetailPage() {
                     ) : null}
                   </section>
 
-                  <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+                  <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
                     <h2 className="text-lg font-bold text-ink">
                       Evoluciones / sesiónes
                     </h2>

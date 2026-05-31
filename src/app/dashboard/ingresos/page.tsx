@@ -87,7 +87,7 @@ export default function IncomePage() {
     return (
       <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
         <DashboardSidebar />
-        <section className="px-4 py-6 sm:px-6 lg:px-8">
+        <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl rounded-lg border border-amber-100 bg-amber-50 p-6 shadow-sm">
             <h1 className="text-2xl font-bold text-amber-950">
               Ingresos propios bloqueados
@@ -110,7 +110,7 @@ export default function IncomePage() {
     return (
       <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
         <DashboardSidebar />
-        <section className="px-4 py-6 sm:px-6 lg:px-8">
+        <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl rounded-lg border border-amber-100 bg-amber-50 p-6 shadow-sm">
             <h1 className="text-2xl font-bold text-amber-950">
               Ingresos del consultorio bloqueados
@@ -128,9 +128,9 @@ export default function IncomePage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <header className="flex flex-col justify-between gap-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm md:flex-row md:items-center">
+          <header className="flex flex-col justify-between gap-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-card md:flex-row md:items-center">
             <div>
               <p className="text-sm font-semibold text-ocean-700">Ingresos</p>
               <h1 className="mt-1 text-3xl font-bold text-ink">
@@ -156,7 +156,7 @@ export default function IncomePage() {
             </p>
           ) : null}
 
-          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               <label className="block">
                 <span className="text-sm font-semibold text-slate-700">
@@ -238,7 +238,7 @@ export default function IncomePage() {
             </div>
           </section>
 
-          <section className="mt-6 rounded-lg border border-ocean-100 bg-white shadow-sm">
+          <section className="mt-6 rounded-lg border border-ocean-100 bg-white shadow-card">
             <div className="flex items-center gap-3 border-b border-ocean-100 p-5">
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
                 <WalletCards className="h-5 w-5" />

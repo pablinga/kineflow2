@@ -163,7 +163,7 @@ export default function PlansPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <header className="border-b border-ocean-100 bg-white/70 pb-5">
             <p className="text-sm font-semibold text-ocean-700">Plan</p>
@@ -212,7 +212,7 @@ export default function PlansPage() {
               ["Pacientes usados", String(activePatients.length)],
             ].map(([label, value]) => (
               <article
-                className="rounded-lg border border-ocean-100 bg-white p-4"
+                className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card"
                 key={label}
               >
                 <p className="text-sm font-medium text-slate-500">{label}</p>
@@ -257,7 +257,7 @@ export default function PlansPage() {
 
               return (
                 <article
-                  className={`relative flex rounded-lg border bg-white p-5 shadow-sm ${
+                  className={`relative flex rounded-lg border bg-white p-5 shadow-card ${
                     item.recommended
                       ? "border-ocean-500 ring-2 ring-ocean-100"
                       : "border-ocean-100"
@@ -328,7 +328,7 @@ export default function PlansPage() {
           </section>
 
           {selectedPlan ? (
-            <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+            <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
               <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div className="flex gap-4">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">

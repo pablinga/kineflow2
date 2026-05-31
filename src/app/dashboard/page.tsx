@@ -201,7 +201,7 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <header className="flex flex-col justify-between gap-4 border-b border-ocean-100 bg-white/70 pb-5 md:flex-row md:items-center">
             <div>
@@ -234,7 +234,7 @@ export default function DashboardPage() {
           </header>
 
           {plan.plan === "FREE" ? (
-            <section className="mt-6 flex flex-col justify-between gap-4 rounded-lg border border-ocean-200 bg-white p-5 shadow-sm md:flex-row md:items-center">
+            <section className="mt-6 flex flex-col justify-between gap-4 rounded-lg border border-ocean-200 bg-white p-5 shadow-card md:flex-row md:items-center">
               <div className="flex gap-4">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
                   <CreditCard className="h-5 w-5" />
@@ -257,7 +257,7 @@ export default function DashboardPage() {
               </Link>
             </section>
           ) : (
-            <section className="mt-6 flex flex-col justify-between gap-4 rounded-lg border border-emerald-100 bg-emerald-50 p-5 shadow-sm md:flex-row md:items-center">
+            <section className="mt-6 flex flex-col justify-between gap-4 rounded-lg border border-emerald-100 bg-emerald-50 p-5 shadow-card md:flex-row md:items-center">
               <div className="flex gap-4">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700">
                   <CreditCard className="h-5 w-5" />
@@ -287,7 +287,7 @@ export default function DashboardPage() {
           <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {summaryCards.map((card) => (
               <article
-                className="rounded-lg border border-ocean-100 bg-white p-4 shadow-sm"
+                className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card"
                 key={card.label}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -313,7 +313,7 @@ export default function DashboardPage() {
           <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {economicCards.map((card) => (
               <article
-                className="rounded-lg border border-ocean-100 bg-white p-4 shadow-sm"
+                className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card"
                 key={card.label}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -337,7 +337,7 @@ export default function DashboardPage() {
           </section>
 
           <section className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_0.8fr]">
-            <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-sm sm:p-5">
+            <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-bold text-ink">Próximos turnos</h2>
@@ -410,7 +410,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-6">
-              <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-sm">
+              <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card">
                 <h2 className="text-lg font-bold text-ink">Requieren acción</h2>
                 <div className="mt-4 space-y-3">
                   {actionRequired.map((appointment) => (
@@ -452,7 +452,7 @@ export default function DashboardPage() {
                 ) : null}
               </div>
 
-              <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-sm">
+              <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card">
                 <h2 className="text-lg font-bold text-ink">Accesos rápidos</h2>
                 <div className="mt-4 grid gap-2">
                   {[
@@ -503,7 +503,7 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold text-ink">Pacientes recientes</h2>

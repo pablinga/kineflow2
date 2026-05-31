@@ -69,8 +69,8 @@ export default function MyClinicsPage() {
     return (
       <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
         <DashboardSidebar />
-        <section className="px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl rounded-lg border border-ocean-100 bg-white p-6 shadow-sm">
+        <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl rounded-lg border border-ocean-100 bg-white p-6 shadow-card">
             <h1 className="text-2xl font-bold text-ink">Acceso no disponible</h1>
             <p className="mt-2 text-slate-600">
               Esta seccion es solo para kinesiólogos independientes.
@@ -84,9 +84,9 @@ export default function MyClinicsPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 py-6 sm:px-6 lg:px-8">
+      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
-          <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm">
+          <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
             <p className="text-sm font-semibold text-ocean-700">
               Mis consultorios
             </p>
@@ -108,7 +108,7 @@ export default function MyClinicsPage() {
           <section className="mt-6 grid gap-4 lg:grid-cols-2">
             {links.map((link) => (
               <article
-                className="rounded-lg border border-ocean-100 bg-white p-5 shadow-sm"
+                className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card"
                 key={link.id}
               >
                 <div className="flex items-start justify-between gap-4">
@@ -189,7 +189,7 @@ export default function MyClinicsPage() {
           </section>
 
           {links.length === 0 ? (
-            <div className="mt-6 rounded-lg border border-dashed border-ocean-200 bg-white p-8 text-center shadow-sm">
+            <div className="mt-6 rounded-lg border border-dashed border-ocean-200 bg-white p-8 text-center shadow-card">
               <p className="font-semibold text-ink">
                 Todavía no tenés consultorios vinculados.
               </p>
