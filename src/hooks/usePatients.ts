@@ -170,9 +170,13 @@ export function usePatients() {
           return;
         }
 
-        patientQuery = patientQuery.eq("clinic_id", activeClinic.id);
+        patientQuery = patientQuery
+          .eq("owner_id", sessionData.user.id)
+          .eq("clinic_id", activeClinic.id);
       } else {
-        patientQuery = patientQuery.is("clinic_id", null);
+        patientQuery = patientQuery
+          .eq("owner_id", sessionData.user.id)
+          .is("clinic_id", null);
       }
 
       const { data, error: queryError } = await patientQuery;
@@ -190,19 +194,26 @@ export function usePatients() {
         return;
       }
 
+      let appointmentsQuery = supabase
+        .from("appointments")
+        .select("patient_id, scheduled_at, status")
+        .in("patient_id", patientIds);
+      let evolutionsQuery = supabase
+        .from("evolutions")
+        .select("patient_id, session_date, clinical_notes")
+        .in("patient_id", patientIds);
+
+      if (accountType === "CONSULTORIO") {
+        appointmentsQuery = appointmentsQuery.eq("clinic_id", activeClinic?.id ?? "");
+      } else {
+        appointmentsQuery = appointmentsQuery.eq("owner_id", sessionData.user.id);
+        evolutionsQuery = evolutionsQuery.eq("owner_id", sessionData.user.id);
+      }
+
       const [
         { data: appointmentsData, error: appointmentsError },
         { data: evolutionsData, error: evolutionsError },
-      ] = await Promise.all([
-        supabase
-          .from("appointments")
-          .select("patient_id, scheduled_at, status")
-          .in("patient_id", patientIds),
-        supabase
-          .from("evolutions")
-          .select("patient_id, session_date, clinical_notes")
-          .in("patient_id", patientIds),
-      ]);
+      ] = await Promise.all([appointmentsQuery, evolutionsQuery]);
 
       if (appointmentsError || evolutionsError) {
         setError(
@@ -304,12 +315,20 @@ export function usePatients() {
     setError("");
 
     const supabase = getSupabaseClient();
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getUser();
+
+    if (sessionError || !sessionData.user) {
+      throw new Error("No pudimos identificar al usuario.");
+    }
+
     const { error: updateError } = await supabase
       .from("patients")
       .update({
         status: "inactive",
         disabled_at: new Date().toISOString(),
       })
+      .eq("owner_id", sessionData.user.id)
       .eq("id", id);
 
     if (updateError) {

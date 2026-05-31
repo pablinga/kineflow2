@@ -8,6 +8,7 @@ export async function POST(request: Request) {
   const token = authHeader?.replace("Bearer ", "");
 
   if (!token) {
+    console.warn("[billing:cancel-subscription] Missing bearer token");
     return NextResponse.json(
       { error: "Necesitás iniciar sesión." },
       { status: 401 },
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser(token);
 
   if (error || !user) {
+    console.warn("[billing:cancel-subscription] Invalid bearer token");
     return NextResponse.json(
       { error: "No pudimos validar tu sesión." },
       { status: 401 },
@@ -46,6 +48,9 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (!subscription?.provider_subscription_id) {
+    console.warn("[billing:cancel-subscription] Active subscription not found", {
+      accountId: user.id,
+    });
     return NextResponse.json(
       { error: "No encontramos una suscripción activa." },
       { status: 404 },
@@ -58,7 +63,7 @@ export async function POST(request: Request) {
   const canceledAt = new Date().toISOString();
   const cancellationReference = `KF-BAJA-${Date.now().toString(36).toUpperCase()}`;
 
-  await admin
+  const { error: subscriptionUpdateError } = await admin
     .from("subscriptions")
     .update({
       cancel_at_period_end: true,
@@ -69,7 +74,18 @@ export async function POST(request: Request) {
     })
     .eq("id", subscription.id);
 
-  await admin
+  if (subscriptionUpdateError) {
+    console.error("[billing:cancel-subscription] Subscription update failed", {
+      accountId: user.id,
+      subscriptionId: subscription.id,
+    });
+    return NextResponse.json(
+      { error: "No pudimos registrar la baja de la suscripciÃ³n." },
+      { status: 500 },
+    );
+  }
+
+  const { error: profileUpdateError } = await admin
     .from("profiles")
     .update({
       cancel_request_code: cancellationReference,
@@ -80,6 +96,16 @@ export async function POST(request: Request) {
       updated_at: canceledAt,
     })
     .eq("id", user.id);
+
+  if (profileUpdateError) {
+    console.error("[billing:cancel-subscription] Profile update failed", {
+      accountId: user.id,
+    });
+    return NextResponse.json(
+      { error: "No pudimos actualizar el estado de tu plan." },
+      { status: 500 },
+    );
+  }
 
   await sendSubscriptionCancelledEmail(
     {

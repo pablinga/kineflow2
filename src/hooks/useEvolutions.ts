@@ -63,11 +63,19 @@ export function useEvolutions(patientId?: string) {
 
     try {
       const supabase = getSupabaseClient();
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getUser();
+
+      if (sessionError || !sessionData.user) {
+        throw new Error("No pudimos identificar al usuario.");
+      }
+
       let query = supabase
         .from("evolutions")
         .select(
           "id, patient_id, appointment_id, session_date, pain_level, mobility_notes, clinical_notes, patients(full_name)",
         )
+        .eq("owner_id", sessionData.user.id)
         .order("session_date", { ascending: false });
 
       if (patientId) {

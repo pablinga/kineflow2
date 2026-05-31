@@ -266,6 +266,13 @@ export function useAppointments(patientId?: string) {
 
     try {
       const supabase = getSupabaseClient();
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getUser();
+
+      if (sessionError || !sessionData.user) {
+        throw new Error("No pudimos identificar al usuario.");
+      }
+
       let query = supabase
         .from("appointments")
         .select(
@@ -288,7 +295,9 @@ export function useAppointments(patientId?: string) {
 
         query = query.eq("clinic_id", activeClinic.id);
       } else {
-        query = query.is("clinic_id", null);
+        query = query
+          .eq("owner_id", sessionData.user.id)
+          .is("clinic_id", null);
       }
 
       if (patientId) {
@@ -480,10 +489,25 @@ export function useAppointments(patientId?: string) {
     status: AppointmentStatus,
   ) {
     const supabase = getSupabaseClient();
-    const { error: updateError } = await supabase
+    let query = supabase
       .from("appointments")
       .update({ status })
       .eq("id", id);
+
+    if (accountType === "CONSULTORIO") {
+      query = query.eq("clinic_id", activeClinic?.id ?? "");
+    } else {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getUser();
+
+      if (sessionError || !sessionData.user) {
+        throw new Error("No pudimos identificar al usuario.");
+      }
+
+      query = query.eq("owner_id", sessionData.user.id);
+    }
+
+    const { error: updateError } = await query;
 
     if (updateError) {
       throw new Error(mapSupabaseError(updateError));
@@ -507,13 +531,28 @@ export function useAppointments(patientId?: string) {
       });
     }
 
-    const { error: updateError } = await supabase
+    let query = supabase
       .from("appointments")
       .update({
         scheduled_at: scheduledAt,
         status: "rescheduled",
       })
       .eq("id", id);
+
+    if (accountType === "CONSULTORIO") {
+      query = query.eq("clinic_id", activeClinic?.id ?? "");
+    } else {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getUser();
+
+      if (sessionError || !sessionData.user) {
+        throw new Error("No pudimos identificar al usuario.");
+      }
+
+      query = query.eq("owner_id", sessionData.user.id);
+    }
+
+    const { error: updateError } = await query;
 
     if (updateError) {
       throw new Error(mapSupabaseError(updateError));
@@ -527,7 +566,7 @@ export function useAppointments(patientId?: string) {
     input: AppointmentPaymentInput,
   ) {
     const supabase = getSupabaseClient();
-    const { error: updateError } = await supabase
+    let query = supabase
       .from("appointments")
       .update({
         session_amount: input.amount || 0,
@@ -537,6 +576,21 @@ export function useAppointments(patientId?: string) {
         payment_notes: input.paymentNotes || null,
       })
       .eq("id", id);
+
+    if (accountType === "CONSULTORIO") {
+      query = query.eq("clinic_id", activeClinic?.id ?? "");
+    } else {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getUser();
+
+      if (sessionError || !sessionData.user) {
+        throw new Error("No pudimos identificar al usuario.");
+      }
+
+      query = query.eq("owner_id", sessionData.user.id);
+    }
+
+    const { error: updateError } = await query;
 
     if (updateError) {
       throw new Error(mapSupabaseError(updateError));
