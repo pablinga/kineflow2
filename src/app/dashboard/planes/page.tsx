@@ -12,9 +12,6 @@ import { isPlanAllowedForAccount } from "@/lib/billing";
 import { getSupabaseClient } from "@/lib/supabase";
 import { plans, type CommercialPlan } from "@/lib/plans";
 
-const MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL =
-  "https://www.mercadopago.com.ar/subscriptions/checkout";
-
 export default function PlansPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
@@ -23,7 +20,6 @@ export default function PlansPage() {
   const [checkoutMessage, setCheckoutMessage] = useState("");
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState("");
-  const [acceptedRecurring, setAcceptedRecurring] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelReference, setCancelReference] = useState("");
@@ -72,13 +68,6 @@ export default function PlansPage() {
       return;
     }
 
-    if (!acceptedRecurring) {
-      setCheckoutError(
-        "Necesitas aceptar que el Plan Independiente es una suscripcion recurrente gestionada mediante Mercado Pago.",
-      );
-      return;
-    }
-
     setCheckoutLoading(planId);
 
     try {
@@ -86,32 +75,29 @@ export default function PlansPage() {
         throw new Error("Este plan todavia no tiene checkout configurado.");
       }
 
-      const preapprovalPlanId =
-        process.env.NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID?.trim();
-
-      if (!preapprovalPlanId) {
-        throw new Error(
-          "Falta configurar NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID.",
-        );
-      }
-
       const supabase = getSupabaseClient();
-      const { data } = await supabase.auth.getUser();
-      const initPoint = new URL(MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL);
-      initPoint.searchParams.set("preapproval_plan_id", preapprovalPlanId);
-      initPoint.searchParams.set(
-        "back_url",
-        `${window.location.origin}/app/suscripcion/confirmacion`,
-      );
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
 
-      if (data.user?.id) {
-        initPoint.searchParams.set(
-          "external_reference",
-          `${data.user.id}:INDEPENDIENTE:${crypto.randomUUID()}`,
-        );
+      if (!accessToken) {
+        throw new Error("Necesitas iniciar sesion para activar un plan.");
       }
 
-      window.location.href = initPoint.toString();
+      const response = await fetch("/api/billing/create-subscription", {
+        body: JSON.stringify({ planId }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error ?? "No pudimos iniciar el checkout.");
+      }
+
+      window.location.href = result.initPoint;
       return;
     } catch (error) {
       setCheckoutError(
@@ -233,22 +219,6 @@ export default function PlansPage() {
               Baja registrada. Referencia de gestion: {cancelReference}
             </section>
           ) : null}
-
-          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-4">
-            <label className="flex items-start gap-3 text-sm leading-6 text-slate-600">
-              <input
-                checked={acceptedRecurring}
-                className="mt-1 h-4 w-4 accent-ocean-600"
-                onChange={(event) => setAcceptedRecurring(event.target.checked)}
-                type="checkbox"
-              />
-              <span>
-                Entiendo que el Plan Independiente es una suscripcion recurrente
-                gestionada mediante Mercado Pago y que puedo solicitar la baja
-                desde KineFlow.
-              </span>
-            </label>
-          </section>
 
           <section className="mt-6 grid gap-4 lg:grid-cols-2">
             {visiblePlans.map((item) => {

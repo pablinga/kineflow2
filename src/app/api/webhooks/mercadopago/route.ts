@@ -190,6 +190,12 @@ export async function POST(request: Request) {
   const eventId = getEventId(payload, url);
   const eventType = getEventType(payload, url);
 
+  console.info("[mercadopago:webhook] Event received", {
+    eventId,
+    eventType,
+    resourceId: getResourceId(payload, url),
+  });
+
   const { data: eventInsert } = await admin
     .from("payment_events")
     .insert({
@@ -217,6 +223,12 @@ export async function POST(request: Request) {
     }
 
     const providerSubscription = await getMercadoPagoSubscription(resourceId);
+    console.info("[mercadopago:webhook] Subscription loaded", {
+      externalReference: providerSubscription.external_reference,
+      providerStatus: providerSubscription.status,
+      providerSubscriptionId: providerSubscription.id,
+    });
+
     const parsed = await resolveParsedReference({
       admin,
       providerSubscription,
@@ -225,6 +237,11 @@ export async function POST(request: Request) {
     });
 
     if (!parsed) {
+      console.warn("[mercadopago:webhook] Subscription reference unresolved", {
+        eventId,
+        externalReference: providerSubscription.external_reference,
+        providerSubscriptionId: providerSubscription.id,
+      });
       await admin
         .from("payment_events")
         .update({ processed: true })
@@ -233,6 +250,11 @@ export async function POST(request: Request) {
     }
 
     if (parsed.planCode !== "INDEPENDIENTE") {
+      console.info("[mercadopago:webhook] Ignored non-MVP plan", {
+        accountId: parsed.accountId,
+        planCode: parsed.planCode,
+        providerSubscriptionId: providerSubscription.id,
+      });
       await admin
         .from("payment_events")
         .update({ processed: true })
@@ -243,12 +265,21 @@ export async function POST(request: Request) {
       });
     }
 
-    await applyMercadoPagoSubscriptionToAccount({
+    const updateResult = await applyMercadoPagoSubscriptionToAccount({
       accountId: parsed.accountId,
       accountType: "KINESIOLOGO",
       admin,
       planCode: parsed.planCode,
       providerSubscription,
+    });
+
+    console.info("[mercadopago:webhook] Supabase subscription update complete", {
+      accountId: parsed.accountId,
+      internalStatus: updateResult.internalStatus,
+      planCode: parsed.planCode,
+      profileStatus: updateResult.profileStatus,
+      providerStatus: updateResult.providerStatus,
+      providerSubscriptionId: providerSubscription.id,
     });
 
     await admin

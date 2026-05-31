@@ -46,6 +46,15 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
     status: internalStatus,
   };
 
+  console.info("[billing:apply-subscription] Applying Mercado Pago status", {
+    accountId,
+    internalStatus,
+    planCode,
+    profileStatus,
+    providerStatus: providerSubscription.status,
+    providerSubscriptionId: providerSubscription.id,
+  });
+
   const { data: existingSubscription } = await admin
     .from("subscriptions")
     .select("id, status")
@@ -54,15 +63,25 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
     .maybeSingle();
 
   if (existingSubscription?.id) {
-    await admin
+    const { error: subscriptionUpdateError } = await admin
       .from("subscriptions")
       .update(subscriptionPayload)
       .eq("id", existingSubscription.id);
+
+    if (subscriptionUpdateError) {
+      throw new Error("No pudimos actualizar la suscripcion en Supabase.");
+    }
   } else {
-    await admin.from("subscriptions").insert(subscriptionPayload);
+    const { error: subscriptionInsertError } = await admin
+      .from("subscriptions")
+      .insert(subscriptionPayload);
+
+    if (subscriptionInsertError) {
+      throw new Error("No pudimos crear la suscripcion en Supabase.");
+    }
   }
 
-  await admin
+  const { error: profileUpdateError } = await admin
     .from("profiles")
     .update({
       cantidad_kinesiologos: planDefinition.kinesiologistCount,
@@ -85,6 +104,18 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
       updated_at: new Date().toISOString(),
     })
     .eq("id", accountId);
+
+  if (profileUpdateError) {
+    throw new Error("No pudimos actualizar el plan del usuario en Supabase.");
+  }
+
+  console.info("[billing:apply-subscription] Supabase profile updated", {
+    accountId,
+    internalStatus,
+    planCode,
+    profileStatus,
+    providerSubscriptionId: providerSubscription.id,
+  });
 
   if (internalStatus === "ACTIVE" && existingSubscription?.status !== "ACTIVE") {
     const { data: profile } = await admin
