@@ -3,6 +3,7 @@ import {
   mapSubscriptionStatusToProfileStatus,
   type MercadoPagoPreapproval,
 } from "@/lib/mercadopago";
+import { sendSubscriptionActivatedEmail } from "@/lib/email";
 import { getPlanDefinition, type CommercialPlan } from "@/lib/plans";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
 
@@ -47,7 +48,7 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
 
   const { data: existingSubscription } = await admin
     .from("subscriptions")
-    .select("id")
+    .select("id, status")
     .eq("provider", "mercadopago")
     .eq("provider_subscription_id", providerSubscription.id)
     .maybeSingle();
@@ -75,9 +76,36 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
         providerSubscription.payer_email ??
         null,
       mercadopago_subscription_id: providerSubscription.id,
+      mercado_pago_preapproval_id: providerSubscription.id,
       plan: planCode,
+      plan_status: internalStatus === "ACTIVE" ? "active" : internalStatus.toLowerCase(),
+      subscription_current_period_end: periodEnd,
+      subscription_provider: "mercado_pago",
+      subscription_started_at: periodStart ?? new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
     .eq("id", accountId);
+
+  if (internalStatus === "ACTIVE" && existingSubscription?.status !== "ACTIVE") {
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("email, full_name")
+      .eq("id", accountId)
+      .maybeSingle();
+
+    await sendSubscriptionActivatedEmail(
+      {
+        email: (profile as { email?: string | null } | null)?.email,
+        fullName: (profile as { full_name?: string | null } | null)?.full_name,
+      },
+      {
+        activatedAt: periodStart ?? new Date().toISOString(),
+        currentPeriodEnd: periodEnd,
+        provider: "mercadopago",
+        providerSubscription,
+      },
+    );
+  }
 
   return {
     internalStatus,

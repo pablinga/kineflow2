@@ -18,6 +18,7 @@ import { Logo } from "@/components/ui/Logo";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useRequireAuth, type AccountType } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { shouldShowClinicFeatures } from "@/lib/features";
 
 const navigation = {
   KINESIOLOGO: [
@@ -49,7 +50,7 @@ export function DashboardSidebar() {
   const router = useRouter();
   const { accountType, loading } = useRequireAuth();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
-  const visibleNavigation =
+  const baseNavigation =
     accountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE"
       ? navigation.KINESIOLOGO.filter(
           (item) =>
@@ -58,6 +59,14 @@ export function DashboardSidebar() {
             ),
         )
       : navigation[accountType];
+  const visibleNavigation = shouldShowClinicFeatures()
+    ? baseNavigation
+    : baseNavigation.filter(
+        (item) =>
+          !["/dashboard/mis-consultorios", "/dashboard/consultorios"].includes(
+            item.href,
+          ),
+      );
 
   async function handleLogout() {
     setLoggingOut(true);

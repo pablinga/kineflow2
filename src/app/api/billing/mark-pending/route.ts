@@ -4,7 +4,7 @@ export async function POST() {
   return NextResponse.json(
     {
       error:
-        "Este endpoint fue reemplazado por /api/billing/confirm-return, que valida Mercado Pago antes de actualizar el plan.",
+        "Este endpoint fue reemplazado por /api/billing/confirm-return, que solo consulta el estado. La activacion ocurre por webhook.",
     },
     { status: 410 },
   );

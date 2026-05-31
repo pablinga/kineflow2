@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { CheckCircle2, Clock3, MapPin, XCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import {
@@ -9,6 +11,7 @@ import {
   weekdayLabels,
 } from "@/hooks/useClinicLinks";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { shouldShowClinicFeatures } from "@/lib/features";
 
 const statusStyles = {
   pending: "bg-amber-50 text-amber-800",
@@ -18,6 +21,9 @@ const statusStyles = {
 };
 
 export default function MyClinicsPage() {
+  const router = useRouter();
+  const clinicsEnabled = shouldShowClinicFeatures();
+
   const { accountType, authError, loading, redirecting } = useRequireAuth();
   const {
     acceptInvitation,
@@ -26,6 +32,21 @@ export default function MyClinicsPage() {
     loaded,
     rejectInvitation,
   } = useClinicLinks();
+
+  useEffect(() => {
+    if (!clinicsEnabled) {
+      router.replace("/dashboard");
+    }
+  }, [clinicsEnabled, router]);
+
+  if (!clinicsEnabled) {
+    return (
+      <DashboardLoading
+        message="Esta funcionalidad estara disponible en una etapa posterior."
+        title="Redirigiendo..."
+      />
+    );
+  }
 
   if (authError) {
     return <DashboardLoading error={authError} />;

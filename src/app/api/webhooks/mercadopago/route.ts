@@ -232,6 +232,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
+    if (parsed.planCode !== "INDEPENDIENTE") {
+      await admin
+        .from("payment_events")
+        .update({ processed: true })
+        .eq("id", eventInsert.id);
+      return NextResponse.json({
+        received: true,
+        ignored: "El MVP1 solo activa el Plan Independiente.",
+      });
+    }
+
     await applyMercadoPagoSubscriptionToAccount({
       accountId: parsed.accountId,
       accountType: "KINESIOLOGO",

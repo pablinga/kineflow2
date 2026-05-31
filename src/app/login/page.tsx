@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, LockKeyhole } from "lucide-react";
+import { LegalLinks } from "@/components/layout/LegalLinks";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -51,7 +52,7 @@ export default function LoginPage() {
       setError(
         loginError instanceof Error
           ? loginError.message
-          : "No pudimos iniciar sesión. Probá nuevamente.",
+          : "No pudimos iniciar sesion. Proba nuevamente.",
       );
     } finally {
       setLoading(false);
@@ -66,10 +67,10 @@ export default function LoginPage() {
             KineFlow
           </p>
           <h1 className="mt-4 text-4xl font-bold">
-            Volvé a tu panel clínico en segundos.
+            Volve a tu panel en segundos.
           </h1>
           <p className="mt-5 leading-8 text-ocean-100">
-            Revisá turnos, continuá evoluciónes y mantené cada tratamiento
+            Revisa turnos, continua evoluciones y manten cada tratamiento
             organizado desde cualquier dispositivo.
           </p>
         </div>
@@ -80,7 +81,7 @@ export default function LoginPage() {
           <div className="mt-8">
             <h2 className="text-3xl font-bold text-ink">Ingresar</h2>
             <p className="mt-2 text-slate-600">
-              Accedé a tu cuenta para continuar.
+              Accede a tu cuenta para continuar.
             </p>
           </div>
           <form className="mt-8 space-y-5" onSubmit={handleLogin}>
@@ -100,7 +101,7 @@ export default function LoginPage() {
             </label>
             <label className="block">
               <span className="text-sm font-semibold text-slate-700">
-                Contraseña
+                Contrasena
               </span>
               <span className="mt-2 flex items-center gap-3 rounded-lg border border-ocean-100 bg-white px-4 py-3 focus-within:border-ocean-400">
                 <LockKeyhole className="h-5 w-5 text-ocean-500" />
@@ -108,7 +109,7 @@ export default function LoginPage() {
                   className="w-full bg-transparent text-sm outline-none"
                   minLength={6}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="••••••••"
+                  placeholder="********"
                   required
                   type="password"
                   value={password}
@@ -147,11 +148,12 @@ export default function LoginPage() {
             </Button>
           </form>
           <p className="mt-6 text-center text-sm text-slate-600">
-            ¿No tenés cuenta?{" "}
+            No tenes cuenta?{" "}
             <Link className="font-semibold text-ocean-700" href="/registro">
               Crear cuenta
             </Link>
           </p>
+          <LegalLinks className="mt-6 justify-center text-xs text-slate-500" />
         </div>
       </section>
     </main>

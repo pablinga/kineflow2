@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { BadgeCheck, MailPlus, Plus, Search, Trash2, UserRound } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
@@ -11,6 +12,7 @@ import {
 import { weekdayLabels } from "@/hooks/useClinicLinks";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { shouldShowClinicFeatures } from "@/lib/features";
 
 const emptyAvailability = {
   weekday: 1,
@@ -19,6 +21,9 @@ const emptyAvailability = {
 };
 
 export default function ClinicsAdminPage() {
+  const router = useRouter();
+  const clinicsEnabled = shouldShowClinicFeatures();
+
   const {
     accountType,
     authError,
@@ -38,6 +43,21 @@ export default function ClinicsAdminPage() {
     useState<ProfessionalSearchResult | null>(null);
   const [inviteClinicId, setInviteClinicId] = useState("");
   const [inviteColor, setInviteColor] = useState("#14b8a6");
+
+  useEffect(() => {
+    if (!clinicsEnabled) {
+      router.replace("/dashboard");
+    }
+  }, [clinicsEnabled, router]);
+
+  if (!clinicsEnabled) {
+    return (
+      <DashboardLoading
+        message="Esta funcionalidad estara disponible en una etapa posterior."
+        title="Redirigiendo..."
+      />
+    );
+  }
   const [availability, setAvailability] = useState([emptyAvailability]);
   const [saving, setSaving] = useState("");
   const [actionError, setActionError] = useState("");

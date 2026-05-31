@@ -3,65 +3,59 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardList,
+  CreditCard,
+  FileText,
+  HeartPulse,
   Instagram,
   MessageSquare,
-  ShieldCheck,
+  Smartphone,
   UsersRound,
 } from "lucide-react";
+import { LegalLinks } from "@/components/layout/LegalLinks";
 import { PublicNavbar } from "@/components/layout/PublicNavbar";
 import { LinkButton } from "@/components/ui/Button";
-import { plans } from "@/lib/plans";
+import { getVisiblePlansForMvp } from "@/lib/plans";
 
-const highlights = [
-  {
-    icon: UsersRound,
-    title: "Pacientes",
-    text: "Datos, historial y evolucion en una ficha simple.",
-  },
-  {
-    icon: CalendarDays,
-    title: "Agenda",
-    text: "Turnos propios y de consultorio en una vista clara.",
-  },
-  {
-    icon: ClipboardList,
-    title: "Sesiones",
-    text: "Asistencia, evolucion y cobros conectados al tratamiento.",
-  },
+const benefits = [
+  { icon: CalendarDays, title: "Agenda simple y clara" },
+  { icon: UsersRound, title: "Historial de pacientes" },
+  { icon: HeartPulse, title: "Evolucion por tratamiento" },
+  { icon: ClipboardList, title: "Registro de sesiones" },
+  { icon: CreditCard, title: "Control de cobros por sesion" },
+  { icon: Smartphone, title: "Diseno mobile-first" },
 ];
 
 const instagramUrl = "https://www.instagram.com/kineflow.app/";
 const contactEmail = "contacto@kineflow.app";
 
 export default function Home() {
-  const featuredPlans = plans.filter((plan) =>
-    ["FREE", "INDEPENDIENTE", "CONSULTORIO_2"].includes(plan.id),
-  );
+  const featuredPlans = getVisiblePlansForMvp();
 
   return (
     <main className="min-h-screen bg-white text-ink">
       <PublicNavbar />
 
-      <section className="border-b border-ocean-100 px-4 py-16 sm:px-6 lg:px-8">
+      <section className="border-b border-ocean-100 px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
           <div>
             <p className="text-sm font-semibold text-ocean-700">
-              KineFlow para profesionales y consultorios
+              KineFlow para kinesiologos independientes
             </p>
             <h1 className="mt-4 max-w-3xl text-4xl font-bold leading-tight text-ink sm:text-5xl">
-              Gestiona pacientes, turnos y evoluciones sin ruido.
+              Gestiona tus pacientes, turnos y sesiones en un solo lugar
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-              Una app mobile-first para ordenar el dia de trabajo entre sesiones:
-              agenda, fichas clinicas, asistencia y cobros en un mismo lugar.
+              KineFlow esta pensado para kinesiologos independientes que
+              necesitan ordenar su dia a dia sin perder tiempo con planillas,
+              mensajes sueltos o anotaciones dispersas.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <LinkButton href="/registro">
-                Empezar gratis
+                Comenzar ahora
                 <ArrowRight className="h-4 w-4" />
               </LinkButton>
-              <LinkButton href="/login" variant="secondary">
-                Ingresar
+              <LinkButton href="#planes" variant="secondary">
+                Ver plan
               </LinkButton>
             </div>
           </div>
@@ -76,7 +70,7 @@ export default function Home() {
                   <p className="mt-1 text-2xl font-bold text-ink">8 turnos</p>
                 </div>
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                  Plan activo
+                  Mobile-first
                 </span>
               </div>
               <div className="mt-4 space-y-3">
@@ -104,8 +98,14 @@ export default function Home() {
 
       <section className="px-4 py-14 sm:px-6 lg:px-8" id="beneficios">
         <div className="mx-auto max-w-7xl">
-          <div className="grid gap-4 md:grid-cols-3">
-            {highlights.map((item) => {
+          <div className="max-w-2xl">
+            <p className="text-sm font-semibold text-ocean-700">Beneficios</p>
+            <h2 className="mt-3 text-3xl font-bold text-ink">
+              Lo necesario para trabajar entre turnos, sin sobrecarga.
+            </h2>
+          </div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {benefits.map((item) => {
               const Icon = item.icon;
 
               return (
@@ -114,10 +114,7 @@ export default function Home() {
                   key={item.title}
                 >
                   <Icon className="h-5 w-5 text-ocean-700" />
-                  <h2 className="mt-4 font-bold text-ink">{item.title}</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {item.text}
-                  </p>
+                  <h3 className="mt-4 font-bold text-ink">{item.title}</h3>
                 </article>
               );
             })}
@@ -132,18 +129,18 @@ export default function Home() {
               Flujo simple
             </p>
             <h2 className="mt-3 text-3xl font-bold text-ink">
-              Lo que se usa todos los dias, primero.
+              Abrir, registrar, seguir.
             </h2>
             <p className="mt-4 leading-7 text-slate-600">
               KineFlow prioriza las acciones frecuentes: ver agenda, abrir una
-              ficha, registrar asistencia, cargar evolucion y seguir cobros.
+              ficha, registrar una sesion, cargar evolucion y controlar cobros.
             </p>
           </div>
           <div className="grid gap-3">
             {[
-              "Abrir el panel desde el celular.",
-              "Ver turnos del dia y pacientes activos.",
-              "Registrar la sesion sin perder contexto.",
+              "Pensado para usar desde el celular entre turnos.",
+              "Cada paciente tiene su historial y evolucion ordenados.",
+              "Los cobros por sesion quedan conectados al trabajo diario.",
             ].map((text) => (
               <div
                 className="flex items-start gap-3 rounded-lg border border-ocean-100 bg-white p-4"
@@ -160,12 +157,12 @@ export default function Home() {
       <section className="px-4 py-14 sm:px-6 lg:px-8" id="planes">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-2xl">
-            <p className="text-sm font-semibold text-ocean-700">Planes</p>
+            <p className="text-sm font-semibold text-ocean-700">Plan</p>
             <h2 className="mt-3 text-3xl font-bold text-ink">
-              Empeza chico. Escala cuando lo necesites.
+              Un plan para tu practica independiente.
             </h2>
           </div>
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
             {featuredPlans.map((plan) => (
               <article
                 className={`rounded-lg border bg-white p-5 ${
@@ -189,7 +186,7 @@ export default function Home() {
                   ) : null}
                 </div>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  {plan.limit}
+                  {plan.audience}
                 </p>
                 <LinkButton
                   className="mt-5 w-full"
@@ -207,11 +204,11 @@ export default function Home() {
       <section className="px-4 py-14 sm:px-6 lg:px-8" id="como-funciona">
         <div className="mx-auto flex max-w-5xl flex-col justify-between gap-6 rounded-lg border border-ocean-100 bg-ocean-700 p-6 text-white sm:p-8 md:flex-row md:items-center">
           <div>
-            <ShieldCheck className="h-6 w-6 text-ocean-100" />
+            <FileText className="h-6 w-6 text-ocean-100" />
             <h2 className="mt-4 text-3xl font-bold">Proba KineFlow gratis</h2>
             <p className="mt-3 max-w-2xl text-ocean-100">
-              Crea tu cuenta y empeza a ordenar el trabajo clinico con una
-              interfaz clara y preparada para celular.
+              Crea tu cuenta y empeza a ordenar pacientes, turnos, sesiones,
+              evolucion y cobros desde una interfaz preparada para celular.
             </p>
           </div>
           <LinkButton
@@ -223,12 +220,15 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="border-t border-ocean-100 px-4 py-10 sm:px-6 lg:px-8" id="contacto">
+      <section
+        className="border-t border-ocean-100 px-4 py-10 sm:px-6 lg:px-8"
+        id="contacto"
+      >
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
             <p className="font-bold text-ink">KineFlow</p>
             <p className="mt-1 text-sm text-slate-500">
-              Gestion clinica simple para kinesiologos.
+              Plataforma de gestion para kinesiologos independientes.
             </p>
           </div>
           <div className="flex flex-wrap gap-4 text-sm font-semibold text-slate-600">
@@ -252,8 +252,9 @@ export default function Home() {
             <a href="/registro">Registrarse</a>
           </div>
         </div>
-        <div className="mx-auto mt-8 max-w-7xl text-xs text-slate-400">
-          Ambiente QA / Preview
+        <div className="mx-auto mt-8 max-w-7xl text-xs text-slate-500">
+          <LegalLinks />
+          <p className="mt-4">Ambiente QA / Preview</p>
         </div>
       </section>
     </main>

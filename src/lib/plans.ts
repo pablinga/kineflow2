@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { Building2, UserRound, UsersRound } from "lucide-react";
+import { shouldShowClinicFeatures } from "@/lib/features";
 import { formatMonto } from "@/lib/format";
 
 export type CommercialPlan =
@@ -40,13 +41,12 @@ export const plans: PlanDefinition[] = [
     priceAmount: 0,
     limit: `Hasta ${FREE_PATIENT_LIMIT} pacientes`,
     audience:
-      "Probá KineFlow con una cantidad limitada de pacientes y comenzá a organizar tu práctica profesional.",
+      "Proba KineFlow con una cantidad limitada de pacientes y empeza a ordenar tu practica independiente.",
     features: [
       "Hasta 5 pacientes propios",
-      "Agenda básica",
-      "Registro básico de evoluciónes",
-      "Acceso a invitaciónes de consultorios",
-      "No incluye funcionalidad de consultorio",
+      "Agenda basica",
+      "Registro basico de evoluciones",
+      "Entrada inicial para kinesiologos independientes",
     ],
     cta: "Comenzar gratis",
     href: "/registro?plan=FREE",
@@ -61,17 +61,17 @@ export const plans: PlanDefinition[] = [
     priceAmount: INDEPENDENT_PLAN_PRICE,
     limit: "Pacientes ilimitados",
     audience:
-      "Para kinesiólogos que atienden de forma particular y necesitan gestionar pacientes, turnos, evoluciónes y cobros propios.",
+      "Para kinesiologos independientes que necesitan gestionar pacientes, turnos, sesiones, evolucion y cobros.",
     features: [
       "Pacientes propios ilimitados",
-      "Agenda propia y alta de turnos propios",
-      "Evoluciones propias",
-      "Registro de cobros propios",
-      "Dashboard de ingresos propios",
-      "Agenda unificada con turnos propios y de consultorios",
-      "Recepción de invitaciónes de consultorios",
+      "Agenda simple y clara",
+      "Historial de pacientes",
+      "Evolucion por tratamiento",
+      "Registro de sesiones",
+      "Control de cobros por sesion",
+      "Diseno mobile-first",
     ],
-    cta: "Activár plan",
+    cta: "Activar plan",
     href: "/registro?plan=INDEPENDIENTE",
     recommended: true,
     patientLimit: null,
@@ -83,18 +83,15 @@ export const plans: PlanDefinition[] = [
     name: "Plan Consultorio 2",
     price: `${formatMonto(CONSULTORIO_2_PRICE)}/mes`,
     priceAmount: CONSULTORIO_2_PRICE,
-    limit: "Hasta 2 kinesiólogos activos",
+    limit: "Hasta 2 kinesiologos activos",
     audience:
-      "Para consultorios y centros de rehabilitación que necesitan administrar pacientes, agenda multi-profesional, turnos, evoluciónes e ingresos por profesional.",
+      "Para consultorios y centros de rehabilitacion que necesitan administrar pacientes, agenda multi-profesional e ingresos por profesional.",
     features: [
-      "Gestión de pacientes del consultorio",
+      "Gestion de pacientes del consultorio",
       "Agenda multi-profesional",
-      "Búsqueda de kinesiólogos por matrícula",
-      "Invitación de kinesiólogos registrados",
-      "Asignación de días y horarios por profesional",
-      "Alta de turnos del consultorio",
+      "Busqueda de kinesiologos por matricula",
+      "Invitacion de kinesiologos registrados",
       "Reportes e ingresos del consultorio",
-      "Límite de 2 profesionales activos",
     ],
     cta: "Consultar / Contratar",
     href: "/registro?plan=CONSULTORIO_2",
@@ -107,12 +104,12 @@ export const plans: PlanDefinition[] = [
     name: "Plan Consultorio 5",
     price: `${formatMonto(CONSULTORIO_5_PRICE)}/mes`,
     priceAmount: CONSULTORIO_5_PRICE,
-    limit: "Hasta 5 kinesiólogos activos",
+    limit: "Hasta 5 kinesiologos activos",
     audience:
       "Para consultorios que necesitan ampliar su equipo sin perder control de agenda, pacientes e ingresos.",
     features: [
       "Todo lo del Plan Consultorio 2",
-      "Hasta 5 kinesiólogos activos",
+      "Hasta 5 kinesiologos activos",
       "Agenda multi-profesional ampliada",
       "Reportes e ingresos por profesional",
     ],
@@ -127,14 +124,14 @@ export const plans: PlanDefinition[] = [
     name: "Plan Consultorio 10",
     price: `${formatMonto(CONSULTORIO_10_PRICE)}/mes`,
     priceAmount: CONSULTORIO_10_PRICE,
-    limit: "Hasta 10 kinesiólogos activos",
+    limit: "Hasta 10 kinesiologos activos",
     audience:
       "Para centros con equipos grandes que necesitan operar agenda, pacientes e ingresos en una sola cuenta.",
     features: [
       "Todo lo del Plan Consultorio 5",
-      "Hasta 10 kinesiólogos activos",
+      "Hasta 10 kinesiologos activos",
       "Control de sesiones por profesional",
-      "Escala para centros y clínicas",
+      "Escala para centros y clinicas",
     ],
     cta: "Contratar plan",
     href: "/registro?plan=CONSULTORIO_10",
@@ -157,4 +154,12 @@ export function getPlanDefinition(plan: CommercialPlan) {
 
 export function getPatientLimit(plan: CommercialPlan) {
   return getPlanDefinition(plan).patientLimit;
+}
+
+export function getVisiblePlansForMvp() {
+  if (shouldShowClinicFeatures()) {
+    return plans;
+  }
+
+  return plans.filter((plan) => plan.id === "FREE" || plan.id === "INDEPENDIENTE");
 }

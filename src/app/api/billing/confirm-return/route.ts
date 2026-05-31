@@ -1,22 +1,5 @@
 import { NextResponse } from "next/server";
-import { applyMercadoPagoSubscriptionToAccount } from "@/lib/billing-server";
-import {
-  getMercadoPagoAccessToken,
-  getMercadoPagoSubscription,
-  mapMercadoPagoStatus,
-} from "@/lib/mercadopago";
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase-server";
-
-type ConfirmReturnBody = {
-  preapprovalId?: unknown;
-  returnParams?: Record<string, string>;
-};
-
-function getSafeTokenPrefix() {
-  const token = getMercadoPagoAccessToken();
-
-  return token ? token.slice(0, 5) : "missing";
-}
+import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -24,7 +7,7 @@ export async function POST(request: Request) {
 
   if (!token) {
     return NextResponse.json(
-      { error: "Necesitas iniciar sesion para confirmar la suscripcion." },
+      { error: "Necesitas iniciar sesion para ver el estado de la suscripcion." },
       { status: 401 },
     );
   }
@@ -42,75 +25,35 @@ export async function POST(request: Request) {
     );
   }
 
-  const admin = getSupabaseAdminClient();
-
-  if (!admin) {
-    return NextResponse.json(
-      { error: "Falta SUPABASE_SERVICE_ROLE_KEY para actualizar el plan." },
-      { status: 500 },
-    );
-  }
-
-  const body = (await request.json().catch(() => ({}))) as ConfirmReturnBody;
-  const preapprovalId =
-    typeof body.preapprovalId === "string" ? body.preapprovalId.trim() : "";
-
-  if (!preapprovalId) {
-    console.log("Mercado Pago return without preapproval id", {
-      mode: getSafeTokenPrefix() === "TEST-" ? "TEST" : "PROD",
-      returnParamKeys: Object.keys(body.returnParams ?? {}),
-      tokenPrefix: getSafeTokenPrefix(),
-    });
-
-    return NextResponse.json(
-      {
-        plan: "INDEPENDIENTE",
-        status: "PENDIENTE",
-        warning:
-          "Mercado Pago no envio preapproval_id en el retorno. Esperamos el webhook para confirmar el plan.",
-      },
-      { status: 202 },
-    );
-  }
-
-  const { data: profile } = await admin
+  const { data: profile } = await supabase
     .from("profiles")
-    .select("account_type, email")
+    .select("plan, estado_plan, fecha_inicio_plan, fecha_fin_plan")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profile?.account_type && profile.account_type !== "KINESIOLOGO") {
-    return NextResponse.json(
-      { error: "Este checkout solo corresponde al Plan Independiente." },
-      { status: 403 },
-    );
-  }
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("status, provider_status, current_period_start, current_period_end")
+    .eq("account_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  const providerSubscription = await getMercadoPagoSubscription(preapprovalId);
-  const internalStatus = mapMercadoPagoStatus(providerSubscription.status);
-
-  console.log("Mercado Pago return verification", {
-    internalStatus,
-    mode: getSafeTokenPrefix() === "TEST-" ? "TEST" : "PROD",
-    payerEmailMatchesUser:
-      Boolean(providerSubscription.payer_email && user.email) &&
-      providerSubscription.payer_email?.toLowerCase() === user.email?.toLowerCase(),
-    preapprovalId,
-    providerStatus: providerSubscription.status,
-    tokenPrefix: getSafeTokenPrefix(),
-  });
-
-  const result = await applyMercadoPagoSubscriptionToAccount({
-    accountId: user.id,
-    accountType: "KINESIOLOGO",
-    admin,
-    planCode: "INDEPENDIENTE",
-    providerSubscription,
-  });
+  const isActive =
+    profile?.plan === "INDEPENDIENTE" &&
+    (profile.estado_plan === "ACTIVO" || subscription?.status === "ACTIVE");
 
   return NextResponse.json({
-    plan: "INDEPENDIENTE",
-    providerStatus: result.providerStatus,
-    status: result.profileStatus,
+    plan: profile?.plan ?? "FREE",
+    profileStatus: profile?.estado_plan ?? "ACTIVO",
+    status: isActive ? "ACTIVO" : "PENDIENTE",
+    subscription: {
+      currentPeriodEnd:
+        subscription?.current_period_end ?? profile?.fecha_fin_plan ?? null,
+      currentPeriodStart:
+        subscription?.current_period_start ?? profile?.fecha_inicio_plan ?? null,
+      providerStatus: subscription?.provider_status ?? null,
+      status: subscription?.status ?? null,
+    },
   });
 }

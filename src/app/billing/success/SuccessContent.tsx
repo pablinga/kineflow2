@@ -3,27 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { LegalLinks } from "@/components/layout/LegalLinks";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type UpdateState = "checking" | "active" | "pending" | "signed_out" | "error";
 
-function getMercadoPagoReturnParams() {
-  const params = new URLSearchParams(window.location.search);
-  const preapprovalId =
-    params.get("preapproval_id") ??
-    params.get("id") ??
-    params.get("data.id") ??
-    "";
-
-  return {
-    preapprovalId,
-    returnParams: Object.fromEntries(params.entries()),
-  };
-}
-
 export function SuccessContent() {
   const [state, setState] = useState<UpdateState>("checking");
-  const [message, setMessage] = useState("Estamos verificando tu suscripcion.");
+  const [message, setMessage] = useState("Estamos validando tu suscripcion.");
 
   useEffect(() => {
     let mounted = true;
@@ -44,9 +31,12 @@ export function SuccessContent() {
           return;
         }
 
-        const { preapprovalId, returnParams } = getMercadoPagoReturnParams();
         const response = await fetch("/api/billing/confirm-return", {
-          body: JSON.stringify({ preapprovalId, returnParams }),
+          body: JSON.stringify({
+            returnParams: Object.fromEntries(
+              new URLSearchParams(window.location.search).entries(),
+            ),
+          }),
           headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
@@ -56,7 +46,7 @@ export function SuccessContent() {
         const result = await response.json();
 
         if (!response.ok) {
-          throw new Error(result.error ?? "No pudimos actualizar tu plan.");
+          throw new Error(result.error ?? "No pudimos consultar tu plan.");
         }
 
         if (mounted) {
@@ -65,8 +55,8 @@ export function SuccessContent() {
           setState(isActive ? "active" : "pending");
           setMessage(
             isActive
-              ? "Tu Plan Independiente ya esta activo."
-              : "Tu pago esta pendiente de confirmacion. Te avisaremos apenas Mercado Pago confirme el estado.",
+              ? "Tu Plan Independiente esta activo."
+              : "La confirmacion puede demorar unos instantes. Si Mercado Pago ya aprobo la suscripcion, el webhook la va a activar automaticamente.",
           );
         }
       } catch (error) {
@@ -75,7 +65,7 @@ export function SuccessContent() {
           setMessage(
             error instanceof Error
               ? error.message
-              : "No pudimos actualizar tu plan.",
+              : "No pudimos consultar tu plan.",
           );
         }
       }
@@ -103,18 +93,19 @@ export function SuccessContent() {
           <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
         )}
         <h1 className="mt-4 text-2xl font-bold text-ink">
-          {isChecking ? "Estamos verificando tu suscripcion..." : "Suscripcion procesada"}
+          {isChecking ? "Estamos validando tu suscripcion" : "Suscripcion"}
         </h1>
         <p className="mt-3 leading-6 text-slate-600">{message}</p>
         <p className="mt-3 rounded-lg bg-ocean-50 px-4 py-3 text-sm font-semibold text-ocean-800">
-          Plan contratado: Independiente
+          Plan: Independiente
         </p>
         <Link
           className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 text-sm font-semibold text-white"
-          href={isSignedOut ? "/login?redirect=/dashboard" : "/dashboard"}
+          href={isSignedOut ? "/login?redirect=/dashboard/planes" : "/dashboard/planes"}
         >
-          {isSignedOut ? "Iniciar sesion" : "Ir al panel"}
+          {isSignedOut ? "Iniciar sesion" : "Ir a Plan / Suscripcion"}
         </Link>
+        <LegalLinks className="mt-6 justify-center text-xs text-slate-500" />
       </section>
     </main>
   );

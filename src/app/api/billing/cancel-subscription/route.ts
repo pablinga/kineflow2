@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sendSubscriptionCancelledEmail } from "@/lib/email";
 import { cancelMercadoPagoSubscription } from "@/lib/mercadopago";
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase-server";
 
@@ -54,11 +55,15 @@ export async function POST(request: Request) {
   const providerSubscription = await cancelMercadoPagoSubscription(
     subscription.provider_subscription_id,
   );
+  const canceledAt = new Date().toISOString();
+  const cancellationReference = `KF-BAJA-${Date.now().toString(36).toUpperCase()}`;
 
   await admin
     .from("subscriptions")
     .update({
       cancel_at_period_end: true,
+      canceled_at: canceledAt,
+      cancellation_reference: cancellationReference,
       provider_status: providerSubscription.status ?? "cancelled",
       status: "CANCELLED",
     })
@@ -67,10 +72,32 @@ export async function POST(request: Request) {
   await admin
     .from("profiles")
     .update({
+      cancel_request_code: cancellationReference,
       estado_plan: "CANCELADO",
       plan: "FREE",
+      plan_status: "canceled",
+      subscription_canceled_at: canceledAt,
+      updated_at: canceledAt,
     })
     .eq("id", user.id);
 
-  return NextResponse.json({ cancelled: true });
+  await sendSubscriptionCancelledEmail(
+    {
+      email: user.email,
+      fullName:
+        typeof user.user_metadata?.full_name === "string"
+          ? user.user_metadata.full_name
+          : null,
+    },
+    {
+      canceledAt,
+      cancellationReference,
+      provider: "mercadopago",
+    },
+  );
+
+  return NextResponse.json({
+    cancelled: true,
+    cancellationReference,
+  });
 }
