@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { usePatients, type NewPatientInput } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
@@ -122,7 +124,7 @@ export default function PatientsPage() {
           freeLimitReached
             ? "Alcanzaste el límite del plan Free. El plan Free permite cargar hasta 5 pacientes. Para seguir agregando pacientes, activá el Plan Independiente."
             : clinicPracticeBlocked
-              ? "Para gestionar pacientes del consultorio necesitás una suscripción activa del Plan Consultorio."
+              ? "Para gestionar pacientes necesitás una suscripción activa."
               : independentPlanMessage,
         );
         return;
@@ -158,18 +160,9 @@ export default function PatientsPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <header className="flex flex-col justify-between gap-4 border-b border-ocean-100 bg-white/70 pb-5 md:flex-row md:items-center">
-            <div>
-              <p className="text-sm font-semibold text-ocean-700">Pacientes</p>
-              <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
-                Gestión de pacientes
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                Carga pacientes, revisa su historial y agenda nuevas sesiónes.
-              </p>
-            </div>
+      <PageContainer>
+          <PageHeader
+            actions={
             <button
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
               onClick={() => {
@@ -178,7 +171,7 @@ export default function PatientsPage() {
                     freeLimitReached
                       ? "Alcanzaste el límite del plan Free. El plan Free permite cargar hasta 5 pacientes. Para seguir agregando pacientes, activá el Plan Independiente."
                       : clinicPracticeBlocked
-                        ? "Para gestionar pacientes del consultorio necesitás una suscripción activa del Plan Consultorio."
+                        ? "Para gestionar pacientes necesitás una suscripción activa."
                         : independentPlanMessage,
                   );
                   return;
@@ -192,16 +185,19 @@ export default function PatientsPage() {
               <Plus className="h-4 w-4" />
               Nuevo paciente
             </button>
-          </header>
+            }
+            description="Cargá pacientes, revisá su historial y agendá nuevas sesiones."
+            eyebrow="Pacientes"
+            title="Gestión de pacientes"
+          />
 
           {clinicPracticeBlocked ? (
             <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 shadow-card">
               <p className="font-bold text-amber-900">
-                Plan Consultorio requerido
+                Suscripción requerida
               </p>
               <p className="mt-1 text-sm leading-6 text-amber-800">
-                Para gestionar pacientes del consultorio necesitás una
-                suscripción activa del Plan Consultorio.
+                Para gestionar pacientes necesitás una suscripción activa.
               </p>
               <Link
                 className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
@@ -504,8 +500,7 @@ export default function PatientsPage() {
               </div>
             ) : null}
           </section>
-        </div>
-      </section>
+      </PageContainer>
     </main>
   );
 }

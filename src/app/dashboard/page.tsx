@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useAppointments } from "@/hooks/useAppointments";
 import { useEvolutions } from "@/hooks/useEvolutions";
 import { usePatients } from "@/hooks/usePatients";
@@ -54,8 +56,7 @@ function endOfMonth(date: Date) {
 }
 
 export default function DashboardPage() {
-  const { accountType, authError, displayName, loading, redirecting } =
-    useRequireAuth();
+  const { authError, displayName, loading, redirecting } = useRequireAuth();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const {
     activePatients,
@@ -144,7 +145,6 @@ export default function DashboardPage() {
     0,
   );
 
-  const isClinicAccount = accountType === "CONSULTORIO";
   const summaryCards = [
     {
       label: "Turnos de hoy",
@@ -152,9 +152,7 @@ export default function DashboardPage() {
       detail:
         appointmentsToday.length === 0
           ? "Sin turnos para hoy"
-          : isClinicAccount
-            ? "Agenda del consultorio"
-            : "Agenda del dia",
+          : "Agenda del dia",
     },
     {
       label: "Pacientes activos",
@@ -201,21 +199,10 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <header className="flex flex-col justify-between gap-4 border-b border-ocean-100 bg-white/70 pb-5 md:flex-row md:items-center">
-            <div>
-              <p className="text-sm font-semibold text-ocean-700">Dashboard</p>
-              <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
-                Hola, {displayName}
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                {isClinicAccount
-                  ? "Pacientes, agenda y profesionales del consultorio."
-                  : "Pacientes, turnos, evoluciónes y cobros en un solo lugar."}
-              </p>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
+      <PageContainer>
+          <PageHeader
+            actions={
+              <>
               <Link
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ocean-200 bg-white px-5 py-2.5 text-sm font-semibold text-ocean-800 transition hover:border-ocean-300 hover:bg-ocean-50"
                 href="/dashboard/pacientes"
@@ -230,8 +217,12 @@ export default function DashboardPage() {
                 <CalendarPlus className="h-4 w-4" />
                 Nuevo turno
               </Link>
-            </div>
-          </header>
+              </>
+            }
+            description="Pacientes, turnos, evoluciones y cobros en un solo lugar."
+            eyebrow="Dashboard"
+            title={<>Hola, {displayName}</>}
+          />
 
           {plan.plan === "FREE" ? (
             <section className="mt-6 flex flex-col justify-between gap-4 rounded-lg border border-ocean-200 bg-white p-5 shadow-card md:flex-row md:items-center">
@@ -466,17 +457,11 @@ export default function DashboardPage() {
                       href: "/dashboard/turnos/nuevo",
                       icon: CalendarPlus,
                     },
-                    isClinicAccount
-                      ? {
-                          label: "Agregar profesional",
-                          href: "/dashboard/consultorios",
-                          icon: ClipboardPlus,
-                        }
-                      : {
-                          label: "Registrar evolución",
-                          href: "/dashboard/pacientes",
-                          icon: ClipboardPlus,
-                        },
+                    {
+                      label: "Registrar evolución",
+                      href: "/dashboard/pacientes",
+                      icon: ClipboardPlus,
+                    },
                     {
                       label: "Ver ingresos",
                       href: "/dashboard/ingresos",
@@ -551,8 +536,7 @@ export default function DashboardPage() {
               </div>
             ) : null}
           </section>
-        </div>
-      </section>
+      </PageContainer>
     </main>
   );
 }

@@ -5,6 +5,8 @@ import { CheckCircle2, Clock, Star } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { LegalLinks } from "@/components/layout/LegalLinks";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
@@ -157,19 +159,18 @@ export default function PlansPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <header className="border-b border-ocean-100 bg-white/70 pb-5">
-            <p className="text-sm font-semibold text-ocean-700">Plan</p>
-            <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
-              Plan / Suscripcion
-            </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-              Actualmente estas usando el Plan {plan.plan}. Para gestionar tu
-              practica independiente sin limites de pacientes, activa el Plan
-              Independiente.
-            </p>
-          </header>
+      <PageContainer>
+          <PageHeader
+            description={
+              <>
+                Actualmente estás usando el Plan {plan.plan}. Para gestionar tu
+                práctica independiente sin límites de pacientes, activá el Plan
+                Independiente.
+              </>
+            }
+            eyebrow="Plan"
+            title="Plan / Suscripción"
+          />
 
           {hasPaidPlan ? (
             <section className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 p-4">
@@ -329,8 +330,7 @@ export default function PlansPage() {
               </div>
             </section>
           ) : null}
-        </div>
-      </section>
+      </PageContainer>
       {cancelModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-4">
           <section className="w-full max-w-md rounded-lg bg-white p-6 shadow-2xl">

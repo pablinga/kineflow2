@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CreditCard,
   Home,
+  Loader2,
   LogOut,
   Menu,
   PanelLeftClose,
@@ -49,6 +50,7 @@ const navigation = {
 export function DashboardSidebar() {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
   const pathname = usePathname();
   const router = useRouter();
   const { accountType, loading } = useRequireAuth();
@@ -73,13 +75,21 @@ export function DashboardSidebar() {
 
   async function handleLogout() {
     setLoggingOut(true);
+    setLogoutError("");
 
     try {
       const supabase = getSupabaseClient();
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        throw error;
+      }
+
       router.replace("/login");
       router.refresh();
-    } finally {
+    } catch (error) {
+      console.error("logout.failed", error);
+      setLogoutError("No pudimos cerrar sesión. Intentá nuevamente.");
       setLoggingOut(false);
     }
   }
@@ -148,14 +158,27 @@ export function DashboardSidebar() {
           )}
         </nav>
         <button
-          className="mt-8 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className={`mt-8 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-80 ${
+            loggingOut
+              ? "bg-ocean-50 text-ocean-800"
+              : "text-slate-600 hover:bg-ocean-50 hover:text-ocean-800"
+          }`}
           disabled={loggingOut}
           onClick={handleLogout}
           type="button"
         >
-          <LogOut className="h-5 w-5" />
-          {loggingOut ? "Saliendo..." : "Cerrar sesion"}
+          {loggingOut ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <LogOut className="h-5 w-5" />
+          )}
+          {loggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
         </button>
+        {logoutError ? (
+          <p className="mt-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+            {logoutError}
+          </p>
+        ) : null}
       </aside>
       {!loading && planLoaded ? (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ocean-100 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-soft backdrop-blur lg:hidden">

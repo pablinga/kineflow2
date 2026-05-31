@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   type Appointment,
   type AppointmentPaymentInput,
@@ -552,19 +554,10 @@ export default function AppointmentsPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <header className="flex flex-col justify-between gap-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-card md:flex-row md:items-center">
-            <div>
-              <p className="text-sm font-semibold text-ocean-700">Turnos</p>
-              <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
-                Agenda
-              </h1>
-              <p className="mt-2 text-sm text-slate-600 sm:text-base">
-                Ayer, hoy y mañana · {visibleRangeLabel}
-              </p>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
+      <PageContainer>
+          <PageHeader
+            actions={
+              <>
               <div className="grid grid-cols-3 rounded-lg border border-ocean-100 bg-white p-1">
                 <button
                   className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md px-2 text-xs font-semibold text-slate-700 transition hover:bg-ocean-50 sm:text-sm"
@@ -599,13 +592,18 @@ export default function AppointmentsPage() {
                   Nuevo turno
                 </Link>
               ) : null}
-            </div>
-          </header>
+              </>
+            }
+            description={<>Ayer, hoy y mañana · {visibleRangeLabel}</>}
+            eyebrow="Turnos"
+            title="Agenda"
+          />
 
           {accountType === "KINESIOLOGO" && !canCreateAppointment ? (
             <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm">
-              Podés ver tus turnos de consultorio e invitaciónes. Para crear
-              turnos propios, activá el Plan Independiente.
+              Con el Plan Free podés probar KineFlow con hasta 5 pacientes.
+              Para programar turnos propios y gestionar pacientes ilimitados,
+              activá el Plan Independiente.
             </section>
           ) : null}
 
@@ -1055,8 +1053,7 @@ export default function AppointmentsPage() {
               </form>
             </div>
           ) : null}
-        </div>
-      </section>
+      </PageContainer>
     </main>
   );
 }
