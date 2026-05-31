@@ -25,14 +25,6 @@ export type MercadoPagoPreapproval = {
   last_modified?: string;
 };
 
-export type MercadoPagoCreatePreapprovalInput = {
-  backUrl: string;
-  externalReference: string;
-  payerEmail: string;
-  planId: CommercialPlan;
-  reason: string;
-};
-
 export function getMercadoPagoAccessToken() {
   return process.env.MERCADOPAGO_ACCESS_TOKEN;
 }
@@ -89,7 +81,14 @@ export function getSubscriptionReturnUrls() {
   };
 }
 
-export function getMercadoPagoSubscriptionCheckoutUrl(planId: CommercialPlan) {
+export function getMercadoPagoSubscriptionCheckoutUrl(
+  planId: CommercialPlan,
+  options?: {
+    backUrl?: string;
+    externalReference?: string;
+    payerEmail?: string;
+  },
+) {
   const preapprovalPlanId = getMercadoPagoPreapprovalPlanId(planId);
 
   if (!preapprovalPlanId) {
@@ -98,6 +97,18 @@ export function getMercadoPagoSubscriptionCheckoutUrl(planId: CommercialPlan) {
 
   const url = new URL(MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL);
   url.searchParams.set("preapproval_plan_id", preapprovalPlanId);
+
+  if (options?.backUrl) {
+    url.searchParams.set("back_url", options.backUrl);
+  }
+
+  if (options?.externalReference) {
+    url.searchParams.set("external_reference", options.externalReference);
+  }
+
+  if (options?.payerEmail) {
+    url.searchParams.set("payer_email", options.payerEmail);
+  }
 
   return url.toString();
 }
@@ -162,42 +173,6 @@ export async function getMercadoPagoSubscription(subscriptionId: string) {
 
   if (!response.ok) {
     throw new Error(data?.message ?? "No pudimos leer la suscripcion.");
-  }
-
-  return data as MercadoPagoPreapproval;
-}
-
-export async function createMercadoPagoSubscription(
-  input: MercadoPagoCreatePreapprovalInput,
-) {
-  const accessToken = getMercadoPagoAccessToken();
-  const preapprovalPlanId = getMercadoPagoPreapprovalPlanId(input.planId);
-
-  if (!accessToken) {
-    throw new Error("Mercado Pago no esta configurado.");
-  }
-
-  if (!preapprovalPlanId) {
-    throw new Error("El plan no tiene checkout de suscripcion configurado.");
-  }
-
-  const response = await fetch(`${MERCADOPAGO_API_URL}/preapproval`, {
-    method: "POST",
-    headers: getMercadoPagoHeaders(accessToken),
-    body: JSON.stringify({
-      back_url: input.backUrl,
-      external_reference: input.externalReference,
-      payer_email: input.payerEmail,
-      preapproval_plan_id: preapprovalPlanId,
-      reason: input.reason,
-      status: "pending",
-    }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data?.message ?? "No pudimos crear la suscripcion.");
   }
 
   return data as MercadoPagoPreapproval;

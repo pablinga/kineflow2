@@ -57,9 +57,10 @@ export default function PlansPage() {
   async function handleCheckout(planId: CommercialPlan) {
     setSelectedPlan(planId);
     setCheckoutError("");
-    setCheckoutMessage("");
+    setCheckoutMessage("Te estamos llevando a Mercado Pago para completar la suscripcion.");
 
     if (planId === plan.plan) {
+      setCheckoutMessage("");
       return;
     }
 
@@ -105,6 +106,7 @@ export default function PlansPage() {
           ? error.message
           : "No pudimos iniciar el flujo de upgrade.",
       );
+      setCheckoutMessage("");
     } finally {
       setCheckoutLoading("");
     }
@@ -297,7 +299,7 @@ export default function PlansPage() {
             <LegalLinks />
           </section>
 
-          {selectedPlan ? (
+          {selectedPlan && (checkoutError || checkoutMessage) ? (
             <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
               <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div className="flex gap-4">
@@ -307,11 +309,7 @@ export default function PlansPage() {
                   <div>
                     <p className="font-bold text-ink">Estado del checkout</p>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
-                      {checkoutError ||
-                        checkoutMessage ||
-                        `La seleccion del plan ${
-                          plans.find((item) => item.id === selectedPlan)?.name
-                        } queda lista para conectar con Mercado Pago.`}
+                      {checkoutError || checkoutMessage}
                     </p>
                   </div>
                 </div>
