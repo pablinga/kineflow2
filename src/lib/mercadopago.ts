@@ -25,18 +25,6 @@ export type MercadoPagoPreapproval = {
   last_modified?: string;
 };
 
-export type MercadoPagoCreatePreapprovalInput = {
-  amount: number;
-  backUrl: string;
-  currencyId?: string;
-  externalReference: string;
-  frequency?: number;
-  frequencyType?: "days" | "months";
-  notificationUrl?: string;
-  payerEmail: string;
-  reason: string;
-};
-
 export function getMercadoPagoAccessToken() {
   return process.env.MERCADOPAGO_ACCESS_TOKEN;
 }
@@ -93,10 +81,6 @@ export function getSubscriptionReturnUrls() {
   };
 }
 
-export function getMercadoPagoWebhookUrl() {
-  return `${getAppUrl()}/api/webhooks/mercadopago`;
-}
-
 export function getMercadoPagoSubscriptionCheckoutUrl(
   planId: CommercialPlan,
   options?: {
@@ -127,43 +111,6 @@ export function getMercadoPagoSubscriptionCheckoutUrl(
   }
 
   return url.toString();
-}
-
-export async function createMercadoPagoSubscription(
-  input: MercadoPagoCreatePreapprovalInput,
-) {
-  const accessToken = getMercadoPagoAccessToken();
-
-  if (!accessToken) {
-    throw new Error("Mercado Pago no esta configurado.");
-  }
-
-  const response = await fetch(`${MERCADOPAGO_API_URL}/preapproval`, {
-    method: "POST",
-    headers: getMercadoPagoHeaders(accessToken),
-    body: JSON.stringify({
-      auto_recurring: {
-        currency_id: input.currencyId ?? "ARS",
-        frequency: input.frequency ?? 1,
-        frequency_type: input.frequencyType ?? "months",
-        transaction_amount: input.amount,
-      },
-      back_url: input.backUrl,
-      external_reference: input.externalReference,
-      notification_url: input.notificationUrl,
-      payer_email: input.payerEmail,
-      reason: input.reason,
-      status: "pending",
-    }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data?.message ?? "No pudimos crear la suscripcion.");
-  }
-
-  return data as MercadoPagoPreapproval;
 }
 
 export function mapMercadoPagoStatus(status?: string): SubscriptionStatus {
