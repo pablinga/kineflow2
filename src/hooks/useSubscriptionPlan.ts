@@ -64,17 +64,6 @@ export function useSubscriptionPlan() {
           return;
         }
 
-        if (
-          planSnapshot.loaded &&
-          planSnapshot.userId === userData.user.id
-        ) {
-          if (mounted) {
-            setPlan(planSnapshot.plan);
-            setLoaded(true);
-          }
-          return;
-        }
-
         const { data, error } = await supabase
           .from("profiles")
           .select("plan, estado_plan, limite_pacientes, cantidad_kinesiologos")

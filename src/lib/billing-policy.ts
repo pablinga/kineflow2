@@ -61,16 +61,8 @@ export function isPlanVisibleForAccount(
   plan: BillingPlan,
   accountType: BillingAccountType,
 ) {
-  if (process.env.NEXT_PUBLIC_ENABLE_CLINIC_FEATURES !== "true") {
-    return (
-      accountType === "KINESIOLOGO" &&
-      (plan === "FREE" || plan === "INDEPENDIENTE")
-    );
-  }
-
-  if (plan === "FREE" || plan === "INDEPENDIENTE") {
-    return accountType === "KINESIOLOGO";
-  }
-
-  return accountType === "CONSULTORIO";
+  return (
+    accountType === "KINESIOLOGO" &&
+    (plan === "FREE" || plan === "INDEPENDIENTE")
+  );
 }

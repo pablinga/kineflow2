@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 import { Building2, UserRound, UsersRound } from "lucide-react";
-import { shouldShowClinicFeatures } from "@/lib/features";
 import { formatMonto } from "@/lib/format";
 
 export type CommercialPlan =
@@ -157,9 +156,5 @@ export function getPatientLimit(plan: CommercialPlan) {
 }
 
 export function getVisiblePlansForMvp() {
-  if (shouldShowClinicFeatures()) {
-    return plans;
-  }
-
   return plans.filter((plan) => plan.id === "FREE" || plan.id === "INDEPENDIENTE");
 }
