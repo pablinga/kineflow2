@@ -6,6 +6,8 @@ import { AlertCircle, CheckCircle2, Clock3 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { Button, LinkButton } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
+import { getFriendlyErrorMessage, logFriendlyError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
@@ -84,7 +86,9 @@ export function SubscriptionReturnPage({
         const result = await response.json();
 
         if (!response.ok) {
-          throw new Error(result.error ?? "No pudimos consultar tu plan.");
+          throw new Error(
+            getFriendlyErrorMessage(result.error, "No pudimos consultar tu plan."),
+          );
         }
 
         if (mounted) {
@@ -92,10 +96,9 @@ export function SubscriptionReturnPage({
         }
       } catch (statusError) {
         if (mounted) {
+          logFriendlyError("subscription-return.status", statusError);
           setError(
-            statusError instanceof Error
-              ? statusError.message
-              : "No pudimos consultar tu plan.",
+            getFriendlyErrorMessage(statusError, "No pudimos consultar tu plan."),
           );
         }
       } finally {
@@ -177,9 +180,9 @@ export function SubscriptionReturnPage({
           ) : null}
 
           {error ? (
-            <p className="mt-5 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <Alert className="mt-5 text-left" tone="error">
               {error}
-            </p>
+            </Alert>
           ) : null}
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">

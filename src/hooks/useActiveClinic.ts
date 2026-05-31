@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
+import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 
 export type ActiveClinic = {
   id: string;
@@ -71,7 +72,7 @@ export function useActiveClinic(enabled: boolean) {
         .maybeSingle();
 
       if (queryError) {
-        throw new Error(queryError.message);
+        throw new Error(mapSupabaseError(queryError));
       }
 
       const row = data as ClinicRow | null;
@@ -89,9 +90,10 @@ export function useActiveClinic(enabled: boolean) {
       setError(nextError);
     } catch (loadError) {
       const nextError =
-        loadError instanceof Error
-          ? loadError.message
-          : "No pudimos cargar el consultorio asociado.";
+        getFriendlyErrorMessage(
+          loadError,
+          "No pudimos cargar el consultorio asociado.",
+        );
 
       activeClinicSnapshot.clinic = null;
       activeClinicSnapshot.error = nextError;

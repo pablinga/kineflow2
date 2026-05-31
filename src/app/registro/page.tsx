@@ -7,6 +7,12 @@ import { BadgeCheck, LockKeyhole, Mail, Phone, UserRound } from "lucide-react";
 import { LegalLinks } from "@/components/layout/LegalLinks";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
+import {
+  getFriendlyErrorMessage,
+  logFriendlyError,
+  mapAuthError,
+} from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type RegisterField = {
@@ -27,6 +33,7 @@ export default function RegisterPage() {
   const [specialty, setSpecialty] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -55,6 +62,36 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      if (!fullName.trim()) {
+        setError("Completá tu nombre para continuar.");
+        return;
+      }
+
+      if (!licenseNumber.trim()) {
+        setError("Ingresá tu matrícula profesional.");
+        return;
+      }
+
+      if (!phone.trim()) {
+        setError("Completá tu teléfono para continuar.");
+        return;
+      }
+
+      if (!email.trim() || !email.includes("@")) {
+        setError("Ingresá un email válido.");
+        return;
+      }
+
+      if (password.length < 6) {
+        setError("La contraseña debe tener al menos 6 caracteres.");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError("Las contraseñas no coinciden.");
+        return;
+      }
+
       const supabase = getSupabaseClient();
       const { data, error: authError } = await supabase.auth.signUp({
         email,
@@ -77,7 +114,8 @@ export default function RegisterPage() {
       });
 
       if (authError) {
-        setError(authError.message);
+        logFriendlyError("registro.auth", authError);
+        setError(mapAuthError(authError));
         return;
       }
 
@@ -91,10 +129,12 @@ export default function RegisterPage() {
         "Cuenta creada. Revisa tu email para confirmar el acceso antes de ingresar.",
       );
     } catch (registerError) {
+      logFriendlyError("registro.submit", registerError);
       setError(
-        registerError instanceof Error
-          ? registerError.message
-          : "No pudimos crear la cuenta. Proba nuevamente.",
+        getFriendlyErrorMessage(
+          registerError,
+          "No pudimos crear la cuenta. Probá nuevamente.",
+        ),
       );
     } finally {
       setLoading(false);
@@ -103,7 +143,7 @@ export default function RegisterPage() {
 
   const professionalFields: RegisterField[] = [
     {
-      label: "Nombre completo",
+      label: "Nombre y apellido",
       placeholder: "Dra. Sofia Ruiz",
       type: "text",
       icon: UserRound,
@@ -119,7 +159,7 @@ export default function RegisterPage() {
       onChange: setLicenseNumber,
     },
     {
-      label: "Telefono",
+      label: "Teléfono",
       placeholder: "+54 9 11 5555-5555",
       type: "tel",
       icon: Phone,
@@ -147,71 +187,88 @@ export default function RegisterPage() {
       onChange: setEmail,
     },
     {
-      label: "Contrasena",
+      label: "Contraseña",
       placeholder: "********",
       type: "password",
       icon: LockKeyhole,
       value: password,
       onChange: setPassword,
     },
+    {
+      label: "Confirmar contraseña",
+      placeholder: "********",
+      type: "password",
+      icon: LockKeyhole,
+      value: confirmPassword,
+      onChange: setConfirmPassword,
+    },
   ];
 
   return (
-    <main className="grid min-h-screen bg-white lg:grid-cols-[1.05fr_0.95fr]">
-      <section className="flex items-center justify-center px-4 py-10 sm:px-6">
-        <div className="w-full max-w-md rounded-lg border border-ocean-100 bg-white p-6 shadow-soft sm:p-8">
+    <main className="grid min-h-screen bg-white lg:grid-cols-[1.15fr_0.85fr]">
+      <section className="flex items-center justify-center px-4 py-6 sm:px-6 lg:py-8">
+        <div className="w-full max-w-3xl rounded-lg border border-ocean-100 bg-white p-5 shadow-soft sm:p-6">
           <Logo showSlogan />
-          <div className="mt-8">
-            <h1 className="text-3xl font-bold text-ink">Crear cuenta</h1>
-            <p className="mt-2 text-slate-600">
-              Registro para kinesiologos independientes.
+          <div className="mt-6">
+            <h1 className="text-3xl font-bold text-ink">Creá tu cuenta</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Completá tus datos profesionales para empezar a gestionar tus
+              pacientes.
             </p>
           </div>
-          <form className="mt-8 space-y-5" onSubmit={handleRegister}>
-            {professionalFields.map((field) => {
-              const Icon = field.icon;
-              return (
-                <label className="block" key={field.label}>
-                  <span className="text-sm font-semibold text-slate-700">
-                    {field.label}
-                  </span>
-                  <span className="mt-2 flex items-center gap-3 rounded-lg border border-ocean-100 bg-white px-4 py-3 focus-within:border-ocean-400">
-                    <Icon className="h-5 w-5 text-ocean-500" />
-                    <input
-                      className="w-full bg-transparent text-sm outline-none"
-                      onChange={(event) => field.onChange(event.target.value)}
-                      placeholder={field.placeholder}
-                      required={field.required !== false}
-                      type={field.type}
-                      value={field.value}
-                    />
-                  </span>
-                </label>
-              );
-            })}
+          <form className="mt-6 space-y-4" noValidate onSubmit={handleRegister}>
+            <section>
+              <h2 className="text-sm font-bold text-ink">Datos profesionales</h2>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {professionalFields.map((field) => {
+                  const Icon = field.icon;
+                  return (
+                    <label className="block" key={field.label}>
+                      <span className="text-sm font-semibold text-slate-700">
+                        {field.label}
+                      </span>
+                      <span className="mt-1.5 flex min-h-11 items-center gap-3 rounded-lg border border-ocean-100 bg-white px-3 focus-within:border-ocean-400">
+                        <Icon className="h-4 w-4 shrink-0 text-ocean-500" />
+                        <input
+                          className="w-full bg-transparent text-sm outline-none"
+                          onChange={(event) => field.onChange(event.target.value)}
+                          placeholder={field.placeholder}
+                          type={field.type}
+                          value={field.value}
+                        />
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </section>
 
-            {accessFields.map((field) => {
-              const Icon = field.icon;
-              return (
-                <label className="block" key={field.label}>
-                  <span className="text-sm font-semibold text-slate-700">
-                    {field.label}
-                  </span>
-                  <span className="mt-2 flex items-center gap-3 rounded-lg border border-ocean-100 bg-white px-4 py-3 focus-within:border-ocean-400">
-                    <Icon className="h-5 w-5 text-ocean-500" />
-                    <input
-                      className="w-full bg-transparent text-sm outline-none"
-                      minLength={field.type === "password" ? 6 : undefined}
-                      onChange={(event) => field.onChange(event.target.value)}
-                      placeholder={field.placeholder}
-                      required
-                      type={field.type}
-                      value={field.value}
-                    />
-                  </span>
-                </label>
-              );
-            })}
+            <section>
+              <h2 className="text-sm font-bold text-ink">Acceso a la cuenta</h2>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {accessFields.map((field) => {
+                  const Icon = field.icon;
+                  return (
+                    <label className="block" key={field.label}>
+                      <span className="text-sm font-semibold text-slate-700">
+                        {field.label}
+                      </span>
+                      <span className="mt-1.5 flex min-h-11 items-center gap-3 rounded-lg border border-ocean-100 bg-white px-3 focus-within:border-ocean-400">
+                        <Icon className="h-4 w-4 shrink-0 text-ocean-500" />
+                        <input
+                          className="w-full bg-transparent text-sm outline-none"
+                          minLength={field.type === "password" ? 6 : undefined}
+                          onChange={(event) => field.onChange(event.target.value)}
+                          placeholder={field.placeholder}
+                          type={field.type}
+                          value={field.value}
+                        />
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </section>
 
             <label className="flex items-start gap-3 text-sm leading-6 text-slate-600">
               <input
@@ -234,27 +291,19 @@ export default function RegisterPage() {
               </span>
             </label>
 
-            {error ? (
-              <p className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                {error}
-              </p>
-            ) : null}
-            {message ? (
-              <p className="rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-                {message}
-              </p>
-            ) : null}
+            {error ? <Alert tone="error">{error}</Alert> : null}
+            {message ? <Alert tone="success">{message}</Alert> : null}
             <Button className="w-full" disabled={loading} type="submit">
-              {loading ? "Creando cuenta..." : "Registrarme"}
+              {loading ? "Creando cuenta..." : "Crear cuenta"}
             </Button>
           </form>
-          <p className="mt-6 text-center text-sm text-slate-600">
-            Ya tenes cuenta?{" "}
+          <p className="mt-5 text-center text-sm text-slate-600">
+            ¿Ya tenés cuenta?{" "}
             <Link className="font-semibold text-ocean-700" href="/login">
-              Ingresar
+              Iniciar sesión
             </Link>
           </p>
-          <LegalLinks className="mt-6 justify-center text-xs text-slate-500" />
+          <LegalLinks className="mt-5 justify-center text-xs text-slate-500" />
         </div>
       </section>
       <section className="hidden items-center justify-center bg-ocean-700 p-10 text-white lg:flex">

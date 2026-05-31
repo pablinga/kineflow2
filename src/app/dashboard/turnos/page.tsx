@@ -31,6 +31,7 @@ import {
 } from "@/lib/appointment-ui";
 import { paymentStatusStyles } from "@/lib/payment-ui";
 import { formatDate, formatSessionAmount } from "@/lib/format";
+import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
@@ -323,9 +324,7 @@ export default function AppointmentsPage() {
       setPendingAction(null);
     } catch (updateError) {
       setActionError(
-        updateError instanceof Error
-          ? updateError.message
-          : "No pudimos actualizar el turno.",
+        getFriendlyErrorMessage(updateError, "No pudimos actualizar el turno."),
       );
     } finally {
       setUpdatingId("");
@@ -353,9 +352,10 @@ export default function AppointmentsPage() {
       setActionNotice("Turno reprogramado");
     } catch (rescheduleError) {
       setActionError(
-        rescheduleError instanceof Error
-          ? rescheduleError.message
-          : "No pudimos reprogramar el turno.",
+        getFriendlyErrorMessage(
+          rescheduleError,
+          "No pudimos reprogramar el turno.",
+        ),
       );
     } finally {
       setUpdatingId("");
@@ -383,9 +383,7 @@ export default function AppointmentsPage() {
       );
     } catch (paymentError) {
       setActionError(
-        paymentError instanceof Error
-          ? paymentError.message
-          : "No pudimos guardar el cobro.",
+        getFriendlyErrorMessage(paymentError, "No pudimos guardar el cobro."),
       );
     } finally {
       setUpdatingId("");

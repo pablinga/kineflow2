@@ -10,6 +10,7 @@ import { useAppointments, type NewAppointmentInput } from "@/hooks/useAppointmen
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { getFriendlyErrorMessage } from "@/lib/error-messages";
 
 type ClinicProfessionalOption = {
   id: string;
@@ -168,9 +169,7 @@ export default function NewAppointmentPage() {
       );
     } catch (submitError) {
       setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "No pudimos guardar el turno.",
+        getFriendlyErrorMessage(submitError, "No pudimos guardar el turno."),
       );
     } finally {
       setSaving(false);

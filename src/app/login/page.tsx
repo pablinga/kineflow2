@@ -7,6 +7,8 @@ import { Mail, LockKeyhole } from "lucide-react";
 import { LegalLinks } from "@/components/layout/LegalLinks";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
+import { mapAuthError, getFriendlyErrorMessage, logFriendlyError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -34,6 +36,21 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      if (!email.trim()) {
+        setError("Ingresá tu email para continuar.");
+        return;
+      }
+
+      if (!email.includes("@")) {
+        setError("Ingresá un email válido.");
+        return;
+      }
+
+      if (!password) {
+        setError("Ingresá tu contraseña para continuar.");
+        return;
+      }
+
       const supabase = getSupabaseClient();
       const { error: authError } = await supabase.auth.signInWithPassword({
         email,
@@ -41,7 +58,8 @@ export default function LoginPage() {
       });
 
       if (authError) {
-        setError(authError.message);
+        logFriendlyError("login.auth", authError);
+        setError(mapAuthError(authError));
         return;
       }
 
@@ -49,10 +67,12 @@ export default function LoginPage() {
       router.replace(params.get("redirect") || "/dashboard");
       router.refresh();
     } catch (loginError) {
+      logFriendlyError("login.submit", loginError);
       setError(
-        loginError instanceof Error
-          ? loginError.message
-          : "No pudimos iniciar sesion. Proba nuevamente.",
+        getFriendlyErrorMessage(
+          loginError,
+          "No pudimos iniciar sesión. Probá nuevamente.",
+        ),
       );
     } finally {
       setLoading(false);
@@ -84,7 +104,7 @@ export default function LoginPage() {
               Accede a tu cuenta para continuar.
             </p>
           </div>
-          <form className="mt-8 space-y-5" onSubmit={handleLogin}>
+          <form className="mt-8 space-y-5" noValidate onSubmit={handleLogin}>
             <label className="block">
               <span className="text-sm font-semibold text-slate-700">Email</span>
               <span className="mt-2 flex items-center gap-3 rounded-lg border border-ocean-100 bg-white px-4 py-3 focus-within:border-ocean-400">
@@ -134,14 +154,10 @@ export default function LoginPage() {
               </button>
             </div>
             {error ? (
-              <p className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                {error}
-              </p>
+              <Alert tone="error">{error}</Alert>
             ) : null}
             {message ? (
-              <p className="rounded-lg border border-ocean-100 bg-ocean-50 px-4 py-3 text-sm font-medium text-ocean-800">
-                {message}
-              </p>
+              <Alert tone="info">{message}</Alert>
             ) : null}
             <Button className="w-full" disabled={loading} type="submit">
               {loading ? "Ingresando..." : "Entrar"}

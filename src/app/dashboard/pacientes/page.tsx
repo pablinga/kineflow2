@@ -18,6 +18,7 @@ import { usePatients, type NewPatientInput } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { canCreatePatient } from "@/lib/billing";
+import { getFriendlyErrorMessage } from "@/lib/error-messages";
 
 const emptyPatient: NewPatientInput = {
   name: "",
@@ -132,9 +133,7 @@ export default function PatientsPage() {
       setShowForm(false);
     } catch (submitError) {
       setActionError(
-        submitError instanceof Error
-          ? submitError.message
-          : "No pudimos guardar el paciente.",
+        getFriendlyErrorMessage(submitError, "No pudimos guardar el paciente."),
       );
     } finally {
       setSaving(false);
@@ -148,9 +147,10 @@ export default function PatientsPage() {
       await disablePatient(id);
     } catch (disableError) {
       setActionError(
-        disableError instanceof Error
-          ? disableError.message
-          : "No pudimos deshabilitar el paciente.",
+        getFriendlyErrorMessage(
+          disableError,
+          "No pudimos deshabilitar el paciente.",
+        ),
       );
     }
   }

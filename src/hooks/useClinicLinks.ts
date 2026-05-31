@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
+import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 
 export type ClinicLinkStatus = "pending" | "accepted" | "rejected" | "inactive";
 
@@ -154,16 +155,14 @@ export function useClinicLinks() {
         .order("invited_at", { ascending: false });
 
       if (queryError) {
-        setError(queryError.message);
+        setError(mapSupabaseError(queryError));
         return;
       }
 
       setLinks(((data ?? []) as unknown as ClinicLinkRow[]).map(mapClinicLink));
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "No pudimos cargar tus consultorios.",
+        getFriendlyErrorMessage(loadError, "No pudimos cargar tus consultorios."),
       );
     } finally {
       setLoaded(true);
@@ -198,7 +197,7 @@ export function useClinicLinks() {
       .eq("id", id);
 
     if (updateError) {
-      throw new Error(updateError.message);
+      throw new Error(mapSupabaseError(updateError));
     }
 
     await loadLinks();

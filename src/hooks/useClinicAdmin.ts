@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
+import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 
 export type Clinic = {
   id: string;
@@ -109,16 +110,14 @@ export function useClinicAdmin() {
         .order("created_at", { ascending: false });
 
       if (queryError) {
-        setError(queryError.message);
+        setError(mapSupabaseError(queryError));
         return;
       }
 
       setClinics(((data ?? []) as ClinicRow[]).map(mapClinic));
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "No pudimos cargar consultorios.",
+        getFriendlyErrorMessage(loadError, "No pudimos cargar consultorios."),
       );
     } finally {
       setLoaded(true);
@@ -145,7 +144,7 @@ export function useClinicAdmin() {
       .maybeSingle();
 
     if (queryError) {
-      throw new Error(queryError.message);
+      throw new Error(mapSupabaseError(queryError));
     }
 
     return data ? mapProfessional(data as ProfessionalRow) : null;
@@ -160,7 +159,7 @@ export function useClinicAdmin() {
       .eq("status", "accepted");
 
     if (countError) {
-      throw new Error(countError.message);
+      throw new Error(mapSupabaseError(countError));
     }
 
     if ((count ?? 0) >= input.maxProfessionals) {
@@ -183,7 +182,7 @@ export function useClinicAdmin() {
       .single();
 
     if (linkError) {
-      throw new Error(linkError.message);
+      throw new Error(mapSupabaseError(linkError));
     }
 
     const availabilityRows = input.availability.map((availability) => ({
@@ -200,7 +199,7 @@ export function useClinicAdmin() {
         .insert(availabilityRows);
 
       if (availabilityError) {
-        throw new Error(availabilityError.message);
+        throw new Error(mapSupabaseError(availabilityError));
       }
     }
   }

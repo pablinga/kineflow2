@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BadgeCheck, MailPlus, Plus, Search, Trash2, UserRound } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
+import { Alert } from "@/components/ui/Alert";
 import {
   type ProfessionalSearchResult,
   useClinicAdmin,
@@ -12,6 +13,7 @@ import {
 import { weekdayLabels } from "@/hooks/useClinicLinks";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { shouldShowClinicFeatures } from "@/lib/features";
 
 const emptyAvailability = {
@@ -135,9 +137,10 @@ export default function ClinicsAdminPage() {
       setFoundProfessional(professional);
     } catch (submitError) {
       setActionError(
-        submitError instanceof Error
-          ? submitError.message
-          : "No pudimos buscar el profesional.",
+        getFriendlyErrorMessage(
+          submitError,
+          "No pudimos buscar el profesional.",
+        ),
       );
     } finally {
       setSaving("");
@@ -170,9 +173,10 @@ export default function ClinicsAdminPage() {
       setMessage("Invitación creada en estado pendiente.");
     } catch (submitError) {
       setActionError(
-        submitError instanceof Error
-          ? submitError.message
-          : "No pudimos crear la invitación.",
+        getFriendlyErrorMessage(
+          submitError,
+          "No pudimos crear la invitación.",
+        ),
       );
     } finally {
       setSaving("");
@@ -200,14 +204,14 @@ export default function ClinicsAdminPage() {
           </header>
 
           {error || actionError ? (
-            <p className="mt-6 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <Alert className="mt-6" tone="error">
               {actionError || error}
-            </p>
+            </Alert>
           ) : null}
           {message ? (
-            <p className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+            <Alert className="mt-6" tone="success">
               {message}
-            </p>
+            </Alert>
           ) : null}
 
           <section className="mt-6 grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">

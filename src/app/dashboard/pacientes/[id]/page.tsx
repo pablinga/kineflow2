@@ -24,6 +24,7 @@ import {
 import { formatCurrency, paymentStatusStyles } from "@/lib/payment-ui";
 import { formatSessionAmount } from "@/lib/format";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { getFriendlyErrorMessage } from "@/lib/error-messages";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -162,9 +163,10 @@ export default function PatientDetailPage() {
       setEvolution(createEmptyEvolution(patientId));
     } catch (submitError) {
       setActionError(
-        submitError instanceof Error
-          ? submitError.message
-          : "No pudimos guardar la evolución.",
+        getFriendlyErrorMessage(
+          submitError,
+          "No pudimos guardar la evolución.",
+        ),
       );
     } finally {
       setSaving(false);
@@ -179,9 +181,10 @@ export default function PatientDetailPage() {
       setEvolution((current) => ({ ...current, appointmentId }));
     } catch (statusError) {
       setActionError(
-        statusError instanceof Error
-          ? statusError.message
-          : "No pudimos marcar el turno como asistido.",
+        getFriendlyErrorMessage(
+          statusError,
+          "No pudimos marcar el turno como asistido.",
+        ),
       );
     }
   }
@@ -230,9 +233,10 @@ export default function PatientDetailPage() {
       setRescheduling(null);
     } catch (rescheduleError) {
       setActionError(
-        rescheduleError instanceof Error
-          ? rescheduleError.message
-          : "No pudimos reprogramar el turno.",
+        getFriendlyErrorMessage(
+          rescheduleError,
+          "No pudimos reprogramar el turno.",
+        ),
       );
     } finally {
       setUpdatingId("");
@@ -252,9 +256,7 @@ export default function PatientDetailPage() {
       setCanceling(null);
     } catch (cancelError) {
       setActionError(
-        cancelError instanceof Error
-          ? cancelError.message
-          : "No pudimos cancelar el turno.",
+        getFriendlyErrorMessage(cancelError, "No pudimos cancelar el turno."),
       );
     } finally {
       setUpdatingId("");

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
+import { getFriendlyErrorMessage, mapAuthError } from "@/lib/error-messages";
 
 export type AccountType = "KINESIOLOGO" | "CONSULTORIO";
 
@@ -112,7 +113,7 @@ export function useRequireAuth() {
 
         if (error) {
           commitSnapshot({
-            authError: error.message,
+            authError: mapAuthError(error),
             loaded: true,
             redirecting: false,
             user: null,
@@ -146,9 +147,7 @@ export function useRequireAuth() {
 
         commitSnapshot({
           authError:
-            error instanceof Error
-              ? error.message
-              : "No pudimos verificar tu sesion.",
+            getFriendlyErrorMessage(error, "No pudimos verificar tu sesión."),
           loaded: true,
           redirecting: false,
           user: null,
@@ -194,9 +193,7 @@ export function useRequireAuth() {
     } catch (error) {
       commitSnapshot({
         authError:
-          error instanceof Error
-            ? error.message
-            : "No pudimos inicializar Supabase.",
+          getFriendlyErrorMessage(error, "No pudimos inicializar Supabase."),
         loaded: true,
         redirecting: false,
         user: null,

@@ -9,6 +9,7 @@ import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { isPlanAllowedForAccount } from "@/lib/billing";
+import { getFriendlyErrorMessage, logFriendlyError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
 import { plans, type CommercialPlan } from "@/lib/plans";
 
@@ -95,16 +96,20 @@ export default function PlansPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error ?? "No pudimos iniciar el checkout.");
+        throw new Error(
+          getFriendlyErrorMessage(result.error, "No pudimos iniciar el checkout."),
+        );
       }
 
       window.location.href = result.initPoint;
       return;
     } catch (error) {
+      logFriendlyError("planes.checkout", error);
       setCheckoutError(
-        error instanceof Error
-          ? error.message
-          : "No pudimos iniciar el flujo de upgrade.",
+        getFriendlyErrorMessage(
+          error,
+          "No pudimos iniciar el flujo de upgrade.",
+        ),
       );
       setCheckoutMessage("");
     } finally {
@@ -132,16 +137,17 @@ export default function PlansPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error ?? "No pudimos cancelar la suscripcion.");
+        throw new Error(
+          getFriendlyErrorMessage(result.error, "No pudimos cancelar la suscripcion."),
+        );
       }
 
       setCancelReference(result.cancellationReference ?? "baja-registrada");
       setCancelModalOpen(false);
     } catch (error) {
+      logFriendlyError("planes.cancel", error);
       setCheckoutError(
-        error instanceof Error
-          ? error.message
-          : "No pudimos cancelar la suscripcion.",
+        getFriendlyErrorMessage(error, "No pudimos cancelar la suscripcion."),
       );
     } finally {
       setCancelLoading(false);

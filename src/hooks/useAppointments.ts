@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
+import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { useActiveClinic } from "@/hooks/useActiveClinic";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
@@ -297,7 +298,7 @@ export function useAppointments(patientId?: string) {
       const { data, error: queryError } = await query;
 
       if (queryError) {
-        setError(queryError.message);
+        setError(mapSupabaseError(queryError));
         return;
       }
 
@@ -306,9 +307,7 @@ export function useAppointments(patientId?: string) {
       );
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "No pudimos cargar turnos.",
+        getFriendlyErrorMessage(loadError, "No pudimos cargar turnos."),
       );
     } finally {
       setLoaded(true);
@@ -446,7 +445,7 @@ export function useAppointments(patientId?: string) {
     });
 
     if (insertError) {
-      throw new Error(insertError.message);
+      throw new Error(mapSupabaseError(insertError));
     }
 
     await loadAppointments();
@@ -470,7 +469,7 @@ export function useAppointments(patientId?: string) {
     });
 
     if (insertError) {
-      throw new Error(insertError.message);
+      throw new Error(mapSupabaseError(insertError));
     }
 
     await loadAppointments();
@@ -487,7 +486,7 @@ export function useAppointments(patientId?: string) {
       .eq("id", id);
 
     if (updateError) {
-      throw new Error(updateError.message);
+      throw new Error(mapSupabaseError(updateError));
     }
 
     await loadAppointments();
@@ -517,7 +516,7 @@ export function useAppointments(patientId?: string) {
       .eq("id", id);
 
     if (updateError) {
-      throw new Error(updateError.message);
+      throw new Error(mapSupabaseError(updateError));
     }
 
     await loadAppointments();
@@ -540,7 +539,7 @@ export function useAppointments(patientId?: string) {
       .eq("id", id);
 
     if (updateError) {
-      throw new Error(updateError.message);
+      throw new Error(mapSupabaseError(updateError));
     }
 
     await loadAppointments();

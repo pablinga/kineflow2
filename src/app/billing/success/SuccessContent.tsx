@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { LegalLinks } from "@/components/layout/LegalLinks";
+import { getFriendlyErrorMessage, logFriendlyError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type UpdateState = "checking" | "active" | "pending" | "signed_out" | "error";
@@ -46,7 +47,9 @@ export function SuccessContent() {
         const result = await response.json();
 
         if (!response.ok) {
-          throw new Error(result.error ?? "No pudimos consultar tu plan.");
+          throw new Error(
+            getFriendlyErrorMessage(result.error, "No pudimos consultar tu plan."),
+          );
         }
 
         if (mounted) {
@@ -61,12 +64,9 @@ export function SuccessContent() {
         }
       } catch (error) {
         if (mounted) {
+          logFriendlyError("billing-success.confirm", error);
           setState("error");
-          setMessage(
-            error instanceof Error
-              ? error.message
-              : "No pudimos consultar tu plan.",
-          );
+          setMessage(getFriendlyErrorMessage(error, "No pudimos consultar tu plan."));
         }
       }
     }

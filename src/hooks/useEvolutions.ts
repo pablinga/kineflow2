@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
+import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 
 export type Evolution = {
   id: string;
@@ -76,16 +77,14 @@ export function useEvolutions(patientId?: string) {
       const { data, error: queryError } = await query;
 
       if (queryError) {
-        setError(queryError.message);
+        setError(mapSupabaseError(queryError));
         return;
       }
 
       setEvolutions(((data ?? []) as unknown as EvolutionRow[]).map(mapEvolution));
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "No pudimos cargar evoluciónes.",
+        getFriendlyErrorMessage(loadError, "No pudimos cargar evoluciones."),
       );
     } finally {
       setLoaded(true);
@@ -117,7 +116,7 @@ export function useEvolutions(patientId?: string) {
     });
 
     if (insertError) {
-      throw new Error(insertError.message);
+      throw new Error(mapSupabaseError(insertError));
     }
 
     await loadEvolutions();

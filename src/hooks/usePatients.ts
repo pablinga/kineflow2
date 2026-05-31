@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { useActiveClinic } from "@/hooks/useActiveClinic";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
@@ -177,7 +178,7 @@ export function usePatients() {
       const { data, error: queryError } = await patientQuery;
 
       if (queryError) {
-        setError(queryError.message);
+        setError(mapSupabaseError(queryError));
         return;
       }
 
@@ -205,8 +206,11 @@ export function usePatients() {
 
       if (appointmentsError || evolutionsError) {
         setError(
-          appointmentsError?.message ??
-            evolutionsError?.message ??
+          (appointmentsError
+            ? mapSupabaseError(appointmentsError)
+            : evolutionsError
+              ? mapSupabaseError(evolutionsError)
+              : null) ??
             "No pudimos cargar el resumen de pacientes.",
         );
         return;
@@ -223,9 +227,7 @@ export function usePatients() {
       );
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "No pudimos cargar pacientes.",
+        getFriendlyErrorMessage(loadError, "No pudimos cargar pacientes."),
       );
     } finally {
       setLoaded(true);
@@ -270,7 +272,7 @@ export function usePatients() {
         .maybeSingle();
 
       if (clinicError) {
-        throw new Error(clinicError.message);
+        throw new Error(mapSupabaseError(clinicError));
       }
 
       clinicId = ((clinicData as ClinicIdRow | null)?.id ?? null);
@@ -292,7 +294,7 @@ export function usePatients() {
     });
 
     if (insertError) {
-      throw new Error(insertError.message);
+      throw new Error(mapSupabaseError(insertError));
     }
 
     await loadPatients();
@@ -311,7 +313,7 @@ export function usePatients() {
       .eq("id", id);
 
     if (updateError) {
-      throw new Error(updateError.message);
+      throw new Error(mapSupabaseError(updateError));
     }
 
     await loadPatients();
