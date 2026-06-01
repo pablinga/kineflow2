@@ -138,6 +138,20 @@ async function resolveParsedReference(params: {
     };
   }
 
+  const { data: profile } = await params.admin
+    .from("profiles")
+    .select("id")
+    .eq("mercado_pago_preapproval_id", params.providerSubscriptionId)
+    .maybeSingle();
+
+  if (profile?.id) {
+    return {
+      accountId: profile.id as string,
+      planCode: "INDEPENDIENTE" as CommercialPlan,
+      subscriptionId: null,
+    };
+  }
+
   if (params.reference === "KINEINDEP" || !params.reference) {
     const payerEmail = params.providerSubscription.payer_email?.toLowerCase();
 
@@ -225,6 +239,7 @@ export async function POST(request: Request) {
     const providerSubscription = await getMercadoPagoSubscription(resourceId);
     console.info("[mercadopago:webhook] Subscription loaded", {
       externalReference: providerSubscription.external_reference,
+      preapproval_id: providerSubscription.id,
       providerStatus: providerSubscription.status,
       providerSubscriptionId: providerSubscription.id,
     });
@@ -275,9 +290,15 @@ export async function POST(request: Request) {
 
     console.info("[mercadopago:webhook] Supabase subscription update complete", {
       accountId: parsed.accountId,
+      action:
+        updateResult.internalStatus === "ACTIVE"
+          ? "activated_independiente"
+          : `set_free_${updateResult.internalStatus.toLowerCase()}`,
       internalStatus: updateResult.internalStatus,
       planCode: parsed.planCode,
+      preapproval_id: providerSubscription.id,
       profileStatus: updateResult.profileStatus,
+      status_recibido: providerSubscription.status,
       providerStatus: updateResult.providerStatus,
       providerSubscriptionId: providerSubscription.id,
     });

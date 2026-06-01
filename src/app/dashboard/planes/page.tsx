@@ -55,7 +55,10 @@ export default function PlansPage() {
   const visiblePlans = plans.filter((item) =>
     isPlanAllowedForAccount(item.id, accountType),
   );
-  const hasPaidPlan = plan.plan !== "FREE";
+  const canCancelSubscription =
+    plan.plan === "INDEPENDIENTE" &&
+    plan.estadoPlan === "ACTIVO" &&
+    !cancelReference;
 
   async function handleCheckout(planId: CommercialPlan) {
     setSelectedPlan(planId);
@@ -132,7 +135,7 @@ export default function PlansPage() {
         throw new Error("Necesitas iniciar sesion para solicitar la baja.");
       }
 
-      const response = await fetch("/api/billing/cancel-subscription", {
+      const response = await fetch("/api/subscriptions/cancel", {
         headers: { Authorization: `Bearer ${accessToken}` },
         method: "POST",
       });
@@ -172,7 +175,7 @@ export default function PlansPage() {
             title="Plan / Suscripción"
           />
 
-          {hasPaidPlan ? (
+          {canCancelSubscription ? (
             <section className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 p-4">
               <p className="font-bold text-emerald-900">
                 {plan.estadoPlan === "ACTIVO"

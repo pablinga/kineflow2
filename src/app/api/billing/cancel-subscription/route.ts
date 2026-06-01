@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { sendSubscriptionCancelledEmail } from "@/lib/email";
 import { cancelMercadoPagoSubscription } from "@/lib/mercadopago";
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase-server";
+import {
+  getSupabaseAdminClient,
+  getSupabaseServerClient,
+} from "@/lib/supabase-server";
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -10,7 +13,7 @@ export async function POST(request: Request) {
   if (!token) {
     console.warn("[billing:cancel-subscription] Missing bearer token");
     return NextResponse.json(
-      { error: "Necesitás iniciar sesión." },
+      { error: "Necesitas iniciar sesion." },
       { status: 401 },
     );
   }
@@ -33,10 +36,16 @@ export async function POST(request: Request) {
   if (error || !user) {
     console.warn("[billing:cancel-subscription] Invalid bearer token");
     return NextResponse.json(
-      { error: "No pudimos validar tu sesión." },
+      { error: "No pudimos validar tu sesion." },
       { status: 401 },
     );
   }
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id, email, full_name, mercado_pago_preapproval_id")
+    .eq("id", user.id)
+    .maybeSingle();
 
   const { data: subscription } = await admin
     .from("subscriptions")
@@ -47,51 +56,76 @@ export async function POST(request: Request) {
     .limit(1)
     .maybeSingle();
 
-  if (!subscription?.provider_subscription_id) {
+  const preapprovalId =
+    (profile as { mercado_pago_preapproval_id?: string | null } | null)
+      ?.mercado_pago_preapproval_id ?? subscription?.provider_subscription_id;
+
+  if (!preapprovalId) {
     console.warn("[billing:cancel-subscription] Active subscription not found", {
       accountId: user.id,
     });
     return NextResponse.json(
-      { error: "No encontramos una suscripción activa." },
+      { error: "No encontramos una suscripcion activa para cancelar." },
       { status: 404 },
     );
   }
 
-  const providerSubscription = await cancelMercadoPagoSubscription(
-    subscription.provider_subscription_id,
-  );
+  let providerSubscription;
+
+  try {
+    providerSubscription = await cancelMercadoPagoSubscription(preapprovalId);
+  } catch (error) {
+    console.error("[billing:cancel-subscription] Mercado Pago cancellation failed", {
+      error: error instanceof Error ? error.message : error,
+      preapproval_id: preapprovalId,
+      user_id: user.id,
+    });
+
+    return NextResponse.json(
+      {
+        error:
+          "No pudimos cancelar la suscripcion en este momento. Intenta nuevamente.",
+      },
+      { status: 502 },
+    );
+  }
+
   const canceledAt = new Date().toISOString();
   const cancellationReference = `KF-BAJA-${Date.now().toString(36).toUpperCase()}`;
 
-  const { error: subscriptionUpdateError } = await admin
-    .from("subscriptions")
-    .update({
-      cancel_at_period_end: true,
-      canceled_at: canceledAt,
-      cancellation_reference: cancellationReference,
-      provider_status: providerSubscription.status ?? "cancelled",
-      status: "CANCELLED",
-    })
-    .eq("id", subscription.id);
+  if (subscription?.id) {
+    const { error: subscriptionUpdateError } = await admin
+      .from("subscriptions")
+      .update({
+        cancel_at_period_end: true,
+        canceled_at: canceledAt,
+        cancellation_reference: cancellationReference,
+        provider_status: providerSubscription.status ?? "cancelled",
+        status: "CANCELLED",
+      })
+      .eq("id", subscription.id);
 
-  if (subscriptionUpdateError) {
-    console.error("[billing:cancel-subscription] Subscription update failed", {
-      accountId: user.id,
-      subscriptionId: subscription.id,
-    });
-    return NextResponse.json(
-      { error: "No pudimos registrar la baja de la suscripciÃ³n." },
-      { status: 500 },
-    );
+    if (subscriptionUpdateError) {
+      console.error("[billing:cancel-subscription] Subscription update failed", {
+        accountId: user.id,
+        subscriptionId: subscription.id,
+      });
+      return NextResponse.json(
+        { error: "No pudimos registrar la baja de la suscripcion." },
+        { status: 500 },
+      );
+    }
   }
 
   const { error: profileUpdateError } = await admin
     .from("profiles")
     .update({
       cancel_request_code: cancellationReference,
+      cancelled_at: canceledAt,
       estado_plan: "CANCELADO",
+      mercado_pago_status: providerSubscription.status ?? "cancelled",
       plan: "FREE",
-      plan_status: "canceled",
+      plan_status: "cancelled",
       subscription_canceled_at: canceledAt,
       updated_at: canceledAt,
     })
@@ -107,13 +141,22 @@ export async function POST(request: Request) {
     );
   }
 
+  console.info("[billing:cancel-subscription] Supabase cancellation applied", {
+    action: "set_free_cancelled",
+    preapproval_id: preapprovalId,
+    status_recibido: providerSubscription.status ?? "cancelled",
+    user_id: user.id,
+  });
+
   await sendSubscriptionCancelledEmail(
     {
-      email: user.email,
+      email:
+        (profile as { email?: string | null } | null)?.email ?? user.email,
       fullName:
-        typeof user.user_metadata?.full_name === "string"
+        (profile as { full_name?: string | null } | null)?.full_name ??
+        (typeof user.user_metadata?.full_name === "string"
           ? user.user_metadata.full_name
-          : null,
+          : null),
     },
     {
       canceledAt,
@@ -125,5 +168,6 @@ export async function POST(request: Request) {
   return NextResponse.json({
     cancelled: true,
     cancellationReference,
+    message: "La suscripcion fue cancelada correctamente.",
   });
 }

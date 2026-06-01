@@ -104,12 +104,41 @@ test("Webhook valida Plan Independiente y mail posterior a activacion", () => {
   assert.match(billingServer, /sendSubscriptionActivatedEmail/);
 });
 
-test("Baja de suscripcion llama a Mercado Pago y registra referencia", () => {
+test("Baja de suscripcion llama a Mercado Pago, usa la ruta publica y registra referencia", () => {
   const source = fs.readFileSync("src/app/api/billing/cancel-subscription/route.ts", "utf8");
+  const alias = fs.readFileSync("src/app/api/subscriptions/cancel/route.ts", "utf8");
+  const page = fs.readFileSync("src/app/dashboard/planes/page.tsx", "utf8");
 
   assert.match(source, /cancelMercadoPagoSubscription/);
+  assert.match(source, /mercado_pago_preapproval_id/);
+  assert.match(source, /No encontramos una suscripcion activa para cancelar/);
+  assert.match(source, /No pudimos cancelar la suscripcion en este momento/);
   assert.match(source, /cancellationReference/);
+  assert.match(source, /plan_status: "cancelled"/);
+  assert.match(source, /mercado_pago_status/);
   assert.match(source, /sendSubscriptionCancelledEmail/);
+  assert.match(alias, /cancel-subscription/);
+  assert.match(page, /canCancelSubscription/);
+  assert.match(page, /plan\.plan === "INDEPENDIENTE"/);
+  assert.match(page, /plan\.estadoPlan === "ACTIVO"/);
+  assert.match(page, /\/api\/subscriptions\/cancel/);
+});
+
+test("Webhook sincroniza altas, pausas y cancelaciones desde Mercado Pago", () => {
+  const webhook = fs.readFileSync("src/app/api/webhooks/mercadopago/route.ts", "utf8");
+  const billingServer = fs.readFileSync("src/lib/billing-server.ts", "utf8");
+  const mercadoPago = fs.readFileSync("src/lib/mercadopago.ts", "utf8");
+
+  assert.match(webhook, /getMercadoPagoSubscription\(resourceId\)/);
+  assert.match(webhook, /mercado_pago_preapproval_id/);
+  assert.match(webhook, /status_recibido/);
+  assert.match(webhook, /preapproval_id/);
+  assert.match(mercadoPago, /status === "authorized"/);
+  assert.match(mercadoPago, /status === "paused"/);
+  assert.match(mercadoPago, /status === "canceled" \|\| status === "cancelled"/);
+  assert.match(billingServer, /effectivePlanCode = internalStatus === "ACTIVE" \? planCode : "FREE"/);
+  assert.match(billingServer, /plan_status:[\s\S]*"cancelled"[\s\S]*internalStatus\.toLowerCase/);
+  assert.match(billingServer, /cancelled_at/);
 });
 
 test("Links legales existen", () => {

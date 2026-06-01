@@ -190,7 +190,7 @@ export async function cancelMercadoPagoSubscription(subscriptionId: string) {
     {
       method: "PUT",
       headers: getMercadoPagoHeaders(accessToken),
-      body: JSON.stringify({ status: "canceled" }),
+      body: JSON.stringify({ status: "cancelled" }),
     },
   );
 

@@ -20,9 +20,12 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
     params;
   const internalStatus = mapMercadoPagoStatus(providerSubscription.status);
   const profileStatus = mapSubscriptionStatusToProfileStatus(internalStatus);
-  const planDefinition = getPlanDefinition(planCode);
+  const effectivePlanCode = internalStatus === "ACTIVE" ? planCode : "FREE";
+  const planDefinition = getPlanDefinition(effectivePlanCode);
   const periodStart = providerSubscription.date_created ?? null;
   const periodEnd = providerSubscription.next_payment_date ?? null;
+  const cancelledAt =
+    internalStatus === "CANCELLED" ? new Date().toISOString() : null;
 
   const { data: planRow, error: planError } = await admin
     .from("plans")
@@ -44,6 +47,8 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
     provider_status: providerSubscription.status ?? null,
     provider_subscription_id: providerSubscription.id,
     status: internalStatus,
+    cancel_at_period_end: internalStatus === "CANCELLED",
+    canceled_at: cancelledAt,
   };
 
   console.info("[billing:apply-subscription] Applying Mercado Pago status", {
@@ -95,10 +100,16 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
         providerSubscription.payer_email ??
         null,
       mercadopago_subscription_id: providerSubscription.id,
+      mercado_pago_status: providerSubscription.status ?? null,
       mercado_pago_preapproval_id: providerSubscription.id,
-      plan: planCode,
-      plan_status: internalStatus === "ACTIVE" ? "active" : internalStatus.toLowerCase(),
+      plan: effectivePlanCode,
+      plan_status:
+        internalStatus === "CANCELLED"
+          ? "cancelled"
+          : internalStatus.toLowerCase(),
+      cancelled_at: cancelledAt,
       subscription_current_period_end: periodEnd,
+      subscription_canceled_at: cancelledAt,
       subscription_provider: "mercado_pago",
       subscription_started_at: periodStart ?? new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -111,9 +122,14 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
 
   console.info("[billing:apply-subscription] Supabase profile updated", {
     accountId,
+    action:
+      internalStatus === "ACTIVE"
+        ? "activated_independiente"
+        : `set_free_${internalStatus.toLowerCase()}`,
     internalStatus,
-    planCode,
+    planCode: effectivePlanCode,
     profileStatus,
+    providerStatus: providerSubscription.status,
     providerSubscriptionId: providerSubscription.id,
   });
 
