@@ -263,10 +263,11 @@ export default function Home() {
             </p>
           </div>
           <LinkButton
-            className="shrink-0 bg-white text-ocean-800 hover:bg-ocean-50"
             href="/registro"
+            variant="inverted"
+            className="shrink-0 px-6"
           >
-            Crear cuenta
+            Crear cuenta gratis
           </LinkButton>
         </div>
       </section>

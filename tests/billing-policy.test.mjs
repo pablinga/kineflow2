@@ -72,9 +72,13 @@ test("Los montos se muestran con separador de miles argentino", () => {
 
 test("Landing MVP1 habla solo a kinesiologos independientes", () => {
   const source = fs.readFileSync("src/app/page.tsx", "utf8");
+  const button = fs.readFileSync("src/components/ui/Button.tsx", "utf8");
 
   assert.match(source, /kinesiologos independientes/);
   assert.match(source, /Gestiona tus pacientes, turnos y sesiones/);
+  assert.match(source, /Crear cuenta gratis/);
+  assert.match(source, /variant="inverted"/);
+  assert.match(button, /inverted:/);
   assert.doesNotMatch(source, /consultorios/i);
   assert.doesNotMatch(source, /clinicas/i);
 });
