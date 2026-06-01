@@ -27,6 +27,12 @@ const planSnapshot: {
   userId: null,
 };
 
+export function resetSubscriptionPlanSnapshot() {
+  planSnapshot.loaded = false;
+  planSnapshot.plan = defaultPlan;
+  planSnapshot.userId = null;
+}
+
 function normalizePlan(value: unknown): CommercialPlan {
   if (
     value === "INDEPENDIENTE" ||

@@ -32,6 +32,17 @@ const authSnapshot: AuthSnapshot = {
   user: null,
 };
 
+export function resetAuthSnapshot() {
+  Object.assign(authSnapshot, {
+    accountType: "KINESIOLOGO",
+    authError: "",
+    loaded: true,
+    profileName: "",
+    redirecting: true,
+    user: null,
+  });
+}
+
 export function useRequireAuth() {
   const pathname = usePathname();
   const router = useRouter();

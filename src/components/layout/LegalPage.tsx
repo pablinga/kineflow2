@@ -4,10 +4,11 @@ import { PublicNavbar } from "@/components/layout/PublicNavbar";
 type LegalPageProps = {
   title: string;
   intro: string;
-  sections: Array<{ title: string; body: string }>;
+  sections: Array<{ title: string; body: string | string[] }>;
+  updatedAt?: string;
 };
 
-export function LegalPage({ title, intro, sections }: LegalPageProps) {
+export function LegalPage({ title, intro, sections, updatedAt }: LegalPageProps) {
   return (
     <main className="min-h-screen bg-white text-ink">
       <PublicNavbar />
@@ -15,6 +16,11 @@ export function LegalPage({ title, intro, sections }: LegalPageProps) {
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-semibold text-ocean-700">Legal</p>
           <h1 className="mt-3 text-3xl font-bold">{title}</h1>
+          {updatedAt ? (
+            <p className="mt-2 text-sm font-semibold text-slate-500">
+              Ultima actualizacion: {updatedAt}
+            </p>
+          ) : null}
           <p className="mt-4 leading-7 text-slate-600">{intro}</p>
           <div className="mt-8 space-y-6">
             {sections.map((section) => (
@@ -23,7 +29,14 @@ export function LegalPage({ title, intro, sections }: LegalPageProps) {
                 key={section.title}
               >
                 <h2 className="text-xl font-bold">{section.title}</h2>
-                <p className="mt-3 leading-7 text-slate-600">{section.body}</p>
+                <div className="mt-3 space-y-3 leading-7 text-slate-600">
+                  {(Array.isArray(section.body)
+                    ? section.body
+                    : [section.body]
+                  ).map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </div>
               </section>
             ))}
           </div>

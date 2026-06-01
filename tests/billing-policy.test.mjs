@@ -85,6 +85,9 @@ test("Registro nuevo fuerza cuenta de kinesiologo independiente", () => {
   assert.match(source, /account_type: "KINESIOLOGO"/);
   assert.doesNotMatch(source, /CONSULTORIO/);
   assert.match(source, /He leido y acepto/);
+  assert.match(source, /termsOpen/);
+  assert.match(source, /role="dialog"/);
+  assert.match(source, /termsSections\.map/);
 });
 
 test("Retorno de Mercado Pago no activa el plan directamente", () => {
@@ -150,4 +153,17 @@ test("Links legales existen", () => {
     "src/app/arrepentimiento/page.tsx",
     "src/app/contacto-soporte/page.tsx",
   ].forEach((path) => assert.equal(fs.existsSync(path), true, path));
+});
+
+test("Logout del dashboard tiene timeout, limpieza local y fallback de redireccion", () => {
+  const source = fs.readFileSync("src/components/layout/DashboardSidebar.tsx", "utf8");
+
+  assert.match(source, /LOGOUT_TIMEOUT_MS/);
+  assert.match(source, /withTimeout\(\s*supabase\.auth\.signOut\(\)/);
+  assert.match(source, /resetAuthSnapshot/);
+  assert.match(source, /resetSubscriptionPlanSnapshot/);
+  assert.match(source, /clearSupabaseLocalSession/);
+  assert.match(source, /window\.location\.replace\("\/login"\)/);
+  assert.match(source, /LOGOUT_REDIRECT_FALLBACK_MS/);
+  assert.match(source, /setLoggingOut\(false\)/);
 });

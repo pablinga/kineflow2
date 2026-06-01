@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, LockKeyhole, Mail, Phone, UserRound } from "lucide-react";
+import {
+  BadgeCheck,
+  LockKeyhole,
+  Mail,
+  Phone,
+  UserRound,
+  X,
+} from "lucide-react";
 import { LegalLinks } from "@/components/layout/LegalLinks";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +20,11 @@ import {
   logFriendlyError,
   mapAuthError,
 } from "@/lib/error-messages";
+import {
+  termsIntro,
+  termsLastUpdated,
+  termsSections,
+} from "@/lib/legal/terms";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type RegisterField = {
@@ -38,6 +50,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
 
   useEffect(() => {
     const supabase = getSupabaseClient();
@@ -280,9 +293,16 @@ export default function RegisterPage() {
               />
               <span>
                 He leido y acepto los{" "}
-                <Link className="font-semibold text-ocean-700" href="/terminos-y-condiciones">
+                <button
+                  className="font-semibold text-ocean-700 underline-offset-2 hover:underline"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setTermsOpen(true);
+                  }}
+                  type="button"
+                >
                   Terminos y Condiciones
-                </Link>{" "}
+                </button>{" "}
                 y la{" "}
                 <Link className="font-semibold text-ocean-700" href="/politica-de-privacidad">
                   Politica de Privacidad
@@ -330,6 +350,68 @@ export default function RegisterPage() {
           </div>
         </div>
       </section>
+      {termsOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-4 py-6">
+          <section
+            aria-labelledby="terms-modal-title"
+            aria-modal="true"
+            className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-lg bg-white shadow-2xl"
+            role="dialog"
+          >
+            <header className="flex items-start justify-between gap-4 border-b border-ocean-100 px-5 py-4">
+              <div>
+                <p className="text-sm font-semibold text-ocean-700">Legal</p>
+                <h2
+                  className="mt-1 text-xl font-bold text-ink"
+                  id="terms-modal-title"
+                >
+                  Terminos y Condiciones
+                </h2>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  Ultima actualizacion: {termsLastUpdated}
+                </p>
+              </div>
+              <button
+                aria-label="Cerrar terminos"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-ocean-50 hover:text-ocean-800"
+                onClick={() => setTermsOpen(false)}
+                type="button"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </header>
+            <div className="overflow-y-auto px-5 py-5">
+              <p className="text-sm leading-6 text-slate-600">{termsIntro}</p>
+              <div className="mt-6 space-y-5">
+                {termsSections.map((section) => (
+                  <section
+                    className="border-t border-ocean-100 pt-5"
+                    key={section.title}
+                  >
+                    <h3 className="text-base font-bold text-ink">
+                      {section.title}
+                    </h3>
+                    <div className="mt-2 space-y-2 text-sm leading-6 text-slate-600">
+                      {section.body.map((paragraph) => (
+                        <p key={paragraph}>{paragraph}</p>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </div>
+            <footer className="border-t border-ocean-100 px-5 py-4">
+              <button
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-ocean-600 px-5 text-sm font-semibold text-white transition hover:bg-ocean-700"
+                onClick={() => setTermsOpen(false)}
+                type="button"
+              >
+                Entendido
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

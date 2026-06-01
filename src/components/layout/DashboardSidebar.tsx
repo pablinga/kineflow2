@@ -17,9 +17,19 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { getSupabaseClient } from "@/lib/supabase";
-import { useRequireAuth, type AccountType } from "@/hooks/useRequireAuth";
-import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import {
+  resetAuthSnapshot,
+  useRequireAuth,
+  type AccountType,
+} from "@/hooks/useRequireAuth";
+import {
+  resetSubscriptionPlanSnapshot,
+  useSubscriptionPlan,
+} from "@/hooks/useSubscriptionPlan";
 import { shouldShowClinicFeatures } from "@/lib/features";
+
+const LOGOUT_TIMEOUT_MS = 5000;
+const LOGOUT_REDIRECT_FALLBACK_MS = 800;
 
 const navigation = {
   KINESIOLOGO: [
@@ -46,6 +56,32 @@ const navigation = {
   AccountType,
   Array<{ href: string; label: string; icon: typeof Home }>
 >;
+
+function clearSupabaseLocalSession() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    Object.keys(window.localStorage)
+      .filter((key) => key.startsWith("sb-") && key.includes("auth-token"))
+      .forEach((key) => window.localStorage.removeItem(key));
+    Object.keys(window.sessionStorage)
+      .filter((key) => key.startsWith("sb-") && key.includes("auth-token"))
+      .forEach((key) => window.sessionStorage.removeItem(key));
+  } catch (error) {
+    console.warn("[logout] Could not clear local auth storage", error);
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      window.setTimeout(() => reject(new Error("logout_timeout")), timeoutMs);
+    }),
+  ]);
+}
 
 export function DashboardSidebar() {
   const [open, setOpen] = useState(false);
@@ -74,21 +110,48 @@ export function DashboardSidebar() {
       );
 
   async function handleLogout() {
+    if (loggingOut) {
+      return;
+    }
+
     setLoggingOut(true);
     setLogoutError("");
 
     try {
       const supabase = getSupabaseClient();
-      const { error } = await supabase.auth.signOut();
+      const { error } = await withTimeout(
+        supabase.auth.signOut(),
+        LOGOUT_TIMEOUT_MS,
+      );
 
       if (error) {
         throw error;
       }
 
+      console.info("[logout] Supabase signOut completed");
+      resetAuthSnapshot();
+      resetSubscriptionPlanSnapshot();
+      clearSupabaseLocalSession();
       router.replace("/login");
       router.refresh();
+      window.setTimeout(() => {
+        if (window.location.pathname !== "/login") {
+          window.location.replace("/login");
+        }
+      }, LOGOUT_REDIRECT_FALLBACK_MS);
     } catch (error) {
-      console.error("logout.failed", error);
+      if (error instanceof Error && error.message === "logout_timeout") {
+        console.warn(
+          "[logout] Supabase signOut timed out; redirecting with local cleanup",
+        );
+        resetAuthSnapshot();
+        resetSubscriptionPlanSnapshot();
+        clearSupabaseLocalSession();
+        window.location.replace("/login");
+        return;
+      }
+
+      console.error("[logout] Supabase signOut failed", error);
       setLogoutError("No pudimos cerrar sesión. Intentá nuevamente.");
       setLoggingOut(false);
     }
