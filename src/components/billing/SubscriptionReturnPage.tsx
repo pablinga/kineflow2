@@ -79,8 +79,15 @@ export function SubscriptionReturnPage({
           throw new Error("Necesitas iniciar sesion para ver tu suscripcion.");
         }
 
+        const preapprovalId = new URLSearchParams(window.location.search).get(
+          "preapproval_id",
+        );
         const response = await fetch("/api/billing/confirm-return", {
-          headers: { Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ preapprovalId }),
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
           method: "POST",
         });
         const result = await response.json();

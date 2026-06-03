@@ -141,10 +141,13 @@ test("Registro y login bloqueados no llaman a Supabase y muestran mensaje amigab
   assert.match(home, /mailto:\$\{contactEmail\}\?subject=Quiero%20probar%20KineFlow/);
 });
 
-test("Retorno de Mercado Pago no activa el plan directamente", () => {
+test("Retorno de Mercado Pago activa solo si preapproval pertenece al usuario", () => {
   const source = fs.readFileSync("src/app/api/billing/confirm-return/route.ts", "utf8");
 
-  assert.doesNotMatch(source, /applyMercadoPagoSubscriptionToAccount/);
+  assert.match(source, /getMercadoPagoSubscription\(preapprovalId\)/);
+  assert.match(source, /applyMercadoPagoSubscriptionToAccount/);
+  assert.match(source, /parsed\?\.accountId === user\.id/);
+  assert.match(source, /providerSubscription\.payer_email\?\.toLowerCase\(\)/);
   assert.match(source, /select\("plan, estado_plan/);
 });
 
@@ -178,6 +181,8 @@ test("Post pago consulta Supabase antes de mostrar Plan activo", () => {
   const rootSuccess = fs.readFileSync("src/app/suscripcion-exitosa/page.tsx", "utf8");
 
   assert.match(page, /fetch\("\/api\/billing\/confirm-return"/);
+  assert.match(page, /new URLSearchParams\(window\.location\.search\)\.get\(\s*"preapproval_id"/);
+  assert.match(page, /JSON\.stringify\(\{ preapprovalId \}\)/);
   assert.match(page, /subscriptionStatus\?\.plan === "INDEPENDIENTE"/);
   assert.match(page, /subscriptionStatus\.status === "ACTIVO"/);
   assert.match(page, /Plan activo/);

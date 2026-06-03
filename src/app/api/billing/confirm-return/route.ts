@@ -1,5 +1,32 @@
 import { NextResponse } from "next/server";
-import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { applyMercadoPagoSubscriptionToAccount } from "@/lib/billing-server";
+import { getMercadoPagoSubscription } from "@/lib/mercadopago";
+import type { CommercialPlan } from "@/lib/plans";
+import {
+  getSupabaseAdminClient,
+  getSupabaseServerClient,
+} from "@/lib/supabase-server";
+
+type ConfirmReturnBody = {
+  preapprovalId?: string;
+};
+
+function parseExternalReference(reference: unknown) {
+  if (typeof reference !== "string") {
+    return null;
+  }
+
+  const [accountId, planCode] = reference.split(":");
+
+  if (!accountId || !planCode) {
+    return null;
+  }
+
+  return {
+    accountId,
+    planCode: planCode as CommercialPlan,
+  };
+}
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -23,6 +50,40 @@ export async function POST(request: Request) {
       { error: "No pudimos validar tu sesion." },
       { status: 401 },
     );
+  }
+
+  const body = (await request.json().catch(() => ({}))) as ConfirmReturnBody;
+  const preapprovalId = body.preapprovalId?.trim();
+
+  if (preapprovalId) {
+    try {
+      const admin = getSupabaseAdminClient();
+      const providerSubscription = await getMercadoPagoSubscription(preapprovalId);
+      const parsed = parseExternalReference(providerSubscription.external_reference);
+      const belongsToUser =
+        parsed?.accountId === user.id ||
+        providerSubscription.payer_email?.toLowerCase() ===
+          user.email?.toLowerCase();
+
+      if (admin && belongsToUser) {
+        await applyMercadoPagoSubscriptionToAccount({
+          accountId: user.id,
+          accountType: "KINESIOLOGO",
+          admin,
+          planCode: parsed?.planCode === "INDEPENDIENTE" ? parsed.planCode : "INDEPENDIENTE",
+          providerSubscription,
+        });
+      }
+    } catch (confirmError) {
+      console.error("[billing:confirm-return] Mercado Pago confirmation failed", {
+        error:
+          confirmError instanceof Error
+            ? confirmError.message
+            : "No pudimos confirmar la suscripcion.",
+        preapproval_id: preapprovalId,
+        userId: user.id,
+      });
+    }
   }
 
   const { data: profile } = await supabase
