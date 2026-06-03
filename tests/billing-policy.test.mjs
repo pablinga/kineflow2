@@ -258,6 +258,16 @@ test("Retorno accidental a home con preapproval_id redirige a post pago", () => 
   assert.match(home, /redirect\(`\/suscripcion-exitosa\?preapproval_id=\$\{preapprovalId\}`\)/);
 });
 
+test("Preflight OPTIONS responde antes de llegar a paginas Next", () => {
+  const middleware = fs.readFileSync("src/middleware.ts", "utf8");
+
+  assert.match(middleware, /request\.method !== "OPTIONS"/);
+  assert.match(middleware, /status: 204/);
+  assert.match(middleware, /Access-Control-Allow-Methods/);
+  assert.match(middleware, /https:\/\/qa\.kineflow\.ar/);
+  assert.match(middleware, /mercadopago\.com\.ar/);
+});
+
 test("Baja de suscripcion llama a Mercado Pago, usa la ruta publica y registra referencia", () => {
   const source = fs.readFileSync("src/app/api/billing/cancel-subscription/route.ts", "utf8");
   const alias = fs.readFileSync("src/app/api/subscriptions/cancel/route.ts", "utf8");
