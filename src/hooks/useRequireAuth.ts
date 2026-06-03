@@ -23,6 +23,8 @@ type AuthSnapshot = {
   user: User | null;
 };
 
+const AUTH_VERIFY_TIMEOUT_MS = 8000;
+
 const authSnapshot: AuthSnapshot = {
   accountType: "KINESIOLOGO",
   authError: "",
@@ -31,6 +33,15 @@ const authSnapshot: AuthSnapshot = {
   redirecting: false,
   user: null,
 };
+
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number) {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      window.setTimeout(() => reject(new Error("auth_verify_timeout")), timeoutMs);
+    }),
+  ]);
+}
 
 export function resetAuthSnapshot() {
   Object.assign(authSnapshot, {
@@ -93,11 +104,14 @@ export function useRequireAuth() {
 
     async function loadProfile(currentUser: User) {
       const supabase = getSupabaseClient();
-      const { data } = await supabase
-        .from("profiles")
-        .select("account_type, full_name, organization_name")
-        .eq("id", currentUser.id)
-        .maybeSingle();
+      const { data } = await withTimeout(
+        supabase
+          .from("profiles")
+          .select("account_type, full_name, organization_name")
+          .eq("id", currentUser.id)
+          .maybeSingle(),
+        AUTH_VERIFY_TIMEOUT_MS,
+      );
       const profile = data as ProfileRow | null;
       const metadataAccountType = currentUser.user_metadata
         ?.account_type as AccountType | undefined;
@@ -116,7 +130,10 @@ export function useRequireAuth() {
     async function verifySession() {
       try {
         const supabase = getSupabaseClient();
-        const { data, error } = await supabase.auth.getSession();
+        const { data, error } = await withTimeout(
+          supabase.auth.getSession(),
+          AUTH_VERIFY_TIMEOUT_MS,
+        );
 
         if (!mounted) {
           return;

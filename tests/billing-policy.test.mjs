@@ -328,3 +328,12 @@ test("Logout del dashboard tiene timeout, limpieza local y fallback de redirecci
   assert.match(source, /LOGOUT_REDIRECT_FALLBACK_MS/);
   assert.match(source, /setLoggingOut\(false\)/);
 });
+
+test("Guard de sesion tiene timeout para no quedar tildado tras volver de pagos", () => {
+  const source = fs.readFileSync("src/hooks/useRequireAuth.ts", "utf8");
+
+  assert.match(source, /AUTH_VERIFY_TIMEOUT_MS/);
+  assert.match(source, /auth_verify_timeout/);
+  assert.match(source, /withTimeout\(\s*supabase\.auth\.getSession\(\)/);
+  assert.match(source, /withTimeout\([\s\S]*\.from\("profiles"\)/);
+});
