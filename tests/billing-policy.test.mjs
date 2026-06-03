@@ -148,6 +148,42 @@ test("Retorno de Mercado Pago no activa el plan directamente", () => {
   assert.match(source, /select\("plan, estado_plan/);
 });
 
+test("Checkout de Mercado Pago usa NEXT_PUBLIC_APP_URL y rutas QA reales", () => {
+  const mercadoPago = fs.readFileSync("src/lib/mercadopago.ts", "utf8");
+  const createSubscription = fs.readFileSync(
+    "src/app/api/billing/create-subscription/route.ts",
+    "utf8",
+  );
+  const envExample = fs.readFileSync(".env.example", "utf8");
+
+  assert.match(mercadoPago, /process\.env\.NEXT_PUBLIC_APP_URL/);
+  assert.doesNotMatch(mercadoPago, /NEXT_PUBLIC_SITE_URL/);
+  assert.doesNotMatch(mercadoPago, /localhost:3000/);
+  assert.match(mercadoPago, /success: `\$\{appUrl\}\/suscripcion-exitosa`/);
+  assert.match(mercadoPago, /pending: `\$\{appUrl\}\/suscripcion-pendiente`/);
+  assert.match(mercadoPago, /failure: `\$\{appUrl\}\/suscripcion-error`/);
+  assert.match(createSubscription, /createMercadoPagoSubscriptionPreapproval/);
+  assert.match(createSubscription, /getMercadoPagoCheckoutInitPoint/);
+  assert.match(createSubscription, /preapprovalId/);
+  assert.match(envExample, /NEXT_PUBLIC_APP_URL=https:\/\/qa\.kineflow\.ar/);
+  assert.doesNotMatch(envExample, /localhost|vercel\.app|https:\/\/kineflow\.ar/);
+});
+
+test("Post pago consulta Supabase antes de mostrar Plan activo", () => {
+  const page = fs.readFileSync(
+    "src/components/billing/SubscriptionReturnPage.tsx",
+    "utf8",
+  );
+  const rootSuccess = fs.readFileSync("src/app/suscripcion-exitosa/page.tsx", "utf8");
+
+  assert.match(page, /fetch\("\/api\/billing\/confirm-return"/);
+  assert.match(page, /subscriptionStatus\?\.plan === "INDEPENDIENTE"/);
+  assert.match(page, /subscriptionStatus\.status === "ACTIVO"/);
+  assert.match(page, /Plan activo/);
+  assert.match(page, /Estamos confirmando tu suscripción\. Esto puede demorar unos segundos\./);
+  assert.match(rootSuccess, /SubscriptionReturnPage kind="success"/);
+});
+
 test("Webhook valida Plan Independiente y mail posterior a activacion", () => {
   const webhook = fs.readFileSync("src/app/api/webhooks/mercadopago/route.ts", "utf8");
   const billingServer = fs.readFileSync("src/lib/billing-server.ts", "utf8");
@@ -156,6 +192,28 @@ test("Webhook valida Plan Independiente y mail posterior a activacion", () => {
   assert.match(webhook, /payment_events/);
   assert.match(billingServer, /internalStatus === "ACTIVE"/);
   assert.match(billingServer, /sendSubscriptionActivatedEmail/);
+});
+
+test("Webhook Mercado Pago acepta eventos de suscripcion y pago por ruta publica", () => {
+  const webhook = fs.readFileSync("src/app/api/webhooks/mercadopago/route.ts", "utf8");
+  const alias = fs.readFileSync("src/app/api/mercadopago/webhook/route.ts", "utf8");
+  const mercadoPago = fs.readFileSync("src/lib/mercadopago.ts", "utf8");
+
+  assert.match(alias, /api\/webhooks\/mercadopago\/route/);
+  assert.match(webhook, /subscription_preapproval/);
+  assert.match(webhook, /subscription_authorized_payment/);
+  assert.match(webhook, /includes\("payment"\)/);
+  assert.match(webhook, /getProviderSubscriptionFromEvent/);
+  assert.match(webhook, /getMercadoPagoAuthorizedPayment/);
+  assert.match(webhook, /findMercadoPagoAuthorizedPaymentByPaymentId/);
+  assert.match(webhook, /getMercadoPagoPayment/);
+  assert.match(webhook, /MP_WEBHOOK_SECRET/);
+  assert.match(webhook, /processingError: true/);
+  assert.match(mercadoPago, /MP_ACCESS_TOKEN/);
+  assert.doesNotMatch(mercadoPago, /MERCADOPAGO_ACCESS_TOKEN/);
+  assert.doesNotMatch(webhook, /MERCADOPAGO_WEBHOOK_SECRET/);
+  assert.match(mercadoPago, /authorized_payments\/search/);
+  assert.match(mercadoPago, /\/v1\/payments\/\$\{paymentId\}/);
 });
 
 test("Baja de suscripcion llama a Mercado Pago, usa la ruta publica y registra referencia", () => {
@@ -183,7 +241,7 @@ test("Webhook sincroniza altas, pausas y cancelaciones desde Mercado Pago", () =
   const billingServer = fs.readFileSync("src/lib/billing-server.ts", "utf8");
   const mercadoPago = fs.readFileSync("src/lib/mercadopago.ts", "utf8");
 
-  assert.match(webhook, /getMercadoPagoSubscription\(resourceId\)/);
+  assert.match(webhook, /getMercadoPagoSubscription\(params\.resourceId\)/);
   assert.match(webhook, /mercado_pago_preapproval_id/);
   assert.match(webhook, /status_recibido/);
   assert.match(webhook, /preapproval_id/);

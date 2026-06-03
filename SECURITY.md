@@ -10,12 +10,12 @@ Variables publicas actuales:
 | --- | --- | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Proyecto Supabase de desarrollo | Proyecto Supabase de preview/staging | Proyecto Supabase productivo | Es publica porque el cliente de Supabase la necesita en el navegador. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon key de desarrollo | Anon key de preview/staging | Anon key productiva | Es publica, pero debe estar protegida con RLS en Supabase. |
-| `NEXT_PUBLIC_APP_URL` | URL local | URL de preview | URL productiva | Es publica y se usa para callbacks de pago. |
+| `NEXT_PUBLIC_APP_URL` | URL del ambiente | `https://qa.kineflow.ar` | `https://kineflow.ar` | Es publica y se usa para callbacks de pago. |
 
 Variables privadas actuales:
 
-- `MERCADOPAGO_ACCESS_TOKEN`: token server-side para crear checkout/suscripciones.
-- `MERCADOPAGO_WEBHOOK_SECRET`: secreto/verificador si se configura firma de webhook.
+- `MP_ACCESS_TOKEN`: token server-side para crear checkout/suscripciones.
+- `MP_WEBHOOK_SECRET`: secreto/verificador si se configura firma de webhook.
 - `SUPABASE_SERVICE_ROLE_KEY`: solo backend, necesario para que el webhook actualice planes.
 
 Regla importante: tokens, service role keys, secretos de webhooks, passwords, cookies, claves privadas y credenciales de terceros no deben usar el prefijo `NEXT_PUBLIC_`.
@@ -52,7 +52,7 @@ Configurar en Supabase Auth las URLs permitidas de Production y Preview que corr
 
 Cuando se integre Mercado Pago:
 
-- Guardar `MERCADOPAGO_ACCESS_TOKEN` y el secreto/verificador del webhook como variables privadas de Vercel, sin `NEXT_PUBLIC_`.
+- Guardar `MP_ACCESS_TOKEN` y el secreto/verificador del webhook como variables privadas de Vercel, sin `NEXT_PUBLIC_`.
 - Validar la firma o mecanismo oficial de autenticidad del webhook antes de procesar pagos.
 - Hacer el endpoint idempotente para no activar planes dos veces ante reintentos.
 - No guardar datos completos de tarjetas ni informacion financiera sensible.

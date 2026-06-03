@@ -39,7 +39,7 @@ const copyByKind = {
   success: {
     icon: CheckCircle2,
     title: "Suscripcion recibida",
-    text: "Recibimos la confirmacion de Mercado Pago y estamos activando tu plan. Esto puede demorar unos segundos.",
+    text: "Estamos confirmando tu suscripción. Esto puede demorar unos segundos.",
     tone: "text-emerald-600",
   },
 } satisfies Record<
@@ -156,7 +156,7 @@ export function SubscriptionReturnPage({
           <h1 className="mt-4 text-2xl font-bold text-ink">{copy.title}</h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-600">
             {kind === "success" && isActive
-              ? "Tu plan Independiente ya esta activo."
+              ? "Plan activo"
               : copy.text}
           </p>
 

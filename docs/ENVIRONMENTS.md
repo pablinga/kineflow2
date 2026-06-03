@@ -45,16 +45,15 @@ Tambien deben existir las variables de la app que apliquen al flujo probado, por
 
 ```text
 NEXT_PUBLIC_APP_URL
-NEXT_PUBLIC_SITE_URL
 NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY
 NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID
 NEXT_PUBLIC_ENABLE_CLINIC_FEATURES
-MERCADOPAGO_ACCESS_TOKEN
+MP_ACCESS_TOKEN
 MERCADOPAGO_TEST_PAYER_EMAIL
-MERCADOPAGO_WEBHOOK_SECRET
+MP_WEBHOOK_SECRET
 ```
 
-Para Preview, usar credenciales de prueba o sandbox cuando correspondan.
+Para QA, configurar `NEXT_PUBLIC_APP_URL=https://qa.kineflow.ar` y usar credenciales de prueba o sandbox cuando correspondan.
 
 ## Variables para Vercel Production
 
@@ -70,13 +69,12 @@ Y las variables productivas de la app:
 
 ```text
 NEXT_PUBLIC_APP_URL
-NEXT_PUBLIC_SITE_URL
 NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY
 NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID
 NEXT_PUBLIC_ENABLE_CLINIC_FEATURES
-MERCADOPAGO_ACCESS_TOKEN
+MP_ACCESS_TOKEN
 MERCADOPAGO_TEST_PAYER_EMAIL
-MERCADOPAGO_WEBHOOK_SECRET
+MP_WEBHOOK_SECRET
 ```
 
 ## Como evitar mezclar ambientes

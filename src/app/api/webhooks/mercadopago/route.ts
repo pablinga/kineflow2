@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { applyMercadoPagoSubscriptionToAccount } from "@/lib/billing-server";
 import {
+  findMercadoPagoAuthorizedPaymentByPaymentId,
+  getMercadoPagoAuthorizedPayment,
+  getMercadoPagoPayment,
   getMercadoPagoSubscription,
   type MercadoPagoPreapproval,
 } from "@/lib/mercadopago";
@@ -40,6 +43,14 @@ function getEventType(payload: Record<string, unknown>, url: URL) {
   );
 }
 
+function isSupportedMercadoPagoEvent(eventType: string) {
+  return (
+    eventType.includes("subscription_preapproval") ||
+    eventType.includes("subscription_authorized_payment") ||
+    eventType.includes("payment")
+  );
+}
+
 function getSignaturePart(signature: string, key: string) {
   return signature
     .split(",")
@@ -58,7 +69,7 @@ function signaturesMatch(expected: string, received: string) {
 }
 
 function verifyMercadoPagoWebhookSignature(request: Request, url: URL) {
-  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET?.trim();
+  const secret = process.env.MP_WEBHOOK_SECRET?.trim();
 
   if (!secret) {
     return true;
@@ -86,6 +97,51 @@ function verifyMercadoPagoWebhookSignature(request: Request, url: URL) {
     .digest("hex");
 
   return signaturesMatch(expectedHash, hash);
+}
+
+async function getProviderSubscriptionFromEvent(params: {
+  eventType: string;
+  resourceId: string;
+}) {
+  if (params.eventType.includes("subscription_preapproval")) {
+    return getMercadoPagoSubscription(params.resourceId);
+  }
+
+  if (params.eventType.includes("subscription_authorized_payment")) {
+    const authorizedPayment = await getMercadoPagoAuthorizedPayment(
+      params.resourceId,
+    );
+
+    if (!authorizedPayment.preapproval_id) {
+      return null;
+    }
+
+    return getMercadoPagoSubscription(authorizedPayment.preapproval_id);
+  }
+
+  if (params.eventType.includes("payment")) {
+    const payment = await getMercadoPagoPayment(params.resourceId);
+    const preapprovalId =
+      payment.metadata?.preapproval_id ??
+      payment.metadata?.preapprovalId ??
+      payment.point_of_interaction?.transaction_data?.subscription_id;
+
+    if (preapprovalId) {
+      return getMercadoPagoSubscription(preapprovalId);
+    }
+
+    const authorizedPayment = await findMercadoPagoAuthorizedPaymentByPaymentId(
+      params.resourceId,
+    );
+
+    if (!authorizedPayment?.preapproval_id) {
+      return null;
+    }
+
+    return getMercadoPagoSubscription(authorizedPayment.preapproval_id);
+  }
+
+  return null;
 }
 
 function parseExternalReference(reference: unknown) {
@@ -203,11 +259,12 @@ export async function POST(request: Request) {
 
   const eventId = getEventId(payload, url);
   const eventType = getEventType(payload, url);
+  const resourceId = getResourceId(payload, url);
 
   console.info("[mercadopago:webhook] Event received", {
     eventId,
     eventType,
-    resourceId: getResourceId(payload, url),
+    resourceId,
   });
 
   const { data: eventInsert } = await admin
@@ -226,8 +283,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    const resourceId = getResourceId(payload, url);
-
     if (!resourceId) {
       await admin
         .from("payment_events")
@@ -236,7 +291,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
-    const providerSubscription = await getMercadoPagoSubscription(resourceId);
+    if (!isSupportedMercadoPagoEvent(eventType)) {
+      await admin
+        .from("payment_events")
+        .update({ processed: true })
+        .eq("id", eventInsert.id);
+      return NextResponse.json({ received: true, ignored: eventType });
+    }
+
+    const providerSubscription = await getProviderSubscriptionFromEvent({
+      eventType,
+      resourceId,
+    });
+
+    if (!providerSubscription) {
+      console.warn("[mercadopago:webhook] Subscription not found for event", {
+        eventId,
+        eventType,
+        resourceId,
+      });
+      await admin
+        .from("payment_events")
+        .update({ processed: true })
+        .eq("id", eventInsert.id);
+      return NextResponse.json({ received: true });
+    }
+
     console.info("[mercadopago:webhook] Subscription loaded", {
       externalReference: providerSubscription.external_reference,
       preapproval_id: providerSubscription.id,
@@ -310,14 +390,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "No pudimos procesar el webhook.",
-      },
-      { status: 500 },
-    );
+    console.error("[mercadopago:webhook] Processing failed", {
+      error:
+        error instanceof Error ? error.message : "No pudimos procesar el webhook.",
+      eventId,
+      eventType,
+      resourceId,
+    });
+
+    return NextResponse.json({ received: true, processingError: true });
   }
 }

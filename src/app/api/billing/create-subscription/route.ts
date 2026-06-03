@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  getMercadoPagoSubscriptionCheckoutUrl,
+  createMercadoPagoSubscriptionPreapproval,
+  getMercadoPagoCheckoutInitPoint,
   getSubscriptionReturnUrls,
 } from "@/lib/mercadopago";
 import type { CommercialPlan } from "@/lib/plans";
@@ -46,17 +47,26 @@ export async function POST(request: Request) {
 
   const returnUrls = getSubscriptionReturnUrls();
   const externalReference = `${user.id}:${planId}:${crypto.randomUUID()}`;
-  const initPoint = getMercadoPagoSubscriptionCheckoutUrl(planId, {
+  const preapproval = await createMercadoPagoSubscriptionPreapproval(planId, {
     backUrl: returnUrls.success,
     externalReference,
     payerEmail: user.email,
   });
+  const initPoint = getMercadoPagoCheckoutInitPoint(preapproval);
+
+  if (!initPoint) {
+    return NextResponse.json(
+      { error: "Mercado Pago no devolvio una URL de checkout." },
+      { status: 502 },
+    );
+  }
 
   console.info("[billing:create-subscription] Mercado Pago checkout URL created", {
     accountId: user.id,
     externalReference,
     initPoint,
     planId,
+    preapprovalId: preapproval.id,
     returnUrlSent: returnUrls.success,
     returnUrls,
     userEmail: user.email,
@@ -65,6 +75,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     externalReference,
     initPoint,
+    preapprovalId: preapproval.id,
     returnUrls,
   });
 }

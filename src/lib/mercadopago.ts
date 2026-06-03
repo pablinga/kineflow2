@@ -1,8 +1,6 @@
 import type { CommercialPlan } from "@/lib/plans";
 
 const MERCADOPAGO_API_URL = "https://api.mercadopago.com";
-const MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL =
-  "https://www.mercadopago.com.ar/subscriptions/checkout";
 
 export type SubscriptionStatus =
   | "PENDING_PAYMENT"
@@ -25,8 +23,36 @@ export type MercadoPagoPreapproval = {
   last_modified?: string;
 };
 
+export type MercadoPagoAuthorizedPayment = {
+  id: number | string;
+  external_reference?: string;
+  last_modified?: string;
+  payment?: {
+    id?: number | string;
+    status?: string;
+    status_detail?: string;
+  };
+  preapproval_id?: string;
+  status?: string;
+};
+
+export type MercadoPagoPayment = {
+  id: number | string;
+  external_reference?: string;
+  metadata?: {
+    preapproval_id?: string;
+    preapprovalId?: string;
+  };
+  point_of_interaction?: {
+    transaction_data?: {
+      subscription_id?: string;
+    };
+  };
+  status?: string;
+};
+
 export function getMercadoPagoAccessToken() {
-  return process.env.MERCADOPAGO_ACCESS_TOKEN;
+  return process.env.MP_ACCESS_TOKEN;
 }
 
 export function isMercadoPagoTestMode(accessToken: string) {
@@ -64,53 +90,74 @@ export function getMercadoPagoPreapprovalPlanId(planId: CommercialPlan) {
 }
 
 export function getAppUrl() {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-    "http://localhost:3000"
-  ).replace(/\/$/, "");
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+
+  if (!appUrl) {
+    throw new Error("Falta configurar NEXT_PUBLIC_APP_URL.");
+  }
+
+  return appUrl.replace(/\/$/, "");
 }
 
 export function getSubscriptionReturnUrls() {
   const appUrl = getAppUrl();
 
   return {
-    failure: `${appUrl}/dashboard/suscripcion-error`,
-    pending: `${appUrl}/dashboard/suscripcion-pendiente`,
-    success: `${appUrl}/dashboard/suscripcion-exitosa`,
+    failure: `${appUrl}/suscripcion-error`,
+    pending: `${appUrl}/suscripcion-pendiente`,
+    success: `${appUrl}/suscripcion-exitosa`,
   };
 }
 
-export function getMercadoPagoSubscriptionCheckoutUrl(
+export async function createMercadoPagoSubscriptionPreapproval(
   planId: CommercialPlan,
   options?: {
-    backUrl?: string;
+    backUrl: string;
     externalReference?: string;
     payerEmail?: string;
   },
 ) {
+  const accessToken = getMercadoPagoAccessToken();
   const preapprovalPlanId = getMercadoPagoPreapprovalPlanId(planId);
+
+  if (!accessToken) {
+    throw new Error("Mercado Pago no esta configurado.");
+  }
 
   if (!preapprovalPlanId) {
     throw new Error("El plan no tiene checkout de suscripcion configurado.");
   }
 
-  const url = new URL(MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL);
-  url.searchParams.set("preapproval_plan_id", preapprovalPlanId);
+  const response = await fetch(`${MERCADOPAGO_API_URL}/preapproval`, {
+    body: JSON.stringify({
+      back_url: options?.backUrl,
+      external_reference: options?.externalReference,
+      payer_email: options?.payerEmail,
+      preapproval_plan_id: preapprovalPlanId,
+      reason: "Plan Independiente KineFlow",
+    }),
+    headers: getMercadoPagoHeaders(accessToken),
+    method: "POST",
+  });
+  const data = await response.json();
 
-  if (options?.backUrl) {
-    url.searchParams.set("back_url", options.backUrl);
+  if (!response.ok) {
+    throw new Error(data?.message ?? "No pudimos crear la suscripcion.");
   }
 
-  if (options?.externalReference) {
-    url.searchParams.set("external_reference", options.externalReference);
+  return data as MercadoPagoPreapproval;
+}
+
+export function getMercadoPagoCheckoutInitPoint(
+  preapproval: MercadoPagoPreapproval,
+) {
+  const accessToken = getMercadoPagoAccessToken();
+
+  if (accessToken && isMercadoPagoTestMode(accessToken)) {
+    return preapproval.sandbox_init_point ?? preapproval.init_point;
   }
 
-  if (options?.payerEmail) {
-    url.searchParams.set("payer_email", options.payerEmail);
-  }
-
-  return url.toString();
+  return preapproval.init_point ?? preapproval.sandbox_init_point;
 }
 
 export function mapMercadoPagoStatus(status?: string): SubscriptionStatus {
@@ -176,6 +223,71 @@ export async function getMercadoPagoSubscription(subscriptionId: string) {
   }
 
   return data as MercadoPagoPreapproval;
+}
+
+export async function getMercadoPagoAuthorizedPayment(authorizedPaymentId: string) {
+  const accessToken = getMercadoPagoAccessToken();
+
+  if (!accessToken) {
+    throw new Error("Mercado Pago no esta configurado.");
+  }
+
+  const response = await fetch(
+    `${MERCADOPAGO_API_URL}/authorized_payments/${authorizedPaymentId}`,
+    {
+      headers: getMercadoPagoHeaders(accessToken),
+    },
+  );
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.message ?? "No pudimos leer la factura autorizada.");
+  }
+
+  return data as MercadoPagoAuthorizedPayment;
+}
+
+export async function findMercadoPagoAuthorizedPaymentByPaymentId(
+  paymentId: string,
+) {
+  const accessToken = getMercadoPagoAccessToken();
+
+  if (!accessToken) {
+    throw new Error("Mercado Pago no esta configurado.");
+  }
+
+  const url = new URL(`${MERCADOPAGO_API_URL}/authorized_payments/search`);
+  url.searchParams.set("payment_id", paymentId);
+
+  const response = await fetch(url, {
+    headers: getMercadoPagoHeaders(accessToken),
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.message ?? "No pudimos buscar la factura autorizada.");
+  }
+
+  return (data?.results?.[0] ?? null) as MercadoPagoAuthorizedPayment | null;
+}
+
+export async function getMercadoPagoPayment(paymentId: string) {
+  const accessToken = getMercadoPagoAccessToken();
+
+  if (!accessToken) {
+    throw new Error("Mercado Pago no esta configurado.");
+  }
+
+  const response = await fetch(`${MERCADOPAGO_API_URL}/v1/payments/${paymentId}`, {
+    headers: getMercadoPagoHeaders(accessToken),
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.message ?? "No pudimos leer el pago.");
+  }
+
+  return data as MercadoPagoPayment;
 }
 
 export async function cancelMercadoPagoSubscription(subscriptionId: string) {

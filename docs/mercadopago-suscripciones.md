@@ -1,6 +1,6 @@
 # Configuracion de Mercado Pago para suscripciones
 
-Esta app usa un plan de suscripcion ya creado en Mercado Pago. El frontend redirige directo al checkout del plan y el backend solo verifica el estado real cuando Mercado Pago devuelve el `preapproval_id` o cuando llega el webhook. No se crea una `preapproval` por API.
+Esta app usa un plan de suscripcion ya creado en Mercado Pago. El backend crea la preapproval con el access token privado, redirige al `sandbox_init_point` o `init_point` devuelto por Mercado Pago y el webhook actualiza Supabase despues de consultar el recurso real.
 
 ## 1. Credenciales de prueba
 
@@ -13,7 +13,7 @@ Despues completa `.env.local`:
 
 ```bash
 NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID=a7be629d2d77468a94dac3e415d487e4
-MERCADOPAGO_ACCESS_TOKEN=TEST-tu-access-token-del-vendedor
+MP_ACCESS_TOKEN=TEST-tu-access-token-del-vendedor
 ```
 
 El access token tiene que ser del vendedor de prueba. No uses el mismo usuario para vender y comprar durante la prueba.
@@ -23,12 +23,11 @@ El access token tiene que ser del vendedor de prueba. No uses el mismo usuario p
 Tambien verifica estas variables:
 
 ```bash
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=https://qa.kineflow.ar
 SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
 ```
 
-Para probar webhooks en local, `NEXT_PUBLIC_SITE_URL` debe ser una URL publica temporal, por ejemplo la URL HTTPS de ngrok. En produccion debe ser el dominio real.
+Para QA, `NEXT_PUBLIC_APP_URL` debe ser el dominio real `https://qa.kineflow.ar`. En produccion debe ser `https://kineflow.ar`.
 
 ## 3. Base de datos
 
@@ -45,19 +44,19 @@ Esa migracion crea `plans`, `subscriptions` y `payment_events`, ademas de insert
 En la aplicacion de Mercado Pago, configura un webhook hacia:
 
 ```text
-https://tu-dominio.com/api/webhooks/mercadopago
+https://qa.kineflow.ar/api/mercadopago/webhook
 ```
 
-Para entorno local con tunel:
+Para produccion:
 
 ```text
-https://tu-url-publica.ngrok-free.app/api/webhooks/mercadopago
+https://kineflow.ar/api/mercadopago/webhook
 ```
 
-Activa los eventos de suscripciones/preapprovals. Si Mercado Pago te muestra una clave secreta de webhook, copiala en:
+Activa los eventos `subscription_preapproval`, `subscription_authorized_payment` y `payment`. Si Mercado Pago te muestra una clave secreta de webhook, copiala en:
 
 ```bash
-MERCADOPAGO_WEBHOOK_SECRET=tu-webhook-secret
+MP_WEBHOOK_SECRET=tu-webhook-secret
 ```
 
 Si esa variable esta configurada, la app valida la firma `x-signature` antes de procesar el evento.
@@ -68,20 +67,20 @@ Si esa variable esta configurada, la app valida la firma `x-signature` antes de 
 2. Entra con un usuario de KineFlow.
 3. Ve a Dashboard > Planes.
 4. Elegi un plan pago.
-5. La app redirige al checkout del plan con `preapproval_plan_id`.
+5. La app crea la preapproval y redirige al checkout devuelto por Mercado Pago.
 6. Paga usando el comprador de prueba y una tarjeta de prueba.
-7. Mercado Pago vuelve a `/suscripcion/resultado`.
-8. La app consulta `/preapproval/{id}` con el `preapproval_id` recibido.
-9. Si Mercado Pago confirma la suscripcion, la app actualiza el plan en Supabase.
+7. Mercado Pago vuelve a `/suscripcion-exitosa`, `/suscripcion-pendiente` o `/suscripcion-error`.
+8. La app consulta el estado real del usuario en Supabase.
+9. Si Mercado Pago confirma la suscripcion, el webhook actualiza el plan en Supabase.
 10. El webhook mantiene sincronizados los cambios posteriores.
 
 ## 6. Checklist antes de produccion
 
-- Cambiar `MERCADOPAGO_ACCESS_TOKEN` por el access token productivo del vendedor real.
+- Cambiar `MP_ACCESS_TOKEN` por el access token productivo del vendedor real.
 - Cambiar `NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID` por el plan productivo.
-- Usar un dominio HTTPS real en `NEXT_PUBLIC_SITE_URL`.
-- Configurar el webhook productivo con `/api/webhooks/mercadopago`.
-- Cargar `MERCADOPAGO_WEBHOOK_SECRET` si Mercado Pago lo entrega en el panel.
+- Usar `NEXT_PUBLIC_APP_URL=https://kineflow.ar`.
+- Configurar el webhook productivo con `/api/mercadopago/webhook`.
+- Cargar `MP_WEBHOOK_SECRET` si Mercado Pago lo entrega en el panel.
 - Hacer una compra real de bajo monto y confirmar que `profiles.estado_plan` queda `ACTIVO`.
 - Confirmar que cancelar desde la app cambia la suscripcion de Mercado Pago a `cancelled` o `canceled`.
 
