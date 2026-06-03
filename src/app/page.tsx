@@ -10,6 +10,7 @@ import {
   Smartphone,
   UsersRound,
 } from "lucide-react";
+import { redirect } from "next/navigation";
 import { LegalLinks } from "@/components/layout/LegalLinks";
 import { PublicNavbar } from "@/components/layout/PublicNavbar";
 import { LinkButton } from "@/components/ui/Button";
@@ -53,7 +54,18 @@ const benefits = [
 const instagramUrl = "https://www.instagram.com/kineflow.app/";
 const contactEmail = "contacto@kineflow.app";
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const preapprovalId = params?.preapproval_id;
+
+  if (typeof preapprovalId === "string" && preapprovalId) {
+    redirect(`/suscripcion-exitosa?preapproval_id=${preapprovalId}`);
+  }
+
   const featuredPlans = getVisiblePlansForMvp();
   const signupsEnabled = areSignupsEnabled();
 

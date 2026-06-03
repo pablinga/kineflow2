@@ -45,8 +45,8 @@ function getEventType(payload: Record<string, unknown>, url: URL) {
 
 function isSupportedMercadoPagoEvent(eventType: string) {
   return (
-    eventType.includes("subscription_preapproval") ||
-    eventType.includes("subscription_authorized_payment") ||
+    eventType.includes("preapproval") ||
+    eventType.includes("authorized_payment") ||
     eventType.includes("payment")
   );
 }
@@ -103,11 +103,11 @@ async function getProviderSubscriptionFromEvent(params: {
   eventType: string;
   resourceId: string;
 }) {
-  if (params.eventType.includes("subscription_preapproval")) {
+  if (params.eventType.includes("preapproval")) {
     return getMercadoPagoSubscription(params.resourceId);
   }
 
-  if (params.eventType.includes("subscription_authorized_payment")) {
+  if (params.eventType.includes("authorized_payment")) {
     const authorizedPayment = await getMercadoPagoAuthorizedPayment(
       params.resourceId,
     );

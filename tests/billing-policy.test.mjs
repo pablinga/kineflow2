@@ -201,8 +201,8 @@ test("Webhook Mercado Pago acepta eventos de suscripcion y pago por ruta publica
   const mercadoPago = fs.readFileSync("src/lib/mercadopago.ts", "utf8");
 
   assert.match(alias, /api\/webhooks\/mercadopago\/route/);
-  assert.match(webhook, /subscription_preapproval/);
-  assert.match(webhook, /subscription_authorized_payment/);
+  assert.match(webhook, /eventType\.includes\("preapproval"\)/);
+  assert.match(webhook, /eventType\.includes\("authorized_payment"\)/);
   assert.match(webhook, /includes\("payment"\)/);
   assert.match(webhook, /getProviderSubscriptionFromEvent/);
   assert.match(webhook, /getMercadoPagoAuthorizedPayment/);
@@ -213,6 +213,14 @@ test("Webhook Mercado Pago acepta eventos de suscripcion y pago por ruta publica
   assert.match(mercadoPago, /MERCADOPAGO_ACCESS_TOKEN/);
   assert.match(mercadoPago, /authorized_payments\/search/);
   assert.match(mercadoPago, /\/v1\/payments\/\$\{paymentId\}/);
+});
+
+test("Retorno accidental a home con preapproval_id redirige a post pago", () => {
+  const home = fs.readFileSync("src/app/page.tsx", "utf8");
+
+  assert.match(home, /searchParams\?: Promise/);
+  assert.match(home, /params\?\.preapproval_id/);
+  assert.match(home, /redirect\(`\/suscripcion-exitosa\?preapproval_id=\$\{preapprovalId\}`\)/);
 });
 
 test("Baja de suscripcion llama a Mercado Pago, usa la ruta publica y registra referencia", () => {
