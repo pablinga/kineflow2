@@ -12,6 +12,9 @@ import { mapAuthError, getFriendlyErrorMessage, logFriendlyError } from "@/lib/e
 import { SIGNUPS_CLOSED_MESSAGE, areSignupsEnabled } from "@/lib/signups";
 import { getSupabaseClient } from "@/lib/supabase";
 
+const ACCESS_CLOSED_MESSAGE =
+  "Por el momento el acceso se encuentra cerrado. Si querés probar KineFlow, contactanos.";
+
 export default function LoginPage() {
   const router = useRouter();
   const signupsEnabled = areSignupsEnabled();
@@ -35,6 +38,12 @@ export default function LoginPage() {
     event.preventDefault();
     setError("");
     setMessage("");
+
+    if (!signupsEnabled) {
+      setError(ACCESS_CLOSED_MESSAGE);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -103,7 +112,9 @@ export default function LoginPage() {
           <div className="mt-8">
             <h2 className="text-3xl font-bold text-ink">Ingresar</h2>
             <p className="mt-2 text-slate-600">
-              Accede a tu cuenta para continuar.
+              {signupsEnabled
+                ? "Accede a tu cuenta para continuar."
+                : ACCESS_CLOSED_MESSAGE}
             </p>
           </div>
           <form className="mt-8 space-y-5" noValidate onSubmit={handleLogin}>
@@ -113,6 +124,7 @@ export default function LoginPage() {
                 <Mail className="h-5 w-5 text-ocean-500" />
                 <input
                   className="w-full bg-transparent text-sm outline-none"
+                  disabled={!signupsEnabled}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="tu@email.com"
                   required
@@ -129,6 +141,7 @@ export default function LoginPage() {
                 <LockKeyhole className="h-5 w-5 text-ocean-500" />
                 <input
                   className="w-full bg-transparent text-sm outline-none"
+                  disabled={!signupsEnabled}
                   minLength={6}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="********"
@@ -161,7 +174,7 @@ export default function LoginPage() {
             {message ? (
               <Alert tone="info">{message}</Alert>
             ) : null}
-            <Button className="w-full" disabled={loading} type="submit">
+            <Button className="w-full" disabled={loading || !signupsEnabled} type="submit">
               {loading ? "Ingresando..." : "Entrar"}
             </Button>
           </form>

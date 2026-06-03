@@ -332,7 +332,7 @@ export default function Home() {
               <MessageSquare className="h-4 w-4" />
               Contacto
             </a>
-            <a href="/login">Ingresar</a>
+            {signupsEnabled ? <a href="/login">Ingresar</a> : null}
             {signupsEnabled ? <a href="/registro">Registrarse</a> : null}
           </div>
         </div>

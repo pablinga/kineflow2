@@ -33,9 +33,11 @@ export function PublicNavbar() {
           ))}
         </div>
         <div className="hidden items-center gap-3 md:flex">
-          <LinkButton href="/login" variant="ghost">
-            Ingresar
-          </LinkButton>
+          {signupsEnabled ? (
+            <LinkButton href="/login" variant="ghost">
+              Ingresar
+            </LinkButton>
+          ) : null}
           {signupsEnabled ? (
             <LinkButton href="/registro">Comenzar ahora</LinkButton>
           ) : null}
@@ -62,9 +64,11 @@ export function PublicNavbar() {
                 {link.label}
               </a>
             ))}
-            <LinkButton className="w-full" href="/login" variant="secondary">
-              Ingresar
-            </LinkButton>
+            {signupsEnabled ? (
+              <LinkButton className="w-full" href="/login" variant="secondary">
+                Ingresar
+              </LinkButton>
+            ) : null}
             {signupsEnabled ? (
               <LinkButton className="w-full" href="/registro">
                 Comenzar ahora

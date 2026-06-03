@@ -117,7 +117,7 @@ test("Feature flag de registro queda abierto por defecto y cierra solo con false
   }
 });
 
-test("Registro bloqueado no llama a Supabase y muestra mensaje amigable", () => {
+test("Registro y login bloqueados no llaman a Supabase y muestran mensaje amigable", () => {
   const registerPage = fs.readFileSync("src/app/registro/page.tsx", "utf8");
   const loginPage = fs.readFileSync("src/app/login/page.tsx", "utf8");
   const navbar = fs.readFileSync("src/components/layout/PublicNavbar.tsx", "utf8");
@@ -130,9 +130,14 @@ test("Registro bloqueado no llama a Supabase y muestra mensaje amigable", () => 
   assert.match(registerPage, /if \(!signupsEnabled\)[\s\S]*setError\(SIGNUPS_CLOSED_MESSAGE\)[\s\S]*return;/);
   assert.match(registerPage, /disabled=\{loading \|\| !signupsEnabled\}/);
   assert.match(registerPage, /supabase\.auth\.signUp/);
+  assert.match(loginPage, /if \(!signupsEnabled\)[\s\S]*setError\(ACCESS_CLOSED_MESSAGE\)[\s\S]*return;/);
+  assert.match(loginPage, /disabled=\{loading \|\| !signupsEnabled\}/);
+  assert.match(loginPage, /supabase\.auth\.signInWithPassword/);
   assert.match(loginPage, /signupsEnabled \?/);
   assert.match(loginPage, /SIGNUPS_CLOSED_MESSAGE/);
+  assert.match(navbar, /href="\/login"[\s\S]*Ingresar/);
   assert.match(navbar, /signupsEnabled \?/);
+  assert.match(home, /\{signupsEnabled \? <a href="\/login">Ingresar<\/a> : null\}/);
   assert.match(home, /mailto:\$\{contactEmail\}\?subject=Quiero%20probar%20KineFlow/);
 });
 
