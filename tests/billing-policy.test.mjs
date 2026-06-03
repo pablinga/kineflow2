@@ -6,6 +6,10 @@ import {
   PLAN_LIMITS,
 } from "../src/lib/billing-policy.ts";
 import { formatMonto } from "../src/lib/format.ts";
+import {
+  areSignupsEnabled,
+  SIGNUPS_CLOSED_MESSAGE,
+} from "../src/lib/signups.ts";
 
 function test(name, fn) {
   fn();
@@ -92,6 +96,44 @@ test("Registro nuevo fuerza cuenta de kinesiologo independiente", () => {
   assert.match(source, /termsOpen/);
   assert.match(source, /role="dialog"/);
   assert.match(source, /termsSections\.map/);
+});
+
+test("Feature flag de registro queda abierto por defecto y cierra solo con false literal", () => {
+  const originalValue = process.env.NEXT_PUBLIC_SIGNUPS_ENABLED;
+
+  delete process.env.NEXT_PUBLIC_SIGNUPS_ENABLED;
+  assert.equal(areSignupsEnabled(), true);
+
+  process.env.NEXT_PUBLIC_SIGNUPS_ENABLED = "true";
+  assert.equal(areSignupsEnabled(), true);
+
+  process.env.NEXT_PUBLIC_SIGNUPS_ENABLED = "false";
+  assert.equal(areSignupsEnabled(), false);
+
+  if (originalValue === undefined) {
+    delete process.env.NEXT_PUBLIC_SIGNUPS_ENABLED;
+  } else {
+    process.env.NEXT_PUBLIC_SIGNUPS_ENABLED = originalValue;
+  }
+});
+
+test("Registro bloqueado no llama a Supabase y muestra mensaje amigable", () => {
+  const registerPage = fs.readFileSync("src/app/registro/page.tsx", "utf8");
+  const loginPage = fs.readFileSync("src/app/login/page.tsx", "utf8");
+  const navbar = fs.readFileSync("src/components/layout/PublicNavbar.tsx", "utf8");
+  const home = fs.readFileSync("src/app/page.tsx", "utf8");
+
+  assert.equal(
+    SIGNUPS_CLOSED_MESSAGE,
+    "Por el momento el registro se encuentra cerrado. Si querés probar KineFlow, contactanos.",
+  );
+  assert.match(registerPage, /if \(!signupsEnabled\)[\s\S]*setError\(SIGNUPS_CLOSED_MESSAGE\)[\s\S]*return;/);
+  assert.match(registerPage, /disabled=\{loading \|\| !signupsEnabled\}/);
+  assert.match(registerPage, /supabase\.auth\.signUp/);
+  assert.match(loginPage, /signupsEnabled \?/);
+  assert.match(loginPage, /SIGNUPS_CLOSED_MESSAGE/);
+  assert.match(navbar, /signupsEnabled \?/);
+  assert.match(home, /mailto:\$\{contactEmail\}\?subject=Quiero%20probar%20KineFlow/);
 });
 
 test("Retorno de Mercado Pago no activa el plan directamente", () => {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { LinkButton } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
+import { areSignupsEnabled } from "@/lib/signups";
 
 const links = [
   { href: "#beneficios", label: "Beneficios" },
@@ -14,6 +15,7 @@ const links = [
 
 export function PublicNavbar() {
   const [open, setOpen] = useState(false);
+  const signupsEnabled = areSignupsEnabled();
 
   return (
     <header className="sticky top-0 z-50 border-b border-ocean-100 bg-white/92 backdrop-blur">
@@ -34,7 +36,9 @@ export function PublicNavbar() {
           <LinkButton href="/login" variant="ghost">
             Ingresar
           </LinkButton>
-          <LinkButton href="/registro">Comenzar ahora</LinkButton>
+          {signupsEnabled ? (
+            <LinkButton href="/registro">Comenzar ahora</LinkButton>
+          ) : null}
         </div>
         <button
           aria-label="Abrir menu"
@@ -61,9 +65,11 @@ export function PublicNavbar() {
             <LinkButton className="w-full" href="/login" variant="secondary">
               Ingresar
             </LinkButton>
-            <LinkButton className="w-full" href="/registro">
-              Comenzar ahora
-            </LinkButton>
+            {signupsEnabled ? (
+              <LinkButton className="w-full" href="/registro">
+                Comenzar ahora
+              </LinkButton>
+            ) : null}
           </div>
         </div>
       ) : null}

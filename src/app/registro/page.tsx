@@ -20,6 +20,7 @@ import {
   logFriendlyError,
   mapAuthError,
 } from "@/lib/error-messages";
+import { SIGNUPS_CLOSED_MESSAGE, areSignupsEnabled } from "@/lib/signups";
 import {
   termsIntro,
   termsLastUpdated,
@@ -39,6 +40,7 @@ type RegisterField = {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const signupsEnabled = areSignupsEnabled();
   const [fullName, setFullName] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
   const [phone, setPhone] = useState("");
@@ -66,6 +68,11 @@ export default function RegisterPage() {
     event.preventDefault();
     setError("");
     setMessage("");
+
+    if (!signupsEnabled) {
+      setError(SIGNUPS_CLOSED_MESSAGE);
+      return;
+    }
 
     if (!acceptedLegal) {
       setError("Necesitas aceptar los terminos y la politica de privacidad.");
@@ -225,8 +232,9 @@ export default function RegisterPage() {
           <div className="mt-6">
             <h1 className="text-3xl font-bold text-ink">Creá tu cuenta</h1>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Completá tus datos profesionales para empezar a gestionar tus
-              pacientes.
+              {signupsEnabled
+                ? "Completá tus datos profesionales para empezar a gestionar tus pacientes."
+                : SIGNUPS_CLOSED_MESSAGE}
             </p>
           </div>
           <form className="mt-6 space-y-4" noValidate onSubmit={handleRegister}>
@@ -313,7 +321,7 @@ export default function RegisterPage() {
 
             {error ? <Alert tone="error">{error}</Alert> : null}
             {message ? <Alert tone="success">{message}</Alert> : null}
-            <Button className="w-full" disabled={loading} type="submit">
+            <Button className="w-full" disabled={loading || !signupsEnabled} type="submit">
               {loading ? "Creando cuenta..." : "Crear cuenta"}
             </Button>
           </form>

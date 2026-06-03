@@ -15,6 +15,7 @@ import { PublicNavbar } from "@/components/layout/PublicNavbar";
 import { LinkButton } from "@/components/ui/Button";
 import { KineFlowIcon } from "@/components/ui/Logo";
 import { getVisiblePlansForMvp } from "@/lib/plans";
+import { SIGNUPS_CLOSED_MESSAGE, areSignupsEnabled } from "@/lib/signups";
 
 const benefits = [
   {
@@ -54,6 +55,7 @@ const contactEmail = "contacto@kineflow.app";
 
 export default function Home() {
   const featuredPlans = getVisiblePlansForMvp();
+  const signupsEnabled = areSignupsEnabled();
 
   return (
     <main className="min-h-screen bg-white text-ink">
@@ -75,10 +77,20 @@ export default function Home() {
               cualquier dispositivo.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <LinkButton href="/registro">
-                Comenzar ahora
-                <ArrowRight className="h-4 w-4" />
-              </LinkButton>
+              {signupsEnabled ? (
+                <LinkButton href="/registro">
+                  Comenzar ahora
+                  <ArrowRight className="h-4 w-4" />
+                </LinkButton>
+              ) : (
+                <LinkButton
+                  href={`mailto:${contactEmail}?subject=Quiero%20probar%20KineFlow`}
+                  variant="secondary"
+                >
+                  Contactanos
+                  <ArrowRight className="h-4 w-4" />
+                </LinkButton>
+              )}
               <LinkButton href="#planes" variant="secondary">
                 Ver plan
               </LinkButton>
@@ -237,13 +249,23 @@ export default function Home() {
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   {plan.audience}
                 </p>
-                <LinkButton
-                  className="mt-5 w-full"
-                  href={plan.href}
-                  variant={plan.recommended ? "primary" : "secondary"}
-                >
-                  {plan.cta}
-                </LinkButton>
+                {signupsEnabled ? (
+                  <LinkButton
+                    className="mt-5 w-full"
+                    href={plan.href}
+                    variant={plan.recommended ? "primary" : "secondary"}
+                  >
+                    {plan.cta}
+                  </LinkButton>
+                ) : (
+                  <LinkButton
+                    className="mt-5 w-full"
+                    href={`mailto:${contactEmail}?subject=Quiero%20probar%20KineFlow`}
+                    variant="secondary"
+                  >
+                    Contactanos
+                  </LinkButton>
+                )}
               </article>
             ))}
           </div>
@@ -262,13 +284,23 @@ export default function Home() {
               evolucion y cobros desde una interfaz preparada para celular.
             </p>
           </div>
-          <LinkButton
-            href="/registro"
-            variant="inverted"
-            className="shrink-0 px-6"
-          >
-            Crear cuenta gratis
-          </LinkButton>
+          {signupsEnabled ? (
+            <LinkButton
+              href="/registro"
+              variant="inverted"
+              className="shrink-0 px-6"
+            >
+              Crear cuenta gratis
+            </LinkButton>
+          ) : (
+            <LinkButton
+              href={`mailto:${contactEmail}?subject=Quiero%20probar%20KineFlow`}
+              variant="inverted"
+              className="shrink-0 px-6"
+            >
+              Contactanos
+            </LinkButton>
+          )}
         </div>
       </section>
 
@@ -301,9 +333,14 @@ export default function Home() {
               Contacto
             </a>
             <a href="/login">Ingresar</a>
-            <a href="/registro">Registrarse</a>
+            {signupsEnabled ? <a href="/registro">Registrarse</a> : null}
           </div>
         </div>
+        {signupsEnabled ? null : (
+          <div className="mx-auto mt-6 max-w-7xl rounded-lg border border-ocean-100 bg-ocean-50 px-4 py-3 text-sm font-semibold text-ocean-800">
+            {SIGNUPS_CLOSED_MESSAGE}
+          </div>
+        )}
         <div className="mx-auto mt-8 max-w-7xl text-xs text-slate-500">
           <LegalLinks />
           <p className="mt-4">Ambiente QA / Preview</p>

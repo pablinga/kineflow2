@@ -9,10 +9,12 @@ import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { mapAuthError, getFriendlyErrorMessage, logFriendlyError } from "@/lib/error-messages";
+import { SIGNUPS_CLOSED_MESSAGE, areSignupsEnabled } from "@/lib/signups";
 import { getSupabaseClient } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
+  const signupsEnabled = areSignupsEnabled();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -163,12 +165,18 @@ export default function LoginPage() {
               {loading ? "Ingresando..." : "Entrar"}
             </Button>
           </form>
-          <p className="mt-6 text-center text-sm text-slate-600">
-            No tenes cuenta?{" "}
-            <Link className="font-semibold text-ocean-700" href="/registro">
-              Crear cuenta
-            </Link>
-          </p>
+          {signupsEnabled ? (
+            <p className="mt-6 text-center text-sm text-slate-600">
+              No tenes cuenta?{" "}
+              <Link className="font-semibold text-ocean-700" href="/registro">
+                Crear cuenta
+              </Link>
+            </p>
+          ) : (
+            <Alert tone="info" className="mt-6">
+              {SIGNUPS_CLOSED_MESSAGE}
+            </Alert>
+          )}
           <LegalLinks className="mt-6 justify-center text-xs text-slate-500" />
         </div>
       </section>
