@@ -1,6 +1,8 @@
 import type { CommercialPlan } from "@/lib/plans";
 
 const MERCADOPAGO_API_URL = "https://api.mercadopago.com";
+const MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL =
+  "https://www.mercadopago.com.ar/subscriptions/checkout";
 
 export type SubscriptionStatus =
   | "PENDING_PAYMENT"
@@ -109,55 +111,40 @@ export function getSubscriptionReturnUrls() {
   };
 }
 
-export async function createMercadoPagoSubscriptionPreapproval(
+export function getMercadoPagoSubscriptionCheckoutUrl(
   planId: CommercialPlan,
   options?: {
-    backUrl: string;
+    backUrl?: string;
     externalReference?: string;
     payerEmail?: string;
   },
 ) {
-  const accessToken = getMercadoPagoAccessToken();
   const preapprovalPlanId = getMercadoPagoPreapprovalPlanId(planId);
-
-  if (!accessToken) {
-    throw new Error("Mercado Pago no esta configurado.");
-  }
 
   if (!preapprovalPlanId) {
     throw new Error("El plan no tiene checkout de suscripcion configurado.");
   }
 
-  const response = await fetch(`${MERCADOPAGO_API_URL}/preapproval`, {
-    body: JSON.stringify({
-      back_url: options?.backUrl,
-      external_reference: options?.externalReference,
-      payer_email: options?.payerEmail,
-      preapproval_plan_id: preapprovalPlanId,
-      reason: "Plan Independiente KineFlow",
-    }),
-    headers: getMercadoPagoHeaders(accessToken),
-    method: "POST",
-  });
-  const data = await response.json();
+  const url = new URL(MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL);
+  url.searchParams.set("preapproval_plan_id", preapprovalPlanId);
 
-  if (!response.ok) {
-    throw new Error(data?.message ?? "No pudimos crear la suscripcion.");
+  if (options?.backUrl) {
+    url.searchParams.set("back_url", options.backUrl);
   }
 
-  return data as MercadoPagoPreapproval;
+  if (options?.externalReference) {
+    url.searchParams.set("external_reference", options.externalReference);
+  }
+
+  if (options?.payerEmail) {
+    url.searchParams.set("payer_email", options.payerEmail);
+  }
+
+  return url.toString();
 }
 
-export function getMercadoPagoCheckoutInitPoint(
-  preapproval: MercadoPagoPreapproval,
-) {
-  const accessToken = getMercadoPagoAccessToken();
-
-  if (accessToken && isMercadoPagoTestMode(accessToken)) {
-    return preapproval.sandbox_init_point ?? preapproval.init_point;
-  }
-
-  return preapproval.init_point ?? preapproval.sandbox_init_point;
+export function getMercadoPagoCheckoutInitPoint(initPoint: string) {
+  return initPoint;
 }
 
 export function mapMercadoPagoStatus(status?: string): SubscriptionStatus {

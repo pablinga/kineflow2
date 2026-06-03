@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  createMercadoPagoSubscriptionPreapproval,
   getMercadoPagoCheckoutInitPoint,
+  getMercadoPagoSubscriptionCheckoutUrl,
   getSubscriptionReturnUrls,
 } from "@/lib/mercadopago";
 import type { CommercialPlan } from "@/lib/plans";
@@ -47,12 +47,12 @@ export async function POST(request: Request) {
 
   const returnUrls = getSubscriptionReturnUrls();
   const externalReference = `${user.id}:${planId}:${crypto.randomUUID()}`;
-  const preapproval = await createMercadoPagoSubscriptionPreapproval(planId, {
+  const checkoutUrl = getMercadoPagoSubscriptionCheckoutUrl(planId, {
     backUrl: returnUrls.success,
     externalReference,
     payerEmail: user.email,
   });
-  const initPoint = getMercadoPagoCheckoutInitPoint(preapproval);
+  const initPoint = getMercadoPagoCheckoutInitPoint(checkoutUrl);
 
   if (!initPoint) {
     return NextResponse.json(
@@ -66,7 +66,6 @@ export async function POST(request: Request) {
     externalReference,
     initPoint,
     planId,
-    preapprovalId: preapproval.id,
     returnUrlSent: returnUrls.success,
     returnUrls,
     userEmail: user.email,
@@ -75,7 +74,6 @@ export async function POST(request: Request) {
   return NextResponse.json({
     externalReference,
     initPoint,
-    preapprovalId: preapproval.id,
     returnUrls,
   });
 }
