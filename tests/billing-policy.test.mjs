@@ -207,11 +207,9 @@ test("Webhook Mercado Pago acepta eventos de suscripcion y pago por ruta publica
   assert.match(webhook, /getMercadoPagoAuthorizedPayment/);
   assert.match(webhook, /findMercadoPagoAuthorizedPaymentByPaymentId/);
   assert.match(webhook, /getMercadoPagoPayment/);
-  assert.match(webhook, /MP_WEBHOOK_SECRET/);
+  assert.match(webhook, /MERCADOPAGO_WEBHOOK_SECRET/);
   assert.match(webhook, /processingError: true/);
-  assert.match(mercadoPago, /MP_ACCESS_TOKEN/);
-  assert.doesNotMatch(mercadoPago, /MERCADOPAGO_ACCESS_TOKEN/);
-  assert.doesNotMatch(webhook, /MERCADOPAGO_WEBHOOK_SECRET/);
+  assert.match(mercadoPago, /MERCADOPAGO_ACCESS_TOKEN/);
   assert.match(mercadoPago, /authorized_payments\/search/);
   assert.match(mercadoPago, /\/v1\/payments\/\$\{paymentId\}/);
 });

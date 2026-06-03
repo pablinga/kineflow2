@@ -13,7 +13,7 @@ Despues completa `.env.local`:
 
 ```bash
 NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID=a7be629d2d77468a94dac3e415d487e4
-MP_ACCESS_TOKEN=TEST-tu-access-token-del-vendedor
+MERCADOPAGO_ACCESS_TOKEN=TEST-tu-access-token-del-vendedor
 ```
 
 El access token tiene que ser del vendedor de prueba. No uses el mismo usuario para vender y comprar durante la prueba.
@@ -56,7 +56,7 @@ https://kineflow.ar/api/mercadopago/webhook
 Activa los eventos `subscription_preapproval`, `subscription_authorized_payment` y `payment`. Si Mercado Pago te muestra una clave secreta de webhook, copiala en:
 
 ```bash
-MP_WEBHOOK_SECRET=tu-webhook-secret
+MERCADOPAGO_WEBHOOK_SECRET=tu-webhook-secret
 ```
 
 Si esa variable esta configurada, la app valida la firma `x-signature` antes de procesar el evento.
@@ -76,11 +76,11 @@ Si esa variable esta configurada, la app valida la firma `x-signature` antes de 
 
 ## 6. Checklist antes de produccion
 
-- Cambiar `MP_ACCESS_TOKEN` por el access token productivo del vendedor real.
+- Cambiar `MERCADOPAGO_ACCESS_TOKEN` por el access token productivo del vendedor real.
 - Cambiar `NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID` por el plan productivo.
 - Usar `NEXT_PUBLIC_APP_URL=https://kineflow.ar`.
 - Configurar el webhook productivo con `/api/mercadopago/webhook`.
-- Cargar `MP_WEBHOOK_SECRET` si Mercado Pago lo entrega en el panel.
+- Cargar `MERCADOPAGO_WEBHOOK_SECRET` si Mercado Pago lo entrega en el panel.
 - Hacer una compra real de bajo monto y confirmar que `profiles.estado_plan` queda `ACTIVO`.
 - Confirmar que cancelar desde la app cambia la suscripcion de Mercado Pago a `cancelled` o `canceled`.
 

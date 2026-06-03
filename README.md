@@ -39,12 +39,12 @@ Para habilitar suscripciones con Mercado Pago, agrega estas variables:
 
 ```bash
 NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID=a7be629d2d77468a94dac3e415d487e4
-MP_ACCESS_TOKEN=TEST-tu-token
-MP_WEBHOOK_SECRET=tu-secreto-si-lo-configuras
+MERCADOPAGO_ACCESS_TOKEN=TEST-tu-token
+MERCADOPAGO_WEBHOOK_SECRET=tu-secreto-si-lo-configuras
 SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
 ```
 
-El boton interno de upgrade crea una preapproval server-side con `MP_ACCESS_TOKEN`, usa `NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID` y redirige al `sandbox_init_point` o `init_point` devuelto por Mercado Pago. Al volver a `/suscripcion-exitosa`, el backend consulta el estado real en Supabase. El webhook `/api/mercadopago/webhook` mantiene el estado sincronizado ante cambios posteriores.
+El boton interno de upgrade crea una preapproval server-side con `MERCADOPAGO_ACCESS_TOKEN`, usa `NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID` y redirige al `sandbox_init_point` o `init_point` devuelto por Mercado Pago. Al volver a `/suscripcion-exitosa`, el backend consulta el estado real en Supabase. El webhook `/api/mercadopago/webhook` mantiene el estado sincronizado ante cambios posteriores.
 
 Pendiente para produccion real: configurar credenciales definitivas, URL publica de webhook, validacion completa de firma de Mercado Pago segun el panel usado, y probar pagos sandbox/end-to-end antes de cobrar.
 

@@ -69,7 +69,7 @@ function signaturesMatch(expected: string, received: string) {
 }
 
 function verifyMercadoPagoWebhookSignature(request: Request, url: URL) {
-  const secret = process.env.MP_WEBHOOK_SECRET?.trim();
+  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET?.trim();
 
   if (!secret) {
     return true;
