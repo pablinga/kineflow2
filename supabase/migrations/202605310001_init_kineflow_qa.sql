@@ -1,4 +1,4 @@
-create extension if not exists pgcrypto;
+﻿create extension if not exists pgcrypto;
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -537,7 +537,7 @@ begin
         and status = 'active';
 
       if active_patients >= coalesce(patient_limit, 5) then
-        raise exception 'El Plan Free permite hasta 5 pacientes. Para seguir agregando pacientes, activa el Plan Independiente.';
+        raise exception 'El Plan Free permite hasta 5 pacientes. Para seguir agregando pacientes, activa KineFlow - Particular.';
       end if;
 
       return new;
@@ -684,8 +684,8 @@ create trigger set_subscriptions_updated_at before update on public.subscription
 
 insert into public.plans (code, name, description, account_type, price, currency, billing_period, max_patients, max_professionals, features)
 values
-  ('FREE', 'Plan Free', 'Para kinesiologos que quieren probar KineFlow o trabajar operativamente para consultorios.', 'KINESIOLOGO', 0, 'ARS', 'free', 5, null, '["Hasta 5 pacientes propios", "Agenda basica", "Evoluciones basicas", "Invitaciones de consultorios"]'::jsonb),
-  ('INDEPENDIENTE', 'Plan Independiente', 'Para kinesiologos con practica particular propia.', 'KINESIOLOGO', 14900, 'ARS', 'month', null, null, '["Pacientes propios", "Turnos propios", "Evoluciones propias", "Cobros propios", "Agenda unificada"]'::jsonb),
+  ('FREE', 'Plan Free', 'Proba KineFlow con una cantidad limitada de pacientes y empeza a ordenar tu practica profesional.', 'KINESIOLOGO', 0, 'ARS', 'free', 5, null, '["Hasta 5 pacientes", "Agenda basica", "Registro basico de evoluciones", "Ideal para probar la herramienta"]'::jsonb),
+  ('INDEPENDIENTE', 'KineFlow - Particular', 'Para kinesiologos que trabajan de forma independiente y quieren organizar su agenda, pacientes, sesiones y cobros desde un solo lugar.', 'KINESIOLOGO', 15000, 'ARS', 'month', null, null, '["Pacientes ilimitados", "Agenda simple para organizar turnos", "Registro de sesiones por paciente", "Evolucion de cada tratamiento", "Control de cobros y pagos pendientes", "Informacion ordenada y facil de consultar", "Pensado para usar desde el celular"]'::jsonb),
   ('CONSULTORIO_2', 'Plan Consultorio 2', 'Para consultorios con hasta 2 kinesiologos activos.', 'CONSULTORIO', 29900, 'ARS', 'month', null, 2, '["Pacientes del consultorio", "Agenda multi-profesional", "Invitacion de kinesiologos", "Ingresos del consultorio"]'::jsonb),
   ('CONSULTORIO_5', 'Plan Consultorio 5', 'Para consultorios con hasta 5 kinesiologos activos.', 'CONSULTORIO', 49900, 'ARS', 'month', null, 5, '["Pacientes del consultorio", "Agenda multi-profesional", "Invitacion de kinesiologos", "Ingresos del consultorio"]'::jsonb),
   ('CONSULTORIO_10', 'Plan Consultorio 10', 'Para consultorios con hasta 10 kinesiologos activos.', 'CONSULTORIO', 79900, 'ARS', 'month', null, 10, '["Pacientes del consultorio", "Agenda multi-profesional", "Invitacion de kinesiologos", "Ingresos del consultorio"]'::jsonb)

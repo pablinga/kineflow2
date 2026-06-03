@@ -289,7 +289,7 @@ begin
   where profiles.id = new.owner_id;
 
   if current_account_type = 'KINESIOLOGO' and coalesce(current_plan, 'FREE') <> 'INDEPENDIENTE' then
-    raise exception 'Esta funcionalidad está disponible en el Plan Independiente. Podés activarlo para gestionar tus pacientes, turnos y cobros propios.';
+    raise exception 'Esta funcionalidad está disponible en KineFlow - Particular. Podés activarlo para gestionar tus pacientes, turnos y cobros propios.';
   end if;
 
   if current_account_type = 'KINESIOLOGO' and coalesce(current_plan, 'FREE') = 'FREE' then

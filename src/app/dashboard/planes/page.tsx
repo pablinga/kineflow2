@@ -13,7 +13,7 @@ import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { isPlanAllowedForAccount } from "@/lib/billing";
 import { getFriendlyErrorMessage, logFriendlyError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
-import { plans, type CommercialPlan } from "@/lib/plans";
+import { getPlanDisplayName, plans, type CommercialPlan } from "@/lib/plans";
 
 export default function PlansPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
@@ -55,6 +55,7 @@ export default function PlansPage() {
   const visiblePlans = plans.filter((item) =>
     isPlanAllowedForAccount(item.id, accountType),
   );
+  const currentPlanName = getPlanDisplayName(plan.plan);
   const canCancelSubscription =
     plan.plan === "INDEPENDIENTE" &&
     plan.estadoPlan === "ACTIVO" &&
@@ -63,7 +64,7 @@ export default function PlansPage() {
   async function handleCheckout(planId: CommercialPlan) {
     setSelectedPlan(planId);
     setCheckoutError("");
-    setCheckoutMessage("Te estamos llevando a Mercado Pago para completar la suscripcion.");
+    setCheckoutMessage("Te estamos llevando a Mercado Pago para activar KineFlow - Particular.");
 
     if (planId === plan.plan) {
       setCheckoutMessage("");
@@ -166,9 +167,9 @@ export default function PlansPage() {
           <PageHeader
             description={
               <>
-                Actualmente estás usando el Plan {plan.plan}. Para gestionar tu
-                práctica independiente sin límites de pacientes, activá el Plan
-                Independiente.
+                Actualmente estás usando {currentPlanName}. Para gestionar tu
+                práctica profesional sin límites de pacientes, activá KineFlow -
+                Particular.
               </>
             }
             eyebrow="Plan"
@@ -179,8 +180,8 @@ export default function PlansPage() {
             <section className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 p-4">
               <p className="font-bold text-emerald-900">
                 {plan.estadoPlan === "ACTIVO"
-                  ? `Plan activo: ${plan.plan}`
-                  : `Plan actual: ${plan.plan}`}
+                  ? `Plan activo: ${currentPlanName}`
+                  : `Plan actual: ${currentPlanName}`}
               </p>
               <p className="mt-1 text-sm leading-6 text-emerald-800">
                 {plan.estadoPlan === "ACTIVO"
@@ -199,7 +200,7 @@ export default function PlansPage() {
 
           <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
-              ["Plan actual", plan.plan],
+              ["Plan actual", currentPlanName],
               ["Estado", plan.estadoPlan],
               [
                 "Limite de pacientes",
@@ -222,7 +223,7 @@ export default function PlansPage() {
           {reachedFreeLimit ? (
             <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
               Llegaste al limite de 5 pacientes del Plan Free. Para cargar
-              nuevos pacientes, activa el Plan Independiente.
+              nuevos pacientes, activá KineFlow - Particular.
             </section>
           ) : null}
 
@@ -339,7 +340,7 @@ export default function PlansPage() {
           <section className="w-full max-w-md rounded-lg bg-white p-6 shadow-2xl">
             <h2 className="text-xl font-bold text-ink">Cancelar suscripcion</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              Vamos a solicitar la baja del Plan Independiente en Mercado Pago y
+              Vamos a solicitar la baja de KineFlow - Particular en Mercado Pago y
               registrar la gestion en KineFlow. Vas a recibir una referencia de
               baja al finalizar.
             </p>

@@ -46,7 +46,7 @@ const benefits = [
   },
   {
     icon: Smartphone,
-    title: "Mobile-first",
+    title: "Desde el celular",
     text: "Pensado para usar entre turnos, sin sobrecarga administrativa.",
   },
 ];

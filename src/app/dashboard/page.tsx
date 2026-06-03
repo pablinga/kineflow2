@@ -30,6 +30,7 @@ import {
   paymentStatusStyles,
 } from "@/lib/payment-ui";
 import { formatSessionAmount } from "@/lib/format";
+import { getPlanDisplayName } from "@/lib/plans";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
@@ -88,6 +89,8 @@ export default function DashboardPage() {
   ) {
     return <DashboardLoading />;
   }
+
+  const currentPlanName = getPlanDisplayName(plan.plan);
 
   const upcomingAppointments = [...appointments]
     .filter(isUpcomingActiveAppointment)
@@ -256,8 +259,8 @@ export default function DashboardPage() {
                 <div>
                   <p className="font-bold text-emerald-950">
                     {plan.estadoPlan === "ACTIVO"
-                      ? `Plan activo: ${plan.plan}`
-                      : `Plan actual: ${plan.plan}`}
+                      ? `Plan activo: ${currentPlanName}`
+                      : `Plan actual: ${currentPlanName}`}
                   </p>
                   <p className="mt-1 text-sm leading-6 text-emerald-800">
                     {plan.estadoPlan === "ACTIVO"

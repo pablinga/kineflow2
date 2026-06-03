@@ -8,6 +8,7 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { getFriendlyErrorMessage, logFriendlyError } from "@/lib/error-messages";
+import { getPlanDisplayName, type CommercialPlan } from "@/lib/plans";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
@@ -62,6 +63,9 @@ export function SubscriptionReturnPage({
   const isActive =
     subscriptionStatus?.plan === "INDEPENDIENTE" &&
     subscriptionStatus.status === "ACTIVO";
+  const planName = subscriptionStatus
+    ? getPlanDisplayName(subscriptionStatus.plan as CommercialPlan)
+    : null;
 
   useEffect(() => {
     let mounted = true;
@@ -171,7 +175,7 @@ export function SubscriptionReturnPage({
             <div className="mt-5 rounded-lg bg-ocean-50 p-4 text-left text-sm text-slate-700">
               <p>
                 <span className="font-semibold text-ink">Plan:</span>{" "}
-                {subscriptionStatus.plan}
+                {planName}
               </p>
               <p className="mt-1">
                 <span className="font-semibold text-ink">Estado:</span>{" "}

@@ -40,7 +40,7 @@ test("Plan Free permite crear pacientes hasta el limite configurado", () => {
   );
 });
 
-test("Plan Independiente habilita pacientes propios sin limite", () => {
+test("KineFlow Particular habilita pacientes propios sin limite", () => {
   assert.equal(
     canCreatePatientByPolicy({
       accountType: "KINESIOLOGO",
@@ -70,7 +70,7 @@ test("Con el feature flag apagado no se muestran planes de consultorio", () => {
 });
 
 test("Los montos se muestran con separador de miles argentino", () => {
-  assert.equal(formatMonto(14900), "$ 14.900");
+  assert.equal(formatMonto(15000), "$ 15.000");
   assert.equal(formatMonto(20000), "$ 20.000");
 });
 
@@ -85,6 +85,36 @@ test("Landing MVP1 habla solo a kinesiologos independientes", () => {
   assert.match(button, /inverted:/);
   assert.doesNotMatch(source, /consultorios/i);
   assert.doesNotMatch(source, /clinicas/i);
+});
+
+test("Planes comerciales muestran nombre, precio y copy actualizado", () => {
+  const plans = fs.readFileSync("src/lib/plans.ts", "utf8");
+  const planesPage = fs.readFileSync("src/app/dashboard/planes/page.tsx", "utf8");
+  const migrations = [
+    "supabase/migrations/202605270004_add_mercadopago_subscriptions.sql",
+    "supabase/migrations/202605310001_init_kineflow_qa.sql",
+  ].map((path) => fs.readFileSync(path, "utf8")).join("\n");
+
+  assert.match(plans, /INDEPENDENT_PLAN_PRICE = 15000/);
+  assert.match(plans, /name: "KineFlow - Particular"/);
+  assert.match(plans, /price: `\$\{formatMonto\(INDEPENDENT_PLAN_PRICE\)\}\/mes`/);
+  assert.match(plans, /Pacientes ilimitados/);
+  assert.match(plans, /Pensado para usar desde el celular/);
+  assert.match(plans, /Ideal para probar la herramienta/);
+  assert.match(planesPage, /getPlanDisplayName/);
+  assert.match(migrations, /KineFlow - Particular/);
+  assert.match(migrations, /15000/);
+
+  [plans, planesPage, migrations].forEach((source) => {
+    const technicalCopy = `${"mobile"}-${"first"}`;
+
+    assert.doesNotMatch(source, new RegExp(`Plan ${"Independiente"}`));
+    assert.doesNotMatch(source, new RegExp(`149${"00"}|14\\.900`));
+    assert.doesNotMatch(
+      source,
+      new RegExp(`Diseno ${technicalCopy}|Diseño ${technicalCopy}|${technicalCopy}`, "i"),
+    );
+  });
 });
 
 test("Registro nuevo fuerza cuenta de kinesiologo independiente", () => {
@@ -190,7 +220,7 @@ test("Post pago consulta Supabase antes de mostrar Plan activo", () => {
   assert.match(rootSuccess, /SubscriptionReturnPage kind="success"/);
 });
 
-test("Webhook valida Plan Independiente y mail posterior a activacion", () => {
+test("Webhook valida KineFlow Particular y mail posterior a activacion", () => {
   const webhook = fs.readFileSync("src/app/api/webhooks/mercadopago/route.ts", "utf8");
   const billingServer = fs.readFileSync("src/lib/billing-server.ts", "utf8");
 

@@ -58,7 +58,7 @@ export function SuccessContent() {
           setState(isActive ? "active" : "pending");
           setMessage(
             isActive
-              ? "Tu Plan Independiente esta activo."
+              ? "KineFlow - Particular esta activo."
               : "La confirmacion puede demorar unos instantes. Si Mercado Pago ya aprobo la suscripcion, el webhook la va a activar automaticamente.",
           );
         }

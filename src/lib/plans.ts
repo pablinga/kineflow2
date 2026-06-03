@@ -27,7 +27,7 @@ export type PlanDefinition = {
 };
 
 export const FREE_PATIENT_LIMIT = 5;
-export const INDEPENDENT_PLAN_PRICE = 14900;
+export const INDEPENDENT_PLAN_PRICE = 15000;
 export const CONSULTORIO_2_PRICE = 29900;
 export const CONSULTORIO_5_PRICE = 49900;
 export const CONSULTORIO_10_PRICE = 79900;
@@ -40,12 +40,12 @@ export const plans: PlanDefinition[] = [
     priceAmount: 0,
     limit: `Hasta ${FREE_PATIENT_LIMIT} pacientes`,
     audience:
-      "Proba KineFlow con una cantidad limitada de pacientes y empeza a ordenar tu practica independiente.",
+      "Proba KineFlow con una cantidad limitada de pacientes y empeza a ordenar tu practica profesional.",
     features: [
-      "Hasta 5 pacientes propios",
+      "Hasta 5 pacientes",
       "Agenda basica",
       "Registro basico de evoluciones",
-      "Entrada inicial para kinesiologos independientes",
+      "Ideal para probar la herramienta",
     ],
     cta: "Comenzar gratis",
     href: "/registro?plan=FREE",
@@ -55,20 +55,20 @@ export const plans: PlanDefinition[] = [
   },
   {
     id: "INDEPENDIENTE",
-    name: "Plan Independiente",
+    name: "KineFlow - Particular",
     price: `${formatMonto(INDEPENDENT_PLAN_PRICE)}/mes`,
     priceAmount: INDEPENDENT_PLAN_PRICE,
     limit: "Pacientes ilimitados",
     audience:
-      "Para kinesiologos independientes que necesitan gestionar pacientes, turnos, sesiones, evolucion y cobros.",
+      "Para kinesiologos que trabajan de forma independiente y quieren organizar su agenda, pacientes, sesiones y cobros desde un solo lugar.",
     features: [
-      "Pacientes propios ilimitados",
-      "Agenda simple y clara",
-      "Historial de pacientes",
-      "Evolucion por tratamiento",
+      "Pacientes ilimitados",
+      "Agenda simple para organizar turnos",
       "Registro de sesiones",
-      "Control de cobros por sesion",
-      "Diseno mobile-first",
+      "Evolucion de cada tratamiento",
+      "Control de cobros y pagos pendientes",
+      "Informacion ordenada y facil de consultar",
+      "Pensado para usar desde el celular",
     ],
     cta: "Activar plan",
     href: "/registro?plan=INDEPENDIENTE",
@@ -149,6 +149,10 @@ export const defaultPlan = {
 
 export function getPlanDefinition(plan: CommercialPlan) {
   return plans.find((item) => item.id === plan) ?? plans[0];
+}
+
+export function getPlanDisplayName(plan: CommercialPlan) {
+  return getPlanDefinition(plan).name;
 }
 
 export function getPatientLimit(plan: CommercialPlan) {

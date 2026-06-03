@@ -603,7 +603,7 @@ export default function AppointmentsPage() {
             <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm">
               Con el Plan Free podés probar KineFlow con hasta 5 pacientes.
               Para programar turnos propios y gestionar pacientes ilimitados,
-              activá el Plan Independiente.
+              activá KineFlow - Particular.
             </section>
           ) : null}
 

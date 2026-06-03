@@ -7,7 +7,7 @@ export default function CancellationPage() {
       sections={[
         {
           title: "Solicitud desde KineFlow",
-          body: "La baja del Plan Independiente debe poder solicitarse desde la cuenta del usuario, en la seccion Plan / Suscripcion.",
+          body: "La baja de KineFlow - Particular debe poder solicitarse desde la cuenta del usuario, en la seccion Plan / Suscripcion.",
         },
         {
           title: "Confirmacion",

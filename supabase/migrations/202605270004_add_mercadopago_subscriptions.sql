@@ -1,4 +1,4 @@
-create table if not exists public.plans (
+﻿create table if not exists public.plans (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
   name text not null,
@@ -89,26 +89,26 @@ values
   (
     'FREE',
     'Plan Free',
-    'Para kinesiólogos que quieren probar KineFlow o trabajar operativamente para consultorios.',
+    'Proba KineFlow con una cantidad limitada de pacientes y empeza a ordenar tu practica profesional.',
     'KINESIOLOGO',
     0,
     'ARS',
     'free',
     5,
     null,
-    '["Hasta 5 pacientes propios", "Agenda básica", "Evoluciones básicas", "Invitaciones de consultorios"]'::jsonb
+    '["Hasta 5 pacientes", "Agenda basica", "Registro basico de evoluciones", "Ideal para probar la herramienta"]'::jsonb
   ),
   (
     'INDEPENDIENTE',
-    'Plan Independiente',
-    'Para kinesiólogos con práctica particular propia.',
+    'KineFlow - Particular',
+    'Para kinesiologos que trabajan de forma independiente y quieren organizar su agenda, pacientes, sesiones y cobros desde un solo lugar.',
     'KINESIOLOGO',
-    14900,
+    15000,
     'ARS',
     'month',
     null,
     null,
-    '["Pacientes propios", "Turnos propios", "Evoluciones propias", "Cobros propios", "Agenda unificada"]'::jsonb
+    '["Pacientes ilimitados", "Agenda simple para organizar turnos", "Registro de sesiones por paciente", "Evolucion de cada tratamiento", "Control de cobros y pagos pendientes", "Informacion ordenada y facil de consultar", "Pensado para usar desde el celular"]'::jsonb
   ),
   (
     'CONSULTORIO_2',

@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
   if (planId !== "INDEPENDIENTE") {
     return NextResponse.json(
-      { error: "El MVP1 solo permite activar el Plan Independiente." },
+      { error: "El MVP1 solo permite activar KineFlow - Particular." },
       { status: 400 },
     );
   }

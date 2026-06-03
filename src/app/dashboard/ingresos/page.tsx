@@ -93,7 +93,7 @@ export default function IncomePage() {
               Ingresos propios bloqueados
             </h1>
             <p className="mt-2 leading-6 text-amber-800">
-              Esta funcionalidad está disponible en el Plan Independiente.
+              Esta funcionalidad está disponible en KineFlow - Particular.
               Podés activárlo para gestionar tus pacientes, turnos y cobros
               propios.
             </p>

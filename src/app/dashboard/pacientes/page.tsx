@@ -107,7 +107,7 @@ export default function PatientsPage() {
     plan.limitePacientes >= 0 &&
     activePatients.length >= plan.limitePacientes;
   const independentPlanMessage =
-    "Esta funcionalidad está disponible en el Plan Independiente. Podés activárlo para gestionar tus pacientes, turnos y cobros propios.";
+    "Esta funcionalidad está disponible en KineFlow - Particular. Podés activarlo para gestionar tus pacientes, turnos y cobros propios.";
 
   function updateField(field: keyof NewPatientInput, value: string) {
     setNewPatient((current) => ({ ...current, [field]: value }));
@@ -122,7 +122,7 @@ export default function PatientsPage() {
       if (!canCreateCurrentPatient) {
         setActionError(
           freeLimitReached
-            ? "Alcanzaste el límite del plan Free. El plan Free permite cargar hasta 5 pacientes. Para seguir agregando pacientes, activá el Plan Independiente."
+            ? "Alcanzaste el límite del plan Free. El plan Free permite cargar hasta 5 pacientes. Para seguir agregando pacientes, activá KineFlow - Particular."
             : clinicPracticeBlocked
               ? "Para gestionar pacientes necesitás una suscripción activa."
               : independentPlanMessage,
@@ -169,7 +169,7 @@ export default function PatientsPage() {
                 if (!canCreateCurrentPatient) {
                   setActionError(
                     freeLimitReached
-                      ? "Alcanzaste el límite del plan Free. El plan Free permite cargar hasta 5 pacientes. Para seguir agregando pacientes, activá el Plan Independiente."
+                      ? "Alcanzaste el límite del plan Free. El plan Free permite cargar hasta 5 pacientes. Para seguir agregando pacientes, activá KineFlow - Particular."
                       : clinicPracticeBlocked
                         ? "Para gestionar pacientes necesitás una suscripción activa."
                         : independentPlanMessage,

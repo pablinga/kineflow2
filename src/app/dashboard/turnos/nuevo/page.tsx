@@ -105,7 +105,7 @@ export default function NewAppointmentPage() {
     accountType === "CONSULTORIO" &&
     !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));
   const independentPlanMessage =
-    "Esta funcionalidad está disponible en el Plan Independiente. Podés activárlo para gestionar tus pacientes, turnos y cobros propios.";
+    "Esta funcionalidad está disponible en KineFlow - Particular. Podés activarlo para gestionar tus pacientes, turnos y cobros propios.";
 
   const preselectedPatient = activePatients.find(
     (patient) => patient.id === patientFromUrl,

@@ -36,11 +36,11 @@ export async function sendSubscriptionActivatedEmail(
   const body = [
     `Hola ${user.fullName || user.email},`,
     "",
-    "Tu suscripcion al Plan Independiente de KineFlow fue activada correctamente.",
+    "Tu suscripcion a KineFlow - Particular fue activada correctamente.",
     "",
     "Desde ahora podes usar KineFlow para gestionar tus pacientes, turnos, sesiones, evolucion y cobros.",
     "",
-    "Plan: Independiente",
+    "Plan: KineFlow - Particular",
     `Fecha de activacion: ${formatDate(subscription.activatedAt) ?? "-"}`,
     "Medio de pago: Mercado Pago",
     `Proxima renovacion: ${formatDate(subscription.currentPeriodEnd) ?? "-"}`,
@@ -75,7 +75,7 @@ export async function sendSubscriptionCancelledEmail(
     body: [
       `Hola ${user.fullName || user.email},`,
       "",
-      "Registramos la baja de tu suscripcion al Plan Independiente de KineFlow.",
+      "Registramos la baja de tu suscripcion a KineFlow - Particular.",
       `Referencia de gestion: ${subscription.cancellationReference ?? "-"}`,
       `Fecha de baja: ${formatDate(subscription.canceledAt) ?? "-"}`,
       "",

@@ -3,11 +3,11 @@ import { LegalPage } from "@/components/layout/LegalPage";
 export default function SubscriptionPolicyPage() {
   return (
     <LegalPage
-      intro="Condiciones iniciales del Plan Independiente y su procedimiento de baja."
+      intro="Condiciones iniciales de KineFlow - Particular y su procedimiento de baja."
       sections={[
         {
-          title: "Plan Independiente",
-          body: "El Plan Independiente es una suscripcion recurrente para kinesiologos independientes. La renovacion se gestiona mediante Mercado Pago.",
+          title: "KineFlow - Particular",
+          body: "KineFlow - Particular es una suscripcion recurrente para kinesiologos independientes. La renovacion se gestiona mediante Mercado Pago.",
         },
         {
           title: "Activacion",

@@ -356,7 +356,7 @@ export async function POST(request: Request) {
         .eq("id", eventInsert.id);
       return NextResponse.json({
         received: true,
-        ignored: "El MVP1 solo activa el Plan Independiente.",
+        ignored: "El MVP1 solo activa KineFlow - Particular.",
       });
     }
 

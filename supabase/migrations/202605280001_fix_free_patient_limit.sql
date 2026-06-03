@@ -44,7 +44,7 @@ begin
         and status = 'active';
 
       if active_patients >= coalesce(patient_limit, 5) then
-        raise exception 'El Plan Free permite hasta 5 pacientes. Para seguir agregando pacientes, activa el Plan Independiente.';
+        raise exception 'El Plan Free permite hasta 5 pacientes. Para seguir agregando pacientes, activa KineFlow - Particular.';
       end if;
 
       return new;
