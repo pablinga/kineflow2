@@ -95,9 +95,8 @@ function isMercadoPagoDashboardTestRequest(
     (payload.data && typeof payload.data === "object" && "id" in payload.data
       ? String((payload.data as { id?: unknown }).id)
       : null);
-  const eventType = getEventType(payload, url);
 
-  return dataId === "123456" && eventType.includes("preapproval");
+  return dataId === "123456";
 }
 
 function getRelevantWebhookHeaders(request: Request) {
@@ -112,6 +111,42 @@ function getRelevantWebhookHeaders(request: Request) {
     userAgent: request.headers.get("user-agent"),
     xRequestId: request.headers.get("x-request-id"),
   };
+}
+
+function getWebhookLogContext(
+  request: Request,
+  url: URL,
+  payload: Record<string, unknown>,
+) {
+  const dataId =
+    payload.data && typeof payload.data === "object" && "id" in payload.data
+      ? String((payload.data as { id?: unknown }).id)
+      : (url.searchParams.get("data.id") ?? url.searchParams.get("id"));
+
+  return {
+    action: payload.action?.toString() ?? null,
+    dataId,
+    eventType: getEventType(payload, url),
+    headers: getRelevantWebhookHeaders(request),
+    method: request.method,
+    queryParams: Object.fromEntries(url.searchParams.entries()),
+    url: url.toString(),
+  };
+}
+
+function okResponse(
+  context: ReturnType<typeof getWebhookLogContext>,
+  body: Record<string, unknown> = {},
+) {
+  const responseBody = { ok: true, ...body };
+
+  console.info("[mercadopago:webhook] Response sent", {
+    ...context,
+    response: responseBody,
+    status: 200,
+  });
+
+  return NextResponse.json(responseBody, { status: 200 });
 }
 
 type SignatureVerificationResult = {
@@ -317,13 +352,11 @@ export async function POST(request: Request) {
     string,
     unknown
   >;
-  const headers = getRelevantWebhookHeaders(request);
+  const logContext = getWebhookLogContext(request, url, payload);
 
   console.info("[mercadopago:webhook] Request received", {
+    ...logContext,
     body: payload,
-    headers,
-    method: request.method,
-    searchParams: Object.fromEntries(url.searchParams.entries()),
   });
 
   const signatureVerification = verifyMercadoPagoWebhookSignature(
@@ -334,9 +367,8 @@ export async function POST(request: Request) {
 
   if (!signatureVerification.valid) {
     console.warn("[mercadopago:webhook] Unauthorized request rejected", {
+      ...logContext,
       body: payload,
-      headers,
-      method: request.method,
       reason: signatureVerification.reason,
       signatureEnabled: signatureVerification.signatureEnabled,
     });
@@ -353,10 +385,9 @@ export async function POST(request: Request) {
   const admin = getSupabaseAdminClient();
 
   if (!admin) {
-    return NextResponse.json(
-      { received: true, warning: "Falta SUPABASE_SERVICE_ROLE_KEY." },
-      { status: 202 },
-    );
+    return okResponse(logContext, {
+      warning: "Falta SUPABASE_SERVICE_ROLE_KEY.",
+    });
   }
 
   const eventId = getEventId(payload, url);
@@ -381,7 +412,7 @@ export async function POST(request: Request) {
     .single();
 
   if (!eventInsert) {
-    return NextResponse.json({ received: true, duplicate: true });
+    return okResponse(logContext, { duplicate: true });
   }
 
   try {
@@ -390,7 +421,7 @@ export async function POST(request: Request) {
         .from("payment_events")
         .update({ processed: true })
         .eq("id", eventInsert.id);
-      return NextResponse.json({ received: true });
+      return okResponse(logContext);
     }
 
     if (!isSupportedMercadoPagoEvent(eventType)) {
@@ -398,7 +429,7 @@ export async function POST(request: Request) {
         .from("payment_events")
         .update({ processed: true })
         .eq("id", eventInsert.id);
-      return NextResponse.json({ received: true, ignored: eventType });
+      return okResponse(logContext, { ignored: eventType });
     }
 
     const providerSubscription = await getProviderSubscriptionFromEvent({
@@ -416,7 +447,7 @@ export async function POST(request: Request) {
         .from("payment_events")
         .update({ processed: true })
         .eq("id", eventInsert.id);
-      return NextResponse.json({ received: true });
+      return okResponse(logContext);
     }
 
     console.info("[mercadopago:webhook] Subscription loaded", {
@@ -443,7 +474,7 @@ export async function POST(request: Request) {
         .from("payment_events")
         .update({ processed: true })
         .eq("id", eventInsert.id);
-      return NextResponse.json({ received: true });
+      return okResponse(logContext);
     }
 
     if (parsed.planCode !== "INDEPENDIENTE") {
@@ -456,8 +487,7 @@ export async function POST(request: Request) {
         .from("payment_events")
         .update({ processed: true })
         .eq("id", eventInsert.id);
-      return NextResponse.json({
-        received: true,
+      return okResponse(logContext, {
         ignored: "El MVP1 solo activa KineFlow - Particular.",
       });
     }
@@ -490,7 +520,7 @@ export async function POST(request: Request) {
       .update({ processed: true })
       .eq("id", eventInsert.id);
 
-    return NextResponse.json({ received: true });
+    return okResponse(logContext);
   } catch (error) {
     console.error("[mercadopago:webhook] Processing failed", {
       error:
@@ -500,6 +530,6 @@ export async function POST(request: Request) {
       resourceId,
     });
 
-    return NextResponse.json({ received: true, processingError: true });
+    return okResponse(logContext, { processingError: true });
   }
 }
