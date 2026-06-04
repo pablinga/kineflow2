@@ -195,16 +195,11 @@ test("Checkout de Mercado Pago usa NEXT_PUBLIC_APP_URL y rutas QA reales", () =>
   assert.match(mercadoPago, /success: `\$\{appUrl\}\/suscripcion-exitosa`/);
   assert.match(mercadoPago, /pending: `\$\{appUrl\}\/suscripcion-pendiente`/);
   assert.match(mercadoPago, /failure: `\$\{appUrl\}\/suscripcion-error`/);
-  assert.match(mercadoPago, /MERCADOPAGO_WEBHOOK_URL/);
-  assert.match(mercadoPago, /notification_url/);
-  assert.match(mercadoPago, /x-vercel-protection-bypass/);
-  assert.match(createSubscription, /createMercadoPagoSubscriptionPreapproval/);
+  assert.match(createSubscription, /getMercadoPagoSubscriptionCheckoutUrl/);
   assert.match(createSubscription, /getMercadoPagoCheckoutInitPoint/);
-  assert.match(createSubscription, /notificationUrlSent/);
-  assert.match(createSubscription, /redactWebhookUrlForLogs/);
+  assert.doesNotMatch(createSubscription, /createMercadoPagoSubscriptionPreapproval/);
   assert.doesNotMatch(createSubscription, /card_token_id/);
   assert.match(envExample, /NEXT_PUBLIC_APP_URL=https:\/\/qa\.kineflow\.ar/);
-  assert.match(envExample, /MERCADOPAGO_WEBHOOK_URL=https:\/\/qa\.kineflow\.ar\/api\/mercadopago\/webhook\?x-vercel-protection-bypass=/);
   assert.doesNotMatch(envExample, /localhost|vercel\.app|https:\/\/kineflow\.ar/);
 });
 
