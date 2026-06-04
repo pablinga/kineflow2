@@ -215,8 +215,10 @@ test("Post pago consulta Supabase antes de mostrar Plan activo", () => {
   assert.match(page, /JSON\.stringify\(\{ preapprovalId \}\)/);
   assert.match(page, /subscriptionStatus\?\.plan === "INDEPENDIENTE"/);
   assert.match(page, /subscriptionStatus\.status === "ACTIVO"/);
+  assert.match(page, /kind === "success" && !isActive[\s\S]*"KineFlow - Particular"/);
+  assert.match(page, /Suscripción recibida/);
   assert.match(page, /Plan activo/);
-  assert.match(page, /Estamos confirmando tu suscripción\. Esto puede demorar unos segundos\./);
+  assert.match(page, /confirmando el pago con Mercado Pago/);
   assert.match(rootSuccess, /SubscriptionReturnPage kind="success"/);
 });
 
@@ -249,6 +251,9 @@ test("Webhook Mercado Pago acepta eventos de suscripcion y pago por ruta publica
   assert.match(webhook, /Request received/);
   assert.match(webhook, /Unauthorized request rejected/);
   assert.match(webhook, /missing_signature_headers_or_data_id/);
+  assert.match(webhook, /x-vercel-protection-bypass/);
+  assert.match(webhook, /Payment loaded/);
+  assert.match(webhook, /Authorized payment lookup complete/);
   assert.match(webhook, /payload\.id\?\.toString\(\) === "123456"/);
   assert.match(webhook, /payload\.type\?\.toString\(\) === "subscription_preapproval"/);
   assert.match(webhook, /processingError: true/);

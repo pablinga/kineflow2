@@ -73,9 +73,12 @@ export function SubscriptionReturnPage({
   const isActive =
     subscriptionStatus?.plan === "INDEPENDIENTE" &&
     subscriptionStatus.status === "ACTIVO";
-  const planName = subscriptionStatus
-    ? getPlanDisplayName(subscriptionStatus.plan as CommercialPlan)
-    : null;
+  const planName =
+    kind === "success" && !isActive
+      ? "KineFlow - Particular"
+      : subscriptionStatus
+        ? getPlanDisplayName(subscriptionStatus.plan as CommercialPlan)
+        : "KineFlow - Particular";
 
   useEffect(() => {
     let mounted = true;
@@ -186,12 +189,19 @@ export function SubscriptionReturnPage({
               </div>
 
               <h1 className="mt-6 text-3xl font-extrabold text-ink sm:text-4xl">
-                ¡Suscripción exitosa!
+                {isActive ? "¡Suscripción activa!" : "¡Suscripción recibida!"}
               </h1>
               <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-                Tu suscripción fue recibida correctamente.
-                <br />
-                Estamos confirmando el pago y activaremos tu plan en breve.
+                {isActive ? (
+                  "Tu plan ya está activo."
+                ) : (
+                  <>
+                    Tu suscripción fue recibida correctamente.
+                    <br />
+                    Estamos confirmando el pago con Mercado Pago y activaremos tu
+                    plan en breve.
+                  </>
+                )}
               </p>
 
               <div className="mx-auto mt-9 flex max-w-3xl items-start gap-4 rounded-lg border border-emerald-100 bg-emerald-50/70 px-5 py-4 text-left">
@@ -201,10 +211,8 @@ export function SubscriptionReturnPage({
                     ¿Cuánto tarda en activarse?
                   </p>
                   <p className="mt-1 text-sm leading-6 text-slate-600 sm:text-base">
-                    Puede demorar unos segundos.
-                  </p>
-                  <p className="text-sm leading-6 text-slate-600 sm:text-base">
-                    Te avisaremos por email cuando esté lista para usar.
+                    Puede demorar unos segundos. Si no se actualiza
+                    automáticamente, podés reintentar la consulta.
                   </p>
                 </div>
               </div>
@@ -221,7 +229,7 @@ export function SubscriptionReturnPage({
                     <div>
                       <p className="text-sm text-slate-500">Plan</p>
                       <p className="mt-2 text-xl font-extrabold text-ink">
-                        {planName ?? "KineFlow - Particular"}
+                        {planName}
                       </p>
                       <p className="mt-1 text-sm text-slate-500">
                         Pacientes ilimitados

@@ -17,7 +17,7 @@ function getEventId(payload: Record<string, unknown>, url: URL) {
   }
 
   if (payload.data && typeof payload.data === "object" && "id" in payload.data) {
-    return `${getEventType(payload, url)}:${String(
+    return `${getEventType(payload, url)}:${getEventAction(payload)}:${String(
       (payload.data as { id?: unknown }).id,
     )}`;
   }
@@ -41,6 +41,10 @@ function getEventType(payload: Record<string, unknown>, url: URL) {
     url.searchParams.get("type") ??
     "unknown"
   );
+}
+
+function getEventAction(payload: Record<string, unknown>) {
+  return payload.action?.toString() ?? "unknown";
 }
 
 function isSupportedMercadoPagoEvent(eventType: string) {
@@ -113,24 +117,58 @@ function getRelevantWebhookHeaders(request: Request) {
   };
 }
 
+function getPayloadDataId(payload: Record<string, unknown>) {
+  return payload.data && typeof payload.data === "object" && "id" in payload.data
+    ? String((payload.data as { id?: unknown }).id)
+    : null;
+}
+
+function getSanitizedQueryParams(url: URL) {
+  return Object.fromEntries(
+    Array.from(url.searchParams.entries()).map(([key, value]) => [
+      key,
+      key.toLowerCase() === "x-vercel-protection-bypass" ? "[redacted]" : value,
+    ]),
+  );
+}
+
+function getSanitizedUrl(url: URL) {
+  const sanitized = new URL(url.toString());
+
+  if (sanitized.searchParams.has("x-vercel-protection-bypass")) {
+    sanitized.searchParams.set("x-vercel-protection-bypass", "[redacted]");
+  }
+
+  return sanitized.toString();
+}
+
 function getWebhookLogContext(
   request: Request,
   url: URL,
   payload: Record<string, unknown>,
 ) {
   const dataId =
-    payload.data && typeof payload.data === "object" && "id" in payload.data
-      ? String((payload.data as { id?: unknown }).id)
-      : (url.searchParams.get("data.id") ?? url.searchParams.get("id"));
+    getPayloadDataId(payload) ??
+    url.searchParams.get("data.id") ??
+    url.searchParams.get("id");
 
   return {
-    action: payload.action?.toString() ?? null,
+    action: getEventAction(payload),
     dataId,
     eventType: getEventType(payload, url),
     headers: getRelevantWebhookHeaders(request),
     method: request.method,
-    queryParams: Object.fromEntries(url.searchParams.entries()),
-    url: url.toString(),
+    queryParams: getSanitizedQueryParams(url),
+    url: getSanitizedUrl(url),
+  };
+}
+
+function getPayloadLogSummary(payload: Record<string, unknown>) {
+  return {
+    action: getEventAction(payload),
+    dataId: getPayloadDataId(payload),
+    id: payload.id?.toString() ?? null,
+    type: payload.type?.toString() ?? null,
   };
 }
 
@@ -172,10 +210,7 @@ function verifyMercadoPagoWebhookSignature(
 
   const signature = request.headers.get("x-signature");
   const requestId = request.headers.get("x-request-id");
-  const payloadDataId =
-    payload.data && typeof payload.data === "object" && "id" in payload.data
-      ? String((payload.data as { id?: unknown }).id)
-      : null;
+  const payloadDataId = getPayloadDataId(payload);
   const dataId =
     url.searchParams.get("data.id") ?? url.searchParams.get("id") ?? payloadDataId;
 
@@ -238,6 +273,12 @@ async function getProviderSubscriptionFromEvent(params: {
       payment.metadata?.preapprovalId ??
       payment.point_of_interaction?.transaction_data?.subscription_id;
 
+    console.info("[mercadopago:webhook] Payment loaded", {
+      paymentId: payment.id,
+      paymentStatus: payment.status,
+      preapprovalId: preapprovalId ?? null,
+    });
+
     if (preapprovalId) {
       return getMercadoPagoSubscription(preapprovalId);
     }
@@ -245,6 +286,13 @@ async function getProviderSubscriptionFromEvent(params: {
     const authorizedPayment = await findMercadoPagoAuthorizedPaymentByPaymentId(
       params.resourceId,
     );
+
+    console.info("[mercadopago:webhook] Authorized payment lookup complete", {
+      authorizedPaymentId: authorizedPayment?.id ?? null,
+      paymentId: params.resourceId,
+      preapprovalId: authorizedPayment?.preapproval_id ?? null,
+      status: authorizedPayment?.status ?? null,
+    });
 
     if (!authorizedPayment?.preapproval_id) {
       return null;
@@ -356,7 +404,7 @@ export async function POST(request: Request) {
 
   console.info("[mercadopago:webhook] Request received", {
     ...logContext,
-    body: payload,
+    payload: getPayloadLogSummary(payload),
   });
 
   const signatureVerification = verifyMercadoPagoWebhookSignature(
@@ -368,7 +416,7 @@ export async function POST(request: Request) {
   if (!signatureVerification.valid) {
     console.warn("[mercadopago:webhook] Unauthorized request rejected", {
       ...logContext,
-      body: payload,
+      payload: getPayloadLogSummary(payload),
       reason: signatureVerification.reason,
       signatureEnabled: signatureVerification.signatureEnabled,
     });
@@ -400,7 +448,7 @@ export async function POST(request: Request) {
     resourceId,
   });
 
-  const { data: eventInsert } = await admin
+  const { data: eventInsert, error: eventInsertError } = await admin
     .from("payment_events")
     .insert({
       event_id: eventId,
@@ -411,8 +459,43 @@ export async function POST(request: Request) {
     .select("id")
     .single();
 
-  if (!eventInsert) {
-    return okResponse(logContext, { duplicate: true });
+  let eventRecord = eventInsert as { id: string } | null;
+
+  if (eventInsertError || !eventRecord) {
+    const { data: existingEvent } = await admin
+      .from("payment_events")
+      .select("id, processed")
+      .eq("provider", "mercadopago")
+      .eq("event_id", eventId)
+      .maybeSingle();
+
+    if (existingEvent?.processed) {
+      console.info("[mercadopago:webhook] Duplicate event already processed", {
+        eventId,
+        eventType,
+        resourceId,
+      });
+
+      return okResponse(logContext, { duplicate: true });
+    }
+
+    if (existingEvent?.id) {
+      console.info("[mercadopago:webhook] Retrying previously stored event", {
+        eventId,
+        eventType,
+        resourceId,
+      });
+      eventRecord = existingEvent as { id: string };
+    } else {
+      console.error("[mercadopago:webhook] Could not store event", {
+        error: eventInsertError?.message ?? "Unknown insert error",
+        eventId,
+        eventType,
+        resourceId,
+      });
+
+      return okResponse(logContext, { processingError: true });
+    }
   }
 
   try {
@@ -420,7 +503,7 @@ export async function POST(request: Request) {
       await admin
         .from("payment_events")
         .update({ processed: true })
-        .eq("id", eventInsert.id);
+        .eq("id", eventRecord.id);
       return okResponse(logContext);
     }
 
@@ -428,7 +511,7 @@ export async function POST(request: Request) {
       await admin
         .from("payment_events")
         .update({ processed: true })
-        .eq("id", eventInsert.id);
+        .eq("id", eventRecord.id);
       return okResponse(logContext, { ignored: eventType });
     }
 
@@ -446,7 +529,7 @@ export async function POST(request: Request) {
       await admin
         .from("payment_events")
         .update({ processed: true })
-        .eq("id", eventInsert.id);
+        .eq("id", eventRecord.id);
       return okResponse(logContext);
     }
 
@@ -473,7 +556,7 @@ export async function POST(request: Request) {
       await admin
         .from("payment_events")
         .update({ processed: true })
-        .eq("id", eventInsert.id);
+        .eq("id", eventRecord.id);
       return okResponse(logContext);
     }
 
@@ -486,7 +569,7 @@ export async function POST(request: Request) {
       await admin
         .from("payment_events")
         .update({ processed: true })
-        .eq("id", eventInsert.id);
+        .eq("id", eventRecord.id);
       return okResponse(logContext, {
         ignored: "El MVP1 solo activa KineFlow - Particular.",
       });
@@ -518,7 +601,7 @@ export async function POST(request: Request) {
     await admin
       .from("payment_events")
       .update({ processed: true })
-      .eq("id", eventInsert.id);
+      .eq("id", eventRecord.id);
 
     return okResponse(logContext);
   } catch (error) {
