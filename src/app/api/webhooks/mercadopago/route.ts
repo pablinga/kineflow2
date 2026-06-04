@@ -30,15 +30,20 @@ function getResourceId(payload: Record<string, unknown>, url: URL) {
     return String((payload.data as { id?: unknown }).id);
   }
 
-  return payload.id?.toString() ?? url.searchParams.get("id");
+  return (
+    payload.id?.toString() ??
+    url.searchParams.get("data.id") ??
+    url.searchParams.get("id")
+  );
 }
 
 function getEventType(payload: Record<string, unknown>, url: URL) {
   return (
     payload.type?.toString() ??
-    payload.action?.toString() ??
+    payload.topic?.toString() ??
     url.searchParams.get("topic") ??
     url.searchParams.get("type") ??
+    payload.action?.toString() ??
     "unknown"
   );
 }
@@ -183,6 +188,13 @@ function getPayloadLogSummary(payload: Record<string, unknown>) {
     dataId: getPayloadDataId(payload),
     id: payload.id?.toString() ?? null,
     type: payload.type?.toString() ?? null,
+  };
+}
+
+function getInitialWebhookHeaders(request: Request) {
+  return {
+    contentType: request.headers.get("content-type"),
+    userAgent: request.headers.get("user-agent"),
   };
 }
 
@@ -349,8 +361,8 @@ async function logMercadoPagoPreapprovalLookup(resourceId: string) {
 
     console.info("[mercadopago:webhook] Preapproval lookup complete", {
       externalReference: providerSubscription.external_reference ?? null,
-      id: resourceId,
       payerEmail: providerSubscription.payer_email ?? null,
+      preapproval_id: providerSubscription.id,
       reason: providerSubscription.reason ?? null,
       status: providerSubscription.status ?? null,
     });
@@ -462,6 +474,15 @@ export async function POST(request: Request) {
   const { parseError, payload } = parseWebhookBody(rawBody);
   const logContext = getWebhookLogContext(request, url, payload);
 
+  console.info("[mp:webhook] received", {
+    body: parseError ? null : payload,
+    headers: getInitialWebhookHeaders(request),
+    method: request.method,
+    queryParams: getSanitizedQueryParams(url),
+    rawBody,
+    url: getSanitizedUrl(url),
+  });
+
   console.info("[mercadopago:webhook] Request received", {
     ...logContext,
     environment: getEnvironmentDiagnostics(),
@@ -488,6 +509,12 @@ export async function POST(request: Request) {
   );
 
   if (!signatureVerification.valid) {
+    console.warn("[mp:webhook] signature validation failed", {
+      ...logContext,
+      reason: signatureVerification.reason,
+      signatureEnabled: signatureVerification.signatureEnabled,
+    });
+
     console.warn("[mercadopago:webhook] Unauthorized request rejected", {
       ...logContext,
       payload: getPayloadLogSummary(payload),
@@ -519,6 +546,15 @@ export async function POST(request: Request) {
     eventType,
     resourceId,
   });
+
+  if (!resourceId || eventType === "unknown") {
+    console.warn("[mp:webhook] missing id/type/action", {
+      eventId,
+      eventType,
+      queryParams: logContext.queryParams,
+      resourceId,
+    });
+  }
 
   const { data: eventInsert, error: eventInsertError } = await admin
     .from("payment_events")
@@ -572,6 +608,11 @@ export async function POST(request: Request) {
 
   try {
     if (!resourceId) {
+      console.warn("[mp:webhook] invalid event", {
+        eventId,
+        eventType,
+        reason: "missing_resource_id",
+      });
       console.warn("[mercadopago:webhook] Event without resource id", {
         eventId,
         eventType,
@@ -580,11 +621,17 @@ export async function POST(request: Request) {
       await admin
         .from("payment_events")
         .update({ processed: true })
-    .eq("id", eventRecord.id);
+        .eq("id", eventRecord.id);
       return okResponse(logContext);
     }
 
     if (!isSupportedMercadoPagoEvent(eventType)) {
+      console.warn("[mp:webhook] invalid event", {
+        eventId,
+        eventType,
+        reason: "unsupported_event_type",
+        resourceId,
+      });
       console.info("[mercadopago:webhook] Unsupported event ignored after logging", {
         eventId,
         eventType,

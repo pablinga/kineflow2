@@ -65,13 +65,36 @@ export async function POST(request: Request) {
         providerSubscription.payer_email?.toLowerCase() ===
           user.email?.toLowerCase();
 
-      if (admin && belongsToUser) {
+      console.info("[billing:confirm-return] Mercado Pago preapproval loaded", {
+        belongsToUser,
+        externalReference: providerSubscription.external_reference ?? null,
+        payerEmail: providerSubscription.payer_email ?? null,
+        preapproval_id: providerSubscription.id,
+        status: providerSubscription.status ?? null,
+        userId: user.id,
+      });
+
+      if (admin && belongsToUser && providerSubscription.status === "authorized") {
         await applyMercadoPagoSubscriptionToAccount({
           accountId: user.id,
           accountType: "KINESIOLOGO",
           admin,
           planCode: parsed?.planCode === "INDEPENDIENTE" ? parsed.planCode : "INDEPENDIENTE",
           providerSubscription,
+        });
+      } else if (!belongsToUser) {
+        console.warn("[billing:confirm-return] Preapproval does not belong to user", {
+          externalReference: providerSubscription.external_reference ?? null,
+          payerEmail: providerSubscription.payer_email ?? null,
+          preapproval_id: preapprovalId,
+          userEmail: user.email ?? null,
+          userId: user.id,
+        });
+      } else if (providerSubscription.status !== "authorized") {
+        console.info("[billing:confirm-return] Preapproval not authorized yet", {
+          preapproval_id: preapprovalId,
+          status: providerSubscription.status ?? null,
+          userId: user.id,
         });
       }
     } catch (confirmError) {

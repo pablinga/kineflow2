@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { LegalLinks } from "@/components/layout/LegalLinks";
@@ -12,6 +12,7 @@ type UpdateState = "checking" | "active" | "pending" | "signed_out" | "error";
 export function SuccessContent() {
   const [state, setState] = useState<UpdateState>("checking");
   const [message, setMessage] = useState("Estamos validando tu suscripcion.");
+  const confirmedPreapprovalRef = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -32,12 +33,23 @@ export function SuccessContent() {
           return;
         }
 
+        const preapprovalId = new URLSearchParams(window.location.search).get(
+          "preapproval_id",
+        );
+
+        if (
+          preapprovalId &&
+          confirmedPreapprovalRef.current === preapprovalId
+        ) {
+          return;
+        }
+
+        if (preapprovalId) {
+          confirmedPreapprovalRef.current = preapprovalId;
+        }
+
         const response = await fetch("/api/billing/confirm-return", {
-          body: JSON.stringify({
-            returnParams: Object.fromEntries(
-              new URLSearchParams(window.location.search).entries(),
-            ),
-          }),
+          body: JSON.stringify({ preapprovalId }),
           headers: {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",

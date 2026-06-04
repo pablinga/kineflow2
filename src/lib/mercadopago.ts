@@ -26,6 +26,13 @@ export type MercadoPagoPreapproval = {
   last_modified?: string;
 };
 
+export type CreateMercadoPagoSubscriptionPreapprovalOptions = {
+  backUrl: string;
+  externalReference: string;
+  payerEmail: string;
+  planId: CommercialPlan;
+};
+
 export type MercadoPagoAuthorizedPayment = {
   id: number | string;
   external_reference?: string;
@@ -112,6 +119,23 @@ export function getSubscriptionReturnUrls() {
   };
 }
 
+export function getMercadoPagoWebhookUrl() {
+  const configuredUrl = process.env.MERCADOPAGO_WEBHOOK_URL?.trim();
+
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  const url = new URL(`${getAppUrl()}/api/mercadopago/webhook`);
+  const bypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
+
+  if (bypassSecret) {
+    url.searchParams.set("x-vercel-protection-bypass", bypassSecret);
+  }
+
+  return url.toString();
+}
+
 export function getMercadoPagoSubscriptionCheckoutUrl(
   planId: CommercialPlan,
   options?: {
@@ -146,6 +170,43 @@ export function getMercadoPagoSubscriptionCheckoutUrl(
 
 export function getMercadoPagoCheckoutInitPoint(initPoint: string) {
   return initPoint;
+}
+
+export async function createMercadoPagoSubscriptionPreapproval(
+  options: CreateMercadoPagoSubscriptionPreapprovalOptions,
+) {
+  const accessToken = getMercadoPagoAccessToken();
+
+  if (!accessToken) {
+    throw new Error("Mercado Pago no esta configurado.");
+  }
+
+  const preapprovalPlanId = getMercadoPagoPreapprovalPlanId(options.planId);
+
+  if (!preapprovalPlanId) {
+    throw new Error("El plan no tiene checkout de suscripcion configurado.");
+  }
+
+  const notificationUrl = getMercadoPagoWebhookUrl();
+  const response = await fetch(`${MERCADOPAGO_API_URL}/preapproval`, {
+    method: "POST",
+    headers: getMercadoPagoHeaders(accessToken),
+    body: JSON.stringify({
+      back_url: options.backUrl,
+      external_reference: options.externalReference,
+      notification_url: notificationUrl,
+      payer_email: options.payerEmail,
+      preapproval_plan_id: preapprovalPlanId,
+      reason: "KineFlow - Particular",
+    }),
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.message ?? "No pudimos crear la suscripcion.");
+  }
+
+  return data as MercadoPagoPreapproval;
 }
 
 export function mapMercadoPagoStatus(status?: string): SubscriptionStatus {

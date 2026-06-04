@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import {
+  createMercadoPagoSubscriptionPreapproval,
   getMercadoPagoCheckoutInitPoint,
-  getMercadoPagoSubscriptionCheckoutUrl,
+  getMercadoPagoWebhookUrl,
   getSubscriptionReturnUrls,
 } from "@/lib/mercadopago";
 import type { CommercialPlan } from "@/lib/plans";
@@ -10,6 +11,16 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 type CreateSubscriptionBody = {
   planId?: CommercialPlan;
 };
+
+function redactWebhookUrlForLogs(value: string) {
+  const url = new URL(value);
+
+  if (url.searchParams.has("x-vercel-protection-bypass")) {
+    url.searchParams.set("x-vercel-protection-bypass", "[redacted]");
+  }
+
+  return url.toString();
+}
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -47,12 +58,42 @@ export async function POST(request: Request) {
 
   const returnUrls = getSubscriptionReturnUrls();
   const externalReference = `${user.id}:${planId}:${crypto.randomUUID()}`;
-  const checkoutUrl = getMercadoPagoSubscriptionCheckoutUrl(planId, {
-    backUrl: returnUrls.success,
+  const notificationUrl = getMercadoPagoWebhookUrl();
+  const createLogContext = {
+    accountId: user.id,
     externalReference,
-    payerEmail: user.email,
-  });
-  const initPoint = getMercadoPagoCheckoutInitPoint(checkoutUrl);
+    notificationUrlSent: redactWebhookUrlForLogs(notificationUrl),
+    planId,
+    returnUrlSent: returnUrls.success,
+    userEmail: user.email,
+  };
+  let providerSubscription: Awaited<
+    ReturnType<typeof createMercadoPagoSubscriptionPreapproval>
+  >;
+
+  try {
+    providerSubscription = await createMercadoPagoSubscriptionPreapproval({
+      backUrl: returnUrls.success,
+      externalReference,
+      payerEmail: user.email,
+      planId,
+    });
+  } catch (error) {
+    console.error("[billing:create-subscription] Mercado Pago preapproval failed", {
+      ...createLogContext,
+      error:
+        error instanceof Error ? error.message : "No pudimos crear la suscripcion.",
+    });
+
+    return NextResponse.json(
+      { error: "No pudimos iniciar el checkout de Mercado Pago." },
+      { status: 502 },
+    );
+  }
+
+  const initPoint = getMercadoPagoCheckoutInitPoint(
+    providerSubscription.sandbox_init_point ?? providerSubscription.init_point ?? "",
+  );
 
   if (!initPoint) {
     return NextResponse.json(
@@ -62,13 +103,9 @@ export async function POST(request: Request) {
   }
 
   console.info("[billing:create-subscription] Mercado Pago checkout URL created", {
-    accountId: user.id,
-    externalReference,
+    ...createLogContext,
     initPoint,
-    planId,
-    returnUrlSent: returnUrls.success,
     returnUrls,
-    userEmail: user.email,
   });
 
   return NextResponse.json({

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   Check,
@@ -68,6 +68,7 @@ export function SubscriptionReturnPage({
   const [error, setError] = useState("");
   const [subscriptionStatus, setSubscriptionStatus] =
     useState<SubscriptionStatusResponse | null>(null);
+  const confirmedPreapprovalRef = useRef<string | null>(null);
   const copy = copyByKind[kind];
   const Icon = copy.icon;
   const isActive =
@@ -82,7 +83,6 @@ export function SubscriptionReturnPage({
 
   useEffect(() => {
     let mounted = true;
-    let attempts = 0;
 
     async function checkStatus() {
       setError("");
@@ -99,6 +99,19 @@ export function SubscriptionReturnPage({
         const preapprovalId = new URLSearchParams(window.location.search).get(
           "preapproval_id",
         );
+
+        if (
+          kind === "success" &&
+          preapprovalId &&
+          confirmedPreapprovalRef.current === preapprovalId
+        ) {
+          return;
+        }
+
+        if (preapprovalId) {
+          confirmedPreapprovalRef.current = preapprovalId;
+        }
+
         const response = await fetch("/api/billing/confirm-return", {
           body: JSON.stringify({ preapprovalId }),
           headers: {
@@ -126,33 +139,18 @@ export function SubscriptionReturnPage({
           );
         }
       } finally {
-        attempts += 1;
-
         if (mounted) {
-          setChecking(kind === "success" && attempts < 4 && !isActive);
+          setChecking(false);
         }
       }
     }
 
     checkStatus();
 
-    const interval =
-      kind === "success"
-        ? window.setInterval(() => {
-            if (attempts < 4) {
-              checkStatus();
-            }
-          }, 3000)
-        : null;
-
     return () => {
       mounted = false;
-
-      if (interval) {
-        window.clearInterval(interval);
-      }
     };
-  }, [kind, isActive]);
+  }, [kind]);
 
   if (authError) {
     return <DashboardLoading error={authError} />;
