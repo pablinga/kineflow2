@@ -117,6 +117,20 @@ function getRelevantWebhookHeaders(request: Request) {
   };
 }
 
+function getEnvironmentDiagnostics() {
+  return {
+    MERCADOPAGO_ACCESS_TOKEN: Boolean(process.env.MERCADOPAGO_ACCESS_TOKEN),
+    MERCADOPAGO_WEBHOOK_SECRET: Boolean(process.env.MERCADOPAGO_WEBHOOK_SECRET),
+    MP_ACCESS_TOKEN: Boolean(process.env.MP_ACCESS_TOKEN),
+    MP_WEBHOOK_SECRET: Boolean(process.env.MP_WEBHOOK_SECRET),
+    NEXT_PUBLIC_APP_URL: Boolean(process.env.NEXT_PUBLIC_APP_URL),
+    SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    VERCEL_AUTOMATION_BYPASS_SECRET: Boolean(
+      process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+    ),
+  };
+}
+
 function getPayloadDataId(payload: Record<string, unknown>) {
   return payload.data && typeof payload.data === "object" && "id" in payload.data
     ? String((payload.data as { id?: unknown }).id)
@@ -172,6 +186,28 @@ function getPayloadLogSummary(payload: Record<string, unknown>) {
   };
 }
 
+function parseWebhookBody(rawBody: string) {
+  if (!rawBody.trim()) {
+    return {
+      parseError: null,
+      payload: {} as Record<string, unknown>,
+    };
+  }
+
+  try {
+    return {
+      parseError: null,
+      payload: JSON.parse(rawBody) as Record<string, unknown>,
+    };
+  } catch (error) {
+    return {
+      parseError:
+        error instanceof Error ? error.message : "No pudimos parsear el body.",
+      payload: {} as Record<string, unknown>,
+    };
+  }
+}
+
 function okResponse(
   context: ReturnType<typeof getWebhookLogContext>,
   body: Record<string, unknown> = {},
@@ -198,7 +234,9 @@ function verifyMercadoPagoWebhookSignature(
   url: URL,
   payload: Record<string, unknown>,
 ): SignatureVerificationResult {
-  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET?.trim();
+  const secret = (
+    process.env.MERCADOPAGO_WEBHOOK_SECRET ?? process.env.MP_WEBHOOK_SECRET
+  )?.trim();
 
   if (!secret) {
     return { signatureEnabled: false, valid: true };
@@ -275,6 +313,7 @@ async function getProviderSubscriptionFromEvent(params: {
 
     console.info("[mercadopago:webhook] Payment loaded", {
       paymentId: payment.id,
+      externalReference: payment.external_reference ?? null,
       paymentStatus: payment.status,
       preapprovalId: preapprovalId ?? null,
     });
@@ -302,6 +341,28 @@ async function getProviderSubscriptionFromEvent(params: {
   }
 
   return null;
+}
+
+async function logMercadoPagoPreapprovalLookup(resourceId: string) {
+  try {
+    const providerSubscription = await getMercadoPagoSubscription(resourceId);
+
+    console.info("[mercadopago:webhook] Preapproval lookup complete", {
+      externalReference: providerSubscription.external_reference ?? null,
+      id: resourceId,
+      payerEmail: providerSubscription.payer_email ?? null,
+      reason: providerSubscription.reason ?? null,
+      status: providerSubscription.status ?? null,
+    });
+  } catch (error) {
+    console.error("[mercadopago:webhook] Preapproval lookup failed", {
+      error:
+        error instanceof Error
+          ? error.message
+          : "No pudimos consultar la preapproval.",
+      id: resourceId,
+    });
+  }
 }
 
 function parseExternalReference(reference: unknown) {
@@ -395,17 +456,30 @@ async function resolveParsedReference(params: {
 }
 
 export async function POST(request: Request) {
+  const timestamp = new Date().toISOString();
   const url = new URL(request.url);
-  const payload = (await request.json().catch(() => ({}))) as Record<
-    string,
-    unknown
-  >;
+  const rawBody = await request.text();
+  const { parseError, payload } = parseWebhookBody(rawBody);
   const logContext = getWebhookLogContext(request, url, payload);
 
   console.info("[mercadopago:webhook] Request received", {
     ...logContext,
+    environment: getEnvironmentDiagnostics(),
+    parsedBody: payload,
     payload: getPayloadLogSummary(payload),
+    parseError,
+    rawBody,
+    timestamp,
   });
+
+  if (parseError) {
+    console.warn("[mercadopago:webhook] Body parse failed", {
+      ...logContext,
+      parseError,
+      rawBody,
+      timestamp,
+    });
+  }
 
   const signatureVerification = verifyMercadoPagoWebhookSignature(
     request,
@@ -421,13 +495,11 @@ export async function POST(request: Request) {
       signatureEnabled: signatureVerification.signatureEnabled,
     });
 
-    return NextResponse.json(
-      {
-        error: "Firma de Mercado Pago invalida.",
-        reason: signatureVerification.reason,
-      },
-      { status: 401 },
-    );
+    return okResponse(logContext, {
+      processingSkipped: true,
+      reason: signatureVerification.reason,
+      signatureInvalid: true,
+    });
   }
 
   const admin = getSupabaseAdminClient();
@@ -500,19 +572,33 @@ export async function POST(request: Request) {
 
   try {
     if (!resourceId) {
+      console.warn("[mercadopago:webhook] Event without resource id", {
+        eventId,
+        eventType,
+        queryParams: logContext.queryParams,
+      });
       await admin
         .from("payment_events")
         .update({ processed: true })
-        .eq("id", eventRecord.id);
+    .eq("id", eventRecord.id);
       return okResponse(logContext);
     }
 
     if (!isSupportedMercadoPagoEvent(eventType)) {
+      console.info("[mercadopago:webhook] Unsupported event ignored after logging", {
+        eventId,
+        eventType,
+        resourceId,
+      });
       await admin
         .from("payment_events")
         .update({ processed: true })
         .eq("id", eventRecord.id);
       return okResponse(logContext, { ignored: eventType });
+    }
+
+    if (eventType.includes("preapproval")) {
+      await logMercadoPagoPreapprovalLookup(resourceId);
     }
 
     const providerSubscription = await getProviderSubscriptionFromEvent({

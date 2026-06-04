@@ -20,6 +20,7 @@ export type MercadoPagoPreapproval = {
   external_reference?: string;
   payer_id?: number;
   payer_email?: string;
+  reason?: string;
   next_payment_date?: string;
   date_created?: string;
   last_modified?: string;
@@ -54,7 +55,7 @@ export type MercadoPagoPayment = {
 };
 
 export function getMercadoPagoAccessToken() {
-  return process.env.MERCADOPAGO_ACCESS_TOKEN;
+  return process.env.MERCADOPAGO_ACCESS_TOKEN ?? process.env.MP_ACCESS_TOKEN;
 }
 
 export function isMercadoPagoTestMode(accessToken: string) {
