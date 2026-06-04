@@ -81,19 +81,58 @@ function isMercadoPagoDashboardTestEvent(payload: Record<string, unknown>) {
   );
 }
 
+function isMercadoPagoDashboardTestRequest(
+  payload: Record<string, unknown>,
+  url: URL,
+) {
+  if (isMercadoPagoDashboardTestEvent(payload)) {
+    return true;
+  }
+
+  const dataId =
+    url.searchParams.get("data.id") ??
+    url.searchParams.get("id") ??
+    (payload.data && typeof payload.data === "object" && "id" in payload.data
+      ? String((payload.data as { id?: unknown }).id)
+      : null);
+  const eventType = getEventType(payload, url);
+
+  return dataId === "123456" && eventType.includes("preapproval");
+}
+
+function getRelevantWebhookHeaders(request: Request) {
+  const signature = request.headers.get("x-signature");
+  const authorization = request.headers.get("authorization");
+
+  return {
+    authorization: authorization ? "present" : null,
+    contentType: request.headers.get("content-type"),
+    origin: request.headers.get("origin"),
+    signature: signature ? "present" : null,
+    userAgent: request.headers.get("user-agent"),
+    xRequestId: request.headers.get("x-request-id"),
+  };
+}
+
+type SignatureVerificationResult = {
+  reason?: string;
+  signatureEnabled: boolean;
+  valid: boolean;
+};
+
 function verifyMercadoPagoWebhookSignature(
   request: Request,
   url: URL,
   payload: Record<string, unknown>,
-) {
+): SignatureVerificationResult {
   const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET?.trim();
 
   if (!secret) {
-    return true;
+    return { signatureEnabled: false, valid: true };
   }
 
-  if (isMercadoPagoDashboardTestEvent(payload)) {
-    return true;
+  if (isMercadoPagoDashboardTestRequest(payload, url)) {
+    return { signatureEnabled: true, valid: true };
   }
 
   const signature = request.headers.get("x-signature");
@@ -106,23 +145,35 @@ function verifyMercadoPagoWebhookSignature(
     url.searchParams.get("data.id") ?? url.searchParams.get("id") ?? payloadDataId;
 
   if (!signature || !requestId || !dataId) {
-    return false;
+    return {
+      reason: "missing_signature_headers_or_data_id",
+      signatureEnabled: true,
+      valid: false,
+    };
   }
 
   const ts = getSignaturePart(signature, "ts");
   const hash = getSignaturePart(signature, "v1");
 
   if (!ts || !hash) {
-    return false;
+    return {
+      reason: "malformed_x_signature",
+      signatureEnabled: true,
+      valid: false,
+    };
   }
 
-  const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
+  const manifest = `id:${dataId.toLowerCase()};request-id:${requestId};ts:${ts};`;
   const expectedHash = crypto
     .createHmac("sha256", secret)
     .update(manifest)
     .digest("hex");
 
-  return signaturesMatch(expectedHash, hash);
+  return {
+    reason: "signature_hash_mismatch",
+    signatureEnabled: true,
+    valid: signaturesMatch(expectedHash, hash),
+  };
 }
 
 async function getProviderSubscriptionFromEvent(params: {
@@ -266,10 +317,35 @@ export async function POST(request: Request) {
     string,
     unknown
   >;
+  const headers = getRelevantWebhookHeaders(request);
 
-  if (!verifyMercadoPagoWebhookSignature(request, url, payload)) {
+  console.info("[mercadopago:webhook] Request received", {
+    body: payload,
+    headers,
+    method: request.method,
+    searchParams: Object.fromEntries(url.searchParams.entries()),
+  });
+
+  const signatureVerification = verifyMercadoPagoWebhookSignature(
+    request,
+    url,
+    payload,
+  );
+
+  if (!signatureVerification.valid) {
+    console.warn("[mercadopago:webhook] Unauthorized request rejected", {
+      body: payload,
+      headers,
+      method: request.method,
+      reason: signatureVerification.reason,
+      signatureEnabled: signatureVerification.signatureEnabled,
+    });
+
     return NextResponse.json(
-      { error: "Firma de Mercado Pago invalida." },
+      {
+        error: "Firma de Mercado Pago invalida.",
+        reason: signatureVerification.reason,
+      },
       { status: 401 },
     );
   }

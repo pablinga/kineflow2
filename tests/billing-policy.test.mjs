@@ -245,6 +245,10 @@ test("Webhook Mercado Pago acepta eventos de suscripcion y pago por ruta publica
   assert.match(webhook, /getMercadoPagoPayment/);
   assert.match(webhook, /MERCADOPAGO_WEBHOOK_SECRET/);
   assert.match(webhook, /isMercadoPagoDashboardTestEvent/);
+  assert.match(webhook, /isMercadoPagoDashboardTestRequest/);
+  assert.match(webhook, /Request received/);
+  assert.match(webhook, /Unauthorized request rejected/);
+  assert.match(webhook, /missing_signature_headers_or_data_id/);
   assert.match(webhook, /payload\.id\?\.toString\(\) === "123456"/);
   assert.match(webhook, /payload\.type\?\.toString\(\) === "subscription_preapproval"/);
   assert.match(webhook, /processingError: true/);
