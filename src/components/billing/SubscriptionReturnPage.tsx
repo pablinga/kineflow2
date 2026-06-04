@@ -2,7 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Clock3 } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  Lightbulb,
+  Mail,
+  Sparkles,
+  Star,
+} from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { Button, LinkButton } from "@/components/ui/Button";
@@ -158,6 +168,150 @@ export function SubscriptionReturnPage({
     return <DashboardLoading />;
   }
 
+  if (kind === "success") {
+    const statusLabel = isActive ? "ACTIVO" : "PENDIENTE";
+    const mercadoPagoLabel = isActive ? "Aprobado" : "En proceso";
+
+    return (
+      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+        <DashboardSidebar />
+        <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl space-y-5">
+            <div className="rounded-lg border border-ocean-100 bg-white px-5 py-8 text-center shadow-card sm:px-8 lg:px-14">
+              <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                <Check className="h-11 w-11 stroke-[3]" />
+                <Sparkles className="absolute -left-11 top-4 h-4 w-4 text-ocean-300" />
+                <Sparkles className="absolute -right-10 top-6 h-4 w-4 text-emerald-300" />
+                <Sparkles className="absolute right-0 -top-2 h-3 w-3 text-ocean-400" />
+              </div>
+
+              <h1 className="mt-6 text-3xl font-extrabold text-ink sm:text-4xl">
+                ¡Suscripción exitosa!
+              </h1>
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
+                Tu suscripción fue recibida correctamente.
+                <br />
+                Estamos confirmando el pago y activaremos tu plan en breve.
+              </p>
+
+              <div className="mx-auto mt-9 flex max-w-3xl items-start gap-4 rounded-lg border border-emerald-100 bg-emerald-50/70 px-5 py-4 text-left">
+                <Clock3 className="mt-1 h-7 w-7 shrink-0 text-emerald-600" />
+                <div>
+                  <p className="font-bold text-ink">
+                    ¿Cuánto tarda en activarse?
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600 sm:text-base">
+                    Puede demorar unos segundos.
+                  </p>
+                  <p className="text-sm leading-6 text-slate-600 sm:text-base">
+                    Te avisaremos por email cuando esté lista para usar.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mx-auto mt-6 max-w-5xl rounded-lg border border-slate-200 bg-white p-5 text-left shadow-card">
+                <p className="text-sm font-bold text-ink">
+                  Resumen de tu suscripción
+                </p>
+                <div className="mt-5 grid gap-5 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)] md:items-center">
+                  <div className="flex items-center gap-5">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-500">
+                      <Star className="h-10 w-10" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-500">Plan</p>
+                      <p className="mt-2 text-xl font-extrabold text-ink">
+                        {planName ?? "KineFlow - Particular"}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Pacientes ilimitados
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-slate-200 md:border-l md:pl-10">
+                    <p className="text-sm text-slate-500">Estado</p>
+                    <span
+                      className={`mt-3 inline-flex rounded-md border px-3 py-1 text-sm font-bold ${
+                        isActive
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-amber-200 bg-amber-50 text-amber-600"
+                      }`}
+                    >
+                      {statusLabel}
+                    </span>
+                    <p className="mt-2 text-sm text-slate-500">
+                      {isActive ? "Plan activo" : "En confirmación"}
+                    </p>
+                  </div>
+
+                  <div className="border-slate-200 md:border-l md:pl-10">
+                    <p className="text-sm text-slate-500">Mercado Pago</p>
+                    <div className="mt-5 flex items-center gap-3">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-ocean-50 text-ocean-600 ring-1 ring-ocean-100">
+                        <CreditCard className="h-5 w-5" />
+                      </span>
+                      <span className="text-sm font-medium text-slate-600">
+                        {mercadoPagoLabel}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mx-auto mt-6 flex max-w-5xl items-center gap-5 rounded-lg border border-ocean-100 bg-ocean-50/70 px-5 py-4 text-left text-ocean-700">
+                <Mail className="h-8 w-8 shrink-0" />
+                <div>
+                  <p className="font-bold">Te mantendremos informado</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Te enviaremos un email cuando tu plan esté activo.
+                  </p>
+                </div>
+              </div>
+
+              {error ? (
+                <Alert className="mx-auto mt-6 max-w-5xl text-left" tone="error">
+                  {error}
+                </Alert>
+              ) : null}
+
+              <div className="mx-auto mt-8 grid max-w-2xl gap-4 sm:grid-cols-2">
+                <Button
+                  className="w-full"
+                  disabled={checking}
+                  onClick={() => window.location.reload()}
+                  variant="secondary"
+                >
+                  {checking ? "Consultando..." : "Reintentar consulta"}
+                </Button>
+                <LinkButton className="w-full" href="/dashboard">
+                  Ir al dashboard
+                </LinkButton>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-ocean-100 bg-white px-6 py-5 shadow-card">
+              <div className="flex items-center gap-5">
+                <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-ocean-50 text-ocean-600">
+                  <Lightbulb className="h-7 w-7" />
+                </span>
+                <div>
+                  <p className="font-bold text-ink">
+                    Mientras tanto, podés seguir usando KineFlow
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    Tu plan actual seguirá funcionando normalmente hasta que se
+                    active tu nueva suscripción.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
@@ -166,9 +320,7 @@ export function SubscriptionReturnPage({
           <Icon className={`mx-auto h-12 w-12 ${copy.tone}`} />
           <h1 className="mt-4 text-2xl font-bold text-ink">{copy.title}</h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-600">
-            {kind === "success" && isActive
-              ? "Plan activo"
-              : copy.text}
+            {copy.text}
           </p>
 
           {subscriptionStatus ? (
@@ -197,20 +349,13 @@ export function SubscriptionReturnPage({
           ) : null}
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            {kind === "success" && !isActive ? (
-              <Button disabled={checking} onClick={() => window.location.reload()}>
-                {checking ? "Consultando..." : "Reintentar consulta"}
-              </Button>
-            ) : null}
             <LinkButton href="/dashboard">Ir al dashboard</LinkButton>
-            {kind !== "success" ? (
-              <Link
-                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 py-2.5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-                href="/dashboard/planes"
-              >
-                Ver plan
-              </Link>
-            ) : null}
+            <Link
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 py-2.5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+              href="/dashboard/planes"
+            >
+              Ver plan
+            </Link>
           </div>
         </div>
       </section>
