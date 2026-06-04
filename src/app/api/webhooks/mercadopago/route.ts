@@ -241,11 +241,20 @@ type SignatureVerificationResult = {
   valid: boolean;
 };
 
+type SupabaseAdminClient = NonNullable<ReturnType<typeof getSupabaseAdminClient>>;
+
 function verifyMercadoPagoWebhookSignature(
   request: Request,
   url: URL,
   payload: Record<string, unknown>,
 ): SignatureVerificationResult {
+  if (
+    process.env.SKIP_WEBHOOK_SIGNATURE_VERIFICATION === "true" &&
+    process.env.NODE_ENV !== "production"
+  ) {
+    return { signatureEnabled: false, valid: true };
+  }
+
   const secret = (
     process.env.MERCADOPAGO_WEBHOOK_SECRET ?? process.env.MP_WEBHOOK_SECRET
   )?.trim();
@@ -262,7 +271,7 @@ function verifyMercadoPagoWebhookSignature(
   const requestId = request.headers.get("x-request-id");
   const payloadDataId = getPayloadDataId(payload);
   const dataId =
-    url.searchParams.get("data.id") ?? url.searchParams.get("id") ?? payloadDataId;
+    payloadDataId ?? url.searchParams.get("data.id") ?? url.searchParams.get("id");
 
   if (!signature || !requestId || !dataId) {
     return {
@@ -467,6 +476,91 @@ async function resolveParsedReference(params: {
   return null;
 }
 
+export async function processMercadoPagoSubscriptionForWebhook(params: {
+  admin: SupabaseAdminClient;
+  eventId: string;
+  providerSubscription: MercadoPagoPreapproval;
+}) {
+  const { admin, eventId, providerSubscription } = params;
+
+  console.info("[mercadopago:webhook] Subscription loaded", {
+    externalReference: providerSubscription.external_reference,
+    preapproval_id: providerSubscription.id,
+    providerStatus: providerSubscription.status,
+    providerSubscriptionId: providerSubscription.id,
+  });
+
+  const parsed = await resolveParsedReference({
+    admin,
+    providerSubscription,
+    providerSubscriptionId: providerSubscription.id,
+    reference: providerSubscription.external_reference,
+  });
+
+  if (!parsed) {
+    console.warn("[mercadopago:webhook] Subscription reference unresolved", {
+      eventId,
+      externalReference: providerSubscription.external_reference,
+      providerSubscriptionId: providerSubscription.id,
+    });
+
+    return {
+      applied: false,
+      reason: "subscription_reference_unresolved",
+      providerSubscriptionId: providerSubscription.id,
+    };
+  }
+
+  if (parsed.planCode !== "INDEPENDIENTE") {
+    console.info("[mercadopago:webhook] Ignored non-MVP plan", {
+      accountId: parsed.accountId,
+      planCode: parsed.planCode,
+      providerSubscriptionId: providerSubscription.id,
+    });
+
+    return {
+      accountId: parsed.accountId,
+      applied: false,
+      planCode: parsed.planCode,
+      reason: "non_mvp_plan",
+      providerSubscriptionId: providerSubscription.id,
+    };
+  }
+
+  const updateResult = await applyMercadoPagoSubscriptionToAccount({
+    accountId: parsed.accountId,
+    accountType: "KINESIOLOGO",
+    admin,
+    planCode: parsed.planCode,
+    providerSubscription,
+  });
+
+  console.info("[mercadopago:webhook] Supabase subscription update complete", {
+    accountId: parsed.accountId,
+    action:
+      updateResult.internalStatus === "ACTIVE"
+        ? "activated_independiente"
+        : `set_free_${updateResult.internalStatus.toLowerCase()}`,
+    internalStatus: updateResult.internalStatus,
+    planCode: parsed.planCode,
+    preapproval_id: providerSubscription.id,
+    profileStatus: updateResult.profileStatus,
+    status_recibido: providerSubscription.status,
+    providerStatus: updateResult.providerStatus,
+    providerSubscriptionId: providerSubscription.id,
+  });
+
+  return {
+    accountId: parsed.accountId,
+    applied: true,
+    internalStatus: updateResult.internalStatus,
+    planCode: parsed.planCode,
+    preapproval_id: providerSubscription.id,
+    profileStatus: updateResult.profileStatus,
+    providerStatus: updateResult.providerStatus,
+  };
+}
+
 export async function POST(request: Request) {
   const timestamp = new Date().toISOString();
   const url = new URL(request.url);
@@ -666,69 +760,10 @@ export async function POST(request: Request) {
       return okResponse(logContext);
     }
 
-    console.info("[mercadopago:webhook] Subscription loaded", {
-      externalReference: providerSubscription.external_reference,
-      preapproval_id: providerSubscription.id,
-      providerStatus: providerSubscription.status,
-      providerSubscriptionId: providerSubscription.id,
-    });
-
-    const parsed = await resolveParsedReference({
+    const processingResult = await processMercadoPagoSubscriptionForWebhook({
       admin,
+      eventId,
       providerSubscription,
-      providerSubscriptionId: providerSubscription.id,
-      reference: providerSubscription.external_reference,
-    });
-
-    if (!parsed) {
-      console.warn("[mercadopago:webhook] Subscription reference unresolved", {
-        eventId,
-        externalReference: providerSubscription.external_reference,
-        providerSubscriptionId: providerSubscription.id,
-      });
-      await admin
-        .from("payment_events")
-        .update({ processed: true })
-        .eq("id", eventRecord.id);
-      return okResponse(logContext);
-    }
-
-    if (parsed.planCode !== "INDEPENDIENTE") {
-      console.info("[mercadopago:webhook] Ignored non-MVP plan", {
-        accountId: parsed.accountId,
-        planCode: parsed.planCode,
-        providerSubscriptionId: providerSubscription.id,
-      });
-      await admin
-        .from("payment_events")
-        .update({ processed: true })
-        .eq("id", eventRecord.id);
-      return okResponse(logContext, {
-        ignored: "El MVP1 solo activa KineFlow - Particular.",
-      });
-    }
-
-    const updateResult = await applyMercadoPagoSubscriptionToAccount({
-      accountId: parsed.accountId,
-      accountType: "KINESIOLOGO",
-      admin,
-      planCode: parsed.planCode,
-      providerSubscription,
-    });
-
-    console.info("[mercadopago:webhook] Supabase subscription update complete", {
-      accountId: parsed.accountId,
-      action:
-        updateResult.internalStatus === "ACTIVE"
-          ? "activated_independiente"
-          : `set_free_${updateResult.internalStatus.toLowerCase()}`,
-      internalStatus: updateResult.internalStatus,
-      planCode: parsed.planCode,
-      preapproval_id: providerSubscription.id,
-      profileStatus: updateResult.profileStatus,
-      status_recibido: providerSubscription.status,
-      providerStatus: updateResult.providerStatus,
-      providerSubscriptionId: providerSubscription.id,
     });
 
     await admin
@@ -736,7 +771,7 @@ export async function POST(request: Request) {
       .update({ processed: true })
       .eq("id", eventRecord.id);
 
-    return okResponse(logContext);
+    return okResponse(logContext, { processingResult });
   } catch (error) {
     console.error("[mercadopago:webhook] Processing failed", {
       error:

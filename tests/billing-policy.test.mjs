@@ -236,7 +236,12 @@ test("Webhook valida KineFlow Particular y mail posterior a activacion", () => {
 test("Webhook Mercado Pago acepta eventos de suscripcion y pago por ruta publica", () => {
   const webhook = fs.readFileSync("src/app/api/webhooks/mercadopago/route.ts", "utf8");
   const alias = fs.readFileSync("src/app/api/mercadopago/webhook/route.ts", "utf8");
+  const testEndpoint = fs.readFileSync(
+    "src/app/api/mercadopago/webhook-test/route.ts",
+    "utf8",
+  );
   const mercadoPago = fs.readFileSync("src/lib/mercadopago.ts", "utf8");
+  const envExample = fs.readFileSync(".env.example", "utf8");
 
   assert.match(alias, /api\/webhooks\/mercadopago\/route/);
   assert.match(webhook, /eventType\.includes\("preapproval"\)/);
@@ -253,11 +258,20 @@ test("Webhook Mercado Pago acepta eventos de suscripcion y pago por ruta publica
   assert.match(webhook, /Unauthorized request rejected/);
   assert.match(webhook, /missing_signature_headers_or_data_id/);
   assert.match(webhook, /x-vercel-protection-bypass/);
+  assert.match(webhook, /SKIP_WEBHOOK_SIGNATURE_VERIFICATION/);
+  assert.match(webhook, /process\.env\.NODE_ENV !== "production"/);
+  assert.match(webhook, /payloadDataId \?\? url\.searchParams\.get\("data\.id"\) \?\? url\.searchParams\.get\("id"\)/);
   assert.match(webhook, /Payment loaded/);
   assert.match(webhook, /Authorized payment lookup complete/);
   assert.match(webhook, /payload\.id\?\.toString\(\) === "123456"/);
   assert.match(webhook, /payload\.type\?\.toString\(\) === "subscription_preapproval"/);
   assert.match(webhook, /processingError: true/);
+  assert.match(webhook, /processMercadoPagoSubscriptionForWebhook/);
+  assert.match(testEndpoint, /NODE_ENV === "production"/);
+  assert.match(testEndpoint, /getMercadoPagoSubscription\(preapprovalId\)/);
+  assert.match(testEndpoint, /providerSubscription\.status !== "authorized"/);
+  assert.match(testEndpoint, /processMercadoPagoSubscriptionForWebhook/);
+  assert.match(envExample, /SKIP_WEBHOOK_SIGNATURE_VERIFICATION=false/);
   assert.match(mercadoPago, /MERCADOPAGO_ACCESS_TOKEN/);
   assert.match(mercadoPago, /authorized_payments\/search/);
   assert.match(mercadoPago, /\/v1\/payments\/\$\{paymentId\}/);
