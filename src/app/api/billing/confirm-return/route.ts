@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { applyMercadoPagoSubscriptionToAccount } from "@/lib/billing-server";
 import { getMercadoPagoSubscription } from "@/lib/mercadopago";
-import type { CommercialPlan } from "@/lib/plans";
+import type { CommercialPlan, PlanStatus } from "@/lib/plans";
 import {
   getSupabaseAdminClient,
   getSupabaseServerClient,
@@ -28,6 +28,39 @@ function parseExternalReference(reference: unknown) {
     accountId,
     planCode: planCode as CommercialPlan,
   };
+}
+
+function normalizePlan(value: unknown): CommercialPlan {
+  if (
+    value === "INDEPENDIENTE" ||
+    value === "CONSULTORIO_2" ||
+    value === "CONSULTORIO_5" ||
+    value === "CONSULTORIO_10"
+  ) {
+    return value;
+  }
+
+  return "FREE";
+}
+
+function getJoinedPlanCode(subscription: unknown) {
+  const plans = (subscription as { plans?: { code?: unknown } | Array<{ code?: unknown }> } | null)
+    ?.plans;
+  const planRow = Array.isArray(plans) ? plans[0] : plans;
+
+  return normalizePlan(planRow?.code);
+}
+
+function mapSubscriptionStatusToPlanStatus(status: unknown): PlanStatus {
+  if (status === "ACTIVE") {
+    return "ACTIVO";
+  }
+
+  if (status === "CANCELLED") {
+    return "CANCELADO";
+  }
+
+  return "ACTIVO";
 }
 
 export async function POST(request: Request) {
@@ -116,33 +149,27 @@ export async function POST(request: Request) {
     }
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan, estado_plan, fecha_inicio_plan, fecha_fin_plan")
-    .eq("id", user.id)
-    .maybeSingle();
-
   const { data: subscription } = await supabase
     .from("subscriptions")
-    .select("status, provider_status, current_period_start, current_period_end")
+    .select("status, provider_status, current_period_start, current_period_end, plans(code)")
     .eq("account_id", user.id)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  const subscriptionStatus = subscription?.status ?? "FREE";
+  const plan =
+    subscriptionStatus === "ACTIVE" ? getJoinedPlanCode(subscription) : "FREE";
+  const profileStatus = mapSubscriptionStatusToPlanStatus(subscriptionStatus);
 
-  const isActive =
-    profile?.plan === "INDEPENDIENTE" &&
-    (profile.estado_plan === "ACTIVO" || subscription?.status === "ACTIVE");
+  const isActive = plan === "INDEPENDIENTE" && subscriptionStatus === "ACTIVE";
 
   return NextResponse.json({
-    plan: profile?.plan ?? "FREE",
-    profileStatus: profile?.estado_plan ?? "ACTIVO",
+    plan,
+    profileStatus,
     status: isActive ? "ACTIVO" : "PENDIENTE",
     subscription: {
-      currentPeriodEnd:
-        subscription?.current_period_end ?? profile?.fecha_fin_plan ?? null,
-      currentPeriodStart:
-        subscription?.current_period_start ?? profile?.fecha_inicio_plan ?? null,
+      currentPeriodEnd: subscription?.current_period_end ?? null,
+      currentPeriodStart: subscription?.current_period_start ?? null,
       providerStatus: subscription?.provider_status ?? null,
       status: subscription?.status ?? null,
     },

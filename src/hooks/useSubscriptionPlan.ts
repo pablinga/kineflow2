@@ -47,11 +47,23 @@ function normalizePlan(value: unknown): CommercialPlan {
 }
 
 function normalizeStatus(value: unknown): PlanStatus {
-  return value === "PENDIENTE" ||
-    value === "VENCIDO" ||
-    value === "CANCELADO"
-    ? value
-    : "ACTIVO";
+  if (value === "ACTIVE") {
+    return "ACTIVO";
+  }
+
+  if (value === "CANCELLED") {
+    return "CANCELADO";
+  }
+
+  return "ACTIVO";
+}
+
+function getJoinedPlanCode(subscription: unknown) {
+  const plans = (subscription as { plans?: { code?: unknown } | Array<{ code?: unknown }> } | null)
+    ?.plans;
+  const planRow = Array.isArray(plans) ? plans[0] : plans;
+
+  return normalizePlan(planRow?.code);
 }
 
 export function useSubscriptionPlan() {
@@ -71,28 +83,24 @@ export function useSubscriptionPlan() {
         }
 
         const { data, error } = await supabase
-          .from("profiles")
-          .select("plan, estado_plan, limite_pacientes, cantidad_kinesiologos")
-          .eq("id", userData.user.id)
+          .from("subscriptions")
+          .select("status, plans(code)")
+          .eq("account_id", userData.user.id)
+          .order("created_at", { ascending: false })
           .maybeSingle();
 
-        if (error || !data) {
+        if (error) {
           return;
         }
 
-        const currentPlan = normalizePlan(data.plan);
-        const configuredLimit =
-          typeof data.limite_pacientes === "number"
-            ? data.limite_pacientes
-            : getPatientLimit(currentPlan);
+        const currentStatus = normalizeStatus(data?.status);
+        const currentPlan =
+          data?.status === "ACTIVE" ? getJoinedPlanCode(data) : "FREE";
         const nextPlan = {
           plan: currentPlan,
-          estadoPlan: normalizeStatus(data.estado_plan),
-          limitePacientes: configuredLimit,
-          cantidadKinesiologos:
-            typeof data.cantidad_kinesiologos === "number"
-              ? data.cantidad_kinesiologos
-              : getPlanDefinition(currentPlan).kinesiologistCount,
+          estadoPlan: currentStatus,
+          limitePacientes: getPatientLimit(currentPlan),
+          cantidadKinesiologos: getPlanDefinition(currentPlan).kinesiologistCount,
         };
 
         planSnapshot.loaded = true;

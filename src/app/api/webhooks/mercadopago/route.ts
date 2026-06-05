@@ -436,20 +436,6 @@ async function resolveParsedReference(params: {
     };
   }
 
-  const { data: profile } = await params.admin
-    .from("profiles")
-    .select("id")
-    .eq("mercado_pago_preapproval_id", params.providerSubscriptionId)
-    .maybeSingle();
-
-  if (profile?.id) {
-    return {
-      accountId: profile.id as string,
-      planCode: "INDEPENDIENTE" as CommercialPlan,
-      subscriptionId: null,
-    };
-  }
-
   if (params.reference === "KINEPART" || !params.reference) {
     const payerEmail = params.providerSubscription.payer_email?.toLowerCase();
 

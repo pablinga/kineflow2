@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { getPermissionsFromPlan } from "@/lib/billing";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
-import type { CommercialPlan } from "@/lib/plans";
+import {
+  getPatientLimit,
+  getPlanDefinition,
+  type CommercialPlan,
+  type PlanStatus,
+} from "@/lib/plans";
 import type { AccountType } from "@/hooks/useRequireAuth";
 import type { InternalSubscriptionStatus } from "@/lib/billing";
 
@@ -20,17 +25,33 @@ function normalizePlan(value: unknown): CommercialPlan {
 
 function normalizeStatus(value: unknown): InternalSubscriptionStatus {
   if (
-    value === "PENDING_PAYMENT" ||
     value === "ACTIVE" ||
-    value === "PAUSED" ||
-    value === "CANCELLED" ||
-    value === "PAST_DUE" ||
-    value === "EXPIRED"
+    value === "CANCELLED"
   ) {
     return value;
   }
 
-  return value === "ACTIVO" ? "ACTIVE" : "PENDING_PAYMENT";
+  return "PENDING_PAYMENT";
+}
+
+function mapStatusToPlanStatus(value: InternalSubscriptionStatus): PlanStatus {
+  if (value === "ACTIVE") {
+    return "ACTIVO";
+  }
+
+  if (value === "CANCELLED") {
+    return "CANCELADO";
+  }
+
+  return "ACTIVO";
+}
+
+function getJoinedPlanCode(subscription: unknown) {
+  const plans = (subscription as { plans?: { code?: unknown } | Array<{ code?: unknown }> } | null)
+    ?.plans;
+  const planRow = Array.isArray(plans) ? plans[0] : plans;
+
+  return normalizePlan(planRow?.code);
 }
 
 export async function GET(request: Request) {
@@ -59,28 +80,28 @@ export async function GET(request: Request) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("account_type, plan, estado_plan, limite_pacientes, cantidad_kinesiologos")
+    .select("account_type")
     .eq("id", user.id)
     .single();
   const { data: subscription } = await supabase
     .from("subscriptions")
-    .select("status, provider_status, current_period_start, current_period_end")
+    .select("status, provider_status, current_period_start, current_period_end, plans(code)")
     .eq("account_id", user.id)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   const accountType = (profile?.account_type ?? "KINESIOLOGO") as AccountType;
-  const plan = normalizePlan(profile?.plan);
-  const subscriptionStatus = normalizeStatus(
-    subscription?.status ?? profile?.estado_plan,
-  );
+  const subscriptionStatus = normalizeStatus(subscription?.status);
+  const plan = subscriptionStatus === "ACTIVE" ? getJoinedPlanCode(subscription) : "FREE";
+  const planDefinition = getPlanDefinition(plan);
+  const estadoPlan = mapStatusToPlanStatus(subscriptionStatus);
 
   return NextResponse.json({
     accountType,
     plan,
-    estadoPlan: profile?.estado_plan ?? "ACTIVO",
-    limitePacientes: profile?.limite_pacientes ?? 5,
-    cantidadKinesiologos: profile?.cantidad_kinesiologos ?? 1,
+    estadoPlan,
+    limitePacientes: getPatientLimit(plan),
+    cantidadKinesiologos: planDefinition.kinesiologistCount,
     subscription: {
       currentPeriodEnd: subscription?.current_period_end ?? null,
       currentPeriodStart: subscription?.current_period_start ?? null,

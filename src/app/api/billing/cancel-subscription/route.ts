@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
   const { data: profile } = await admin
     .from("profiles")
-    .select("id, email, full_name, mercado_pago_preapproval_id")
+    .select("id, email, full_name")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -56,9 +56,7 @@ export async function POST(request: Request) {
     .limit(1)
     .maybeSingle();
 
-  const preapprovalId =
-    (profile as { mercado_pago_preapproval_id?: string | null } | null)
-      ?.mercado_pago_preapproval_id ?? subscription?.provider_subscription_id;
+  const preapprovalId = subscription?.provider_subscription_id;
 
   if (!preapprovalId) {
     console.warn("[billing:cancel-subscription] Active subscription not found", {
@@ -102,6 +100,7 @@ export async function POST(request: Request) {
         cancellation_reference: cancellationReference,
         provider_status: providerSubscription.status ?? "cancelled",
         status: "CANCELLED",
+        updated_at: canceledAt,
       })
       .eq("id", subscription.id);
 
@@ -115,30 +114,6 @@ export async function POST(request: Request) {
         { status: 500 },
       );
     }
-  }
-
-  const { error: profileUpdateError } = await admin
-    .from("profiles")
-    .update({
-      cancel_request_code: cancellationReference,
-      cancelled_at: canceledAt,
-      estado_plan: "CANCELADO",
-      mercado_pago_status: providerSubscription.status ?? "cancelled",
-      plan: "FREE",
-      plan_status: "cancelled",
-      subscription_canceled_at: canceledAt,
-      updated_at: canceledAt,
-    })
-    .eq("id", user.id);
-
-  if (profileUpdateError) {
-    console.error("[billing:cancel-subscription] Profile update failed", {
-      accountId: user.id,
-    });
-    return NextResponse.json(
-      { error: "No pudimos actualizar el estado de tu plan." },
-      { status: 500 },
-    );
   }
 
   console.info("[billing:cancel-subscription] Supabase cancellation applied", {

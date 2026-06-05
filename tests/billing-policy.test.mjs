@@ -182,7 +182,9 @@ test("Retorno de Mercado Pago activa solo si preapproval pertenece al usuario", 
   assert.match(source, /"KINEINDEP"/);
   assert.match(source, /!payerEmail/);
   assert.match(source, /payerEmail === userEmail/);
-  assert.match(source, /select\("plan, estado_plan/);
+  assert.match(source, /from\("subscriptions"\)/);
+  assert.match(source, /plans\(code\)/);
+  assert.doesNotMatch(source, /select\("plan, estado_plan/);
 });
 
 test("Checkout de Mercado Pago usa NEXT_PUBLIC_APP_URL y rutas QA reales", () => {
@@ -245,8 +247,9 @@ test("Actualizacion de plan loguea errores exactos de Supabase", () => {
   assert.match(billingServer, /details: error\.details/);
   assert.match(billingServer, /hint: error\.hint/);
   assert.match(billingServer, /message: error\.message/);
-  assert.match(billingServer, /Supabase profile update failed/);
-  assert.match(billingServer, /profileUpdateError\.message/);
+  assert.match(billingServer, /Supabase subscription upsert failed/);
+  assert.match(billingServer, /subscriptionUpsertError\.message/);
+  assert.doesNotMatch(billingServer, /estado_plan|limite_pacientes|mercado_pago_status|plan_status|subscription_current_period_end/);
 });
 
 test("Webhook Mercado Pago acepta eventos de suscripcion y pago por ruta publica", () => {
@@ -317,12 +320,12 @@ test("Baja de suscripcion llama a Mercado Pago, usa la ruta publica y registra r
   const page = fs.readFileSync("src/app/dashboard/planes/page.tsx", "utf8");
 
   assert.match(source, /cancelMercadoPagoSubscription/);
-  assert.match(source, /mercado_pago_preapproval_id/);
+  assert.match(source, /provider_subscription_id/);
   assert.match(source, /No encontramos una suscripcion activa para cancelar/);
   assert.match(source, /No pudimos cancelar la suscripcion en este momento/);
   assert.match(source, /cancellationReference/);
-  assert.match(source, /plan_status: "cancelled"/);
-  assert.match(source, /mercado_pago_status/);
+  assert.match(source, /status: "CANCELLED"/);
+  assert.doesNotMatch(source, /estado_plan|mercado_pago_status|plan_status|subscription_canceled_at/);
   assert.match(source, /sendSubscriptionCancelledEmail/);
   assert.match(alias, /cancel-subscription/);
   assert.match(page, /canCancelSubscription/);
@@ -337,15 +340,15 @@ test("Webhook sincroniza altas, pausas y cancelaciones desde Mercado Pago", () =
   const mercadoPago = fs.readFileSync("src/lib/mercadopago.ts", "utf8");
 
   assert.match(webhook, /getMercadoPagoSubscription\(params\.resourceId\)/);
-  assert.match(webhook, /mercado_pago_preapproval_id/);
   assert.match(webhook, /status_recibido/);
   assert.match(webhook, /preapproval_id/);
   assert.match(mercadoPago, /status === "authorized"/);
   assert.match(mercadoPago, /status === "paused"/);
   assert.match(mercadoPago, /status === "canceled" \|\| status === "cancelled"/);
   assert.match(billingServer, /effectivePlanCode = internalStatus === "ACTIVE" \? planCode : "FREE"/);
-  assert.match(billingServer, /plan_status:[\s\S]*"cancelled"[\s\S]*internalStatus\.toLowerCase/);
-  assert.match(billingServer, /cancelled_at/);
+  assert.match(billingServer, /upsert\(subscriptionPayload, \{ onConflict: "account_id" \}\)/);
+  assert.match(billingServer, /status: storedStatus/);
+  assert.doesNotMatch(billingServer, /estado_plan|limite_pacientes|mercado_pago_status|plan_status|subscription_current_period_end/);
 });
 
 test("Links legales existen", () => {
