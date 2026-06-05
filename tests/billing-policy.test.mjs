@@ -548,7 +548,9 @@ test("Tratamientos vinculan sesiones, turnos y evoluciones", () => {
   assert.match(newAppointmentPage, /useTreatments\(appointment\.patientId/);
   assert.match(newAppointmentPage, /updateTreatment/);
   assert.match(newAppointmentPage, /usedSessions \+ 1/);
-  assert.match(newAppointmentPage, /Crear tratamiento/);
+  assert.match(newAppointmentPage, /Este paciente no tiene tratamientos activos/);
+  assert.match(newAppointmentPage, /ficha del paciente/);
+  assert.doesNotMatch(newAppointmentPage, /Crear tratamiento/);
   assert.match(evolutionsHook, /treatment_id: input\.treatmentId \|\| null/);
   assert.match(statusRoute, /getSupabaseAdminClient/);
   assert.match(statusRoute, /from\("treatments"\)/);

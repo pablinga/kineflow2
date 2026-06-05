@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarCheck, Plus, Save } from "lucide-react";
+import { ArrowLeft, CalendarCheck, Save } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { useAppointments, type NewAppointmentInput } from "@/hooks/useAppointments";
@@ -357,13 +357,17 @@ export default function NewAppointmentPage() {
                   ))}
                 </select>
                 {appointment.patientId && activeTreatments.length === 0 ? (
-                  <Link
-                    className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-ocean-700"
-                    href={`/dashboard/pacientes/${appointment.patientId}`}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Crear tratamiento
-                  </Link>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Este paciente no tiene tratamientos activos. Crea uno desde
+                    la{" "}
+                    <Link
+                      className="font-semibold text-ocean-700 underline-offset-4 hover:underline"
+                      href={`/dashboard/pacientes/${appointment.patientId}`}
+                    >
+                      ficha del paciente
+                    </Link>
+                    .
+                  </p>
                 ) : null}
               </label>
               <label className="block">
