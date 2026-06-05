@@ -7,6 +7,7 @@
 do $$
 declare
   qa_user_id uuid := '00000000-0000-0000-0000-000000000000';
+  independent_plan_id uuid;
   patient_one_id uuid;
   patient_two_id uuid;
   appointment_one_id uuid;
@@ -20,6 +21,15 @@ begin
     raise exception 'The QA Auth user % does not exist. Create it in Supabase Auth first.', qa_user_id;
   end if;
 
+  select id into independent_plan_id
+  from public.plans
+  where code = 'INDEPENDIENTE'
+  limit 1;
+
+  if independent_plan_id is null then
+    raise exception 'Plan INDEPENDIENTE does not exist. Run migrations before this seed.';
+  end if;
+
   insert into public.profiles (
     id,
     account_type,
@@ -28,10 +38,7 @@ begin
     license_number,
     phone,
     specialty,
-    role,
-    plan,
-    estado_plan,
-    fecha_inicio_plan
+    role
   )
   values (
     qa_user_id,
@@ -41,10 +48,7 @@ begin
     'QA-12345',
     '+54 11 5555 0101',
     'Kinesiologia deportiva',
-    'kinesiologist',
-    'INDEPENDIENTE',
-    'ACTIVO',
-    now()
+    'kinesiologist'
   )
   on conflict (id) do update
   set
@@ -55,9 +59,46 @@ begin
     phone = excluded.phone,
     specialty = excluded.specialty,
     role = excluded.role,
-    plan = excluded.plan,
-    estado_plan = excluded.estado_plan,
-    fecha_inicio_plan = excluded.fecha_inicio_plan,
+    updated_at = now();
+
+  insert into public.subscriptions (
+    account_id,
+    account_type,
+    plan_id,
+    provider,
+    provider_subscription_id,
+    provider_status,
+    status,
+    current_period_start,
+    activated_at,
+    cancel_at_period_end
+  )
+  values (
+    qa_user_id,
+    'KINESIOLOGO',
+    independent_plan_id,
+    'mercadopago',
+    'qa-seed-subscription',
+    'authorized',
+    'ACTIVE',
+    now(),
+    now(),
+    false
+  )
+  on conflict (account_id) do update
+  set
+    account_type = excluded.account_type,
+    plan_id = excluded.plan_id,
+    provider = excluded.provider,
+    provider_subscription_id = excluded.provider_subscription_id,
+    provider_status = excluded.provider_status,
+    status = excluded.status,
+    current_period_start = excluded.current_period_start,
+    activated_at = excluded.activated_at,
+    cancel_at_period_end = excluded.cancel_at_period_end,
+    canceled_at = null,
+    cancellation_reference = null,
+    cancellation_reason = null,
     updated_at = now();
 
   delete from public.patients

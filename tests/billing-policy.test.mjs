@@ -351,6 +351,22 @@ test("Webhook sincroniza altas, pausas y cancelaciones desde Mercado Pago", () =
   assert.doesNotMatch(billingServer, /estado_plan|limite_pacientes|mercado_pago_status|plan_status|subscription_current_period_end/);
 });
 
+test("Limite de pacientes se calcula desde subscriptions y plans", () => {
+  const migration = fs.readFileSync(
+    "supabase/migrations/202606050001_move_patient_limits_to_subscriptions.sql",
+    "utf8",
+  );
+  const seed = fs.readFileSync("supabase/seed.qa.sql", "utf8");
+
+  assert.match(migration, /join public\.plans on plans\.id = subscriptions\.plan_id/);
+  assert.match(migration, /plans\.max_patients/);
+  assert.match(migration, /subscriptions\.account_id = new\.owner_id/);
+  assert.match(migration, /subscriptions\.status = 'ACTIVE'/);
+  assert.doesNotMatch(migration, /profiles\.plan|profiles\.estado_plan|profiles\.limite_pacientes|profiles\.cantidad_kinesiologos/);
+  assert.match(seed, /insert into public\.subscriptions/);
+  assert.doesNotMatch(seed, /plan,\s*estado_plan|fecha_inicio_plan|limite_pacientes|cantidad_kinesiologos/);
+});
+
 test("Links legales existen", () => {
   [
     "src/app/terminos-y-condiciones/page.tsx",
