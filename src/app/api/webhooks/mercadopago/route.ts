@@ -450,7 +450,7 @@ async function resolveParsedReference(params: {
     };
   }
 
-  if (params.reference === "KINEINDEP" || !params.reference) {
+  if (params.reference === "KINEPART" || !params.reference) {
     const payerEmail = params.providerSubscription.payer_email?.toLowerCase();
 
     if (!payerEmail) {
