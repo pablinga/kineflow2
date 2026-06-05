@@ -8,6 +8,25 @@ import { getPlanDefinition, type CommercialPlan } from "@/lib/plans";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
 
 type SupabaseAdminClient = NonNullable<ReturnType<typeof getSupabaseAdminClient>>;
+type SupabaseErrorLike = {
+  code?: string;
+  details?: string;
+  hint?: string;
+  message?: string;
+};
+
+function getSupabaseErrorLog(error: SupabaseErrorLike | null) {
+  if (!error) {
+    return null;
+  }
+
+  return {
+    code: error.code ?? null,
+    details: error.details ?? null,
+    hint: error.hint ?? null,
+    message: error.message ?? null,
+  };
+}
 
 export async function applyMercadoPagoSubscriptionToAccount(params: {
   accountId: string;
@@ -34,6 +53,12 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
     .maybeSingle();
 
   if (planError || !planRow?.id) {
+    console.error("[billing:apply-subscription] Supabase plan lookup failed", {
+      accountId,
+      planCode,
+      supabaseError: getSupabaseErrorLog(planError),
+    });
+
     throw new Error("No encontramos el plan interno para actualizar la cuenta.");
   }
 
@@ -74,7 +99,16 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
       .eq("id", existingSubscription.id);
 
     if (subscriptionUpdateError) {
-      throw new Error("No pudimos actualizar la suscripcion en Supabase.");
+      console.error("[billing:apply-subscription] Supabase subscription update failed", {
+        accountId,
+        providerSubscriptionId: providerSubscription.id,
+        subscriptionId: existingSubscription.id,
+        supabaseError: getSupabaseErrorLog(subscriptionUpdateError),
+      });
+
+      throw new Error(
+        `No pudimos actualizar la suscripcion en Supabase: ${subscriptionUpdateError.message}`,
+      );
     }
   } else {
     const { error: subscriptionInsertError } = await admin
@@ -82,7 +116,15 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
       .insert(subscriptionPayload);
 
     if (subscriptionInsertError) {
-      throw new Error("No pudimos crear la suscripcion en Supabase.");
+      console.error("[billing:apply-subscription] Supabase subscription insert failed", {
+        accountId,
+        providerSubscriptionId: providerSubscription.id,
+        supabaseError: getSupabaseErrorLog(subscriptionInsertError),
+      });
+
+      throw new Error(
+        `No pudimos crear la suscripcion en Supabase: ${subscriptionInsertError.message}`,
+      );
     }
   }
 
@@ -117,7 +159,19 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
     .eq("id", accountId);
 
   if (profileUpdateError) {
-    throw new Error("No pudimos actualizar el plan del usuario en Supabase.");
+    console.error("[billing:apply-subscription] Supabase profile update failed", {
+      accountId,
+      effectivePlanCode,
+      internalStatus,
+      planCode,
+      profileStatus,
+      providerSubscriptionId: providerSubscription.id,
+      supabaseError: getSupabaseErrorLog(profileUpdateError),
+    });
+
+    throw new Error(
+      `No pudimos actualizar el plan del usuario en Supabase: ${profileUpdateError.message}`,
+    );
   }
 
   console.info("[billing:apply-subscription] Supabase profile updated", {

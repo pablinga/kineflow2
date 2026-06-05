@@ -237,6 +237,18 @@ test("Webhook valida KineFlow Particular y mail posterior a activacion", () => {
   assert.match(billingServer, /sendSubscriptionActivatedEmail/);
 });
 
+test("Actualizacion de plan loguea errores exactos de Supabase", () => {
+  const billingServer = fs.readFileSync("src/lib/billing-server.ts", "utf8");
+
+  assert.match(billingServer, /type SupabaseAdminClient = NonNullable<ReturnType<typeof getSupabaseAdminClient>>/);
+  assert.match(billingServer, /code: error\.code/);
+  assert.match(billingServer, /details: error\.details/);
+  assert.match(billingServer, /hint: error\.hint/);
+  assert.match(billingServer, /message: error\.message/);
+  assert.match(billingServer, /Supabase profile update failed/);
+  assert.match(billingServer, /profileUpdateError\.message/);
+});
+
 test("Webhook Mercado Pago acepta eventos de suscripcion y pago por ruta publica", () => {
   const webhook = fs.readFileSync("src/app/api/webhooks/mercadopago/route.ts", "utf8");
   const alias = fs.readFileSync("src/app/api/mercadopago/webhook/route.ts", "utf8");
