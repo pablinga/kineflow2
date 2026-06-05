@@ -34,6 +34,18 @@ type SubscriptionStatusResponse = {
   };
 };
 
+type BillingCurrentResponse = {
+  plan: string;
+  estadoPlan: string;
+  subscription: {
+    providerStatus: string | null;
+    status: string | null;
+  };
+};
+
+const POLLING_INTERVAL_MS = 3000;
+const MAX_POLLING_ATTEMPTS = 5;
+
 const copyByKind = {
   error: {
     icon: AlertCircle,
@@ -81,11 +93,91 @@ export function SubscriptionReturnPage({
         ? getPlanDisplayName(subscriptionStatus.plan as CommercialPlan)
         : "KineFlow - Particular";
 
+  function normalizeSubscriptionStatus(
+    response: BillingCurrentResponse | SubscriptionStatusResponse,
+  ): SubscriptionStatusResponse {
+    const subscriptionProviderStatus = response.subscription?.status;
+    const active =
+      subscriptionProviderStatus === "ACTIVE" ||
+      ("status" in response && response.status === "ACTIVO");
+
+    return {
+      plan: response.plan,
+      profileStatus:
+        "profileStatus" in response ? response.profileStatus : response.estadoPlan,
+      status: active ? "ACTIVO" : "PENDIENTE",
+      subscription: response.subscription,
+    };
+  }
+
+  async function fetchCurrentSubscriptionStatus(accessToken: string) {
+    const response = await fetch("/api/billing/current", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        getFriendlyErrorMessage(result.error, "No pudimos consultar tu plan."),
+      );
+    }
+
+    return normalizeSubscriptionStatus(result);
+  }
+
+  async function confirmReturnSubscriptionStatus(
+    accessToken: string,
+    preapprovalId: string | null,
+  ) {
+    const response = await fetch("/api/billing/confirm-return", {
+      body: JSON.stringify({ preapprovalId }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        getFriendlyErrorMessage(result.error, "No pudimos consultar tu plan."),
+      );
+    }
+
+    return normalizeSubscriptionStatus(result);
+  }
+
   useEffect(() => {
     let mounted = true;
 
+    async function waitForActiveSubscription(accessToken: string) {
+      for (let attempt = 0; attempt < MAX_POLLING_ATTEMPTS; attempt += 1) {
+        await new Promise((resolve) =>
+          window.setTimeout(resolve, POLLING_INTERVAL_MS),
+        );
+
+        if (!mounted) {
+          return;
+        }
+
+        const currentStatus = await fetchCurrentSubscriptionStatus(accessToken);
+
+        if (mounted) {
+          setSubscriptionStatus(currentStatus);
+        }
+
+        if (currentStatus.status === "ACTIVO") {
+          return;
+        }
+      }
+    }
+
     async function checkStatus() {
       setError("");
+      setChecking(true);
 
       try {
         const supabase = getSupabaseClient();
@@ -99,37 +191,36 @@ export function SubscriptionReturnPage({
         const preapprovalId = new URLSearchParams(window.location.search).get(
           "preapproval_id",
         );
+        const currentStatus = await fetchCurrentSubscriptionStatus(accessToken);
 
-        if (
-          kind === "success" &&
-          preapprovalId &&
-          confirmedPreapprovalRef.current === preapprovalId
-        ) {
+        if (mounted) {
+          setSubscriptionStatus(currentStatus);
+        }
+
+        if (currentStatus.status === "ACTIVO") {
           return;
         }
 
-        if (preapprovalId) {
+        const shouldConfirmReturn = !(
+          kind === "success" &&
+          preapprovalId &&
+          confirmedPreapprovalRef.current === preapprovalId
+        );
+
+        if (preapprovalId && shouldConfirmReturn) {
           confirmedPreapprovalRef.current = preapprovalId;
         }
 
-        const response = await fetch("/api/billing/confirm-return", {
-          body: JSON.stringify({ preapprovalId }),
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          method: "POST",
-        });
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            getFriendlyErrorMessage(result.error, "No pudimos consultar tu plan."),
-          );
-        }
+        const confirmedStatus = shouldConfirmReturn
+          ? await confirmReturnSubscriptionStatus(accessToken, preapprovalId)
+          : currentStatus;
 
         if (mounted) {
-          setSubscriptionStatus(result);
+          setSubscriptionStatus(confirmedStatus);
+        }
+
+        if (confirmedStatus.status !== "ACTIVO") {
+          await waitForActiveSubscription(accessToken);
         }
       } catch (statusError) {
         if (mounted) {
@@ -187,7 +278,7 @@ export function SubscriptionReturnPage({
               </div>
 
               <h1 className="mt-6 text-3xl font-extrabold text-ink sm:text-4xl">
-                {isActive ? "¡Suscripción activa!" : "¡Suscripción recibida!"}
+                {isActive ? "¡Tu plan está activo!" : "¡Suscripción recibida!"}
               </h1>
               <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
                 {isActive ? (

@@ -217,14 +217,21 @@ test("Post pago consulta Supabase antes de mostrar Plan activo", () => {
   const rootSuccess = fs.readFileSync("src/app/suscripcion-exitosa/page.tsx", "utf8");
 
   assert.match(page, /fetch\("\/api\/billing\/confirm-return"/);
+  assert.match(page, /fetch\("\/api\/billing\/current"/);
   assert.match(page, /new URLSearchParams\(window\.location\.search\)\.get\(\s*"preapproval_id"/);
   assert.match(page, /JSON\.stringify\(\{ preapprovalId \}\)/);
   assert.match(page, /confirmedPreapprovalRef/);
+  assert.match(page, /POLLING_INTERVAL_MS = 3000/);
+  assert.match(page, /MAX_POLLING_ATTEMPTS = 5/);
+  assert.match(page, /waitForActiveSubscription/);
+  assert.match(page, /normalizeSubscriptionStatus/);
+  assert.match(page, /subscriptionProviderStatus === "ACTIVE"/);
   assert.match(page, /subscriptionStatus\?\.plan === "INDEPENDIENTE"/);
   assert.match(page, /subscriptionStatus\.status === "ACTIVO"/);
   assert.match(page, /kind === "success" && !isActive[\s\S]*"KineFlow - Particular"/);
   assert.match(page, /Suscripción recibida/);
   assert.match(page, /Plan activo/);
+  assert.match(page, /Tu plan est(?:a|á|Ã¡) activo/);
   assert.match(page, /confirmando el pago con Mercado Pago/);
   assert.match(rootSuccess, /SubscriptionReturnPage kind="success"/);
 });
