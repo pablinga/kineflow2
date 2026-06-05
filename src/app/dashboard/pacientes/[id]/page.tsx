@@ -273,7 +273,7 @@ export default function PatientDetailPage() {
       await refreshTreatments();
       if (result.treatmentCompleted) {
         setActionError(
-          `Â¡Tratamiento completado! El paciente finalizÃ³ sus ${result.treatmentCompleted.totalSessions} sesiones.`,
+          `¡Tratamiento completado! El paciente finalizó sus ${result.treatmentCompleted.totalSessions} sesiones.`,
         );
       }
       setEvolution((current) => ({ ...current, appointmentId }));
@@ -464,14 +464,6 @@ export default function PatientDetailPage() {
                       <Edit3 className="h-4 w-4" />
                       Editar paciente
                     </Link>
-                    <button
-                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white transition hover:bg-ocean-700"
-                      onClick={() => setTreatmentModalOpen(true)}
-                      type="button"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Nuevo tratamiento
-                    </button>
                     {patientLimitBlock ? (
                       <button
                         className="inline-flex min-h-10 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-400"
@@ -527,11 +519,44 @@ export default function PatientDetailPage() {
                 </section>
               ) : null}
 
-              <section className="mt-6 grid gap-6 xl:grid-cols-[0.75fr_1.35fr]">
+              <section className="mt-6 overflow-x-auto rounded-lg border border-ocean-100 bg-white p-3 shadow-card">
+                <div className="grid min-w-[42rem] grid-cols-3 gap-3">
+                  <div className="rounded-lg bg-emerald-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-emerald-700">
+                      Total cobrado
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-ink">
+                      {formatCurrency(totalPaid)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-amber-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-amber-700">
+                      Total pendiente
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-ink">
+                      {formatCurrency(totalPending)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-ocean-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-ocean-700">
+                      Última sesión cobrada
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-ink">
+                      {lastPaidAppointment
+                        ? `${lastPaidAppointment.date} · ${formatCurrency(
+                            lastPaidAppointment.amount,
+                          )}`
+                        : "Sin cobros"}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
                 <aside className="space-y-4">
-                  <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
+                  <section className="hidden">
                     <h2 className="text-lg font-bold text-ink">
-                      Resumen economico
+                      Resumen económico
                     </h2>
                     <div className="mt-4 grid gap-3">
                       <div className="rounded-lg bg-emerald-50 p-4">
@@ -552,7 +577,7 @@ export default function PatientDetailPage() {
                       </div>
                       <div className="rounded-lg bg-ocean-50 p-4">
                         <p className="text-sm font-semibold text-ocean-700">
-                          Ultima sesion cobrada
+                          Última sesión cobrada
                         </p>
                         <p className="mt-2 text-sm font-bold text-ink">
                           {lastPaidAppointment
@@ -599,7 +624,7 @@ export default function PatientDetailPage() {
                               <div>
                                 <p className="font-bold text-ink">{item.diagnosis}</p>
                                 <p className="mt-1 text-sm text-slate-500">
-                                  {item.bodyRegion || "Sin regiÃ³n"} Â· Inicio {item.startedAt}
+                                  {item.bodyRegion || "Sin región"} · Inicio {item.startedAt}
                                 </p>
                               </div>
                               <div className="flex flex-wrap gap-2">
@@ -669,10 +694,10 @@ export default function PatientDetailPage() {
                                         <p className="font-bold text-ocean-800">
                                           #{appointment.sessionNumber ?? "-"}
                                         </p>
-                                        <p>{appointment.date} Â· {appointment.time}</p>
-                                        <p>{getAppointmentDisplayStatus(appointment)} Â· {appointment.paymentStatusLabel} Â· {formatSessionAmount(appointment.amount)}</p>
+                                        <p>{appointment.date} · {appointment.time}</p>
+                                        <p>{getAppointmentDisplayStatus(appointment)} · {appointment.paymentStatusLabel} · {formatSessionAmount(appointment.amount)}</p>
                                         <p className="text-ocean-700">
-                                          {linkedEvolution ? `EvoluciÃ³n ${linkedEvolution.date}` : "Sin evoluciÃ³n"}
+                                          {linkedEvolution ? `Evolución ${linkedEvolution.date}` : "Sin evolución"}
                                         </p>
                                       </div>
                                     );
@@ -686,7 +711,7 @@ export default function PatientDetailPage() {
                       {treatments.length === 0 ? (
                         <div className="rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
                           <p className="font-semibold text-ink">
-                            Este paciente todavÃ­a no tiene tratamientos.
+                            Este paciente todavía no tiene tratamientos.
                           </p>
                         </div>
                       ) : null}
@@ -695,7 +720,7 @@ export default function PatientDetailPage() {
 
                   <section className="hidden">
                     <h2 className="text-lg font-bold text-ink">
-                      Resumen econÃ³mico
+                      Resumen económico
                     </h2>
                     <div className="mt-4 grid gap-3">
                       <div className="rounded-lg bg-emerald-50 p-4">
@@ -716,11 +741,11 @@ export default function PatientDetailPage() {
                       </div>
                       <div className="rounded-lg bg-ocean-50 p-4">
                         <p className="text-sm font-semibold text-ocean-700">
-                          Ãšltima sesiÃ³n cobrada
+                          Última sesión cobrada
                         </p>
                         <p className="mt-2 text-sm font-bold text-ink">
                           {lastPaidAppointment
-                            ? `${lastPaidAppointment.date} Â· ${formatCurrency(
+                            ? `${lastPaidAppointment.date} · ${formatCurrency(
                                 lastPaidAppointment.amount,
                               )}`
                             : "Sin cobros"}
@@ -1045,7 +1070,7 @@ export default function PatientDetailPage() {
 
                   <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
                     <h2 className="text-lg font-bold text-ink">
-                      Evoluciones / sesiónes
+                      Evoluciones / Sesiones
                     </h2>
                     <button
                       className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
@@ -1055,7 +1080,7 @@ export default function PatientDetailPage() {
                       type="button"
                     >
                       <Plus className="h-4 w-4" />
-                      Nueva evoluciÃ³n
+                      Nueva evolución
                     </button>
                     <div className="mt-5 space-y-3">
                       {evolutions.map((item) => (
@@ -1082,7 +1107,7 @@ export default function PatientDetailPage() {
                           </p>
                           <details className="mt-2 text-sm leading-6 text-slate-600">
                             <summary className="cursor-pointer font-semibold text-ocean-800">
-                              Ver notas clÃ­nicas
+                              Ver notas clínicas
                             </summary>
                             <p className="mt-2">{item.notes}</p>
                           </details>
@@ -1136,7 +1161,7 @@ export default function PatientDetailPage() {
                 <div className="mt-5 grid gap-5 md:grid-cols-2">
                   <label className="block md:col-span-2">
                     <span className="text-sm font-semibold text-slate-700">
-                      Diagnostico
+                      Diagnóstico
                     </span>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
@@ -1150,7 +1175,7 @@ export default function PatientDetailPage() {
                   </label>
                   <label className="block">
                     <span className="text-sm font-semibold text-slate-700">
-                      Region del cuerpo
+                      Región del cuerpo
                     </span>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
@@ -1238,7 +1263,7 @@ export default function PatientDetailPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-bold text-ink">
-                      Nueva evoluciÃ³n
+                      Nueva evolución
                     </h2>
                     <p className="mt-1 text-sm text-slate-500">
                       Asociada a {patient?.name ?? "este paciente"}.
@@ -1278,7 +1303,7 @@ export default function PatientDetailPage() {
                       <option value="">Sin turno asociado</option>
                       {evolutionAppointmentOptions.map((appointment) => (
                         <option key={appointment.id} value={appointment.id}>
-                          {appointment.date} Â· {appointment.time} Â·{" "}
+                          {appointment.date} · {appointment.time} ·{" "}
                           {appointment.reason}
                         </option>
                       ))}
@@ -1333,7 +1358,7 @@ export default function PatientDetailPage() {
                 </label>
                 <label className="mt-5 block">
                   <span className="text-sm font-semibold text-slate-700">
-                    Notas clÃ­nicas
+                    Notas clínicas
                   </span>
                   <textarea
                     className="mt-2 min-h-32 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
@@ -1346,7 +1371,7 @@ export default function PatientDetailPage() {
                 </label>
                 <label className="mt-5 block">
                   <span className="text-sm font-semibold text-slate-700">
-                    PrÃ³ximos objetivos
+                    Próximos objetivos
                   </span>
                   <textarea
                     className="mt-2 min-h-24 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
@@ -1369,7 +1394,7 @@ export default function PatientDetailPage() {
                     type="submit"
                   >
                     <Save className="h-4 w-4" />
-                    {saving ? "Guardando..." : "Guardar evoluciÃ³n"}
+                    {saving ? "Guardando..." : "Guardar evolución"}
                   </button>
                 </div>
               </form>

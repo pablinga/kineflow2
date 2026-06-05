@@ -418,6 +418,7 @@ test("Listado de pacientes permite reactivar, ordenar y alternar vista", () => {
   assert.match(patientsPage, /FileText/);
   assert.match(patientsPage, /Pencil/);
   assert.match(patientsPage, /UserX/);
+  assert.match(patientsPage, /UserCheck/);
   assert.match(patientsPage, /window\.confirm/);
   assert.match(patientsPage, /title="Ver historial"/);
   assert.match(patientsPage, /title="Nuevo turno"/);
@@ -435,10 +436,11 @@ test("Listado de pacientes permite reactivar, ordenar y alternar vista", () => {
 test("Ficha del paciente separa historial y carga de evolucion en modal", () => {
   const source = fs.readFileSync("src/app/dashboard/pacientes/[id]/page.tsx", "utf8");
 
-  assert.match(source, /xl:grid-cols-\[0\.75fr_1\.35fr\]/);
+  assert.match(source, /xl:grid-cols-\[minmax\(0,0\.9fr\)_minmax\(0,1\.1fr\)\]/);
   assert.match(source, /Resumen econ/);
-  assert.match(source, /Turnos/);
-  assert.match(source, /Evoluciones/);
+  assert.match(source, /Última sesión cobrada/);
+  assert.match(source, /Tratamientos/);
+  assert.match(source, /Evoluciones \/ Sesiones/);
   assert.match(source, /evolutionModalOpen/);
   assert.match(source, /openNewEvolutionModal/);
   assert.match(source, /Nueva evoluci/);
