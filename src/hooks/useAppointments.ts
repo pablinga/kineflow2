@@ -4,8 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
+import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { useActiveClinic } from "@/hooks/useActiveClinic";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { usePatients } from "@/hooks/usePatients";
+import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 export type Appointment = {
   id: string;
@@ -69,9 +72,7 @@ export type NewClinicAppointmentInput = NewAppointmentInput & {
 
 export type AppointmentPaymentInput = {
   amount: number;
-  paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod | "";
-  paidAt: string;
   paymentNotes: string;
 };
 
@@ -247,6 +248,8 @@ function getClinicNameFromAvailability(row: AvailabilityRow) {
 
 export function useAppointments(patientId?: string) {
   const { accountType } = useRequireAuth();
+  const { activePatients } = usePatients();
+  const { plan } = useSubscriptionPlan();
   const {
     clinic: activeClinic,
     error: activeClinicError,
@@ -427,6 +430,15 @@ export function useAppointments(patientId?: string) {
   }
 
   async function addAppointment(input: NewAppointmentInput) {
+    const patientLimitBlock = getPatientPlanLimitBlock({
+      activePatientCount: activePatients.length,
+      patientLimit: plan.limitePacientes,
+    });
+
+    if (patientLimitBlock) {
+      throw new Error(patientLimitBlock);
+    }
+
     const supabase = getSupabaseClient();
     const { data: sessionData, error: sessionError } =
       await supabase.auth.getUser();
@@ -570,9 +582,9 @@ export function useAppointments(patientId?: string) {
       .from("appointments")
       .update({
         session_amount: input.amount || 0,
-        payment_status: input.paymentStatus,
+        payment_status: "paid",
         payment_method: input.paymentMethod || null,
-        paid_at: input.paidAt || null,
+        paid_at: new Date().toISOString(),
         payment_notes: input.paymentNotes || null,
       })
       .eq("id", id);

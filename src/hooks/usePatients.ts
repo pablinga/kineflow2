@@ -29,6 +29,7 @@ export type NewPatientInput = {
   phone: string;
   email: string;
   condition: string;
+  status?: PatientStatus;
 };
 
 type PatientRow = {
@@ -108,8 +109,8 @@ function mapPatient(
     clinicId: row.clinic_id,
     name: row.full_name,
     document: row.document_number,
-    phone: row.phone ?? "Sin telefono",
-    email: row.email ?? "Sin email",
+    phone: row.phone ?? "",
+    email: row.email ?? "",
     condition: row.initial_condition,
     status: row.status === "active" ? "Activo" : "Inactivo",
     progress: lastEvolution
@@ -120,6 +121,27 @@ function mapPatient(
       ? formatDateTime(nextAppointment.scheduled_at)
       : "Sin turno",
   };
+}
+
+function normalizePatientInput(input: NewPatientInput) {
+  return {
+    condition: input.condition.trim(),
+    document: input.document.trim(),
+    email: input.email.trim(),
+    name: input.name.trim(),
+    phone: input.phone.trim(),
+    status: input.status ?? "Activo",
+  };
+}
+
+function assertPatientContact(input: ReturnType<typeof normalizePatientInput>) {
+  if (!input.phone && !input.email) {
+    throw new Error("Ingresá al menos un medio de contacto (teléfono o email)");
+  }
+}
+
+function mapPatientStatusToDb(status: PatientStatus) {
+  return status === "Inactivo" ? "inactive" : "active";
 }
 
 export function usePatients() {
@@ -261,8 +283,36 @@ export function usePatients() {
     [accountType, patients],
   );
 
+  async function findDuplicatePatient(params: {
+    document: string;
+    excludePatientId?: string;
+    ownerId: string;
+  }) {
+    const supabase = getSupabaseClient();
+    let query = supabase
+      .from("patients")
+      .select("id, full_name")
+      .eq("owner_id", params.ownerId)
+      .eq("document_number", params.document)
+      .limit(1);
+
+    if (params.excludePatientId) {
+      query = query.neq("id", params.excludePatientId);
+    }
+
+    const { data, error } = await query.maybeSingle();
+
+    if (error) {
+      throw new Error(mapSupabaseError(error));
+    }
+
+    return data as { full_name: string; id: string } | null;
+  }
+
   async function addPatient(input: NewPatientInput) {
     setError("");
+    const normalizedInput = normalizePatientInput(input);
+    assertPatientContact(normalizedInput);
 
     const supabase = getSupabaseClient();
     const { data: sessionData, error: sessionError } =
@@ -293,19 +343,75 @@ export function usePatients() {
       }
     }
 
+    const duplicatePatient = await findDuplicatePatient({
+      document: normalizedInput.document,
+      ownerId: sessionData.user.id,
+    });
+
+    if (duplicatePatient) {
+      throw new Error(
+        `Ya tenés un paciente registrado con ese DNI: ${duplicatePatient.full_name}`,
+      );
+    }
+
     const { error: insertError } = await supabase.from("patients").insert({
       owner_id: sessionData.user.id,
       clinic_id: clinicId,
-      full_name: input.name,
-      document_number: input.document,
-      phone: input.phone,
-      email: input.email,
-      initial_condition: input.condition,
-      status: "active",
+      full_name: normalizedInput.name,
+      document_number: normalizedInput.document,
+      phone: normalizedInput.phone || null,
+      email: normalizedInput.email || null,
+      initial_condition: normalizedInput.condition,
+      status: mapPatientStatusToDb(normalizedInput.status),
     });
 
     if (insertError) {
       throw new Error(mapSupabaseError(insertError));
+    }
+
+    await loadPatients();
+  }
+
+  async function updatePatient(id: string, input: NewPatientInput) {
+    setError("");
+    const normalizedInput = normalizePatientInput(input);
+    assertPatientContact(normalizedInput);
+
+    const supabase = getSupabaseClient();
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getUser();
+
+    if (sessionError || !sessionData.user) {
+      throw new Error("No pudimos identificar al usuario.");
+    }
+
+    const duplicatePatient = await findDuplicatePatient({
+      document: normalizedInput.document,
+      excludePatientId: id,
+      ownerId: sessionData.user.id,
+    });
+
+    if (duplicatePatient) {
+      throw new Error(
+        `Ya tenés un paciente registrado con ese DNI: ${duplicatePatient.full_name}`,
+      );
+    }
+
+    const { error: updateError } = await supabase
+      .from("patients")
+      .update({
+        document_number: normalizedInput.document,
+        email: normalizedInput.email || null,
+        full_name: normalizedInput.name,
+        initial_condition: normalizedInput.condition,
+        phone: normalizedInput.phone || null,
+        status: mapPatientStatusToDb(normalizedInput.status),
+      })
+      .eq("owner_id", sessionData.user.id)
+      .eq("id", id);
+
+    if (updateError) {
+      throw new Error(mapSupabaseError(updateError));
     }
 
     await loadPatients();
@@ -346,5 +452,6 @@ export function usePatients() {
     loaded,
     patients,
     refreshPatients: loadPatients,
+    updatePatient,
   };
 }

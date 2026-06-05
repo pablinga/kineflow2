@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   CalendarPlus,
+  Edit3,
   Mail,
   MoreVertical,
   Phone,
@@ -16,11 +17,12 @@ import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { usePatients, type NewPatientInput } from "@/hooks/usePatients";
+import { usePatients, type NewPatientInput, type Patient } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { canCreatePatient } from "@/lib/billing";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
+import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 
 const emptyPatient: NewPatientInput = {
   name: "",
@@ -32,13 +34,17 @@ const emptyPatient: NewPatientInput = {
 
 export default function PatientsPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
-  const { addPatient, disablePatient, error, loaded, patients } = usePatients();
+  const { addPatient, disablePatient, error, loaded, patients, updatePatient } =
+    usePatients();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [newPatient, setNewPatient] = useState<NewPatientInput>(emptyPatient);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [editPatient, setEditPatient] = useState<NewPatientInput>(emptyPatient);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [actionNotice, setActionNotice] = useState("");
 
   const filteredPatients = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -106,6 +112,10 @@ export default function PatientsPage() {
     plan.limitePacientes !== null &&
     plan.limitePacientes >= 0 &&
     activePatients.length >= plan.limitePacientes;
+  const patientLimitBlock = getPatientPlanLimitBlock({
+    activePatientCount: activePatients.length,
+    patientLimit: plan.limitePacientes,
+  });
   const independentPlanMessage =
     "Esta funcionalidad está disponible en KineFlow - Particular. Podés activarlo para gestionar tus pacientes, turnos y cobros propios.";
 
@@ -113,12 +123,51 @@ export default function PatientsPage() {
     setNewPatient((current) => ({ ...current, [field]: value }));
   }
 
+  function updateEditField(field: keyof NewPatientInput, value: string) {
+    setEditPatient((current) => ({ ...current, [field]: value }));
+  }
+
+  function validateContact(input: NewPatientInput) {
+    if (!input.phone.trim() && !input.email.trim()) {
+      return "Ingresá al menos un medio de contacto (teléfono o email)";
+    }
+
+    return "";
+  }
+
+  function openEditPatient(patient: Patient) {
+    setEditingPatient(patient);
+    setActionError("");
+    setActionNotice("");
+    setEditPatient({
+      condition: patient.condition,
+      document: patient.document,
+      email: patient.email,
+      name: patient.name,
+      phone: patient.phone,
+      status: patient.status,
+    });
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setActionError("");
+    setActionNotice("");
 
     try {
+      const contactError = validateContact(newPatient);
+
+      if (contactError) {
+        setActionError(contactError);
+        return;
+      }
+
+      if (patientLimitBlock) {
+        setActionError(patientLimitBlock);
+        return;
+      }
+
       if (!canCreateCurrentPatient) {
         setActionError(
           freeLimitReached
@@ -133,9 +182,41 @@ export default function PatientsPage() {
       await addPatient(newPatient);
       setNewPatient(emptyPatient);
       setShowForm(false);
+      setActionNotice("Paciente creado correctamente");
     } catch (submitError) {
       setActionError(
         getFriendlyErrorMessage(submitError, "No pudimos guardar el paciente."),
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleEditSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editingPatient) {
+      return;
+    }
+
+    setSaving(true);
+    setActionError("");
+    setActionNotice("");
+
+    try {
+      const contactError = validateContact(editPatient);
+
+      if (contactError) {
+        setActionError(contactError);
+        return;
+      }
+
+      await updatePatient(editingPatient.id, editPatient);
+      setEditingPatient(null);
+      setActionNotice("Paciente actualizado correctamente");
+    } catch (submitError) {
+      setActionError(
+        getFriendlyErrorMessage(submitError, "No pudimos actualizar el paciente."),
       );
     } finally {
       setSaving(false);
@@ -166,6 +247,11 @@ export default function PatientsPage() {
             <button
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
               onClick={() => {
+                if (patientLimitBlock) {
+                  setActionError(patientLimitBlock);
+                  return;
+                }
+
                 if (!canCreateCurrentPatient) {
                   setActionError(
                     freeLimitReached
@@ -180,6 +266,8 @@ export default function PatientsPage() {
                 setActionError("");
                 setShowForm((value) => !value);
               }}
+              disabled={Boolean(patientLimitBlock)}
+              title={patientLimitBlock ?? undefined}
               type="button"
             >
               <Plus className="h-4 w-4" />
@@ -229,6 +317,24 @@ export default function PatientsPage() {
             </section>
           ) : null}
 
+          {patientLimitBlock ? (
+            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+              <p>{patientLimitBlock}</p>
+              <Link
+                className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
+                href="/dashboard/planes"
+              >
+                Reactivar plan
+              </Link>
+            </section>
+          ) : null}
+
+          {actionNotice ? (
+            <div className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800">
+              {actionNotice}
+            </div>
+          ) : null}
+
           {error || actionError ? (
             <div className="mt-6 rounded-lg border border-red-100 bg-red-50 p-5 text-sm font-medium text-red-700">
               <p className="font-bold">
@@ -237,7 +343,14 @@ export default function PatientsPage() {
                   : "No pudimos completar la acción"}
               </p>
               <p className="mt-1">{actionError || error}</p>
-              {(actionError || error).includes("Plan Free") ? (
+              {actionError === patientLimitBlock ? (
+                <Link
+                  className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
+                  href="/dashboard/planes"
+                >
+                  Reactivar plan
+                </Link>
+              ) : (actionError || error).includes("Plan Free") ? (
                 <Link
                   className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
                   href="/dashboard/planes"
@@ -289,7 +402,6 @@ export default function PatientsPage() {
                     className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                     onChange={(event) => updateField("phone", event.target.value)}
                     placeholder="+54 9 11 5555-5555"
-                    required
                     type="tel"
                     value={newPatient.phone}
                   />
@@ -302,7 +414,6 @@ export default function PatientsPage() {
                     className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                     onChange={(event) => updateField("email", event.target.value)}
                     placeholder="paciente@email.com"
-                    required
                     type="email"
                     value={newPatient.email}
                   />
@@ -413,13 +524,25 @@ export default function PatientsPage() {
                         >
                           Ver historial
                         </Link>
-                        <Link
-                          className="hidden min-h-11 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:inline-flex"
-                          href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
-                        >
-                          <CalendarPlus className="h-4 w-4" />
-                          Nuevo turno
-                        </Link>
+                        {patientLimitBlock ? (
+                          <button
+                            className="hidden min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-400 sm:inline-flex"
+                            disabled
+                            title={patientLimitBlock}
+                            type="button"
+                          >
+                            <CalendarPlus className="h-4 w-4" />
+                            Nuevo turno
+                          </button>
+                        ) : (
+                          <Link
+                            className="hidden min-h-11 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:inline-flex"
+                            href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
+                          >
+                            <CalendarPlus className="h-4 w-4" />
+                            Nuevo turno
+                          </Link>
+                        )}
                         {patient.status === "Activo" ? (
                           <details className="relative">
                             <summary
@@ -429,13 +552,33 @@ export default function PatientsPage() {
                               <MoreVertical className="h-4 w-4" />
                             </summary>
                             <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
-                              <Link
-                                className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:hidden"
-                                href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
+                              {patientLimitBlock ? (
+                                <button
+                                  className="flex w-full cursor-not-allowed items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-slate-400 sm:hidden"
+                                  disabled
+                                  title={patientLimitBlock}
+                                  type="button"
+                                >
+                                  <CalendarPlus className="h-4 w-4" />
+                                  Nuevo turno
+                                </button>
+                              ) : (
+                                <Link
+                                  className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:hidden"
+                                  href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
+                                >
+                                  <CalendarPlus className="h-4 w-4" />
+                                  Nuevo turno
+                                </Link>
+                              )}
+                              <button
+                                className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                                onClick={() => openEditPatient(patient)}
+                                type="button"
                               >
-                                <CalendarPlus className="h-4 w-4" />
-                                Nuevo turno
-                              </Link>
+                                <Edit3 className="h-4 w-4" />
+                                Editar paciente
+                              </button>
                               <button
                                 className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-red-700 transition hover:bg-red-50"
                                 onClick={() => handleDisablePatient(patient.id)}
@@ -453,11 +596,11 @@ export default function PatientsPage() {
                     <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
                       <p className="flex items-center gap-2">
                         <Phone className="h-4 w-4 text-ocean-600" />
-                        {patient.phone}
+                        {patient.phone || "Sin teléfono"}
                       </p>
                       <p className="flex items-center gap-2">
                         <Mail className="h-4 w-4 text-ocean-600" />
-                        {patient.email}
+                        {patient.email || "Sin email"}
                       </p>
                     </div>
                     <div className="mt-4 grid gap-2 sm:grid-cols-3">
@@ -501,6 +644,112 @@ export default function PatientsPage() {
             ) : null}
           </section>
       </PageContainer>
+      {editingPatient ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4 py-6">
+          <form
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
+            onSubmit={handleEditSubmit}
+          >
+            <h2 className="text-lg font-bold text-ink">Editar paciente</h2>
+            <div className="mt-5 grid gap-5 md:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Nombre completo
+                </span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => updateEditField("name", event.target.value)}
+                  required
+                  type="text"
+                  value={editPatient.name}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">DNI</span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) =>
+                    updateEditField("document", event.target.value)
+                  }
+                  required
+                  type="text"
+                  value={editPatient.document}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Teléfono
+                </span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => updateEditField("phone", event.target.value)}
+                  type="tel"
+                  value={editPatient.phone}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Email
+                </span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => updateEditField("email", event.target.value)}
+                  type="email"
+                  value={editPatient.email}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Estado
+                </span>
+                <select
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) =>
+                    updateEditField(
+                      "status",
+                      event.target.value,
+                    )
+                  }
+                  value={editPatient.status ?? "Activo"}
+                >
+                  <option value="Activo">Activo</option>
+                  <option value="Inactivo">Inactivo</option>
+                </select>
+              </label>
+              <label className="block md:col-span-2">
+                <span className="text-sm font-semibold text-slate-700">
+                  Motivo de consulta / diagnóstico inicial
+                </span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) =>
+                    updateEditField("condition", event.target.value)
+                  }
+                  required
+                  type="text"
+                  value={editPatient.condition}
+                />
+              </label>
+            </div>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 py-2.5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                onClick={() => setEditingPatient(null)}
+                type="button"
+              >
+                Cancelar
+              </button>
+              <button
+                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 text-sm font-semibold text-white transition hover:bg-ocean-700 disabled:opacity-60"
+                disabled={saving}
+                type="submit"
+              >
+                {saving ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </main>
   );
 }

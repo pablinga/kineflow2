@@ -21,9 +21,7 @@ import {
   type AppointmentPaymentInput,
   type AppointmentStatus,
   type PaymentMethod,
-  type PaymentStatus,
   paymentMethodLabels,
-  paymentStatusLabels,
   useAppointments,
 } from "@/hooks/useAppointments";
 import {
@@ -35,7 +33,9 @@ import { paymentStatusStyles } from "@/lib/payment-ui";
 import { formatDate, formatSessionAmount } from "@/lib/format";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { usePatients } from "@/hooks/usePatients";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 
 type PendingAction = {
   appointment: Appointment;
@@ -97,6 +97,7 @@ function actionToneClass(tone: PendingAction["tone"]) {
 export default function AppointmentsPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
+  const { activePatients, loaded: patientsLoaded } = usePatients();
   const {
     appointments,
     error,
@@ -117,9 +118,7 @@ export default function AppointmentsPage() {
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [paymentForm, setPaymentForm] = useState<AppointmentPaymentInput>({
     amount: 0,
-    paymentStatus: "pending",
     paymentMethod: "",
-    paidAt: "",
     paymentNotes: "",
   });
   const [mobileCenterDate, setMobileCenterDate] = useState(() => new Date());
@@ -255,9 +254,7 @@ export default function AppointmentsPage() {
     setEditingPayment(appointment);
     setPaymentForm({
       amount: appointment.amount,
-      paymentStatus: appointment.paymentStatus,
       paymentMethod: appointment.paymentMethod,
-      paidAt: appointment.paidAt ?? "",
       paymentNotes: appointment.paymentNotes,
     });
   }
@@ -291,7 +288,7 @@ export default function AppointmentsPage() {
     );
   }
 
-  if (loading || !loaded || !planLoaded) {
+  if (loading || !loaded || !planLoaded || !patientsLoaded) {
     return <DashboardLoading />;
   }
 
@@ -300,6 +297,10 @@ export default function AppointmentsPage() {
       plan.estadoPlan === "ACTIVO" &&
       plan.plan.startsWith("CONSULTORIO_")) ||
     plan.plan === "INDEPENDIENTE";
+  const patientLimitBlock = getPatientPlanLimitBlock({
+    activePatientCount: activePatients.length,
+    patientLimit: plan.limitePacientes,
+  });
 
   async function confirmStatusChange() {
     if (!pendingAction) {
@@ -583,7 +584,17 @@ export default function AppointmentsPage() {
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
-              {canCreateAppointment ? (
+              {patientLimitBlock ? (
+                <button
+                  className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-500"
+                  disabled
+                  title={patientLimitBlock}
+                  type="button"
+                >
+                  <CalendarPlus className="h-4 w-4" />
+                  Nuevo turno
+                </button>
+              ) : canCreateAppointment ? (
                 <Link
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
                   href="/dashboard/turnos/nuevo"
@@ -599,7 +610,19 @@ export default function AppointmentsPage() {
             title="Agenda"
           />
 
-          {accountType === "KINESIOLOGO" && !canCreateAppointment ? (
+          {patientLimitBlock ? (
+            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+              <p>{patientLimitBlock}</p>
+              <Link
+                className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
+                href="/dashboard/planes"
+              >
+                Reactivar plan
+              </Link>
+            </section>
+          ) : null}
+
+          {!patientLimitBlock && accountType === "KINESIOLOGO" && !canCreateAppointment ? (
             <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm">
               Con el Plan Free podés probar KineFlow con hasta 5 pacientes.
               Para programar turnos propios y gestionar pacientes ilimitados,
@@ -954,31 +977,11 @@ export default function AppointmentsPage() {
                           amount: Number(event.target.value),
                         }))
                       }
+                      required
                       step="100"
                       type="number"
                       value={paymentForm.amount}
                     />
-                  </label>
-                  <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Estado de cobro
-                    </span>
-                    <select
-                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) =>
-                        setPaymentForm((current) => ({
-                          ...current,
-                          paymentStatus: event.target.value as PaymentStatus,
-                        }))
-                      }
-                      value={paymentForm.paymentStatus}
-                    >
-                      {Object.entries(paymentStatusLabels).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
                   </label>
                   <label className="block">
                     <span className="text-sm font-semibold text-slate-700">
@@ -992,31 +995,16 @@ export default function AppointmentsPage() {
                           paymentMethod: event.target.value as PaymentMethod | "",
                         }))
                       }
+                      required
                       value={paymentForm.paymentMethod}
                     >
-                      <option value="">Sin medio</option>
+                      <option value="">Seleccionar medio</option>
                       {Object.entries(paymentMethodLabels).map(([value, label]) => (
                         <option key={value} value={value}>
                           {label}
                         </option>
                       ))}
                     </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Fecha de cobro
-                    </span>
-                    <input
-                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) =>
-                        setPaymentForm((current) => ({
-                          ...current,
-                          paidAt: event.target.value,
-                        }))
-                      }
-                      type="date"
-                      value={paymentForm.paidAt}
-                    />
                   </label>
                 </div>
                 <label className="mt-4 block">

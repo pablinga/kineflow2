@@ -6,6 +6,7 @@ import {
   CalendarPlus,
   ClipboardPlus,
   CreditCard,
+  UserRound,
   Search,
   UsersRound,
   WalletCards,
@@ -33,6 +34,7 @@ import { formatSessionAmount } from "@/lib/format";
 import { getPlanDisplayName } from "@/lib/plans";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 
 function startOfWeek(date: Date) {
   const next = new Date(date);
@@ -54,6 +56,37 @@ function startOfMonth(date: Date) {
 
 function endOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth() + 1, 1).getTime();
+}
+
+function getAttendanceBadgeLabel(status: string) {
+  return status === "Pendiente" ? "Pendiente asistencia" : status;
+}
+
+function getAttendanceBadgeClass(status: string) {
+  if (status === "Pendiente") {
+    return "bg-slate-100 text-slate-700 ring-1 ring-slate-200";
+  }
+
+  return appointmentStatusStyles[status] ?? "bg-sky-50 text-sky-700";
+}
+
+function getPaymentBadge(appointment: { amount: number; paymentStatus: string; paymentStatusLabel: string }) {
+  if (appointment.paymentStatus === "pending") {
+    return {
+      className:
+        appointment.amount > 0
+          ? "bg-amber-50 text-amber-800 ring-1 ring-amber-200"
+          : "bg-orange-50 text-orange-800 ring-1 ring-orange-200",
+      label: appointment.amount > 0 ? "Pendiente de cobro" : "Sin cobrar",
+    };
+  }
+
+  return {
+    className:
+      paymentStatusStyles[appointment.paymentStatusLabel] ??
+      "bg-slate-100 text-slate-700",
+    label: appointment.paymentStatusLabel,
+  };
 }
 
 export default function DashboardPage() {
@@ -91,6 +124,10 @@ export default function DashboardPage() {
   }
 
   const currentPlanName = getPlanDisplayName(plan.plan);
+  const patientLimitBlock = getPatientPlanLimitBlock({
+    activePatientCount: activePatients.length,
+    patientLimit: plan.limitePacientes,
+  });
 
   const upcomingAppointments = [...appointments]
     .filter(isUpcomingActiveAppointment)
@@ -213,19 +250,43 @@ export default function DashboardPage() {
                 <Search className="h-4 w-4" />
                 Buscar paciente
               </Link>
-              <Link
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
-                href="/dashboard/turnos/nuevo"
-              >
-                <CalendarPlus className="h-4 w-4" />
-                Nuevo turno
-              </Link>
+              {patientLimitBlock ? (
+                <button
+                  className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-500"
+                  disabled
+                  title={patientLimitBlock}
+                  type="button"
+                >
+                  <CalendarPlus className="h-4 w-4" />
+                  Nuevo turno
+                </button>
+              ) : (
+                <Link
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+                  href="/dashboard/turnos/nuevo"
+                >
+                  <CalendarPlus className="h-4 w-4" />
+                  Nuevo turno
+                </Link>
+              )}
               </>
             }
             description="Pacientes, turnos, evoluciones y cobros en un solo lugar."
             eyebrow="Dashboard"
             title={<>Hola, {displayName}</>}
           />
+
+          {patientLimitBlock ? (
+            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+              <p>{patientLimitBlock}</p>
+              <Link
+                className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
+                href="/dashboard/planes"
+              >
+                Reactivar plan
+              </Link>
+            </section>
+          ) : null}
 
           {plan.plan === "FREE" ? (
             <section className="mt-6 flex flex-col justify-between gap-4 rounded-lg border border-ocean-200 bg-white p-5 shadow-card md:flex-row md:items-center">
@@ -349,6 +410,7 @@ export default function DashboardPage() {
               <div className="mt-4 divide-y divide-ocean-100">
                 {upcomingAppointments.map((appointment) => {
                   const status = getAppointmentDisplayStatus(appointment);
+                  const paymentBadge = getPaymentBadge(appointment);
 
                   return (
                     <div
@@ -375,19 +437,20 @@ export default function DashboardPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <span
                           className={`rounded-full px-3 py-1 text-sm font-semibold ${
-                            appointmentStatusStyles[status]
+                            getAttendanceBadgeClass(status)
                           }`}
+                          title="Estado de asistencia"
                         >
-                          {status}
+                          <span className="inline-flex items-center gap-1.5">
+                            <UserRound className="h-3.5 w-3.5" />
+                            {getAttendanceBadgeLabel(status)}
+                          </span>
                         </span>
                         <span
-                          className={`rounded-full px-3 py-1 text-sm font-semibold ${
-                            paymentStatusStyles[
-                              appointment.paymentStatusLabel
-                            ] ?? "bg-slate-100 text-slate-700"
-                          }`}
+                          className={`rounded-full px-3 py-1 text-sm font-semibold ${paymentBadge.className}`}
+                          title="Estado de cobro"
                         >
-                          {appointment.paymentStatusLabel}
+                          {paymentBadge.label}
                         </span>
                       </div>
                     </div>
@@ -472,6 +535,30 @@ export default function DashboardPage() {
                     },
                   ].map((item) => {
                     const Icon = item.icon;
+                    const blockedByPatientLimit =
+                      Boolean(patientLimitBlock) &&
+                      (item.href === "/dashboard/pacientes?nuevo=1" ||
+                        item.href === "/dashboard/turnos/nuevo" ||
+                        item.href === "/dashboard/pacientes");
+
+                    if (blockedByPatientLimit) {
+                      return (
+                        <button
+                          className="flex min-h-11 cursor-not-allowed items-center justify-between rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-400"
+                          disabled
+                          key={item.label}
+                          title={patientLimitBlock ?? undefined}
+                          type="button"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Icon className="h-4 w-4 text-slate-400" />
+                            {item.label}
+                          </span>
+                          <ArrowUpRight className="h-4 w-4 text-slate-300" />
+                        </button>
+                      );
+                    }
+
                     return (
                       <Link
                         className="flex min-h-11 items-center justify-between rounded-lg border border-ocean-100 px-3 text-sm font-semibold text-slate-700 transition hover:border-ocean-200 hover:bg-ocean-50"

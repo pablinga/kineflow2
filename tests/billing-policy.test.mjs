@@ -367,6 +367,99 @@ test("Limite de pacientes se calcula desde subscriptions y plans", () => {
   assert.doesNotMatch(seed, /plan,\s*estado_plan|fecha_inicio_plan|limite_pacientes|cantidad_kinesiologos/);
 });
 
+test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => {
+  const patientsHook = fs.readFileSync("src/hooks/usePatients.ts", "utf8");
+  const patientsPage = fs.readFileSync("src/app/dashboard/pacientes/page.tsx", "utf8");
+  const migration = fs.readFileSync(
+    "supabase/migrations/202606050002_validate_patient_identity_and_contact.sql",
+    "utf8",
+  );
+
+  [patientsHook, patientsPage, migration].forEach((source) => {
+    assert.match(source, /Ingres(?:a|á|Ã¡) al menos un medio de contacto/);
+  });
+
+  [patientsHook, migration].forEach((source) => {
+    assert.match(source, /Ya ten(?:e|é|Ã©)s un paciente registrado con ese DNI/);
+  });
+
+  assert.match(patientsHook, /findDuplicatePatient/);
+  assert.match(patientsHook, /\.neq\("id", params\.excludePatientId\)/);
+  assert.match(patientsHook, /\.eq\("owner_id", sessionData\.user\.id\)/);
+  assert.match(patientsHook, /updatePatient/);
+  assert.match(patientsPage, /Editar paciente/);
+  assert.match(patientsPage, /Paciente actualizado correctamente/);
+  assert.match(migration, /patients\.owner_id = new\.owner_id/);
+  assert.match(migration, /patients\.id is distinct from new\.id/);
+  assert.doesNotMatch(migration, /update of document_number, full_name, phone, email, initial_condition, status/);
+});
+
+test("Dashboard y cobros distinguen asistencia, deuda y pago registrado", () => {
+  const dashboard = fs.readFileSync("src/app/dashboard/page.tsx", "utf8");
+  const appointmentsPage = fs.readFileSync("src/app/dashboard/turnos/page.tsx", "utf8");
+  const appointmentsHook = fs.readFileSync("src/hooks/useAppointments.ts", "utf8");
+
+  assert.match(dashboard, /Pendiente asistencia/);
+  assert.match(dashboard, /Sin cobrar/);
+  assert.match(dashboard, /Pendiente de cobro/);
+  assert.match(dashboard, /Estado de asistencia/);
+  assert.match(dashboard, /Estado de cobro/);
+  assert.match(appointmentsPage, /Seleccionar medio/);
+  assert.match(appointmentsPage, /required/);
+  assert.doesNotMatch(appointmentsPage, /Estado de cobro/);
+  assert.doesNotMatch(appointmentsPage, /Fecha de cobro/);
+  assert.match(appointmentsHook, /payment_status: "paid"/);
+  assert.match(appointmentsHook, /paid_at: new Date\(\)\.toISOString\(\)/);
+});
+
+test("Usuarios sobre el limite Free no pueden crear actividad nueva", () => {
+  const helper = fs.readFileSync("src/lib/patient-plan-limit.ts", "utf8");
+  const patientsPage = fs.readFileSync("src/app/dashboard/pacientes/page.tsx", "utf8");
+  const appointmentsPage = fs.readFileSync("src/app/dashboard/turnos/page.tsx", "utf8");
+  const newAppointmentPage = fs.readFileSync(
+    "src/app/dashboard/turnos/nuevo/page.tsx",
+    "utf8",
+  );
+  const patientDetailPage = fs.readFileSync(
+    "src/app/dashboard/pacientes/[id]/page.tsx",
+    "utf8",
+  );
+  const appointmentsHook = fs.readFileSync("src/hooks/useAppointments.ts", "utf8");
+  const evolutionsHook = fs.readFileSync("src/hooks/useEvolutions.ts", "utf8");
+  const migration = fs.readFileSync(
+    "supabase/migrations/202606050003_enforce_patient_limit_on_activity.sql",
+    "utf8",
+  );
+
+  [helper, migration].forEach((source) => {
+    assert.match(source, /Tu plan Free permite hasta/);
+    assert.match(source, /Archiv(?:a|á|Ã¡) pacientes o reactiv(?:a|á|Ã¡) tu plan/);
+  });
+
+  [
+    patientsPage,
+    appointmentsPage,
+    newAppointmentPage,
+    patientDetailPage,
+  ].forEach((source) => {
+    assert.match(source, /Reactivar plan/);
+    assert.match(source, /patientLimitBlock/);
+    assert.match(source, /title=\{patientLimitBlock/);
+  });
+
+  assert.match(appointmentsHook, /getPatientPlanLimitBlock/);
+  assert.match(appointmentsHook, /throw new Error\(patientLimitBlock\)/);
+  assert.match(evolutionsHook, /getPatientPlanLimitBlock/);
+  assert.match(evolutionsHook, /throw new Error\(patientLimitBlock\)/);
+  assert.match(migration, /join public\.plans on plans\.id = subscriptions\.plan_id/);
+  assert.match(migration, /plans\.max_patients/);
+  assert.match(migration, /where plans\.code = 'FREE'/);
+  assert.match(migration, /create trigger enforce_appointment_patient_limit/);
+  assert.match(migration, /create trigger enforce_evolution_patient_limit/);
+  assert.match(migration, /before insert on public\.appointments/);
+  assert.match(migration, /before insert on public\.evolutions/);
+});
+
 test("Links legales existen", () => {
   [
     "src/app/terminos-y-condiciones/page.tsx",

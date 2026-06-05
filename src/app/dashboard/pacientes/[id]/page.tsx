@@ -24,7 +24,9 @@ import {
 import { formatCurrency, paymentStatusStyles } from "@/lib/payment-ui";
 import { formatSessionAmount } from "@/lib/format";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
+import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -45,6 +47,7 @@ export default function PatientDetailPage() {
   const searchParams = useSearchParams();
   const patientId = params.id;
   const { authError, displayName, loading, redirecting } = useRequireAuth();
+  const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const {
     appointments,
     error: appointmentsError,
@@ -58,7 +61,12 @@ export default function PatientDetailPage() {
     evolutions,
     loaded: evolutionsLoaded,
   } = useEvolutions(patientId);
-  const { error: patientsError, loaded: patientsLoaded, patients } = usePatients();
+  const {
+    activePatients,
+    error: patientsError,
+    loaded: patientsLoaded,
+    patients,
+  } = usePatients();
   const [evolution, setEvolution] = useState<NewEvolutionInput>(() =>
     createEmptyEvolution(patientId),
   );
@@ -142,9 +150,20 @@ export default function PatientDetailPage() {
     );
   }
 
-  if (loading || !patientsLoaded || !appointmentsLoaded || !evolutionsLoaded) {
+  if (
+    loading ||
+    !patientsLoaded ||
+    !appointmentsLoaded ||
+    !evolutionsLoaded ||
+    !planLoaded
+  ) {
     return <DashboardLoading />;
   }
+
+  const patientLimitBlock = getPatientPlanLimitBlock({
+    activePatientCount: activePatients.length,
+    patientLimit: plan.limitePacientes,
+  });
 
   function updateField<Field extends keyof NewEvolutionInput>(
     field: Field,
@@ -159,6 +178,11 @@ export default function PatientDetailPage() {
     setActionError("");
 
     try {
+      if (patientLimitBlock) {
+        setActionError(patientLimitBlock);
+        return;
+      }
+
       await addEvolution({ ...evolution, patientId });
       setEvolution(createEmptyEvolution(patientId));
     } catch (submitError) {
@@ -190,6 +214,11 @@ export default function PatientDetailPage() {
   }
 
   function prepareEvolutionForAppointment(appointmentId: string) {
+    if (patientLimitBlock) {
+      setActionError(patientLimitBlock);
+      return;
+    }
+
     const appointment = appointments.find((item) => item.id === appointmentId);
 
     setEvolution((current) => ({
@@ -323,6 +352,18 @@ export default function PatientDetailPage() {
                 </p>
               ) : null}
 
+              {patientLimitBlock ? (
+                <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+                  <p>{patientLimitBlock}</p>
+                  <Link
+                    className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
+                    href="/dashboard/planes"
+                  >
+                    Reactivar plan
+                  </Link>
+                </section>
+              ) : null}
+
               <section className="mt-6 grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
                 <form
                   className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card"
@@ -441,7 +482,12 @@ export default function PatientDetailPage() {
 
                   <button
                     className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={patient.status !== "Activo" || saving}
+                    disabled={
+                      patient.status !== "Activo" ||
+                      saving ||
+                      Boolean(patientLimitBlock)
+                    }
+                    title={patientLimitBlock ?? undefined}
                     type="submit"
                   >
                     <Save className="h-4 w-4" />
@@ -491,13 +537,25 @@ export default function PatientDetailPage() {
                       <h2 className="text-lg font-bold text-ink">
                         Turnos del paciente
                       </h2>
-                      <Link
-                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-                        href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
-                      >
-                        <CalendarPlus className="h-4 w-4" />
-                        Nuevo turno
-                      </Link>
+                      {patientLimitBlock ? (
+                        <button
+                          className="inline-flex min-h-10 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-400"
+                          disabled
+                          title={patientLimitBlock}
+                          type="button"
+                        >
+                          <CalendarPlus className="h-4 w-4" />
+                          Nuevo turno
+                        </button>
+                      ) : (
+                        <Link
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                          href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
+                        >
+                          <CalendarPlus className="h-4 w-4" />
+                          Nuevo turno
+                        </Link>
+                      )}
                     </div>
                     <div className="mt-5 space-y-3">
                       {appointments.map((appointment) => {
@@ -574,10 +632,12 @@ export default function PatientDetailPage() {
                               </button>
                             ) : null}
                             <button
-                              className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                              className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-transparent"
+                              disabled={Boolean(patientLimitBlock)}
                               onClick={() =>
                                 prepareEvolutionForAppointment(appointment.id)
                               }
+                              title={patientLimitBlock ?? undefined}
                               type="button"
                             >
                               Registrar evolución

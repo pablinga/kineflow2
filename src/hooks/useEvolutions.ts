@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
+import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
+import { usePatients } from "@/hooks/usePatients";
+import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 export type Evolution = {
   id: string;
@@ -53,6 +56,8 @@ function mapEvolution(row: EvolutionRow): Evolution {
 }
 
 export function useEvolutions(patientId?: string) {
+  const { activePatients } = usePatients();
+  const { plan } = useSubscriptionPlan();
   const [evolutions, setEvolutions] = useState<Evolution[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -104,6 +109,15 @@ export function useEvolutions(patientId?: string) {
   }, [loadEvolutions]);
 
   async function addEvolution(input: NewEvolutionInput) {
+    const patientLimitBlock = getPatientPlanLimitBlock({
+      activePatientCount: activePatients.length,
+      patientLimit: plan.limitePacientes,
+    });
+
+    if (patientLimitBlock) {
+      throw new Error(patientLimitBlock);
+    }
+
     const supabase = getSupabaseClient();
     const { data: sessionData, error: sessionError } =
       await supabase.auth.getUser();

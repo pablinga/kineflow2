@@ -11,6 +11,7 @@ import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
+import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 
 type ClinicProfessionalOption = {
   id: string;
@@ -104,6 +105,10 @@ export default function NewAppointmentPage() {
   const clinicPlanBlocked =
     accountType === "CONSULTORIO" &&
     !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));
+  const patientLimitBlock = getPatientPlanLimitBlock({
+    activePatientCount: activePatients.length,
+    patientLimit: plan.limitePacientes,
+  });
   const independentPlanMessage =
     "Esta funcionalidad está disponible en KineFlow - Particular. Podés activarlo para gestionar tus pacientes, turnos y cobros propios.";
 
@@ -155,6 +160,11 @@ export default function NewAppointmentPage() {
           professionalId: selectedProfessional.professional_id,
         });
       } else {
+        if (patientLimitBlock) {
+          setError(patientLimitBlock);
+          return;
+        }
+
         if (independentPracticeBlocked) {
           setError(independentPlanMessage);
           return;
@@ -216,6 +226,18 @@ export default function NewAppointmentPage() {
             <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
               Para crear turnos del consultorio necesitás una suscripción activa
               del Plan Consultorio.
+            </section>
+          ) : null}
+
+          {patientLimitBlock ? (
+            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+              <p>{patientLimitBlock}</p>
+              <Link
+                className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
+                href="/dashboard/planes"
+              >
+                Reactivar plan
+              </Link>
             </section>
           ) : null}
 
@@ -384,11 +406,13 @@ export default function NewAppointmentPage() {
                 disabled={
                   activePatients.length === 0 ||
                   saving ||
+                  Boolean(patientLimitBlock) ||
                   independentPracticeBlocked ||
                   clinicPlanBlocked ||
                   (accountType === "CONSULTORIO" &&
                     clinicProfessionals.length === 0)
                 }
+                title={patientLimitBlock ?? undefined}
                 type="submit"
               >
                 <Save className="h-4 w-4" />
