@@ -420,6 +420,23 @@ test("Listado de pacientes permite reactivar, ordenar y alternar vista", () => {
   assert.match(patientsPage, /Buscar por nombre completo o DNI|Buscar por nombre, DNI/);
 });
 
+test("Ficha del paciente separa historial y carga de evolucion en modal", () => {
+  const source = fs.readFileSync("src/app/dashboard/pacientes/[id]/page.tsx", "utf8");
+
+  assert.match(source, /xl:grid-cols-\[0\.75fr_1\.35fr\]/);
+  assert.match(source, /Resumen econ/);
+  assert.match(source, /Turnos/);
+  assert.match(source, /Evoluciones/);
+  assert.match(source, /evolutionModalOpen/);
+  assert.match(source, /openNewEvolutionModal/);
+  assert.match(source, /Nueva evoluci/);
+  assert.match(source, /setEvolutionModalOpen\(false\)/);
+  assert.match(source, /Ver notas cl/);
+  assert.match(source, /Editar cobro/);
+  assert.match(source, /Reprogramar/);
+  assert.match(source, /Cancelar/);
+});
+
 test("Dashboard y cobros distinguen asistencia, deuda y pago registrado", () => {
   const dashboard = fs.readFileSync("src/app/dashboard/page.tsx", "utf8");
   const appointmentsPage = fs.readFileSync("src/app/dashboard/turnos/page.tsx", "utf8");
