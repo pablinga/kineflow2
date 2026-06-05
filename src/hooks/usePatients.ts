@@ -373,22 +373,27 @@ export function usePatients() {
       );
     }
 
-    const { error: insertError } = await supabase.from("patients").insert({
-      owner_id: sessionData.user.id,
-      clinic_id: clinicId,
-      full_name: normalizedInput.name,
-      document_number: normalizedInput.document,
-      phone: normalizedInput.phone || null,
-      email: normalizedInput.email || null,
-      initial_condition: normalizedInput.condition,
-      status: mapPatientStatusToDb(normalizedInput.status),
-    });
+    const { data: insertedPatient, error: insertError } = await supabase
+      .from("patients")
+      .insert({
+        owner_id: sessionData.user.id,
+        clinic_id: clinicId,
+        full_name: normalizedInput.name,
+        document_number: normalizedInput.document,
+        phone: normalizedInput.phone || null,
+        email: normalizedInput.email || null,
+        initial_condition: normalizedInput.condition,
+        status: mapPatientStatusToDb(normalizedInput.status),
+      })
+      .select("id")
+      .single();
 
     if (insertError) {
       throw new Error(mapSupabaseError(insertError));
     }
 
     await loadPatients();
+    return (insertedPatient as { id: string }).id;
   }
 
   async function updatePatient(id: string, input: NewPatientInput) {

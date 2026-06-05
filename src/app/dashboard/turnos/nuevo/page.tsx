@@ -358,13 +358,13 @@ export default function NewAppointmentPage() {
                 </select>
                 {appointment.patientId && activeTreatments.length === 0 ? (
                   <p className="mt-2 text-sm text-slate-500">
-                    Este paciente no tiene tratamientos activos. Crea uno desde
-                    la{" "}
+                    Este paciente no tiene tratamientos activos. Creá uno desde
+                    su{" "}
                     <Link
                       className="font-semibold text-ocean-700 underline-offset-4 hover:underline"
                       href={`/dashboard/pacientes/${appointment.patientId}`}
                     >
-                      ficha del paciente
+                      ficha
                     </Link>
                     .
                   </p>

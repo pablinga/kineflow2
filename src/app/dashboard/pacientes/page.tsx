@@ -4,17 +4,21 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   CalendarPlus,
+  Circle,
   Edit3,
+  FileText,
   LayoutGrid,
   List,
   Mail,
   MoreVertical,
   Phone,
+  Pencil,
   Plus,
   RotateCcw,
   Search,
   UserMinus,
   UserRound,
+  UserX,
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
@@ -23,6 +27,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { usePatients, type NewPatientInput, type Patient } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { useTreatments, type NewTreatmentInput } from "@/hooks/useTreatments";
 import { canCreatePatient } from "@/lib/billing";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
@@ -33,6 +38,13 @@ const emptyPatient: NewPatientInput = {
   phone: "",
   email: "",
   condition: "",
+};
+
+const emptyInitialTreatment: Omit<NewTreatmentInput, "patientId" | "startedAt"> = {
+  bodyRegion: "",
+  diagnosis: "",
+  notes: "",
+  totalSessions: 10,
 };
 
 type PatientViewMode = "cards" | "list";
@@ -59,10 +71,13 @@ export default function PatientsPage() {
     updatePatient,
   } = usePatients();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
+  const { addTreatment } = useTreatments();
   const [query, setQuery] = useState("");
   const [viewMode, setViewMode] = useState<PatientViewMode>("cards");
   const [showForm, setShowForm] = useState(false);
   const [newPatient, setNewPatient] = useState<NewPatientInput>(emptyPatient);
+  const [createInitialTreatment, setCreateInitialTreatment] = useState(false);
+  const [initialTreatment, setInitialTreatment] = useState(emptyInitialTreatment);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [editPatient, setEditPatient] = useState<NewPatientInput>(emptyPatient);
   const [saving, setSaving] = useState(false);
@@ -162,6 +177,13 @@ export default function PatientsPage() {
     setEditPatient((current) => ({ ...current, [field]: value }));
   }
 
+  function updateInitialTreatmentField(
+    field: keyof typeof emptyInitialTreatment,
+    value: string | number,
+  ) {
+    setInitialTreatment((current) => ({ ...current, [field]: value }));
+  }
+
   function validateContact(input: NewPatientInput) {
     if (!input.phone.trim() && !input.email.trim()) {
       return "Ingresá al menos un medio de contacto (teléfono o email)";
@@ -214,8 +236,25 @@ export default function PatientsPage() {
         return;
       }
 
-      await addPatient(newPatient);
+      if (createInitialTreatment && !initialTreatment.diagnosis.trim()) {
+        setActionError("Ingresá el diagnóstico del tratamiento inicial.");
+        return;
+      }
+
+      const patientId = await addPatient(newPatient);
+
+      if (createInitialTreatment) {
+        await addTreatment({
+          ...initialTreatment,
+          diagnosis: initialTreatment.diagnosis.trim(),
+          patientId,
+          startedAt: new Date().toISOString().slice(0, 10),
+        });
+      }
+
       setNewPatient(emptyPatient);
+      setCreateInitialTreatment(false);
+      setInitialTreatment(emptyInitialTreatment);
       setShowForm(false);
       setActionNotice("Paciente creado correctamente");
     } catch (submitError) {
@@ -259,6 +298,10 @@ export default function PatientsPage() {
   }
 
   async function handleDisablePatient(id: string) {
+    if (!window.confirm("¿Querés deshabilitar este paciente?")) {
+      return;
+    }
+
     setActionError("");
     setActionNotice("");
 
@@ -293,64 +336,70 @@ export default function PatientsPage() {
 
   function renderPatientActions(patient: Patient, compact = false) {
     return (
-      <details className="relative">
-        <summary
-          className="inline-flex min-h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-          title="Mas acciones"
+      <div className="flex items-center justify-end gap-1">
+        <Link
+          aria-label="Ver historial"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+          href={`/dashboard/pacientes/${patient.id}`}
+          title="Ver historial"
         >
-          <MoreVertical className="h-4 w-4" />
-        </summary>
-        <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
-          {!compact && patient.status === "Activo" ? (
-            patientLimitBlock ? (
-              <button
-                className="flex w-full cursor-not-allowed items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-slate-400 sm:hidden"
-                disabled
-                title={patientLimitBlock ?? undefined}
-                type="button"
-              >
-                <CalendarPlus className="h-4 w-4" />
-                Nuevo turno
-              </button>
-            ) : (
-              <Link
-                className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:hidden"
-                href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
-              >
-                <CalendarPlus className="h-4 w-4" />
-                Nuevo turno
-              </Link>
-            )
-          ) : null}
+          <FileText className="h-5 w-5" />
+        </Link>
+        {patientLimitBlock || patient.status === "Inactivo" ? (
           <button
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-            onClick={() => openEditPatient(patient)}
+            aria-label="Nuevo turno"
+            className="inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-lg text-slate-300"
+            disabled
+            title={
+              patient.status === "Inactivo"
+                ? "Reactivá el paciente para crear turnos."
+                : patientLimitBlock ?? undefined
+            }
             type="button"
           >
-            <Edit3 className="h-4 w-4" />
-            Editar paciente
+            <CalendarPlus className="h-5 w-5" />
           </button>
-          {patient.status === "Activo" ? (
-            <button
-              className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-red-700 transition hover:bg-red-50"
-              onClick={() => handleDisablePatient(patient.id)}
-              type="button"
-            >
-              <UserMinus className="h-4 w-4" />
-              Deshabilitar
-            </button>
-          ) : (
-            <button
-              className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
-              onClick={() => handleReactivatePatient(patient.id)}
-              type="button"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Reactivar paciente
-            </button>
-          )}
-        </div>
-      </details>
+        ) : (
+          <Link
+            aria-label="Nuevo turno"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-ocean-700 transition hover:bg-ocean-50 hover:text-ocean-900"
+            href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
+            title="Nuevo turno"
+          >
+            <CalendarPlus className="h-5 w-5" />
+          </Link>
+        )}
+        <button
+          aria-label="Editar paciente"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+          onClick={() => openEditPatient(patient)}
+          title="Editar paciente"
+          type="button"
+        >
+          <Pencil className="h-5 w-5" />
+        </button>
+        {patient.status === "Activo" ? (
+          <button
+            aria-label="Deshabilitar"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50 hover:text-red-700"
+            onClick={() => handleDisablePatient(patient.id)}
+            title="Deshabilitar"
+            type="button"
+          >
+            <UserX className="h-5 w-5" />
+          </button>
+        ) : (
+          <button
+            aria-label="Reactivar"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700"
+            onClick={() => handleReactivatePatient(patient.id)}
+            title="Reactivar"
+            type="button"
+          >
+            <Circle className="h-5 w-5 fill-current" />
+          </button>
+        )}
+      </div>
     );
 
     return (
@@ -797,6 +846,76 @@ export default function PatientsPage() {
                   />
                 </label>
               </div>
+              <section className="mt-6 rounded-lg border border-ocean-100 bg-ocean-50 p-4">
+                <label className="flex items-center gap-3">
+                  <input
+                    checked={createInitialTreatment}
+                    className="h-5 w-5 rounded border-ocean-200 text-ocean-600"
+                    onChange={(event) =>
+                      setCreateInitialTreatment(event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                  <span className="text-sm font-bold text-ink">
+                    Crear tratamiento inicial
+                  </span>
+                </label>
+                {createInitialTreatment ? (
+                  <div className="mt-4 grid gap-5 md:grid-cols-2">
+                    <label className="block md:col-span-2">
+                      <span className="text-sm font-semibold text-slate-700">
+                        Diagnostico
+                      </span>
+                      <input
+                        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                        onChange={(event) =>
+                          updateInitialTreatmentField(
+                            "diagnosis",
+                            event.target.value,
+                          )
+                        }
+                        required={createInitialTreatment}
+                        type="text"
+                        value={initialTreatment.diagnosis}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-sm font-semibold text-slate-700">
+                        Region del cuerpo
+                      </span>
+                      <input
+                        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                        onChange={(event) =>
+                          updateInitialTreatmentField(
+                            "bodyRegion",
+                            event.target.value,
+                          )
+                        }
+                        placeholder="Columna lumbar, rodilla derecha"
+                        type="text"
+                        value={initialTreatment.bodyRegion}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-sm font-semibold text-slate-700">
+                        Total de sesiones
+                      </span>
+                      <input
+                        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                        min={1}
+                        onChange={(event) =>
+                          updateInitialTreatmentField(
+                            "totalSessions",
+                            Number(event.target.value),
+                          )
+                        }
+                        type="number"
+                        value={initialTreatment.totalSessions}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+              </section>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
                 <button
                   className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 py-2.5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
