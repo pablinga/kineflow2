@@ -11,6 +11,8 @@ type ConfirmReturnBody = {
   preapprovalId?: string;
 };
 
+const MERCADOPAGO_PLAN_EXTERNAL_REFERENCES = new Set(["KINEPART", "KINEINDEP"]);
+
 function parseExternalReference(reference: unknown) {
   if (typeof reference !== "string") {
     return null;
@@ -60,10 +62,15 @@ export async function POST(request: Request) {
       const admin = getSupabaseAdminClient();
       const providerSubscription = await getMercadoPagoSubscription(preapprovalId);
       const parsed = parseExternalReference(providerSubscription.external_reference);
+      const payerEmail = providerSubscription.payer_email?.trim().toLowerCase() ?? "";
+      const userEmail = user.email?.trim().toLowerCase() ?? "";
+      const externalReference =
+        providerSubscription.external_reference?.trim().toUpperCase() ?? "";
       const belongsToUser =
         parsed?.accountId === user.id ||
-        providerSubscription.payer_email?.toLowerCase() ===
-          user.email?.toLowerCase();
+        !payerEmail ||
+        payerEmail === userEmail ||
+        MERCADOPAGO_PLAN_EXTERNAL_REFERENCES.has(externalReference);
 
       console.info("[billing:confirm-return] Mercado Pago preapproval loaded", {
         belongsToUser,

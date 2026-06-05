@@ -177,7 +177,11 @@ test("Retorno de Mercado Pago activa solo si preapproval pertenece al usuario", 
   assert.match(source, /getMercadoPagoSubscription\(preapprovalId\)/);
   assert.match(source, /applyMercadoPagoSubscriptionToAccount/);
   assert.match(source, /parsed\?\.accountId === user\.id/);
-  assert.match(source, /providerSubscription\.payer_email\?\.toLowerCase\(\)/);
+  assert.match(source, /MERCADOPAGO_PLAN_EXTERNAL_REFERENCES/);
+  assert.match(source, /"KINEPART"/);
+  assert.match(source, /"KINEINDEP"/);
+  assert.match(source, /!payerEmail/);
+  assert.match(source, /payerEmail === userEmail/);
   assert.match(source, /select\("plan, estado_plan/);
 });
 
