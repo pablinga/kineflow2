@@ -530,6 +530,10 @@ test("Tratamientos vinculan sesiones, turnos y evoluciones", () => {
     "src/app/api/appointments/status/route.ts",
     "utf8",
   );
+  const migration = fs.readFileSync(
+    "supabase/migrations/202606050004_add_treatments_model.sql",
+    "utf8",
+  );
 
   assert.match(treatmentsHook, /from\("treatments"\)/);
   assert.match(treatmentsHook, /status: "EN_CURSO"/);
@@ -550,6 +554,10 @@ test("Tratamientos vinculan sesiones, turnos y evoluciones", () => {
   assert.match(statusRoute, /from\("treatments"\)/);
   assert.match(statusRoute, /used_sessions: usedSessions/);
   assert.match(statusRoute, /FINALIZADO/);
+  assert.match(migration, /create table if not exists public\.treatments/);
+  assert.match(migration, /add column if not exists treatment_id uuid references public\.treatments/);
+  assert.match(migration, /alter table public\.evolutions/);
+  assert.match(migration, /evolutions_treatment_id_idx/);
 });
 
 test("Logout del dashboard tiene timeout, limpieza local y fallback de redireccion", () => {
