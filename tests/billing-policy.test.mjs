@@ -401,6 +401,25 @@ test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => 
   assert.doesNotMatch(migration, /update of document_number, full_name, phone, email, initial_condition, status/);
 });
 
+test("Listado de pacientes permite reactivar, ordenar y alternar vista", () => {
+  const patientsHook = fs.readFileSync("src/hooks/usePatients.ts", "utf8");
+  const patientsPage = fs.readFileSync("src/app/dashboard/pacientes/page.tsx", "utf8");
+
+  assert.match(patientsHook, /\.order\("status", \{ ascending: true \}\)/);
+  assert.match(patientsHook, /\.order\("full_name", \{ ascending: true \}\)/);
+  assert.match(patientsHook, /async function reactivatePatient/);
+  assert.match(patientsHook, /status: "active"/);
+  assert.match(patientsHook, /disabled_at: null/);
+  assert.match(patientsHook, /lastPaymentStatus/);
+  assert.match(patientsPage, /Reactivar paciente/);
+  assert.match(patientsPage, /Paciente reactivado correctamente/);
+  assert.match(patientsPage, /kineflow\.patients\.view/);
+  assert.match(patientsPage, /viewMode === "list"/);
+  assert.match(patientsPage, /ACTIVOS/);
+  assert.match(patientsPage, /INACTIVOS/);
+  assert.match(patientsPage, /Buscar por nombre completo o DNI|Buscar por nombre, DNI/);
+});
+
 test("Dashboard y cobros distinguen asistencia, deuda y pago registrado", () => {
   const dashboard = fs.readFileSync("src/app/dashboard/page.tsx", "utf8");
   const appointmentsPage = fs.readFileSync("src/app/dashboard/turnos/page.tsx", "utf8");

@@ -21,6 +21,7 @@ export type Patient = {
   progress: string;
   lastSession: string;
   nextAppointment: string;
+  lastPaymentStatus: string;
 };
 
 export type NewPatientInput = {
@@ -50,6 +51,7 @@ type ClinicIdRow = {
 type PatientAppointmentRow = {
   patient_id: string;
   scheduled_at: string;
+  payment_status: "pending" | "paid" | "waived" | "not_applicable" | null;
   status:
     | "pending"
     | "attended"
@@ -91,6 +93,9 @@ function mapPatient(
       ["pending", "confirmed", "rescheduled"].includes(appointment.status) &&
       new Date(appointment.scheduled_at).getTime() >= now,
   );
+  const lastAppointment = [...patientAppointments]
+    .reverse()
+    .find((appointment) => new Date(appointment.scheduled_at).getTime() <= now);
   const lastEvolution = evolutions
     .filter((evolution) => evolution.patient_id === row.id)
     .sort(
@@ -120,6 +125,9 @@ function mapPatient(
     nextAppointment: nextAppointment
       ? formatDateTime(nextAppointment.scheduled_at)
       : "Sin turno",
+    lastPaymentStatus: lastAppointment?.payment_status
+      ? patientPaymentStatusLabels[lastAppointment.payment_status]
+      : "Sin turno",
   };
 }
 
@@ -143,6 +151,16 @@ function assertPatientContact(input: ReturnType<typeof normalizePatientInput>) {
 function mapPatientStatusToDb(status: PatientStatus) {
   return status === "Inactivo" ? "inactive" : "active";
 }
+
+const patientPaymentStatusLabels: Record<
+  NonNullable<PatientAppointmentRow["payment_status"]>,
+  string
+> = {
+  not_applicable: "No corresponde",
+  paid: "Cobrado",
+  pending: "Pendiente",
+  waived: "Bonificado",
+};
 
 export function usePatients() {
   const { accountType } = useRequireAuth();
@@ -183,7 +201,8 @@ export function usePatients() {
         .select(
           "id, clinic_id, full_name, document_number, phone, email, initial_condition, status",
         )
-        .order("created_at", { ascending: false });
+        .order("status", { ascending: true })
+        .order("full_name", { ascending: true });
 
       if (accountType === "CONSULTORIO") {
         if (!activeClinic?.id) {
@@ -218,7 +237,7 @@ export function usePatients() {
 
       let appointmentsQuery = supabase
         .from("appointments")
-        .select("patient_id, scheduled_at, status")
+        .select("patient_id, scheduled_at, status, payment_status")
         .in("patient_id", patientIds);
       let evolutionsQuery = supabase
         .from("evolutions")
@@ -444,6 +463,33 @@ export function usePatients() {
     await loadPatients();
   }
 
+  async function reactivatePatient(id: string) {
+    setError("");
+
+    const supabase = getSupabaseClient();
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getUser();
+
+    if (sessionError || !sessionData.user) {
+      throw new Error("No pudimos identificar al usuario.");
+    }
+
+    const { error: updateError } = await supabase
+      .from("patients")
+      .update({
+        disabled_at: null,
+        status: "active",
+      })
+      .eq("owner_id", sessionData.user.id)
+      .eq("id", id);
+
+    if (updateError) {
+      throw new Error(mapSupabaseError(updateError));
+    }
+
+    await loadPatients();
+  }
+
   return {
     activePatients,
     addPatient,
@@ -451,6 +497,7 @@ export function usePatients() {
     error,
     loaded,
     patients,
+    reactivatePatient,
     refreshPatients: loadPatients,
     updatePatient,
   };

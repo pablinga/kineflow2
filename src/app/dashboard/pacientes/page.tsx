@@ -5,10 +5,13 @@ import Link from "next/link";
 import {
   CalendarPlus,
   Edit3,
+  LayoutGrid,
+  List,
   Mail,
   MoreVertical,
   Phone,
   Plus,
+  RotateCcw,
   Search,
   UserMinus,
   UserRound,
@@ -32,12 +35,32 @@ const emptyPatient: NewPatientInput = {
   condition: "",
 };
 
+type PatientViewMode = "cards" | "list";
+
+function getPatientInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
 export default function PatientsPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
-  const { addPatient, disablePatient, error, loaded, patients, updatePatient } =
-    usePatients();
+  const {
+    addPatient,
+    disablePatient,
+    error,
+    loaded,
+    patients,
+    reactivatePatient,
+    updatePatient,
+  } = usePatients();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const [query, setQuery] = useState("");
+  const [viewMode, setViewMode] = useState<PatientViewMode>("cards");
   const [showForm, setShowForm] = useState(false);
   const [newPatient, setNewPatient] = useState<NewPatientInput>(emptyPatient);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
@@ -57,10 +80,6 @@ export default function PatientsPage() {
       [
         patient.name,
         patient.document,
-        patient.condition,
-        patient.email,
-        patient.phone,
-        patient.status,
       ]
         .join(" ")
         .toLowerCase()
@@ -68,13 +87,29 @@ export default function PatientsPage() {
     );
   }, [patients, query]);
 
+  const activeFilteredPatients = filteredPatients.filter(
+    (patient) => patient.status === "Activo",
+  );
+  const inactiveFilteredPatients = filteredPatients.filter(
+    (patient) => patient.status === "Inactivo",
+  );
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const storedViewMode = window.localStorage.getItem("kineflow.patients.view");
 
     if (params.get("nuevo") === "1") {
       setShowForm(true);
     }
+
+    if (storedViewMode === "list" || storedViewMode === "cards") {
+      setViewMode(storedViewMode);
+    }
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("kineflow.patients.view", viewMode);
+  }, [viewMode]);
 
   if (authError) {
     return <DashboardLoading error={authError} />;
@@ -225,6 +260,7 @@ export default function PatientsPage() {
 
   async function handleDisablePatient(id: string) {
     setActionError("");
+    setActionNotice("");
 
     try {
       await disablePatient(id);
@@ -236,6 +272,333 @@ export default function PatientsPage() {
         ),
       );
     }
+  }
+
+  async function handleReactivatePatient(id: string) {
+    setActionError("");
+    setActionNotice("");
+
+    try {
+      await reactivatePatient(id);
+      setActionNotice("Paciente reactivado correctamente");
+    } catch (reactivateError) {
+      setActionError(
+        getFriendlyErrorMessage(
+          reactivateError,
+          "No pudimos reactivar el paciente.",
+        ),
+      );
+    }
+  }
+
+  function renderPatientActions(patient: Patient, compact = false) {
+    return (
+      <details className="relative">
+        <summary
+          className="inline-flex min-h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          title="Mas acciones"
+        >
+          <MoreVertical className="h-4 w-4" />
+        </summary>
+        <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
+          {!compact && patient.status === "Activo" ? (
+            patientLimitBlock ? (
+              <button
+                className="flex w-full cursor-not-allowed items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-slate-400 sm:hidden"
+                disabled
+                title={patientLimitBlock ?? undefined}
+                type="button"
+              >
+                <CalendarPlus className="h-4 w-4" />
+                Nuevo turno
+              </button>
+            ) : (
+              <Link
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:hidden"
+                href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
+              >
+                <CalendarPlus className="h-4 w-4" />
+                Nuevo turno
+              </Link>
+            )
+          ) : null}
+          <button
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+            onClick={() => openEditPatient(patient)}
+            type="button"
+          >
+            <Edit3 className="h-4 w-4" />
+            Editar paciente
+          </button>
+          {patient.status === "Activo" ? (
+            <button
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-red-700 transition hover:bg-red-50"
+              onClick={() => handleDisablePatient(patient.id)}
+              type="button"
+            >
+              <UserMinus className="h-4 w-4" />
+              Deshabilitar
+            </button>
+          ) : (
+            <button
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+              onClick={() => handleReactivatePatient(patient.id)}
+              type="button"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reactivar paciente
+            </button>
+          )}
+        </div>
+      </details>
+    );
+
+    return (
+      <details className="relative">
+        <summary
+          className="inline-flex min-h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          title="Mas acciones"
+        >
+          <MoreVertical className="h-4 w-4" />
+        </summary>
+        <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
+          {!compact && patient.status === "Activo" ? (
+            patientLimitBlock ? (
+              <button
+                className="flex w-full cursor-not-allowed items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-slate-400 sm:hidden"
+                disabled
+                title={patientLimitBlock ?? undefined}
+                type="button"
+              >
+                <CalendarPlus className="h-4 w-4" />
+                Nuevo turno
+              </button>
+            ) : false ? (
+              <div className="mt-5 space-y-6">
+                {[
+                  { label: "ACTIVOS", patients: activeFilteredPatients },
+                  { label: "INACTIVOS", patients: inactiveFilteredPatients },
+                ].map((group) => (
+                  <div className="space-y-2" key={group.label}>
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      {group.label} ({group.patients.length})
+                    </p>
+                    <div className="overflow-visible rounded-lg border border-ocean-100 bg-white shadow-card">
+                      {group.patients.length === 0 ? (
+                        <p className="px-4 py-4 text-sm text-slate-500">
+                          Sin pacientes en esta seccion.
+                        </p>
+                      ) : (
+                        group.patients.map((patient) => (
+                          <div
+                            className="grid gap-3 border-b border-ocean-50 px-4 py-3 last:border-b-0 md:grid-cols-[minmax(0,1.8fr)_9rem_minmax(0,1fr)_minmax(0,1fr)_3rem] md:items-center"
+                            key={patient.id}
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ocean-100 text-sm font-bold text-ocean-800">
+                                {getPatientInitials(patient.name)}
+                              </div>
+                              <div className="min-w-0">
+                                <Link
+                                  className="block truncate font-bold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
+                                  href={`/dashboard/pacientes/${patient.id}`}
+                                >
+                                  {patient.name}
+                                </Link>
+                                <p className="mt-1 truncate text-sm text-slate-500">
+                                  DNI {patient.document} · {patient.condition}
+                                </p>
+                              </div>
+                            </div>
+                            <span
+                              className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                patient.status === "Activo"
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-slate-200 text-slate-700"
+                              }`}
+                            >
+                              {patient.status}
+                            </span>
+                            <p className="text-sm font-medium text-slate-700">
+                              {patient.nextAppointment}
+                            </p>
+                            <p className="text-sm font-medium text-slate-700">
+                              {patient.lastPaymentStatus}
+                            </p>
+                            <div className="flex justify-end">
+                              {renderPatientActions(patient, true)}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : false ? (
+              <div className="mt-5 space-y-6">
+                {[
+                  { label: "ACTIVOS", patients: activeFilteredPatients },
+                  { label: "INACTIVOS", patients: inactiveFilteredPatients },
+                ].map((group) => (
+                  <div className="space-y-2" key={group.label}>
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      {group.label} ({group.patients.length})
+                    </p>
+                    <div className="overflow-visible rounded-lg border border-ocean-100 bg-white shadow-card">
+                      {group.patients.length === 0 ? (
+                        <p className="px-4 py-4 text-sm text-slate-500">
+                          Sin pacientes en esta seccion.
+                        </p>
+                      ) : (
+                        group.patients.map((patient) => (
+                          <div
+                            className="grid gap-3 border-b border-ocean-50 px-4 py-3 last:border-b-0 md:grid-cols-[minmax(0,1.8fr)_9rem_minmax(0,1fr)_minmax(0,1fr)_3rem] md:items-center"
+                            key={patient.id}
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ocean-100 text-sm font-bold text-ocean-800">
+                                {getPatientInitials(patient.name)}
+                              </div>
+                              <div className="min-w-0">
+                                <Link
+                                  className="block truncate font-bold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
+                                  href={`/dashboard/pacientes/${patient.id}`}
+                                >
+                                  {patient.name}
+                                </Link>
+                                <p className="mt-1 truncate text-sm text-slate-500">
+                                  DNI {patient.document} · {patient.condition}
+                                </p>
+                              </div>
+                            </div>
+                            <span
+                              className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                patient.status === "Activo"
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-slate-200 text-slate-700"
+                              }`}
+                            >
+                              {patient.status}
+                            </span>
+                            <p className="text-sm font-medium text-slate-700">
+                              {patient.nextAppointment}
+                            </p>
+                            <p className="text-sm font-medium text-slate-700">
+                              {patient.lastPaymentStatus}
+                            </p>
+                            <div className="flex justify-end">
+                              {renderPatientActions(patient, true)}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : viewMode === "list" ? (
+              <div className="mt-5 space-y-6">
+                {[
+                  { label: "ACTIVOS", patients: activeFilteredPatients },
+                  { label: "INACTIVOS", patients: inactiveFilteredPatients },
+                ].map((group) => (
+                  <div className="space-y-2" key={group.label}>
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      {group.label} ({group.patients.length})
+                    </p>
+                    <div className="overflow-visible rounded-lg border border-ocean-100 bg-white shadow-card">
+                      {group.patients.length === 0 ? (
+                        <p className="px-4 py-4 text-sm text-slate-500">
+                          Sin pacientes en esta seccion.
+                        </p>
+                      ) : (
+                        group.patients.map((patient) => (
+                          <div
+                            className="grid gap-3 border-b border-ocean-50 px-4 py-3 last:border-b-0 md:grid-cols-[minmax(0,1.8fr)_9rem_minmax(0,1fr)_minmax(0,1fr)_3rem] md:items-center"
+                            key={patient.id}
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ocean-100 text-sm font-bold text-ocean-800">
+                                {getPatientInitials(patient.name)}
+                              </div>
+                              <div className="min-w-0">
+                                <Link
+                                  className="block truncate font-bold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
+                                  href={`/dashboard/pacientes/${patient.id}`}
+                                >
+                                  {patient.name}
+                                </Link>
+                                <p className="mt-1 truncate text-sm text-slate-500">
+                                  DNI {patient.document} · {patient.condition}
+                                </p>
+                              </div>
+                            </div>
+                            <span
+                              className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                patient.status === "Activo"
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-slate-200 text-slate-700"
+                              }`}
+                            >
+                              {patient.status}
+                            </span>
+                            <p className="text-sm font-medium text-slate-700">
+                              {patient.nextAppointment}
+                            </p>
+                            <p className="text-sm font-medium text-slate-700">
+                              {patient.lastPaymentStatus}
+                            </p>
+                            <div className="flex justify-end">
+                              {renderPatientActions(patient, true)}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Link
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:hidden"
+                href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
+              >
+                <CalendarPlus className="h-4 w-4" />
+                Nuevo turno
+              </Link>
+            )
+          ) : null}
+          <button
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+            onClick={() => openEditPatient(patient)}
+            type="button"
+          >
+            <Edit3 className="h-4 w-4" />
+            Editar paciente
+          </button>
+          {patient.status === "Activo" ? (
+            <button
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-red-700 transition hover:bg-red-50"
+              onClick={() => handleDisablePatient(patient.id)}
+              type="button"
+            >
+              <UserMinus className="h-4 w-4" />
+              Deshabilitar
+            </button>
+          ) : (
+            <button
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+              onClick={() => handleReactivatePatient(patient.id)}
+              type="button"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reactivar paciente
+            </button>
+          )}
+        </div>
+      </details>
+    );
   }
 
   return (
@@ -455,7 +818,8 @@ export default function PatientsPage() {
           ) : null}
 
           <section className="mt-6">
-            <label className="flex items-center gap-3 rounded-lg border border-ocean-100 bg-ocean-50 px-4 py-3 focus-within:border-ocean-400">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <label className="flex min-h-11 flex-1 items-center gap-3 rounded-lg border border-ocean-100 bg-ocean-50 px-4 py-3 focus-within:border-ocean-400">
               <Search className="h-5 w-5 text-ocean-600" />
               <input
                 className="w-full bg-transparent text-sm outline-none"
@@ -464,7 +828,34 @@ export default function PatientsPage() {
                 type="search"
                 value={query}
               />
-            </label>
+              </label>
+              <div className="grid grid-cols-2 rounded-lg border border-ocean-100 bg-white p-1">
+                <button
+                  className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition ${
+                    viewMode === "cards"
+                      ? "bg-ocean-600 text-white"
+                      : "text-ocean-800 hover:bg-ocean-50"
+                  }`}
+                  onClick={() => setViewMode("cards")}
+                  type="button"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                  Cards
+                </button>
+                <button
+                  className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition ${
+                    viewMode === "list"
+                      ? "bg-ocean-600 text-white"
+                      : "text-ocean-800 hover:bg-ocean-50"
+                  }`}
+                  onClick={() => setViewMode("list")}
+                  type="button"
+                >
+                  <List className="h-4 w-4" />
+                  Lista
+                </button>
+              </div>
+            </div>
 
             {patients.length === 0 ? (
               <div className="mt-6 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-8 text-center">
@@ -476,6 +867,68 @@ export default function PatientsPage() {
                   Creá el primer paciente para empezar a programar turnos y
                   registrar evoluciónes.
                 </p>
+              </div>
+            ) : viewMode === "list" ? (
+              <div className="mt-5 space-y-6">
+                {[
+                  { label: "ACTIVOS", patients: activeFilteredPatients },
+                  { label: "INACTIVOS", patients: inactiveFilteredPatients },
+                ].map((group) => (
+                  <div className="space-y-2" key={group.label}>
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      {group.label} ({group.patients.length})
+                    </p>
+                    <div className="overflow-visible rounded-lg border border-ocean-100 bg-white shadow-card">
+                      {group.patients.length === 0 ? (
+                        <p className="px-4 py-4 text-sm text-slate-500">
+                          Sin pacientes en esta seccion.
+                        </p>
+                      ) : (
+                        group.patients.map((patient) => (
+                          <div
+                            className="grid gap-3 border-b border-ocean-50 px-4 py-3 last:border-b-0 md:grid-cols-[minmax(0,1.8fr)_9rem_minmax(0,1fr)_minmax(0,1fr)_3rem] md:items-center"
+                            key={patient.id}
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ocean-100 text-sm font-bold text-ocean-800">
+                                {getPatientInitials(patient.name)}
+                              </div>
+                              <div className="min-w-0">
+                                <Link
+                                  className="block truncate font-bold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
+                                  href={`/dashboard/pacientes/${patient.id}`}
+                                >
+                                  {patient.name}
+                                </Link>
+                                <p className="mt-1 truncate text-sm text-slate-500">
+                                  DNI {patient.document} · {patient.condition}
+                                </p>
+                              </div>
+                            </div>
+                            <span
+                              className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                patient.status === "Activo"
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-slate-200 text-slate-700"
+                              }`}
+                            >
+                              {patient.status}
+                            </span>
+                            <p className="text-sm font-medium text-slate-700">
+                              {patient.nextAppointment}
+                            </p>
+                            <p className="text-sm font-medium text-slate-700">
+                              {patient.lastPaymentStatus}
+                            </p>
+                            <div className="flex justify-end">
+                              {renderPatientActions(patient, true)}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="mt-5 grid gap-3 xl:grid-cols-2">
@@ -524,11 +977,15 @@ export default function PatientsPage() {
                         >
                           Ver historial
                         </Link>
-                        {patientLimitBlock ? (
+                        {patientLimitBlock || patient.status === "Inactivo" ? (
                           <button
                             className="hidden min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-400 sm:inline-flex"
                             disabled
-                            title={patientLimitBlock}
+                            title={
+                              patient.status === "Inactivo"
+                                ? "ReactivÃ¡ el paciente para crear turnos."
+                                : patientLimitBlock ?? undefined
+                            }
                             type="button"
                           >
                             <CalendarPlus className="h-4 w-4" />
@@ -543,7 +1000,7 @@ export default function PatientsPage() {
                             Nuevo turno
                           </Link>
                         )}
-                        {patient.status === "Activo" ? (
+                        {false ? (
                           <details className="relative">
                             <summary
                               className="inline-flex min-h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
@@ -556,7 +1013,7 @@ export default function PatientsPage() {
                                 <button
                                   className="flex w-full cursor-not-allowed items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-slate-400 sm:hidden"
                                   disabled
-                                  title={patientLimitBlock}
+                                  title={patientLimitBlock ?? undefined}
                                   type="button"
                                 >
                                   <CalendarPlus className="h-4 w-4" />
@@ -589,7 +1046,7 @@ export default function PatientsPage() {
                               </button>
                             </div>
                           </details>
-                        ) : null}
+                        ) : renderPatientActions(patient)}
                       </div>
                     </div>
 
