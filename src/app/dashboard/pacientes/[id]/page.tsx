@@ -21,6 +21,11 @@ import { type Appointment, useAppointments } from "@/hooks/useAppointments";
 import { useEvolutions, type NewEvolutionInput } from "@/hooks/useEvolutions";
 import { usePatients } from "@/hooks/usePatients";
 import {
+  useTreatments,
+  type NewTreatmentInput,
+  type TreatmentStatus,
+} from "@/hooks/useTreatments";
+import {
   appointmentStatusStyles,
   getAppointmentDisplayStatus,
 } from "@/lib/appointment-ui";
@@ -36,6 +41,7 @@ const today = new Date().toISOString().slice(0, 10);
 function createEmptyEvolution(patientId: string): NewEvolutionInput {
   return {
     patientId,
+    treatmentId: "",
     appointmentId: "",
     sessionDate: today,
     painLevel: 0,
@@ -44,6 +50,24 @@ function createEmptyEvolution(patientId: string): NewEvolutionInput {
     nextGoals: "",
   };
 }
+
+function createEmptyTreatment(patientId: string): NewTreatmentInput {
+  return {
+    bodyRegion: "",
+    diagnosis: "",
+    notes: "",
+    patientId,
+    startedAt: today,
+    totalSessions: 10,
+  };
+}
+
+const treatmentStatusStyles: Record<TreatmentStatus, string> = {
+  ABANDONADO: "bg-slate-100 text-slate-700",
+  EN_CURSO: "bg-emerald-50 text-emerald-700",
+  FINALIZADO: "bg-sky-50 text-sky-700",
+  PAUSADO: "bg-amber-50 text-amber-700",
+};
 
 export default function PatientDetailPage() {
   const params = useParams<{ id: string }>();
@@ -65,6 +89,14 @@ export default function PatientDetailPage() {
     loaded: evolutionsLoaded,
   } = useEvolutions(patientId);
   const {
+    addTreatment,
+    error: treatmentsError,
+    loaded: treatmentsLoaded,
+    refreshTreatments,
+    treatments,
+    updateTreatmentStatus,
+  } = useTreatments(patientId);
+  const {
     activePatients,
     error: patientsError,
     loaded: patientsLoaded,
@@ -76,6 +108,11 @@ export default function PatientDetailPage() {
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
   const [evolutionModalOpen, setEvolutionModalOpen] = useState(false);
+  const [expandedTreatmentId, setExpandedTreatmentId] = useState("");
+  const [treatment, setTreatment] = useState<NewTreatmentInput>(() =>
+    createEmptyTreatment(patientId),
+  );
+  const [treatmentModalOpen, setTreatmentModalOpen] = useState(false);
   const [updatingId, setUpdatingId] = useState("");
   const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
   const [canceling, setCanceling] = useState<Appointment | null>(null);
@@ -121,6 +158,7 @@ export default function PatientDetailPage() {
       setEvolution((current) => ({
         ...current,
         appointmentId: appointment.id,
+        treatmentId: appointment.treatmentId ?? "",
         sessionDate: appointment.scheduledAt.slice(0, 10),
       }));
       setEvolutionModalOpen(true);
@@ -145,10 +183,10 @@ export default function PatientDetailPage() {
     );
   }
 
-  if (patientsError || appointmentsError || evolutionsError) {
+  if (patientsError || appointmentsError || evolutionsError || treatmentsError) {
     return (
       <DashboardLoading
-        error={patientsError || appointmentsError || evolutionsError}
+        error={patientsError || appointmentsError || evolutionsError || treatmentsError}
         retryHref={`/dashboard/pacientes/${patientId}`}
         title="No pudimos cargar la ficha"
       />
@@ -160,6 +198,7 @@ export default function PatientDetailPage() {
     !patientsLoaded ||
     !appointmentsLoaded ||
     !evolutionsLoaded ||
+    !treatmentsLoaded ||
     !planLoaded
   ) {
     return <DashboardLoading />;
@@ -169,12 +208,35 @@ export default function PatientDetailPage() {
     activePatientCount: activePatients.length,
     patientLimit: plan.limitePacientes,
   });
+  const activeTreatment =
+    treatments.find((item) => item.id === expandedTreatmentId) ??
+    treatments.find((item) => item.status === "EN_CURSO") ??
+    treatments[0] ??
+    null;
+  const activeTreatmentForEvolution =
+    treatments.find(
+      (item) => item.id === evolution.treatmentId && item.status === "EN_CURSO",
+    ) ??
+    treatments.find((item) => item.status === "EN_CURSO") ??
+    null;
+  const evolutionAppointmentOptions = activeTreatmentForEvolution
+    ? attendedAppointments.filter(
+        (appointment) => appointment.treatmentId === activeTreatmentForEvolution.id,
+      )
+    : attendedAppointments;
 
   function updateField<Field extends keyof NewEvolutionInput>(
     field: Field,
     value: NewEvolutionInput[Field],
   ) {
     setEvolution((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateTreatmentField<Field extends keyof NewTreatmentInput>(
+    field: Field,
+    value: NewTreatmentInput[Field],
+  ) {
+    setTreatment((current) => ({ ...current, [field]: value }));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -207,7 +269,13 @@ export default function PatientDetailPage() {
     setActionError("");
 
     try {
-      await updateAppointmentStatus(appointmentId, "attended");
+      const result = await updateAppointmentStatus(appointmentId, "attended");
+      await refreshTreatments();
+      if (result.treatmentCompleted) {
+        setActionError(
+          `Â¡Tratamiento completado! El paciente finalizÃ³ sus ${result.treatmentCompleted.totalSessions} sesiones.`,
+        );
+      }
       setEvolution((current) => ({ ...current, appointmentId }));
     } catch (statusError) {
       setActionError(
@@ -230,9 +298,46 @@ export default function PatientDetailPage() {
     setEvolution((current) => ({
       ...current,
       appointmentId,
+      treatmentId: appointment?.treatmentId ?? activeTreatment?.id ?? "",
       sessionDate: appointment?.scheduledAt.slice(0, 10) ?? current.sessionDate,
     }));
     setEvolutionModalOpen(true);
+  }
+
+  async function handleTreatmentSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setActionError("");
+
+    try {
+      await addTreatment({ ...treatment, patientId });
+      setTreatment(createEmptyTreatment(patientId));
+      setTreatmentModalOpen(false);
+    } catch (treatmentError) {
+      setActionError(
+        getFriendlyErrorMessage(
+          treatmentError,
+          "No pudimos guardar el tratamiento.",
+        ),
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleTreatmentStatus(id: string, status: TreatmentStatus) {
+    setActionError("");
+
+    try {
+      await updateTreatmentStatus(id, status);
+    } catch (statusError) {
+      setActionError(
+        getFriendlyErrorMessage(
+          statusError,
+          "No pudimos actualizar el tratamiento.",
+        ),
+      );
+    }
   }
 
   function openNewEvolutionModal() {
@@ -243,6 +348,10 @@ export default function PatientDetailPage() {
 
     setActionError("");
     setEvolution(createEmptyEvolution(patientId));
+    setEvolution((current) => ({
+      ...current,
+      treatmentId: activeTreatment?.id ?? "",
+    }));
     setEvolutionModalOpen(true);
   }
 
@@ -355,6 +464,33 @@ export default function PatientDetailPage() {
                       <Edit3 className="h-4 w-4" />
                       Editar paciente
                     </Link>
+                    <button
+                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white transition hover:bg-ocean-700"
+                      onClick={() => setTreatmentModalOpen(true)}
+                      type="button"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Nuevo tratamiento
+                    </button>
+                    {patientLimitBlock ? (
+                      <button
+                        className="inline-flex min-h-10 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-400"
+                        disabled
+                        title={patientLimitBlock}
+                        type="button"
+                      >
+                        <CalendarPlus className="h-4 w-4" />
+                        Nuevo turno
+                      </button>
+                    ) : (
+                      <Link
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                        href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
+                      >
+                        <CalendarPlus className="h-4 w-4" />
+                        Nuevo turno
+                      </Link>
+                    )}
                   </div>
                 </div>
                 <div className="mt-5 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
@@ -394,6 +530,170 @@ export default function PatientDetailPage() {
               <section className="mt-6 grid gap-6 xl:grid-cols-[0.75fr_1.35fr]">
                 <aside className="space-y-4">
                   <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
+                    <h2 className="text-lg font-bold text-ink">
+                      Resumen economico
+                    </h2>
+                    <div className="mt-4 grid gap-3">
+                      <div className="rounded-lg bg-emerald-50 p-4">
+                        <p className="text-sm font-semibold text-emerald-700">
+                          Total cobrado
+                        </p>
+                        <p className="mt-2 text-2xl font-bold text-ink">
+                          {formatCurrency(totalPaid)}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-amber-50 p-4">
+                        <p className="text-sm font-semibold text-amber-700">
+                          Total pendiente
+                        </p>
+                        <p className="mt-2 text-2xl font-bold text-ink">
+                          {formatCurrency(totalPending)}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-ocean-50 p-4">
+                        <p className="text-sm font-semibold text-ocean-700">
+                          Ultima sesion cobrada
+                        </p>
+                        <p className="mt-2 text-sm font-bold text-ink">
+                          {lastPaidAppointment
+                            ? `${lastPaidAppointment.date} · ${formatCurrency(
+                                lastPaidAppointment.amount,
+                              )}`
+                            : "Sin cobros"}
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
+                    <div className="flex items-center justify-between gap-4">
+                      <h2 className="text-lg font-bold text-ink">
+                        Tratamientos
+                      </h2>
+                      <button
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                        onClick={() => setTreatmentModalOpen(true)}
+                        type="button"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Nuevo tratamiento
+                      </button>
+                    </div>
+                    <div className="mt-5 space-y-4">
+                      {treatments.map((item) => {
+                        const treatmentAppointments = appointments.filter(
+                          (appointment) => appointment.treatmentId === item.id,
+                        );
+                        const progress =
+                          item.totalSessions > 0
+                            ? Math.min(100, (item.usedSessions / item.totalSessions) * 100)
+                            : 0;
+                        const expanded = expandedTreatmentId === item.id;
+
+                        return (
+                          <article
+                            className="rounded-lg border border-ocean-100 p-4"
+                            key={item.id}
+                          >
+                            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                              <div>
+                                <p className="font-bold text-ink">{item.diagnosis}</p>
+                                <p className="mt-1 text-sm text-slate-500">
+                                  {item.bodyRegion || "Sin regiÃ³n"} Â· Inicio {item.startedAt}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <span
+                                  className={`rounded-full px-3 py-1 text-sm font-semibold ${treatmentStatusStyles[item.status]}`}
+                                >
+                                  {item.status}
+                                </span>
+                                <details className="relative">
+                                  <summary className="inline-flex min-h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 text-slate-600">
+                                    ...
+                                  </summary>
+                                  <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
+                                    <button className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50" type="button">
+                                      Editar
+                                    </button>
+                                    <button className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-amber-700 hover:bg-amber-50" onClick={() => handleTreatmentStatus(item.id, "PAUSADO")} type="button">
+                                      Pausar
+                                    </button>
+                                    <button className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-sky-700 hover:bg-sky-50" onClick={() => handleTreatmentStatus(item.id, "FINALIZADO")} type="button">
+                                      Finalizar
+                                    </button>
+                                    <button className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => handleTreatmentStatus(item.id, "ABANDONADO")} type="button">
+                                      Marcar como abandonado
+                                    </button>
+                                  </div>
+                                </details>
+                              </div>
+                            </div>
+                            <div className="mt-4">
+                              <div className="flex items-center justify-between text-sm font-semibold text-slate-600">
+                                <span>
+                                  {item.usedSessions} / {item.totalSessions} sesiones
+                                </span>
+                                <button
+                                  className="text-ocean-700 underline-offset-4 hover:underline"
+                                  onClick={() =>
+                                    setExpandedTreatmentId(expanded ? "" : item.id)
+                                  }
+                                  type="button"
+                                >
+                                  Ver sesiones
+                                </button>
+                              </div>
+                              <div className="mt-2 h-2 overflow-hidden rounded-full bg-ocean-50">
+                                <div
+                                  className="h-full rounded-full bg-ocean-600"
+                                  style={{ width: `${progress}%` }}
+                                />
+                              </div>
+                            </div>
+                            {expanded ? (
+                              <div className="mt-4 space-y-2">
+                                {treatmentAppointments.length === 0 ? (
+                                  <p className="rounded-lg border border-dashed border-ocean-100 p-3 text-sm text-slate-500">
+                                    Sin sesiones asociadas.
+                                  </p>
+                                ) : (
+                                  treatmentAppointments.map((appointment) => {
+                                    const linkedEvolution = evolutionByAppointment.get(appointment.id);
+
+                                    return (
+                                      <div
+                                        className="grid gap-2 rounded-lg bg-ocean-50 p-3 text-sm md:grid-cols-[4rem_1fr_1fr_1fr]"
+                                        key={appointment.id}
+                                      >
+                                        <p className="font-bold text-ocean-800">
+                                          #{appointment.sessionNumber ?? "-"}
+                                        </p>
+                                        <p>{appointment.date} Â· {appointment.time}</p>
+                                        <p>{getAppointmentDisplayStatus(appointment)} Â· {appointment.paymentStatusLabel} Â· {formatSessionAmount(appointment.amount)}</p>
+                                        <p className="text-ocean-700">
+                                          {linkedEvolution ? `EvoluciÃ³n ${linkedEvolution.date}` : "Sin evoluciÃ³n"}
+                                        </p>
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            ) : null}
+                          </article>
+                        );
+                      })}
+                      {treatments.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
+                          <p className="font-semibold text-ink">
+                            Este paciente todavÃ­a no tiene tratamientos.
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                  </section>
+
+                  <section className="hidden">
                     <h2 className="text-lg font-bold text-ink">
                       Resumen econÃ³mico
                     </h2>
@@ -596,7 +896,7 @@ export default function PatientDetailPage() {
                     </div>
                   </section>
 
-                  <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
+                  <section className="hidden">
                     <div className="flex items-center justify-between gap-4">
                       <h2 className="text-lg font-bold text-ink">
                         Turnos
@@ -809,6 +1109,126 @@ export default function PatientDetailPage() {
             </div>
           )}
 
+          {treatmentModalOpen ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 px-4 py-6">
+              <form
+                className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
+                onSubmit={handleTreatmentSubmit}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-ink">
+                      Nuevo tratamiento
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Asociado a {patient?.name ?? "este paciente"}.
+                    </p>
+                  </div>
+                  <button
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50"
+                    onClick={() => setTreatmentModalOpen(false)}
+                    type="button"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="mt-5 grid gap-5 md:grid-cols-2">
+                  <label className="block md:col-span-2">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Diagnostico
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        updateTreatmentField("diagnosis", event.target.value)
+                      }
+                      required
+                      type="text"
+                      value={treatment.diagnosis}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Region del cuerpo
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        updateTreatmentField("bodyRegion", event.target.value)
+                      }
+                      placeholder="Columna lumbar, rodilla derecha"
+                      type="text"
+                      value={treatment.bodyRegion}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Total de sesiones
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      min={1}
+                      onChange={(event) =>
+                        updateTreatmentField(
+                          "totalSessions",
+                          Number(event.target.value),
+                        )
+                      }
+                      required
+                      type="number"
+                      value={treatment.totalSessions}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Fecha de inicio
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        updateTreatmentField("startedAt", event.target.value)
+                      }
+                      required
+                      type="date"
+                      value={treatment.startedAt}
+                    />
+                  </label>
+                  <label className="block md:col-span-2">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Notas
+                    </span>
+                    <textarea
+                      className="mt-2 min-h-24 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        updateTreatmentField("notes", event.target.value)
+                      }
+                      value={treatment.notes}
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                    onClick={() => setTreatmentModalOpen(false)}
+                    type="button"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 text-sm font-semibold text-white transition hover:bg-ocean-700 disabled:opacity-60"
+                    disabled={saving}
+                    type="submit"
+                  >
+                    <Save className="h-4 w-4" />
+                    {saving ? "Guardando..." : "Guardar tratamiento"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : null}
+
           {evolutionModalOpen ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 px-4 py-6">
               <form
@@ -840,13 +1260,23 @@ export default function PatientDetailPage() {
                     </span>
                     <select
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) =>
-                        updateField("appointmentId", event.target.value)
-                      }
+                      onChange={(event) => {
+                        const selectedAppointment = attendedAppointments.find(
+                          (appointment) => appointment.id === event.target.value,
+                        );
+
+                        updateField("appointmentId", event.target.value);
+                        updateField(
+                          "treatmentId",
+                          selectedAppointment?.treatmentId ??
+                            activeTreatmentForEvolution?.id ??
+                            "",
+                        );
+                      }}
                       value={evolution.appointmentId}
                     >
                       <option value="">Sin turno asociado</option>
-                      {attendedAppointments.map((appointment) => (
+                      {evolutionAppointmentOptions.map((appointment) => (
                         <option key={appointment.id} value={appointment.id}>
                           {appointment.date} Â· {appointment.time} Â·{" "}
                           {appointment.reason}

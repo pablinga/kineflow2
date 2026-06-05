@@ -514,6 +514,44 @@ test("Links legales existen", () => {
   ].forEach((path) => assert.equal(fs.existsSync(path), true, path));
 });
 
+test("Tratamientos vinculan sesiones, turnos y evoluciones", () => {
+  const treatmentsHook = fs.readFileSync("src/hooks/useTreatments.ts", "utf8");
+  const appointmentsHook = fs.readFileSync("src/hooks/useAppointments.ts", "utf8");
+  const evolutionsHook = fs.readFileSync("src/hooks/useEvolutions.ts", "utf8");
+  const patientPage = fs.readFileSync(
+    "src/app/dashboard/pacientes/[id]/page.tsx",
+    "utf8",
+  );
+  const newAppointmentPage = fs.readFileSync(
+    "src/app/dashboard/turnos/nuevo/page.tsx",
+    "utf8",
+  );
+  const statusRoute = fs.readFileSync(
+    "src/app/api/appointments/status/route.ts",
+    "utf8",
+  );
+
+  assert.match(treatmentsHook, /from\("treatments"\)/);
+  assert.match(treatmentsHook, /status: "EN_CURSO"/);
+  assert.match(treatmentsHook, /updateTreatmentStatus/);
+  assert.match(patientPage, /Nuevo tratamiento/);
+  assert.match(patientPage, /Tratamientos/);
+  assert.match(patientPage, /Ver sesiones/);
+  assert.match(patientPage, /ABANDONADO/);
+  assert.match(appointmentsHook, /treatment_id: input\.treatmentId \|\| null/);
+  assert.match(appointmentsHook, /session_number: input\.sessionNumber \?\? null/);
+  assert.match(appointmentsHook, /fetch\("\/api\/appointments\/status"/);
+  assert.match(newAppointmentPage, /useTreatments\(appointment\.patientId/);
+  assert.match(newAppointmentPage, /updateTreatment/);
+  assert.match(newAppointmentPage, /usedSessions \+ 1/);
+  assert.match(newAppointmentPage, /Crear tratamiento/);
+  assert.match(evolutionsHook, /treatment_id: input\.treatmentId \|\| null/);
+  assert.match(statusRoute, /getSupabaseAdminClient/);
+  assert.match(statusRoute, /from\("treatments"\)/);
+  assert.match(statusRoute, /used_sessions: usedSessions/);
+  assert.match(statusRoute, /FINALIZADO/);
+});
+
 test("Logout del dashboard tiene timeout, limpieza local y fallback de redireccion", () => {
   const source = fs.readFileSync("src/components/layout/DashboardSidebar.tsx", "utf8");
 

@@ -1,0 +1,199 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getSupabaseClient } from "@/lib/supabase";
+import { formatDate } from "@/lib/format";
+import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
+
+export type TreatmentStatus =
+  | "EN_CURSO"
+  | "PAUSADO"
+  | "FINALIZADO"
+  | "ABANDONADO";
+
+export type Treatment = {
+  id: string;
+  patientId: string;
+  diagnosis: string;
+  bodyRegion: string;
+  totalSessions: number;
+  usedSessions: number;
+  status: TreatmentStatus;
+  startedAt: string;
+  endedAt: string | null;
+  notes: string;
+};
+
+export type NewTreatmentInput = {
+  bodyRegion: string;
+  diagnosis: string;
+  notes: string;
+  patientId: string;
+  startedAt: string;
+  totalSessions: number;
+};
+
+type TreatmentRow = {
+  body_region: string | null;
+  diagnosis: string;
+  ended_at: string | null;
+  id: string;
+  notes: string | null;
+  patient_id: string;
+  started_at: string;
+  status: TreatmentStatus;
+  total_sessions: number | null;
+  used_sessions: number | null;
+};
+
+const statusOrder: Record<TreatmentStatus, number> = {
+  EN_CURSO: 0,
+  PAUSADO: 1,
+  FINALIZADO: 2,
+  ABANDONADO: 3,
+};
+
+function mapTreatment(row: TreatmentRow): Treatment {
+  return {
+    bodyRegion: row.body_region ?? "",
+    diagnosis: row.diagnosis,
+    endedAt: row.ended_at,
+    id: row.id,
+    notes: row.notes ?? "",
+    patientId: row.patient_id,
+    startedAt: formatDate(row.started_at),
+    status: row.status,
+    totalSessions: row.total_sessions ?? 10,
+    usedSessions: row.used_sessions ?? 0,
+  };
+}
+
+export function useTreatments(patientId?: string) {
+  const [treatments, setTreatments] = useState<Treatment[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadTreatments = useCallback(async () => {
+    setLoaded(false);
+    setError("");
+
+    try {
+      const supabase = getSupabaseClient();
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getUser();
+
+      if (sessionError || !sessionData.user) {
+        throw new Error("No pudimos identificar al usuario.");
+      }
+
+      let query = supabase
+        .from("treatments")
+        .select(
+          "id, patient_id, diagnosis, body_region, total_sessions, used_sessions, status, started_at, ended_at, notes",
+        )
+        .eq("owner_id", sessionData.user.id);
+
+      if (patientId) {
+        query = query.eq("patient_id", patientId);
+      }
+
+      const { data, error: queryError } = await query;
+
+      if (queryError) {
+        setError(mapSupabaseError(queryError));
+        return;
+      }
+
+      setTreatments(
+        ((data ?? []) as TreatmentRow[])
+          .map(mapTreatment)
+          .sort(
+            (left, right) =>
+              statusOrder[left.status] - statusOrder[right.status] ||
+              left.diagnosis.localeCompare(right.diagnosis),
+          ),
+      );
+    } catch (loadError) {
+      setError(
+        getFriendlyErrorMessage(loadError, "No pudimos cargar tratamientos."),
+      );
+    } finally {
+      setLoaded(true);
+    }
+  }, [patientId]);
+
+  useEffect(() => {
+    loadTreatments();
+  }, [loadTreatments]);
+
+  const activeTreatments = useMemo(
+    () => treatments.filter((treatment) => treatment.status === "EN_CURSO"),
+    [treatments],
+  );
+
+  async function addTreatment(input: NewTreatmentInput) {
+    const supabase = getSupabaseClient();
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getUser();
+
+    if (sessionError || !sessionData.user) {
+      throw new Error("No pudimos identificar al usuario.");
+    }
+
+    const { error: insertError } = await supabase.from("treatments").insert({
+      body_region: input.bodyRegion.trim() || null,
+      diagnosis: input.diagnosis.trim(),
+      notes: input.notes.trim() || null,
+      owner_id: sessionData.user.id,
+      patient_id: input.patientId,
+      started_at: input.startedAt,
+      status: "EN_CURSO",
+      total_sessions: input.totalSessions || 10,
+      used_sessions: 0,
+    });
+
+    if (insertError) {
+      throw new Error(mapSupabaseError(insertError));
+    }
+
+    await loadTreatments();
+  }
+
+  async function updateTreatmentStatus(id: string, status: TreatmentStatus) {
+    const supabase = getSupabaseClient();
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getUser();
+
+    if (sessionError || !sessionData.user) {
+      throw new Error("No pudimos identificar al usuario.");
+    }
+
+    const { error: updateError } = await supabase
+      .from("treatments")
+      .update({
+        ended_at:
+          status === "FINALIZADO" || status === "ABANDONADO"
+            ? new Date().toISOString().slice(0, 10)
+            : null,
+        status,
+      })
+      .eq("owner_id", sessionData.user.id)
+      .eq("id", id);
+
+    if (updateError) {
+      throw new Error(mapSupabaseError(updateError));
+    }
+
+    await loadTreatments();
+  }
+
+  return {
+    activeTreatments,
+    addTreatment,
+    error,
+    loaded,
+    refreshTreatments: loadTreatments,
+    treatments,
+    updateTreatmentStatus,
+  };
+}

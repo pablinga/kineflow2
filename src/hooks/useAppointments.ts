@@ -28,6 +28,8 @@ export type Appointment = {
   clinicName: string | null;
   originLabel: string;
   originColor: string;
+  sessionNumber: number | null;
+  treatmentId: string | null;
   amount: number;
   paymentStatus: PaymentStatus;
   paymentStatusLabel: string;
@@ -62,6 +64,8 @@ export type NewAppointmentInput = {
   durationMinutes: number;
   modality: AppointmentModality;
   notes: string;
+  sessionNumber?: number | null;
+  treatmentId?: string;
 };
 
 export type NewClinicAppointmentInput = NewAppointmentInput & {
@@ -92,6 +96,8 @@ type AppointmentRow = {
   payment_method: PaymentMethod | null;
   paid_at: string | null;
   payment_notes: string | null;
+  session_number: number | null;
+  treatment_id: string | null;
   patients: { full_name: string } | Array<{ full_name: string }> | null;
   clinics: { name: string; color: string } | Array<{ name: string; color: string }> | null;
   clinic_professionals:
@@ -183,6 +189,8 @@ function mapAppointment(row: AppointmentRow): Appointment {
       origin === "clinic"
         ? clinicProfessional?.color ?? clinic?.color ?? "#14b8a6"
         : "#0b97dc",
+    sessionNumber: row.session_number,
+    treatmentId: row.treatment_id,
     amount: Number(row.session_amount ?? 0),
     paymentStatus: row.payment_status ?? "pending",
     paymentStatusLabel: paymentStatusLabels[row.payment_status ?? "pending"],
@@ -279,7 +287,7 @@ export function useAppointments(patientId?: string) {
       let query = supabase
         .from("appointments")
         .select(
-          "id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, session_amount, payment_status, payment_method, paid_at, payment_notes, patients(full_name), clinics(name, color), clinic_professionals(color)",
+          "id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, payment_status, payment_method, paid_at, payment_notes, patients(full_name), clinics(name, color), clinic_professionals(color)",
         )
         .order("scheduled_at", { ascending: true });
 
@@ -462,6 +470,8 @@ export function useAppointments(patientId?: string) {
       reason: input.reason,
       notes: input.notes || null,
       appointment_origin: "independent",
+      treatment_id: input.treatmentId || null,
+      session_number: input.sessionNumber ?? null,
       status: "pending",
     });
 
@@ -499,33 +509,34 @@ export function useAppointments(patientId?: string) {
   async function updateAppointmentStatus(
     id: string,
     status: AppointmentStatus,
-  ) {
+  ): Promise<{ treatmentCompleted?: { totalSessions: number } | null }> {
     const supabase = getSupabaseClient();
-    let query = supabase
-      .from("appointments")
-      .update({ status })
-      .eq("id", id);
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
 
-    if (accountType === "CONSULTORIO") {
-      query = query.eq("clinic_id", activeClinic?.id ?? "");
-    } else {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getUser();
-
-      if (sessionError || !sessionData.user) {
-        throw new Error("No pudimos identificar al usuario.");
-      }
-
-      query = query.eq("owner_id", sessionData.user.id);
+    if (sessionError || !accessToken) {
+      throw new Error("No pudimos identificar al usuario.");
     }
 
-    const { error: updateError } = await query;
+    const response = await fetch("/api/appointments/status", {
+      body: JSON.stringify({ appointmentId: id, status }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const result = await response.json();
 
-    if (updateError) {
-      throw new Error(mapSupabaseError(updateError));
+    if (!response.ok) {
+      throw new Error(
+        getFriendlyErrorMessage(result.error, "No pudimos actualizar el turno."),
+      );
     }
 
     await loadAppointments();
+    return result;
   }
 
   async function rescheduleAppointment(id: string, date: string, time: string) {

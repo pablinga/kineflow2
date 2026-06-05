@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarCheck, Save } from "lucide-react";
+import { ArrowLeft, CalendarCheck, Plus, Save } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { useAppointments, type NewAppointmentInput } from "@/hooks/useAppointments";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { useTreatments } from "@/hooks/useTreatments";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 
@@ -31,6 +32,8 @@ const emptyAppointment: NewAppointmentInput = {
   durationMinutes: 45,
   modality: "presencial",
   notes: "",
+  sessionNumber: null,
+  treatmentId: "",
 };
 
 export default function NewAppointmentPage() {
@@ -47,6 +50,10 @@ export default function NewAppointmentPage() {
   const [patientFromUrl, setPatientFromUrl] = useState("");
   const [appointment, setAppointment] =
     useState<NewAppointmentInput>(emptyAppointment);
+  const {
+    activeTreatments,
+    loaded: treatmentsLoaded,
+  } = useTreatments(appointment.patientId || undefined);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -97,7 +104,7 @@ export default function NewAppointmentPage() {
     );
   }
 
-  if (loading || !loaded || !planLoaded) {
+  if (loading || !loaded || !planLoaded || !treatmentsLoaded) {
     return <DashboardLoading />;
   }
 
@@ -121,6 +128,29 @@ export default function NewAppointmentPage() {
     value: NewAppointmentInput[Field],
   ) {
     setAppointment((current) => ({ ...current, [field]: value }));
+  }
+
+  function updatePatient(patientId: string) {
+    setAppointment((current) => ({
+      ...current,
+      patientId,
+      sessionNumber: null,
+      treatmentId: "",
+    }));
+  }
+
+  function updateTreatment(treatmentId: string) {
+    const selectedTreatment = activeTreatments.find(
+      (treatment) => treatment.id === treatmentId,
+    );
+
+    setAppointment((current) => ({
+      ...current,
+      sessionNumber: selectedTreatment
+        ? selectedTreatment.usedSessions + 1
+        : null,
+      treatmentId,
+    }));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -284,7 +314,7 @@ export default function NewAppointmentPage() {
                 </span>
                 <select
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                  onChange={(event) => updateField("patientId", event.target.value)}
+                  onChange={(event) => updatePatient(event.target.value)}
                   required
                   disabled={Boolean(preselectedPatient)}
                   value={appointment.patientId}
@@ -305,6 +335,35 @@ export default function NewAppointmentPage() {
                   <p className="mt-2 text-sm text-ocean-700">
                     Paciente preselecciónado desde su historial.
                   </p>
+                ) : null}
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Tratamiento
+                </span>
+                <select
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                  disabled={!appointment.patientId}
+                  onChange={(event) => updateTreatment(event.target.value)}
+                  value={appointment.treatmentId}
+                >
+                  <option value="">Sin tratamiento</option>
+                  {activeTreatments.map((treatment) => (
+                    <option key={treatment.id} value={treatment.id}>
+                      {treatment.diagnosis}
+                      {treatment.bodyRegion ? ` · ${treatment.bodyRegion}` : ""} (
+                      {treatment.usedSessions}/{treatment.totalSessions} sesiones)
+                    </option>
+                  ))}
+                </select>
+                {appointment.patientId && activeTreatments.length === 0 ? (
+                  <Link
+                    className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-ocean-700"
+                    href={`/dashboard/pacientes/${appointment.patientId}`}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Crear tratamiento
+                  </Link>
                 ) : null}
               </label>
               <label className="block">
