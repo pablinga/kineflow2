@@ -129,7 +129,7 @@ export default function PatientsPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activá. Te estamos llevando al login."
+        message="No hay una sesión activa. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -441,7 +441,7 @@ export default function PatientsPage() {
           />
 
           {clinicPracticeBlocked ? (
-            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 shadow-card">
+            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 shadow-card sm:mt-6 sm:p-5">
               <p className="font-bold text-amber-900">
                 Suscripción requerida
               </p>
@@ -456,7 +456,7 @@ export default function PatientsPage() {
               </Link>
             </section>
           ) : plan.plan === "FREE" ? (
-            <section className="mt-6 rounded-lg border border-ocean-200 bg-white p-5 shadow-card">
+            <section className="mt-4 rounded-lg border border-ocean-200 bg-white p-4 shadow-card sm:mt-6 sm:p-5">
               <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div>
                   <p className="font-bold text-ink">
@@ -479,7 +479,7 @@ export default function PatientsPage() {
           ) : null}
 
           {patientLimitBlock ? (
-            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
               <p>{patientLimitBlock}</p>
               <Link
                 className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
@@ -491,13 +491,13 @@ export default function PatientsPage() {
           ) : null}
 
           {actionNotice ? (
-            <div className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800">
+            <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 sm:mt-6 sm:p-5">
               {actionNotice}
             </div>
           ) : null}
 
           {error || actionError ? (
-            <div className="mt-6 rounded-lg border border-red-100 bg-red-50 p-5 text-sm font-medium text-red-700">
+            <div className="mt-4 rounded-lg border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700 sm:mt-6 sm:p-5">
               <p className="font-bold">
                 {freeLimitReached && actionError
                   ? "Alcanzaste el límite del plan Free"
@@ -524,11 +524,11 @@ export default function PatientsPage() {
 
           {showForm ? (
             <form
-              className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card"
+              className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5"
               onSubmit={handleSubmit}
             >
               <h2 className="text-lg font-bold text-ink">Nuevo paciente</h2>
-              <div className="mt-5 grid gap-5 md:grid-cols-2">
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <label className="block">
                   <span className="text-sm font-semibold text-slate-700">
                     Nombre completo
@@ -685,7 +685,7 @@ export default function PatientsPage() {
             </form>
           ) : null}
 
-          <section className="mt-6">
+          <section className="mt-4 sm:mt-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <label className="flex min-h-11 flex-1 items-center gap-3 rounded-lg border border-ocean-100 bg-ocean-50 px-4 py-3 focus-within:border-ocean-400">
               <Search className="h-5 w-5 text-ocean-600" />

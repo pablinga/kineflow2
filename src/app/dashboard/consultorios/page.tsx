@@ -71,7 +71,7 @@ export default function ClinicsAdminPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activá. Te estamos llevando al login."
+        message="No hay una sesión activa. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );

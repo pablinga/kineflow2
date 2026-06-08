@@ -190,7 +190,7 @@ export function DashboardSidebar() {
             <PanelLeftClose className="h-5 w-5" />
           </button>
         </div>
-        <nav className="space-y-1">
+        <nav className="hidden space-y-1 lg:block">
           {loading || !planLoaded ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((item) => (
@@ -220,8 +220,21 @@ export function DashboardSidebar() {
             })
           )}
         </nav>
+        <div className="space-y-2 lg:hidden">
+          <p className="px-1 text-xs font-bold uppercase tracking-wide text-slate-400">
+            Cuenta
+          </p>
+          <Link
+            className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-slate-600 transition hover:bg-ocean-50 hover:text-ocean-800"
+            href="/dashboard/planes"
+            onClick={() => setOpen(false)}
+          >
+            <CreditCard className="h-5 w-5" />
+            Mi plan
+          </Link>
+        </div>
         <button
-          className={`mt-8 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-80 ${
+          className={`mt-5 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-80 lg:mt-8 ${
             loggingOut
               ? "bg-ocean-50 text-ocean-800"
               : "text-slate-600 hover:bg-ocean-50 hover:text-ocean-800"

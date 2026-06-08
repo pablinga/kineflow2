@@ -98,7 +98,7 @@ export default function NewAppointmentPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activá. Te estamos llevando al login."
+        message="No hay una sesión activa. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -219,7 +219,7 @@ export default function NewAppointmentPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+      <section className="px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <Link
             className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-ocean-700"
@@ -229,9 +229,9 @@ export default function NewAppointmentPage() {
             Volver a turnos
           </Link>
 
-          <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
+          <header className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:p-5">
             <p className="text-sm font-semibold text-ocean-700">Nuevo turno</p>
-            <h1 className="mt-1 text-3xl font-bold text-ink">
+            <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
               Programar una sesión
             </h1>
             <p className="mt-2 text-slate-600">
@@ -240,27 +240,27 @@ export default function NewAppointmentPage() {
           </header>
 
           {independentPracticeBlocked ? (
-            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
               {independentPlanMessage}
             </section>
           ) : null}
 
           {accountType === "CONSULTORIO" && clinicProfessionals.length === 0 ? (
-            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
               Para crear un turno, primero tenés que agregar un kinesiólogo al
               consultorio y esperar que acepte la invitación.
             </section>
           ) : null}
 
           {clinicPlanBlocked ? (
-            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
               Para crear turnos del consultorio necesitás una suscripción activa
               del Plan Consultorio.
             </section>
           ) : null}
 
           {patientLimitBlock ? (
-            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
               <p>{patientLimitBlock}</p>
               <Link
                 className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
@@ -272,10 +272,10 @@ export default function NewAppointmentPage() {
           ) : null}
 
           <form
-            className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card"
+            className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5"
             onSubmit={handleSubmit}
           >
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2">
               {accountType === "CONSULTORIO" ? (
                 <label className="block md:col-span-2">
                   <span className="text-sm font-semibold text-slate-700">
@@ -439,12 +439,12 @@ export default function NewAppointmentPage() {
                 </select>
               </label>
             </div>
-            <label className="mt-5 block">
+            <label className="mt-4 block">
               <span className="text-sm font-semibold text-slate-700">
                 Observaciones
               </span>
               <textarea
-                className="mt-2 min-h-28 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
+                className="mt-2 min-h-20 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400 sm:min-h-28"
                 onChange={(event) => updateField("notes", event.target.value)}
                 placeholder="Notas internas para preparar la sesión"
                 value={appointment.notes}
@@ -452,12 +452,12 @@ export default function NewAppointmentPage() {
             </label>
 
             {error ? (
-              <p className="mt-5 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 sm:mt-5">
                 {error}
               </p>
             ) : null}
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <div className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:justify-end">
               <Link
                 className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 py-2.5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
                 href="/dashboard/turnos"
@@ -484,7 +484,7 @@ export default function NewAppointmentPage() {
             </div>
           </form>
 
-          <div className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
+          <div className="mt-6 hidden rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:block">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-ocean-100 text-ocean-700">
                 <CalendarCheck className="h-5 w-5" />

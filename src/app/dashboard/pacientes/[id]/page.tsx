@@ -7,12 +7,14 @@ import {
   Activity,
   ArrowLeft,
   CalendarPlus,
+  ClipboardPlus,
   Clock,
   Edit3,
   Mail,
   Phone,
   Plus,
   Save,
+  WalletCards,
   X,
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
@@ -177,7 +179,7 @@ export default function PatientDetailPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activá. Te estamos llevando al login."
+        message="No hay una sesión activa. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -213,6 +215,20 @@ export default function PatientDetailPage() {
     treatments.find((item) => item.status === "EN_CURSO") ??
     treatments[0] ??
     null;
+  const activeTreatmentProgress = activeTreatment?.totalSessions
+    ? Math.min(
+        100,
+        (activeTreatment.usedSessions / activeTreatment.totalSessions) * 100,
+      )
+    : 0;
+  const activeTreatmentPending = activeTreatment
+    ? Math.max(activeTreatment.totalSessions - activeTreatment.usedSessions, 0)
+    : 0;
+  const lastVisit = [...attendedAppointments].sort(
+    (left, right) =>
+      new Date(right.scheduledAt).getTime() -
+      new Date(left.scheduledAt).getTime(),
+  )[0];
   const activeTreatmentForEvolution =
     treatments.find(
       (item) => item.id === evolution.treatmentId && item.status === "EN_CURSO",
@@ -422,7 +438,7 @@ export default function PatientDetailPage() {
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
-      <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
+      <section className="px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <Link
             className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-ocean-700"
@@ -434,20 +450,20 @@ export default function PatientDetailPage() {
 
           {patient ? (
             <>
-              <header className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
+              <header className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:p-5">
                 <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
                   <div>
                     <p className="text-sm font-semibold text-ocean-700">
                       Historial del paciente
                     </p>
-                    <h1 className="mt-1 text-3xl font-bold text-ink">
+                    <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
                       {patient.name}
                     </h1>
                     <p className="mt-2 text-slate-600">
                       DNI {patient.document} · {patient.condition}
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <span
                       className={`w-fit rounded-full px-3 py-1 text-sm font-semibold ${
                         patient.status === "Activo"
@@ -458,34 +474,15 @@ export default function PatientDetailPage() {
                       {patient.status}
                     </span>
                     <Link
-                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:px-4"
                       href="/dashboard/pacientes"
                     >
                       <Edit3 className="h-4 w-4" />
-                      Editar paciente
+                      Editar
                     </Link>
-                    {patientLimitBlock ? (
-                      <button
-                        className="inline-flex min-h-10 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-400"
-                        disabled
-                        title={patientLimitBlock}
-                        type="button"
-                      >
-                        <CalendarPlus className="h-4 w-4" />
-                        Nuevo turno
-                      </button>
-                    ) : (
-                      <Link
-                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-                        href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
-                      >
-                        <CalendarPlus className="h-4 w-4" />
-                        Nuevo turno
-                      </Link>
-                    )}
                   </div>
                 </div>
-                <div className="mt-5 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
+                <div className="mt-4 grid gap-2 text-sm text-slate-600 md:grid-cols-3">
                   <p className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-ocean-600" />
                     {patient.phone}
@@ -501,14 +498,99 @@ export default function PatientDetailPage() {
                 </div>
               </header>
 
+              <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                  <div className="rounded-lg bg-ocean-50 p-3">
+                    <p className="text-xs font-bold uppercase text-ocean-700">
+                      Estado
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-ink">
+                      {patient.status}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-emerald-50 p-3 sm:col-span-2 xl:col-span-1">
+                    <p className="text-xs font-bold uppercase text-emerald-700">
+                      Tratamiento activo
+                    </p>
+                    <p className="mt-1 truncate text-lg font-bold text-ink">
+                      {activeTreatment?.diagnosis ?? "Sin tratamiento"}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <p className="text-xs font-bold uppercase text-slate-600">
+                      Sesiones
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-ink">
+                      {activeTreatment
+                        ? `${activeTreatment.usedSessions}/${activeTreatment.totalSessions}`
+                        : "0/0"}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-sky-50 p-3">
+                    <p className="text-xs font-bold uppercase text-sky-700">
+                      Última visita
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-ink">
+                      {lastVisit?.date ?? "Sin visitas"}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-amber-50 p-3">
+                    <p className="text-xs font-bold uppercase text-amber-700">
+                      Pendiente
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-ink">
+                      {formatCurrency(totalPending)}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                  {patientLimitBlock ? (
+                    <button
+                      className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-400"
+                      disabled
+                      title={patientLimitBlock}
+                      type="button"
+                    >
+                      <CalendarPlus className="h-4 w-4" />
+                      Nuevo turno
+                    </button>
+                  ) : (
+                    <Link
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-3 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+                      href={`/dashboard/turnos/nuevo?paciente=${patient.id}`}
+                    >
+                      <CalendarPlus className="h-4 w-4" />
+                      Nuevo turno
+                    </Link>
+                  )}
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                    disabled={Boolean(patientLimitBlock)}
+                    onClick={openNewEvolutionModal}
+                    title={patientLimitBlock ?? undefined}
+                    type="button"
+                  >
+                    <ClipboardPlus className="h-4 w-4" />
+                    Nueva evolución
+                  </button>
+                  <Link
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-amber-200 px-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-50"
+                    href="/dashboard/ingresos"
+                  >
+                    <WalletCards className="h-4 w-4" />
+                    Registrar cobro
+                  </Link>
+                </div>
+              </section>
+
               {(patientsError || appointmentsError || evolutionsError || actionError) ? (
-                <p className="mt-6 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 sm:mt-6">
                   {actionError || patientsError || appointmentsError || evolutionsError}
                 </p>
               ) : null}
 
               {patientLimitBlock ? (
-                <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+                <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
                   <p>{patientLimitBlock}</p>
                   <Link
                     className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
@@ -519,40 +601,7 @@ export default function PatientDetailPage() {
                 </section>
               ) : null}
 
-              <section className="mt-6 overflow-x-auto rounded-lg border border-ocean-100 bg-white p-3 shadow-card">
-                <div className="grid min-w-[42rem] grid-cols-3 gap-3">
-                  <div className="rounded-lg bg-emerald-50 p-3">
-                    <p className="text-xs font-semibold uppercase text-emerald-700">
-                      Total cobrado
-                    </p>
-                    <p className="mt-1 text-lg font-bold text-ink">
-                      {formatCurrency(totalPaid)}
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-amber-50 p-3">
-                    <p className="text-xs font-semibold uppercase text-amber-700">
-                      Total pendiente
-                    </p>
-                    <p className="mt-1 text-lg font-bold text-ink">
-                      {formatCurrency(totalPending)}
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-ocean-50 p-3">
-                    <p className="text-xs font-semibold uppercase text-ocean-700">
-                      Última sesión cobrada
-                    </p>
-                    <p className="mt-1 text-sm font-bold text-ink">
-                      {lastPaidAppointment
-                        ? `${lastPaidAppointment.date} · ${formatCurrency(
-                            lastPaidAppointment.amount,
-                          )}`
-                        : "Sin cobros"}
-                    </p>
-                  </div>
-                </div>
-              </section>
-
-              <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:mt-6 sm:gap-6">
                 <aside className="space-y-4">
                   <section className="hidden">
                     <h2 className="text-lg font-bold text-ink">
@@ -590,7 +639,7 @@ export default function PatientDetailPage() {
                     </div>
                   </section>
 
-                  <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
+                  <section className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:p-5">
                     <div className="flex items-center justify-between gap-4">
                       <h2 className="text-lg font-bold text-ink">
                         Tratamientos
@@ -606,7 +655,59 @@ export default function PatientDetailPage() {
                         <span className="hidden sm:inline">Nuevo tratamiento</span>
                       </button>
                     </div>
-                    <div className="mt-5 space-y-4">
+                    {activeTreatment ? (
+                      <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold uppercase text-emerald-700">
+                              Tratamiento activo
+                            </p>
+                            <p className="mt-1 truncate text-lg font-bold text-ink">
+                              {activeTreatment.diagnosis}
+                            </p>
+                            <p className="mt-1 text-sm text-emerald-800">
+                              {activeTreatment.bodyRegion || "Sin región"}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
+                            {activeTreatment.status}
+                          </span>
+                        </div>
+                        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                          <div className="rounded-lg bg-white p-2">
+                            <p className="text-lg font-bold text-ink">
+                              {activeTreatment.usedSessions}
+                            </p>
+                            <p className="text-xs font-semibold text-slate-500">
+                              Realizadas
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-white p-2">
+                            <p className="text-lg font-bold text-ink">
+                              {activeTreatmentPending}
+                            </p>
+                            <p className="text-xs font-semibold text-slate-500">
+                              Pendientes
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-white p-2">
+                            <p className="text-lg font-bold text-ink">
+                              {activeTreatment.totalSessions}
+                            </p>
+                            <p className="text-xs font-semibold text-slate-500">
+                              Totales
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+                          <div
+                            className="h-full rounded-full bg-emerald-600"
+                            style={{ width: `${activeTreatmentProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
                       {treatments.map((item) => {
                         const treatmentAppointments = appointments.filter(
                           (appointment) => appointment.treatmentId === item.id,
@@ -619,7 +720,11 @@ export default function PatientDetailPage() {
 
                         return (
                           <article
-                            className="rounded-lg border border-ocean-100 p-4"
+                            className={`rounded-lg border p-3 sm:p-4 ${
+                              item.id === activeTreatment?.id
+                                ? "border-emerald-200 bg-emerald-50/40"
+                                : "border-ocean-100"
+                            }`}
                             key={item.id}
                           >
                             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
@@ -656,10 +761,12 @@ export default function PatientDetailPage() {
                                 </details>
                               </div>
                             </div>
-                            <div className="mt-4">
+                            <div className="mt-3 sm:mt-4">
                               <div className="flex items-center justify-between text-sm font-semibold text-slate-600">
                                 <span>
-                                  {item.usedSessions} / {item.totalSessions} sesiones
+                                  {item.usedSessions} realizadas ·{" "}
+                                  {Math.max(item.totalSessions - item.usedSessions, 0)} pendientes ·{" "}
+                                  {item.totalSessions} totales
                                 </span>
                                 <button
                                   className="text-ocean-700 underline-offset-4 hover:underline"
@@ -1070,47 +1177,49 @@ export default function PatientDetailPage() {
                     ) : null}
                   </section>
 
-                  <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
-                    <h2 className="text-lg font-bold text-ink">
-                      Evoluciones / Sesiones
-                    </h2>
+                  <section className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="text-lg font-bold text-ink">
+                        Evoluciones / Sesiones
+                      </h2>
                     <button
-                      className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
                       disabled={Boolean(patientLimitBlock)}
                       onClick={openNewEvolutionModal}
                       title={patientLimitBlock ?? undefined}
                       type="button"
                     >
                       <Plus className="h-4 w-4" />
-                      Nueva evolución
+                      Nueva
                     </button>
-                    <div className="mt-5 space-y-3">
+                    </div>
+                    <div className="mt-4 space-y-2 sm:mt-5 sm:space-y-3">
                       {evolutions.map((item) => (
                         <article
-                          className="rounded-lg border border-ocean-100 p-4"
+                          className="rounded-lg border border-ocean-100 p-3 sm:p-4"
                           key={item.id}
                         >
-                          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                            <div>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
                               <p className="font-semibold text-ink">
                                 {item.date}
                               </p>
-                              <p className="mt-1 text-sm text-slate-500">
-                                Profesional: {displayName}
+                              <p className="mt-1 truncate text-sm font-semibold text-ocean-800">
+                                {item.mobility}
                               </p>
                             </div>
-                            <span className="flex w-fit items-center gap-2 rounded-full bg-ocean-50 px-3 py-1 text-sm font-semibold text-ocean-800">
+                            <span className="flex w-fit shrink-0 items-center gap-2 rounded-full bg-ocean-50 px-3 py-1 text-sm font-semibold text-ocean-800 ring-1 ring-ocean-100">
                               <Activity className="h-4 w-4" />
                               Dolor {item.pain}
                             </span>
                           </div>
-                          <p className="mt-4 text-sm font-semibold text-ocean-800">
-                            {item.mobility}
-                          </p>
                           <details className="mt-2 text-sm leading-6 text-slate-600">
                             <summary className="cursor-pointer font-semibold text-ocean-800">
-                              Ver notas clínicas
+                              Ver detalle clínico
                             </summary>
+                            <p className="mt-2 text-slate-500">
+                              Profesional: {displayName}
+                            </p>
                             <p className="mt-2">{item.notes}</p>
                           </details>
                         </article>
@@ -1137,11 +1246,12 @@ export default function PatientDetailPage() {
           )}
 
           {treatmentModalOpen ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 px-4 py-6">
+            <div className="fixed inset-0 z-50 flex items-end bg-ink/60 px-3 pb-3 sm:items-center sm:justify-center sm:px-4 sm:py-6">
               <form
-                className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
+                className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl border border-ocean-100 bg-white p-4 shadow-soft sm:rounded-lg sm:p-5"
                 onSubmit={handleTreatmentSubmit}
               >
+                <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-slate-200 sm:hidden" />
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-bold text-ink">
@@ -1160,7 +1270,7 @@ export default function PatientDetailPage() {
                   </button>
                 </div>
 
-                <div className="mt-5 grid gap-5 md:grid-cols-2">
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <label className="block md:col-span-2">
                     <span className="text-sm font-semibold text-slate-700">
                       Diagnóstico
@@ -1235,7 +1345,7 @@ export default function PatientDetailPage() {
                   </label>
                 </div>
 
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <div className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:justify-end">
                   <button
                     className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
                     onClick={() => setTreatmentModalOpen(false)}
@@ -1257,11 +1367,12 @@ export default function PatientDetailPage() {
           ) : null}
 
           {evolutionModalOpen ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 px-4 py-6">
+            <div className="fixed inset-0 z-50 flex items-end bg-ink/60 px-3 pb-3 sm:items-center sm:justify-center sm:px-4 sm:py-6">
               <form
-                className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
+                className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl border border-ocean-100 bg-white p-4 shadow-soft sm:rounded-lg sm:p-5"
                 onSubmit={handleSubmit}
               >
+                <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-slate-200 sm:hidden" />
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-bold text-ink">
@@ -1280,7 +1391,7 @@ export default function PatientDetailPage() {
                   </button>
                 </div>
 
-                <div className="mt-5 grid gap-5 md:grid-cols-2">
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <label className="block md:col-span-2">
                     <span className="text-sm font-semibold text-slate-700">
                       Turno asociado
@@ -1326,26 +1437,27 @@ export default function PatientDetailPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
+                    <span className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700">
                       Nivel de dolor
+                      <span className="rounded-full bg-ocean-50 px-3 py-1 text-ocean-800">
+                        {evolution.painLevel}/10
+                      </span>
                     </span>
-                    <select
-                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                    <input
+                      className="mt-3 w-full accent-ocean-600"
+                      max={10}
+                      min={0}
                       onChange={(event) =>
                         updateField("painLevel", Number(event.target.value))
                       }
+                      step={1}
+                      type="range"
                       value={evolution.painLevel}
-                    >
-                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
-                        <option key={value} value={value}>
-                          {value}/10
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </label>
                 </div>
 
-                <label className="mt-5 block">
+                <label className="mt-4 block">
                   <span className="text-sm font-semibold text-slate-700">
                     Movilidad / fuerza
                   </span>
@@ -1358,12 +1470,12 @@ export default function PatientDetailPage() {
                     value={evolution.mobilityNotes}
                   />
                 </label>
-                <label className="mt-5 block">
+                <label className="mt-4 block">
                   <span className="text-sm font-semibold text-slate-700">
                     Notas clínicas
                   </span>
                   <textarea
-                    className="mt-2 min-h-32 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
+                    className="mt-2 min-h-24 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400 sm:min-h-32"
                     onChange={(event) =>
                       updateField("clinicalNotes", event.target.value)
                     }
@@ -1371,18 +1483,18 @@ export default function PatientDetailPage() {
                     value={evolution.clinicalNotes}
                   />
                 </label>
-                <label className="mt-5 block">
+                <label className="mt-4 block">
                   <span className="text-sm font-semibold text-slate-700">
                     Próximos objetivos
                   </span>
                   <textarea
-                    className="mt-2 min-h-24 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
+                    className="mt-2 min-h-20 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400 sm:min-h-24"
                     onChange={(event) => updateField("nextGoals", event.target.value)}
                     value={evolution.nextGoals}
                   />
                 </label>
 
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <div className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:justify-end">
                   <button
                     className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
                     onClick={() => setEvolutionModalOpen(false)}

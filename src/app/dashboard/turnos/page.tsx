@@ -282,7 +282,7 @@ export default function AppointmentsPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activá. Te estamos llevando al login."
+        message="No hay una sesión activa. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -684,7 +684,7 @@ export default function AppointmentsPage() {
                 No hay turnos para estos días.
               </p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-                Usá Nuevo turno para programar sesiónes.
+                Usá Nuevo turno para programar sesiones.
               </p>
             </div>
           ) : null}

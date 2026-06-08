@@ -36,20 +36,6 @@ import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 
-function startOfWeek(date: Date) {
-  const next = new Date(date);
-  const day = next.getDay() || 7;
-  next.setHours(0, 0, 0, 0);
-  next.setDate(next.getDate() - day + 1);
-  return next;
-}
-
-function endOfWeek(date: Date) {
-  const next = startOfWeek(date);
-  next.setDate(next.getDate() + 7);
-  return next;
-}
-
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1).getTime();
 }
@@ -107,7 +93,7 @@ export default function DashboardPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activá. Te estamos llevando al login."
+        message="No hay una sesión activa. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -138,8 +124,6 @@ export default function DashboardPage() {
     .slice(0, 6);
   const actionRequired = appointments.filter(isPastPendingAppointment);
   const paymentActionRequired = appointments.filter(isAttendedPendingPayment);
-  const currentWeekStart = startOfWeek(new Date()).getTime();
-  const currentWeekEnd = endOfWeek(new Date()).getTime();
   const currentMonthStart = startOfMonth(new Date());
   const currentMonthEnd = endOfMonth(new Date());
   const today = new Date();
@@ -154,22 +138,6 @@ export default function DashboardPage() {
   const paidAppointments = appointments.filter(
     (appointment) => appointment.paymentStatus === "paid",
   );
-  const todayIncome = paidAppointments
-    .filter((appointment) => {
-      const paymentDate = getPaymentDate(appointment);
-      return (
-        paymentDate.getFullYear() === today.getFullYear() &&
-        paymentDate.getMonth() === today.getMonth() &&
-        paymentDate.getDate() === today.getDate()
-      );
-    })
-    .reduce((total, appointment) => total + appointment.amount, 0);
-  const weekIncome = paidAppointments
-    .filter((appointment) => {
-      const paymentDate = getPaymentDate(appointment).getTime();
-      return paymentDate >= currentWeekStart && paymentDate < currentWeekEnd;
-    })
-    .reduce((total, appointment) => total + appointment.amount, 0);
   const monthIncome = paidAppointments
     .filter((appointment) => {
       const paymentDate = getPaymentDate(appointment).getTime();
@@ -184,6 +152,7 @@ export default function DashboardPage() {
     (total, appointment) => total + appointment.amount,
     0,
   );
+  const nextAppointment = upcomingAppointments[0];
 
   const summaryCards = [
     {
@@ -200,42 +169,26 @@ export default function DashboardPage() {
       detail: patients.length === 0 ? "Sin pacientes cargados" : "En seguimiento",
     },
     {
-      label: "Cobrado hoy",
-      value: formatCurrency(todayIncome),
-      detail: todayIncome === 0 ? "Sin cobros hoy" : "Cobros del dia",
-    },
-    {
-      label: "Pendiente de cobro",
-      value: formatCurrency(pendingPaymentAmount),
-      detail:
-        pendingPaymentAppointments.length === 0
-          ? "Sin cobros pendientes"
-          : `${pendingPaymentAppointments.length} sesiónes`,
-    },
-  ];
-  const economicCards = [
-    {
-      label: "Ingresos de la semana",
-      value: formatCurrency(weekIncome),
-      detail: "Cobros registrados",
-    },
-    {
       label: "Ingresos del mes",
       value: formatCurrency(monthIncome),
       detail: "Cobros registrados",
     },
     {
-      label: "Sesiones pendientes de cobro",
-      value: String(pendingPaymentAppointments.length),
-      detail: "Con monto pendiente",
+      label: "Pendientes de cobro",
+      value: formatCurrency(pendingPaymentAmount),
+      detail:
+        pendingPaymentAppointments.length === 0
+          ? "Sin cobros pendientes"
+          : `${pendingPaymentAppointments.length} sesiones`,
     },
     {
-      label: "Monto pendiente",
-      value: formatCurrency(pendingPaymentAmount),
-      detail: "Por cobrar",
+      label: "Próximo turno",
+      value: nextAppointment?.time ?? "-",
+      detail: nextAppointment
+        ? `${nextAppointment.patient} · ${nextAppointment.date}`
+        : "Sin próximos turnos",
     },
   ];
-
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
@@ -277,7 +230,7 @@ export default function DashboardPage() {
           />
 
           {patientLimitBlock ? (
-            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
               <p>{patientLimitBlock}</p>
               <Link
                 className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
@@ -289,7 +242,7 @@ export default function DashboardPage() {
           ) : null}
 
           {plan.plan === "FREE" ? (
-            <section className="mt-6 flex flex-col justify-between gap-4 rounded-lg border border-ocean-200 bg-white p-5 shadow-card md:flex-row md:items-center">
+            <section className="mt-4 flex flex-col justify-between gap-4 rounded-lg border border-ocean-200 bg-white p-4 shadow-card sm:mt-6 sm:p-5 md:flex-row md:items-center">
               <div className="flex gap-4">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
                   <CreditCard className="h-5 w-5" />
@@ -312,7 +265,7 @@ export default function DashboardPage() {
               </Link>
             </section>
           ) : (
-            <section className="mt-6 flex flex-col justify-between gap-4 rounded-lg border border-emerald-100 bg-emerald-50 p-5 shadow-card md:flex-row md:items-center">
+            <section className="mt-4 flex flex-col justify-between gap-4 rounded-lg border border-emerald-100 bg-emerald-50 p-4 shadow-card sm:mt-6 sm:p-5 md:flex-row md:items-center">
               <div className="flex gap-4">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700">
                   <CreditCard className="h-5 w-5" />
@@ -339,10 +292,10 @@ export default function DashboardPage() {
             </section>
           )}
 
-          <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 xl:grid-cols-5">
             {summaryCards.map((card) => (
               <article
-                className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card"
+                className="rounded-lg border border-ocean-100 bg-white p-3 shadow-card sm:p-4"
                 key={card.label}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -365,33 +318,7 @@ export default function DashboardPage() {
             ))}
           </section>
 
-          <section className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {economicCards.map((card) => (
-              <article
-                className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card"
-                key={card.label}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">
-                      {card.label}
-                    </p>
-                    <p className="mt-2 text-xl font-bold text-ink">
-                      {card.value}
-                    </p>
-                  </div>
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-                    <WalletCards className="h-4 w-4" />
-                  </span>
-                </div>
-                <p className="mt-3 text-sm font-medium text-ocean-700">
-                  {card.detail}
-                </p>
-              </article>
-            ))}
-          </section>
-
-          <section className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_0.8fr]">
+          <section className="mt-4 grid gap-4 xl:grid-cols-[1.6fr_0.8fr] sm:mt-6 sm:gap-6">
             <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>

@@ -445,7 +445,7 @@ test("Ficha del paciente separa historial y carga de evolucion en modal", () => 
   assert.match(source, /openNewEvolutionModal/);
   assert.match(source, /Nueva evoluci/);
   assert.match(source, /setEvolutionModalOpen\(false\)/);
-  assert.match(source, /Ver notas cl/);
+  assert.match(source, /Ver detalle cl/);
   assert.match(source, /Editar cobro/);
   assert.match(source, /Reprogramar/);
   assert.match(source, /Cancelar/);

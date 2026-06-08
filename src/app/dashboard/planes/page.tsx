@@ -177,7 +177,7 @@ export default function PlansPage() {
           />
 
           {canCancelSubscription ? (
-            <section className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+            <section className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 p-4 sm:mt-6">
               <p className="font-bold text-emerald-900">
                 {plan.estadoPlan === "ACTIVO"
                   ? `Plan activo: ${currentPlanName}`
@@ -198,7 +198,7 @@ export default function PlansPage() {
             </section>
           ) : null}
 
-          <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 xl:grid-cols-4">
             {[
               ["Plan actual", currentPlanName],
               ["Estado", plan.estadoPlan],
@@ -221,26 +221,26 @@ export default function PlansPage() {
           </section>
 
           {reachedFreeLimit ? (
-            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6">
               Llegaste al limite de 5 pacientes del Plan Free. Para cargar
               nuevos pacientes, activá KineFlow - Particular.
             </section>
           ) : null}
 
           {cancelReference ? (
-            <section className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+            <section className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 sm:mt-6">
               Baja registrada. Referencia de gestion: {cancelReference}
             </section>
           ) : null}
 
-          <section className="mt-6 grid gap-4 lg:grid-cols-2">
+          <section className="mt-4 grid gap-4 sm:mt-6 lg:grid-cols-2">
             {visiblePlans.map((item) => {
               const Icon = item.icon;
               const isCurrent = item.id === plan.plan;
 
               return (
                 <article
-                  className={`relative flex rounded-lg border bg-white p-5 shadow-card ${
+                  className={`relative flex rounded-lg border bg-white p-4 shadow-card sm:p-5 ${
                     item.recommended
                       ? "border-ocean-500 ring-2 ring-ocean-100"
                       : "border-ocean-100"
@@ -306,12 +306,12 @@ export default function PlansPage() {
             })}
           </section>
 
-          <section className="mt-8 rounded-lg border border-ocean-100 bg-white p-4 text-xs text-slate-500">
+          <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 text-xs text-slate-500 sm:mt-8">
             <LegalLinks />
           </section>
 
           {selectedPlan && (checkoutError || checkoutMessage) ? (
-            <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
+            <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5">
               <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div className="flex gap-4">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
@@ -336,8 +336,8 @@ export default function PlansPage() {
           ) : null}
       </PageContainer>
       {cancelModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-4">
-          <section className="w-full max-w-md rounded-lg bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-end bg-ink/70 px-3 pb-3 sm:items-center sm:justify-center sm:px-4 sm:pb-0">
+          <section className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-2xl sm:rounded-lg sm:p-6">
             <h2 className="text-xl font-bold text-ink">Cancelar suscripción</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
               Vamos a solicitar la baja de KineFlow - Particular en Mercado Pago y

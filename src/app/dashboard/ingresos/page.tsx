@@ -73,7 +73,7 @@ export default function IncomePage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activá. Te estamos llevando al login."
+        message="No hay una sesión activa. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -94,7 +94,7 @@ export default function IncomePage() {
             </h1>
             <p className="mt-2 leading-6 text-amber-800">
               Esta funcionalidad está disponible en KineFlow - Particular.
-              Podés activárlo para gestionar tus pacientes, turnos y cobros
+              Podés activarlo para gestionar tus pacientes, turnos y cobros
               propios.
             </p>
           </div>
