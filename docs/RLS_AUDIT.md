@@ -31,9 +31,9 @@ Reglas principales:
 
 ## Service role
 
-Las APIs que usan service role deben validar primero el token del usuario con el cliente normal de Supabase y luego filtrar cada operacion por el usuario autenticado. La ruta de baja de suscripcion filtra por `account_id = user.id` antes de actualizar registros.
+Las APIs que usan service role deben validar primero el token del usuario con el cliente normal de Supabase y luego filtrar cada operación por el usuario autenticado. La ruta de baja de suscripción filtra por `account_id = user.id` antes de actualizar registros.
 
-El webhook de Mercado Pago usa service role porque no hay usuario logueado en esa llamada. La asociacion se resuelve por `external_reference`, suscripcion existente o email unico de perfil, y registra logs sin payload clinico.
+El webhook de Mercado Pago usa service role porque no hay usuario logueado en esa llamada. La asociación se resuelve por `external_reference`, suscripción existente o email único de perfil, y registra logs sin payload clínico.
 
 ## Verificacion QA
 

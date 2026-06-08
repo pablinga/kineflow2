@@ -144,7 +144,7 @@ export default function PlansPage() {
 
       if (!response.ok) {
         throw new Error(
-          getFriendlyErrorMessage(result.error, "No pudimos cancelar la suscripcion."),
+          getFriendlyErrorMessage(result.error, "No pudimos cancelar la suscripción."),
         );
       }
 
@@ -153,7 +153,7 @@ export default function PlansPage() {
     } catch (error) {
       logFriendlyError("planes.cancel", error);
       setCheckoutError(
-        getFriendlyErrorMessage(error, "No pudimos cancelar la suscripcion."),
+        getFriendlyErrorMessage(error, "No pudimos cancelar la suscripción."),
       );
     } finally {
       setCancelLoading(false);
@@ -185,7 +185,7 @@ export default function PlansPage() {
               </p>
               <p className="mt-1 text-sm leading-6 text-emerald-800">
                 {plan.estadoPlan === "ACTIVO"
-                  ? "Tu suscripcion esta activa."
+                  ? "Tu suscripción está activa."
                   : "Estado: pendiente de confirmacion de Mercado Pago."}
               </p>
               <button
@@ -193,7 +193,7 @@ export default function PlansPage() {
                 onClick={() => setCancelModalOpen(true)}
                 type="button"
               >
-                Cancelar suscripcion
+                Cancelar suscripción
               </button>
             </section>
           ) : null}
@@ -338,7 +338,7 @@ export default function PlansPage() {
       {cancelModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-4">
           <section className="w-full max-w-md rounded-lg bg-white p-6 shadow-2xl">
-            <h2 className="text-xl font-bold text-ink">Cancelar suscripcion</h2>
+            <h2 className="text-xl font-bold text-ink">Cancelar suscripción</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
               Vamos a solicitar la baja de KineFlow - Particular en Mercado Pago y
               registrar la gestion en KineFlow. Vas a recibir una referencia de

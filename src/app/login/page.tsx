@@ -135,7 +135,7 @@ export default function LoginPage() {
             </label>
             <label className="block">
               <span className="text-sm font-semibold text-slate-700">
-                Contrasena
+                Contraseña
               </span>
               <span className="mt-2 flex items-center gap-3 rounded-lg border border-ocean-100 bg-white px-4 py-3 focus-within:border-ocean-400">
                 <LockKeyhole className="h-5 w-5 text-ocean-500" />

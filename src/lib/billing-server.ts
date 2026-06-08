@@ -123,7 +123,7 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
     });
 
     throw new Error(
-      `No pudimos actualizar la suscripcion en Supabase: ${subscriptionUpsertError.message}`,
+      `No pudimos actualizar la suscripción en Supabase: ${subscriptionUpsertError.message}`,
     );
   }
 

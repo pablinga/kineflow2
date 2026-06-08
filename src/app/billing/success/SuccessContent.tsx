@@ -11,7 +11,7 @@ type UpdateState = "checking" | "active" | "pending" | "signed_out" | "error";
 
 export function SuccessContent() {
   const [state, setState] = useState<UpdateState>("checking");
-  const [message, setMessage] = useState("Estamos validando tu suscripcion.");
+  const [message, setMessage] = useState("Estamos validando tu suscripción.");
   const confirmedPreapprovalRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export function SuccessContent() {
           if (mounted) {
             setState("signed_out");
             setMessage(
-              "La sesion no esta activa. Inicia sesion para ver el estado de tu plan.",
+              "La sesión no está activa. Iniciá sesión para ver el estado de tu plan.",
             );
           }
           return;
@@ -71,7 +71,7 @@ export function SuccessContent() {
           setMessage(
             isActive
               ? "KineFlow - Particular esta activo."
-              : "La confirmacion puede demorar unos instantes. Si Mercado Pago ya aprobo la suscripcion, el webhook la va a activar automaticamente.",
+              : "La confirmación puede demorar unos instantes. Si Mercado Pago ya aprobó la suscripción, el webhook la va a activar automáticamente.",
           );
         }
       } catch (error) {
@@ -105,7 +105,7 @@ export function SuccessContent() {
           <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
         )}
         <h1 className="mt-4 text-2xl font-bold text-ink">
-          {isChecking ? "Estamos validando tu suscripcion" : "Suscripcion"}
+          {isChecking ? "Estamos validando tu suscripción" : "Suscripción"}
         </h1>
         <p className="mt-3 leading-6 text-slate-600">{message}</p>
         <p className="mt-3 rounded-lg bg-ocean-50 px-4 py-3 text-sm font-semibold text-ocean-800">

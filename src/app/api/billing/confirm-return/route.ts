@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
   if (!token) {
     return NextResponse.json(
-      { error: "Necesitas iniciar sesion para ver el estado de la suscripcion." },
+      { error: "Necesitás iniciar sesión para ver el estado de la suscripción." },
       { status: 401 },
     );
   }
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
         error:
           confirmError instanceof Error
             ? confirmError.message
-            : "No pudimos confirmar la suscripcion.",
+            : "No pudimos confirmar la suscripción.",
         preapproval_id: preapprovalId,
         userId: user.id,
       });

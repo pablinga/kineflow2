@@ -74,11 +74,11 @@ test("Los montos se muestran con separador de miles argentino", () => {
   assert.equal(formatMonto(20000), "$ 20.000");
 });
 
-test("Landing MVP1 habla solo a kinesiologos independientes", () => {
+test("Landing MVP1 habla solo a kinesiólogos independientes", () => {
   const source = fs.readFileSync("src/app/page.tsx", "utf8");
   const button = fs.readFileSync("src/components/ui/Button.tsx", "utf8");
 
-  assert.match(source, /kinesiologos independientes/);
+  assert.match(source, /kinesiólogos independientes/);
   assert.match(source, /Gestiona tus pacientes, turnos y sesiones/);
   assert.match(source, /Crear cuenta gratis/);
   assert.match(source, /variant="inverted"/);
@@ -259,7 +259,7 @@ test("Actualizacion de plan loguea errores exactos de Supabase", () => {
   assert.doesNotMatch(billingServer, /estado_plan|limite_pacientes|mercado_pago_status|plan_status|subscription_current_period_end/);
 });
 
-test("Webhook Mercado Pago acepta eventos de suscripcion y pago por ruta publica", () => {
+test("Webhook Mercado Pago acepta eventos de suscripción y pago por ruta publica", () => {
   const webhook = fs.readFileSync("src/app/api/webhooks/mercadopago/route.ts", "utf8");
   const alias = fs.readFileSync("src/app/api/mercadopago/webhook/route.ts", "utf8");
   const testEndpoint = fs.readFileSync(
@@ -321,15 +321,15 @@ test("Preflight OPTIONS responde antes de llegar a paginas Next", () => {
   assert.match(middleware, /mercadopago\.com\.ar/);
 });
 
-test("Baja de suscripcion llama a Mercado Pago, usa la ruta publica y registra referencia", () => {
+test("Baja de suscripción llama a Mercado Pago, usa la ruta publica y registra referencia", () => {
   const source = fs.readFileSync("src/app/api/billing/cancel-subscription/route.ts", "utf8");
   const alias = fs.readFileSync("src/app/api/subscriptions/cancel/route.ts", "utf8");
   const page = fs.readFileSync("src/app/dashboard/planes/page.tsx", "utf8");
 
   assert.match(source, /cancelMercadoPagoSubscription/);
   assert.match(source, /provider_subscription_id/);
-  assert.match(source, /No encontramos una suscripcion activa para cancelar/);
-  assert.match(source, /No pudimos cancelar la suscripcion en este momento/);
+  assert.match(source, /No encontramos una suscripción activa para cancelar/);
+  assert.match(source, /No pudimos cancelar la suscripción en este momento/);
   assert.match(source, /cancellationReference/);
   assert.match(source, /status: "CANCELLED"/);
   assert.doesNotMatch(source, /estado_plan|mercado_pago_status|plan_status|subscription_canceled_at/);

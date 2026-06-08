@@ -7,7 +7,7 @@ export default function SubscriptionPolicyPage() {
       sections={[
         {
           title: "KineFlow - Particular",
-          body: "KineFlow - Particular es una suscripcion recurrente para kinesiologos independientes. La renovacion se gestiona mediante Mercado Pago.",
+          body: "KineFlow - Particular es una suscripción recurrente para kinesiólogos independientes. La renovación se gestiona mediante Mercado Pago.",
         },
         {
           title: "Activacion",
@@ -18,7 +18,7 @@ export default function SubscriptionPolicyPage() {
           body: "El usuario puede solicitar la baja desde KineFlow en la seccion Plan / Suscripcion. KineFlow registrara una referencia de gestion.",
         },
       ]}
-      title="Politica de Suscripcion y Baja"
+      title="Política de Suscripción y Baja"
     />
   );
 }

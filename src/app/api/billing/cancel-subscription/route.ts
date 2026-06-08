@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       accountId: user.id,
     });
     return NextResponse.json(
-      { error: "No encontramos una suscripcion activa para cancelar." },
+      { error: "No encontramos una suscripción activa para cancelar." },
       { status: 404 },
     );
   }
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "No pudimos cancelar la suscripcion en este momento. Intenta nuevamente.",
+          "No pudimos cancelar la suscripción en este momento. Intentá nuevamente.",
       },
       { status: 502 },
     );
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
         subscriptionId: subscription.id,
       });
       return NextResponse.json(
-        { error: "No pudimos registrar la baja de la suscripcion." },
+        { error: "No pudimos registrar la baja de la suscripción." },
         { status: 500 },
       );
     }
@@ -143,6 +143,6 @@ export async function POST(request: Request) {
   return NextResponse.json({
     cancelled: true,
     cancellationReference,
-    message: "La suscripcion fue cancelada correctamente.",
+    message: "La suscripción fue cancelada correctamente.",
   });
 }

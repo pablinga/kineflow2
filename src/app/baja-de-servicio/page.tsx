@@ -11,7 +11,7 @@ export default function CancellationPage() {
         },
         {
           title: "Confirmacion",
-          body: "Al confirmar la baja, KineFlow intentara cancelar la suscripcion en Mercado Pago y registrara la fecha y una referencia de gestion.",
+          body: "Al confirmar la baja, KineFlow intentará cancelar la suscripción en Mercado Pago y registrará la fecha y una referencia de gestión.",
         },
         {
           title: "Soporte",

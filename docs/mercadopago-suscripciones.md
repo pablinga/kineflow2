@@ -1,13 +1,13 @@
-# Configuracion de Mercado Pago para suscripciones
+# Configuración de Mercado Pago para suscripciones
 
-Esta app usa un plan de suscripcion ya creado en Mercado Pago. El backend crea la preapproval con el access token privado, redirige al `sandbox_init_point` o `init_point` devuelto por Mercado Pago y el webhook actualiza Supabase despues de consultar el recurso real.
+Esta app usa un plan de suscripción ya creado en Mercado Pago. El backend crea la preapproval con el access token privado, redirige al `sandbox_init_point` o `init_point` devuelto por Mercado Pago y el webhook actualiza Supabase después de consultar el recurso real.
 
 ## 1. Credenciales de prueba
 
 En Mercado Pago, usa la cuenta vendedora de prueba para copiar:
 
 - Access token de prueba.
-- ID del plan de suscripcion activo.
+- ID del plan de suscripción activo.
 
 Despues completa `.env.local`:
 
@@ -71,7 +71,7 @@ Si esa variable esta configurada, la app valida la firma `x-signature` antes de 
 6. Paga usando el comprador de prueba y una tarjeta de prueba.
 7. Mercado Pago vuelve a `/suscripcion-exitosa`, `/suscripcion-pendiente` o `/suscripcion-error`.
 8. La app consulta el estado real del usuario en Supabase.
-9. Si Mercado Pago confirma la suscripcion, el webhook actualiza el plan en Supabase.
+9. Si Mercado Pago confirma la suscripción, el webhook actualiza el plan en Supabase.
 10. El webhook mantiene sincronizados los cambios posteriores.
 
 ## 6. Checklist antes de produccion
@@ -82,7 +82,7 @@ Si esa variable esta configurada, la app valida la firma `x-signature` antes de 
 - Configurar el webhook productivo con `/api/mercadopago/webhook`.
 - Cargar `MERCADOPAGO_WEBHOOK_SECRET` si Mercado Pago lo entrega en el panel.
 - Hacer una compra real de bajo monto y confirmar que `profiles.estado_plan` queda `ACTIVO`.
-- Confirmar que cancelar desde la app cambia la suscripcion de Mercado Pago a `cancelled` o `canceled`.
+- Confirmar que cancelar desde la app cambia la suscripción de Mercado Pago a `cancelled` o `canceled`.
 
 ## 7. Validacion manual de baja y webhook
 
@@ -90,4 +90,4 @@ Si esa variable esta configurada, la app valida la firma `x-signature` antes de 
 2. Confirmar que Mercado Pago responde correctamente y que el perfil queda en `plan = FREE`, `plan_status = cancelled`, `mercado_pago_status = cancelled` y `subscription_canceled_at` / `cancelled_at` con fecha.
 3. Enviar o simular un webhook de preapproval con estado `cancelled` o `canceled`; verificar que el usuario asociado por `mercado_pago_preapproval_id` queda en Plan Free.
 4. Enviar o simular un webhook de preapproval con estado `authorized`; verificar que el usuario queda con KineFlow - Particular activo.
-5. Ingresar con un usuario Free y confirmar que no ve el boton Cancelar suscripcion.
+5. Ingresar con un usuario Free y confirmar que no ve el botón Cancelar suscripción.

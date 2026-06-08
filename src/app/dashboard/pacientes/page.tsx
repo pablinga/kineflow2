@@ -733,7 +733,7 @@ export default function PatientsPage() {
                 </p>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
                   Creá el primer paciente para empezar a programar turnos y
-                  registrar evoluciónes.
+                  registrar evoluciones.
                 </p>
               </div>
             ) : viewMode === "list" ? (

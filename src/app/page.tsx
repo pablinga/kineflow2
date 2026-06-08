@@ -31,7 +31,7 @@ const benefits = [
   },
   {
     icon: HeartPulse,
-    title: "Evolucion por tratamiento",
+    title: "Evolución por tratamiento",
     text: "Notas y seguimiento del progreso en cada sesion.",
   },
   {
@@ -84,7 +84,7 @@ export default async function Home({
               Gestiona tus pacientes, turnos y sesiones en un solo lugar
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-              KineFlow esta pensado para kinesiologos independientes que
+              KineFlow está pensado para kinesiólogos independientes que
               necesitan ordenar su dia a dia de forma simple, rapida y desde
               cualquier dispositivo.
             </p>
@@ -168,7 +168,7 @@ export default async function Home({
           <div className="max-w-2xl">
             <p className="text-sm font-bold text-ocean-600">Beneficios</p>
             <h2 className="mt-3 text-3xl font-extrabold text-ink">
-              Disenado para lo que importa.
+              Diseñado para lo que importa.
             </h2>
           </div>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -324,7 +324,7 @@ export default async function Home({
           <div>
             <p className="font-extrabold text-ink">KineFlow</p>
             <p className="mt-1 text-sm text-slate-500">
-              Gestion simple para kinesiologos.
+              Gestión simple para kinesiólogos.
             </p>
           </div>
           <div className="flex flex-wrap gap-4 text-sm font-semibold text-slate-600">

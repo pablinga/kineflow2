@@ -18,7 +18,7 @@ export default function PrivacyPage() {
           body: "KineFlow utiliza Mercado Pago como procesador de pagos. La informacion de pago se gestiona bajo las condiciones y politicas de Mercado Pago.",
         },
       ]}
-      title="Politica de Privacidad"
+      title="Política de Privacidad"
     />
   );
 }

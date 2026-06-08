@@ -49,14 +49,14 @@ const MAX_POLLING_ATTEMPTS = 5;
 const copyByKind = {
   error: {
     icon: AlertCircle,
-    title: "No pudimos confirmar la suscripcion",
+    title: "No pudimos confirmar la suscripción",
     text: "El pago no se completo o Mercado Pago no pudo autorizarlo. Podes volver a intentar desde Plan.",
     tone: "text-red-600",
   },
   pending: {
     icon: Clock3,
     title: "Suscripcion pendiente",
-    text: "Mercado Pago todavia esta procesando la suscripcion. Cuando se confirme, el webhook va a activar tu plan.",
+    text: "Mercado Pago todavía está procesando la suscripción. Cuando se confirme, el webhook va a activar tu plan.",
     tone: "text-amber-600",
   },
   success: {
@@ -185,7 +185,7 @@ export function SubscriptionReturnPage({
         const accessToken = data.session?.access_token;
 
         if (!accessToken) {
-          throw new Error("Necesitas iniciar sesion para ver tu suscripcion.");
+          throw new Error("Necesitás iniciar sesión para ver tu suscripción.");
         }
 
         const preapprovalId = new URLSearchParams(window.location.search).get(

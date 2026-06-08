@@ -101,14 +101,14 @@ values
   (
     'INDEPENDIENTE',
     'KineFlow - Particular',
-    'Para kinesiologos que trabajan de forma independiente y quieren organizar su agenda, pacientes, sesiones y cobros desde un solo lugar.',
+    'Para kinesiólogos que trabajan de forma independiente y quieren organizar su agenda, pacientes, sesiones y cobros desde un solo lugar.',
     'KINESIOLOGO',
     15000,
     'ARS',
     'month',
     null,
     null,
-    '["Pacientes ilimitados", "Agenda simple para organizar turnos", "Registro de sesiones por paciente", "Evolucion de cada tratamiento", "Control de cobros y pagos pendientes", "Informacion ordenada y facil de consultar", "Pensado para usar desde el celular"]'::jsonb
+    '["Pacientes ilimitados", "Agenda simple para organizar turnos", "Registro de sesiones por paciente", "Evolución de cada tratamiento", "Control de cobros y pagos pendientes", "Información ordenada y fácil de consultar", "Pensado para usar desde el celular"]'::jsonb
   ),
   (
     'CONSULTORIO_2',

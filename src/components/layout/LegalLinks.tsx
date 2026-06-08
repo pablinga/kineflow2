@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 const legalLinks = [
-  { href: "/terminos-y-condiciones", label: "Terminos y Condiciones" },
-  { href: "/politica-de-privacidad", label: "Politica de Privacidad" },
+  { href: "/terminos-y-condiciones", label: "Términos y Condiciones" },
+  { href: "/politica-de-privacidad", label: "Política de Privacidad" },
   {
     href: "/politica-de-suscripcion-y-baja",
     label: "Suscripcion y baja",

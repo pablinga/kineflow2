@@ -123,7 +123,7 @@ export function getMercadoPagoSubscriptionCheckoutUrl(
   const preapprovalPlanId = getMercadoPagoPreapprovalPlanId(planId);
 
   if (!preapprovalPlanId) {
-    throw new Error("El plan no tiene checkout de suscripcion configurado.");
+    throw new Error("El plan no tiene checkout de suscripción configurado.");
   }
 
   const url = new URL(MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL);
@@ -207,7 +207,7 @@ export async function getMercadoPagoSubscription(subscriptionId: string) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data?.message ?? "No pudimos leer la suscripcion.");
+    throw new Error(data?.message ?? "No pudimos leer la suscripción.");
   }
 
   return data as MercadoPagoPreapproval;
@@ -297,7 +297,7 @@ export async function cancelMercadoPagoSubscription(subscriptionId: string) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data?.message ?? "No pudimos cancelar la suscripcion.");
+    throw new Error(data?.message ?? "No pudimos cancelar la suscripción.");
   }
 
   return data as MercadoPagoPreapproval;

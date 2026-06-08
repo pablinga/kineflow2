@@ -226,7 +226,7 @@ begin
     current_date - 2,
     3,
     'Movilidad ficticia mejorada para QA.',
-    'Evolucion ficticia para validar la historia clinica.',
+    'Evolución ficticia para validar la historia clínica.',
     'Continuar con ejercicios de prueba.'
   );
 end $$;

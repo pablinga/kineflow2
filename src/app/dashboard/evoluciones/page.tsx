@@ -37,7 +37,7 @@ export default function EvolutionsPage() {
               Historial por paciente
             </h1>
             <p className="mt-2 text-slate-600">
-              Las evoluciónes se consultan dentro del historial de cada paciente
+              Las evoluciones se consultan dentro del historial de cada paciente
               para evitar listados mezclados.
             </p>
           </header>
@@ -54,7 +54,7 @@ export default function EvolutionsPage() {
                 Ver pacientes
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Ingresá a un paciente para revisar sus turnos, evoluciónes y
+                Ingresá a un paciente para revisar sus turnos, evoluciones y
                 notas clínicas.
               </p>
               <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-ocean-700">
@@ -71,7 +71,7 @@ export default function EvolutionsPage() {
                 Registro clínico contextual
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Desde el detalle del paciente podés agregar nuevas evoluciónes
+                Desde el detalle del paciente podés agregar nuevas evoluciones
                 obligatoriamente asociadas a ese paciente.
               </p>
             </div>

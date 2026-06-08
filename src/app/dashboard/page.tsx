@@ -325,7 +325,7 @@ export default function DashboardPage() {
                   </p>
                   <p className="mt-1 text-sm leading-6 text-emerald-800">
                     {plan.estadoPlan === "ACTIVO"
-                      ? "Tu suscripcion esta activa."
+                      ? "Tu suscripción está activa."
                       : "Estado: pendiente de confirmacion de Mercado Pago."}
                   </p>
                 </div>

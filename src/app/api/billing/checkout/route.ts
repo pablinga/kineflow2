@@ -4,7 +4,7 @@ export async function POST() {
   return NextResponse.json(
     {
       error:
-        "El checkout de suscripcion se inicia directamente desde el frontend.",
+        "El checkout de suscripción se inicia directamente desde el frontend.",
     },
     { status: 410 },
   );

@@ -10,7 +10,7 @@ export default function SupportPage() {
           body: "Para soporte, baja de servicio, consultas legales o problemas de pago, escribi a contacto@kineflow.app.",
         },
         {
-          title: "Informacion util",
+          title: "Información útil",
           body: "Inclui el email de tu cuenta, una descripcion clara del problema y, si corresponde, la referencia de gestion de baja.",
         },
       ]}

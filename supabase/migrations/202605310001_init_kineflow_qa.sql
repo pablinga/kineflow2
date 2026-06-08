@@ -513,7 +513,7 @@ begin
     if new.clinic_id is null
       or coalesce(current_status, 'ACTIVO') <> 'ACTIVO'
       or coalesce(current_plan, 'FREE') not in ('CONSULTORIO_2', 'CONSULTORIO_5', 'CONSULTORIO_10') then
-      raise exception 'Para gestionar pacientes del consultorio necesitas una suscripcion activa del Plan Consultorio.';
+      raise exception 'Para gestionar pacientes del consultorio necesitas una suscripción activa del Plan Consultorio.';
     end if;
 
     return new;
@@ -685,10 +685,10 @@ create trigger set_subscriptions_updated_at before update on public.subscription
 insert into public.plans (code, name, description, account_type, price, currency, billing_period, max_patients, max_professionals, features)
 values
   ('FREE', 'Plan Free', 'Proba KineFlow con una cantidad limitada de pacientes y empeza a ordenar tu practica profesional.', 'KINESIOLOGO', 0, 'ARS', 'free', 5, null, '["Hasta 5 pacientes", "Agenda basica", "Registro basico de evoluciones", "Ideal para probar la herramienta"]'::jsonb),
-  ('INDEPENDIENTE', 'KineFlow - Particular', 'Para kinesiologos que trabajan de forma independiente y quieren organizar su agenda, pacientes, sesiones y cobros desde un solo lugar.', 'KINESIOLOGO', 15000, 'ARS', 'month', null, null, '["Pacientes ilimitados", "Agenda simple para organizar turnos", "Registro de sesiones por paciente", "Evolucion de cada tratamiento", "Control de cobros y pagos pendientes", "Informacion ordenada y facil de consultar", "Pensado para usar desde el celular"]'::jsonb),
-  ('CONSULTORIO_2', 'Plan Consultorio 2', 'Para consultorios con hasta 2 kinesiologos activos.', 'CONSULTORIO', 29900, 'ARS', 'month', null, 2, '["Pacientes del consultorio", "Agenda multi-profesional", "Invitacion de kinesiologos", "Ingresos del consultorio"]'::jsonb),
-  ('CONSULTORIO_5', 'Plan Consultorio 5', 'Para consultorios con hasta 5 kinesiologos activos.', 'CONSULTORIO', 49900, 'ARS', 'month', null, 5, '["Pacientes del consultorio", "Agenda multi-profesional", "Invitacion de kinesiologos", "Ingresos del consultorio"]'::jsonb),
-  ('CONSULTORIO_10', 'Plan Consultorio 10', 'Para consultorios con hasta 10 kinesiologos activos.', 'CONSULTORIO', 79900, 'ARS', 'month', null, 10, '["Pacientes del consultorio", "Agenda multi-profesional", "Invitacion de kinesiologos", "Ingresos del consultorio"]'::jsonb)
+  ('INDEPENDIENTE', 'KineFlow - Particular', 'Para kinesiólogos que trabajan de forma independiente y quieren organizar su agenda, pacientes, sesiones y cobros desde un solo lugar.', 'KINESIOLOGO', 15000, 'ARS', 'month', null, null, '["Pacientes ilimitados", "Agenda simple para organizar turnos", "Registro de sesiones por paciente", "Evolución de cada tratamiento", "Control de cobros y pagos pendientes", "Información ordenada y fácil de consultar", "Pensado para usar desde el celular"]'::jsonb),
+  ('CONSULTORIO_2', 'Plan Consultorio 2', 'Para consultorios con hasta 2 kinesiólogos activos.', 'CONSULTORIO', 29900, 'ARS', 'month', null, 2, '["Pacientes del consultorio", "Agenda multi-profesional", "Invitación de kinesiólogos", "Ingresos del consultorio"]'::jsonb),
+  ('CONSULTORIO_5', 'Plan Consultorio 5', 'Para consultorios con hasta 5 kinesiólogos activos.', 'CONSULTORIO', 49900, 'ARS', 'month', null, 5, '["Pacientes del consultorio", "Agenda multi-profesional", "Invitación de kinesiólogos", "Ingresos del consultorio"]'::jsonb),
+  ('CONSULTORIO_10', 'Plan Consultorio 10', 'Para consultorios con hasta 10 kinesiólogos activos.', 'CONSULTORIO', 79900, 'ARS', 'month', null, 10, '["Pacientes del consultorio", "Agenda multi-profesional", "Invitación de kinesiólogos", "Ingresos del consultorio"]'::jsonb)
 on conflict (code) do update
 set
   name = excluded.name,

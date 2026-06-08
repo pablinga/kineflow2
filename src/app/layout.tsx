@@ -9,9 +9,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "KineFlow | Gestion simple para kinesiologos",
+  title: "KineFlow | Gestión simple para kinesiólogos",
   description:
-    "App para kinesiologos independientes: pacientes, turnos, sesiones, evolucion y cobros en un solo lugar.",
+    "App para kinesiólogos independientes: pacientes, turnos, sesiones, evolución y cobros en un solo lugar.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

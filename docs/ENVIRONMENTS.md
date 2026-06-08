@@ -18,7 +18,7 @@ Inicializacion:
 2. Crear un usuario de prueba desde Supabase Auth.
 3. Opcionalmente ejecutar `supabase/seed.qa.sql` reemplazando el UUID placeholder por el UUID del usuario de prueba.
 
-No copiar datos reales de produccion a QA. Esto incluye pacientes, turnos, cobros, usuarios, perfiles, suscripciones y eventos de pago.
+No copiar datos reales de producción a QA. Esto incluye pacientes, turnos, cobros, usuarios, perfiles, suscripciones y eventos de pago.
 
 ## Supabase Produccion
 

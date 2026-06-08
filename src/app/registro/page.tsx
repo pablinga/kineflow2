@@ -309,11 +309,11 @@ export default function RegisterPage() {
                   }}
                   type="button"
                 >
-                  Terminos y Condiciones
+                  Términos y Condiciones
                 </button>{" "}
                 y la{" "}
                 <Link className="font-semibold text-ocean-700" href="/politica-de-privacidad">
-                  Politica de Privacidad
+                  Política de Privacidad
                 </Link>
                 .
               </span>
@@ -345,7 +345,7 @@ export default function RegisterPage() {
           <div className="mt-8 grid gap-3">
             {[
               "Pacientes, turnos y sesiones",
-              "Evolucion por tratamiento",
+              "Evolución por tratamiento",
               "Cobros por sesion",
             ].map((item) => (
               <div
@@ -373,7 +373,7 @@ export default function RegisterPage() {
                   className="mt-1 text-xl font-bold text-ink"
                   id="terms-modal-title"
                 >
-                  Terminos y Condiciones
+                  Términos y Condiciones
                 </h2>
                 <p className="mt-1 text-xs font-semibold text-slate-500">
                   Ultima actualizacion: {termsLastUpdated}

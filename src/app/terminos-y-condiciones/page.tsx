@@ -10,7 +10,7 @@ export default function TermsPage() {
     <LegalPage
       intro={termsIntro}
       sections={termsSections}
-      title="Terminos y Condiciones"
+      title="Términos y Condiciones"
       updatedAt={termsLastUpdated}
     />
   );

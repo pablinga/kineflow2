@@ -20,7 +20,7 @@ begin
     if new.clinic_id is null
       or coalesce(current_status, 'ACTIVO') <> 'ACTIVO'
       or coalesce(current_plan, 'FREE') not in ('CONSULTORIO_2', 'CONSULTORIO_5', 'CONSULTORIO_10') then
-      raise exception 'Para gestionar pacientes del consultorio necesitas una suscripcion activa del Plan Consultorio.';
+      raise exception 'Para gestionar pacientes del consultorio necesitas una suscripción activa del Plan Consultorio.';
     end if;
 
     return new;

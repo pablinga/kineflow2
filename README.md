@@ -1,6 +1,6 @@
 # KineFlow
 
-Aplicacion web inicial para gestion clinica de kinesiologos, creada con Next.js 15, React, TypeScript, TailwindCSS y Supabase.
+Aplicación web inicial para gestión clínica de kinesiólogos, creada con Next.js 15, React, TypeScript, TailwindCSS y Supabase.
 
 ## Pantallas incluidas
 
@@ -44,13 +44,13 @@ MERCADOPAGO_WEBHOOK_SECRET=tu-secreto-si-lo-configuras
 SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
 ```
 
-El boton interno de upgrade crea una preapproval server-side con `MERCADOPAGO_ACCESS_TOKEN`, usa `NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID` y redirige al `sandbox_init_point` o `init_point` devuelto por Mercado Pago. Al volver a `/suscripcion-exitosa`, el backend consulta el estado real en Supabase. El webhook `/api/mercadopago/webhook` mantiene el estado sincronizado ante cambios posteriores.
+El botón interno de upgrade crea una preapproval server-side con `MERCADOPAGO_ACCESS_TOKEN`, usa `NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID` y redirige al `sandbox_init_point` o `init_point` devuelto por Mercado Pago. Al volver a `/suscripcion-exitosa`, el backend consulta el estado real en Supabase. El webhook `/api/mercadopago/webhook` mantiene el estado sincronizado ante cambios posteriores.
 
 Pendiente para produccion real: configurar credenciales definitivas, URL publica de webhook, validacion completa de firma de Mercado Pago segun el panel usado, y probar pagos sandbox/end-to-end antes de cobrar.
 
-Guia completa: [docs/mercadopago-suscripciones.md](docs/mercadopago-suscripciones.md).
+Guía completa: [docs/mercadopago-suscripciones.md](docs/mercadopago-suscripciones.md).
 
-URL de retorno del plan de suscripcion en Mercado Pago:
+URL de retorno del plan de suscripción en Mercado Pago:
 
 ```bash
 # QA / Preview

@@ -527,7 +527,7 @@ export default function AppointmentsPage() {
               className="inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-600 px-2 text-[0.68rem] font-semibold text-white transition hover:bg-ocean-700"
               href={`/dashboard/pacientes/${appointment.patientId}?appointment=${appointment.id}`}
             >
-              Evolucion
+              Evolución
             </Link>
           ) : null}
           <button
@@ -611,7 +611,7 @@ export default function AppointmentsPage() {
           />
 
           {patientLimitBlock ? (
-            <section className="mt-6 rounded-lg border border-amber-100 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
               <p>{patientLimitBlock}</p>
               <Link
                 className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
@@ -623,7 +623,7 @@ export default function AppointmentsPage() {
           ) : null}
 
           {!patientLimitBlock && accountType === "KINESIOLOGO" && !canCreateAppointment ? (
-            <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm">
+            <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm sm:mt-6">
               Con el Plan Free podés probar KineFlow con hasta 5 pacientes.
               Para programar turnos propios y gestionar pacientes ilimitados,
               activá KineFlow - Particular.
@@ -631,18 +631,18 @@ export default function AppointmentsPage() {
           ) : null}
 
           {error || actionError ? (
-            <p className="mt-6 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 sm:mt-6">
               {actionError || error}
             </p>
           ) : null}
 
           {actionNotice ? (
-            <p className="mt-6 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+            <p className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 sm:mt-6">
               {actionNotice}
             </p>
           ) : null}
 
-          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-4 shadow-sm">
+          <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-3 shadow-sm sm:mt-6 sm:p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <div className="flex items-center gap-2 font-semibold text-ink">
                 <Filter className="h-4 w-4 text-ocean-700" />
@@ -679,7 +679,7 @@ export default function AppointmentsPage() {
           </section>
 
           {visibleAppointments.length === 0 ? (
-            <div className="mt-6 rounded-lg border border-dashed border-ocean-200 bg-white p-8 text-center shadow-card">
+            <div className="mt-4 rounded-lg border border-dashed border-ocean-200 bg-white p-5 text-center shadow-card sm:mt-6 sm:p-8">
               <p className="font-semibold text-ink">
                 No hay turnos para estos días.
               </p>
@@ -689,7 +689,7 @@ export default function AppointmentsPage() {
             </div>
           ) : null}
 
-          <section className="mt-6">
+          <section className="mt-4 sm:mt-6">
             <div className="grid gap-4 lg:grid-cols-3">
               {mobileDays.map((day, index) => (
                 <div
@@ -729,7 +729,7 @@ export default function AppointmentsPage() {
               ))}
             </div>
           </section>
-          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
+          <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold text-ink">Próximos turnos</h2>
@@ -841,8 +841,9 @@ export default function AppointmentsPage() {
           ) : null}
 
           {pendingAction ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4 py-6">
-              <div className="w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft">
+            <div className="fixed inset-0 z-50 flex items-end bg-ink/70 px-3 pb-3 sm:items-center sm:justify-center sm:bg-ink/40 sm:px-4 sm:py-6">
+              <div className="min-h-[60vh] w-full rounded-t-2xl border border-ocean-100 bg-white p-5 shadow-soft sm:min-h-0 sm:max-w-md sm:rounded-lg">
+                <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-slate-200 sm:hidden" />
                 <h2 className="text-lg font-bold text-ink">
                   {pendingAction.title}
                 </h2>

@@ -36,7 +36,7 @@ export async function sendSubscriptionActivatedEmail(
   const body = [
     `Hola ${user.fullName || user.email},`,
     "",
-    "Tu suscripcion a KineFlow - Particular fue activada correctamente.",
+    "Tu suscripción a KineFlow - Particular fue activada correctamente.",
     "",
     "Desde ahora podes usar KineFlow para gestionar tus pacientes, turnos, sesiones, evolucion y cobros.",
     "",
@@ -45,18 +45,18 @@ export async function sendSubscriptionActivatedEmail(
     "Medio de pago: Mercado Pago",
     `Proxima renovacion: ${formatDate(subscription.currentPeriodEnd) ?? "-"}`,
     "",
-    "Podes gestionar tu suscripcion desde tu cuenta en KineFlow.",
+    "Podés gestionar tu suscripción desde tu cuenta en KineFlow.",
     "",
     "Gracias por confiar en KineFlow.",
     "",
-    "KineFlow - Plataforma de gestion para kinesiologos.",
-    "Este correo fue enviado porque activaste una suscripcion en KineFlow.",
-    "Terminos y Condiciones | Politica de Privacidad | Baja de servicio | Contacto",
+    "KineFlow - Plataforma de gestión para kinesiólogos.",
+    "Este correo fue enviado porque activaste una suscripción en KineFlow.",
+    "Términos y Condiciones | Política de Privacidad | Baja de servicio | Contacto",
   ].join("\n");
 
   console.log("sendSubscriptionActivatedEmail prepared", {
     body,
-    subject: "Tu suscripcion a KineFlow ya esta activa",
+    subject: "Tu suscripción a KineFlow ya está activa",
     to: user.email,
   });
 
@@ -75,12 +75,12 @@ export async function sendSubscriptionCancelledEmail(
     body: [
       `Hola ${user.fullName || user.email},`,
       "",
-      "Registramos la baja de tu suscripcion a KineFlow - Particular.",
+      "Registramos la baja de tu suscripción a KineFlow - Particular.",
       `Referencia de gestion: ${subscription.cancellationReference ?? "-"}`,
       `Fecha de baja: ${formatDate(subscription.canceledAt) ?? "-"}`,
       "",
-      "KineFlow - Plataforma de gestion para kinesiologos.",
-      "Terminos y Condiciones | Politica de Privacidad | Baja de servicio | Contacto",
+      "KineFlow - Plataforma de gestión para kinesiólogos.",
+      "Términos y Condiciones | Política de Privacidad | Baja de servicio | Contacto",
     ].join("\n"),
     subject: "Confirmacion de baja de KineFlow",
     to: user.email,

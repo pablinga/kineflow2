@@ -1,7 +1,7 @@
 export const termsLastUpdated = "1 de junio de 2026";
 
 export const termsIntro =
-  "Los presentes Terminos y Condiciones regulan el acceso y uso de la plataforma KineFlow, disponible a traves del sitio web [COMPLETAR DOMINIO], en adelante, la Plataforma. La utilizacion de KineFlow implica la aceptacion plena de estos Terminos y Condiciones. Si el usuario no esta de acuerdo con alguna de sus disposiciones, debera abstenerse de registrarse o utilizar la Plataforma.";
+  "Los presentes Términos y Condiciones regulan el acceso y uso de la plataforma KineFlow, disponible a través del sitio web [COMPLETAR DOMINIO], en adelante, la Plataforma. La utilización de KineFlow implica la aceptación plena de estos Términos y Condiciones. Si el usuario no está de acuerdo con alguna de sus disposiciones, deberá abstenerse de registrarse o utilizar la Plataforma.";
 
 export const termsSections = [
   {
@@ -22,7 +22,7 @@ export const termsSections = [
     title: "3. Usuarios habilitados",
     body: [
       "Podran utilizar la Plataforma personas humanas mayores de 18 anos o personas juridicas que contraten el servicio a traves de un representante autorizado.",
-      "El usuario declara que toda la informacion brindada al registrarse es verdadera, actualizada y completa. KineFlow podra suspender o cancelar cuentas cuando detecte datos falsos, uso indebido, incumplimiento de estos Terminos o actividad sospechosa.",
+      "El usuario declara que toda la información brindada al registrarse es verdadera, actualizada y completa. KineFlow podrá suspender o cancelar cuentas cuando detecte datos falsos, uso indebido, incumplimiento de estos Términos o actividad sospechosa.",
     ],
   },
   {
@@ -36,7 +36,7 @@ export const termsSections = [
   {
     title: "5. Uso permitido de la Plataforma",
     body: [
-      "El usuario se compromete a utilizar KineFlow de manera licita, diligente y conforme a estos Terminos.",
+      "El usuario se compromete a utilizar KineFlow de manera lícita, diligente y conforme a estos Términos.",
       "Queda prohibido utilizar la Plataforma para fines ilegales, fraudulentos o no autorizados; cargar informacion falsa, ofensiva, discriminatoria o contraria a la normativa vigente; vulnerar, intentar vulnerar o eludir medidas de seguridad; acceder a datos de otros usuarios sin autorizacion; copiar, modificar, revender, sublicenciar o explotar comercialmente la Plataforma sin autorizacion expresa; realizar ingenieria inversa, scraping, ataques automatizados o uso abusivo de recursos; o utilizar la Plataforma como sistema clinico certificado, historia clinica electronica oficial o reemplazo de documentacion medica obligatoria, salvo que KineFlow lo indique expresamente en el futuro.",
     ],
   },
@@ -53,7 +53,7 @@ export const termsSections = [
     body: [
       "El usuario reconoce que, al utilizar KineFlow, podra cargar datos personales propios y de terceros, incluyendo datos de pacientes.",
       "Cuando el usuario cargue datos de pacientes, declara contar con base legal suficiente, consentimiento o autorizacion correspondiente para tratar dicha informacion y utilizar la Plataforma como herramienta de gestion.",
-      "KineFlow tratara los datos personales conforme a su Politica de Privacidad, la Ley 25.326 de Proteccion de Datos Personales y normativa complementaria aplicable. La Agencia de Acceso a la Informacion Publica informa que los archivos o bases de datos que permitan obtener informacion sobre personas deben cumplir con obligaciones propias de la normativa de proteccion de datos personales.",
+      "KineFlow tratará los datos personales conforme a su Política de Privacidad, la Ley 25.326 de Protección de Datos Personales y normativa complementaria aplicable. La Agencia de Acceso a la Información Pública informa que los archivos o bases de datos que permitan obtener información sobre personas deben cumplir con obligaciones propias de la normativa de protección de datos personales.",
       "El usuario se obliga a no cargar datos innecesarios, excesivos o no pertinentes para el uso de la Plataforma.",
     ],
   },
@@ -83,18 +83,18 @@ export const termsSections = [
   {
     title: "11. Pagos mediante Mercado Pago",
     body: [
-      "Los pagos y suscripciones podran ser procesados a traves de Mercado Pago u otros proveedores de pago externos.",
-      "El usuario reconoce que, al contratar un plan pago, podra ser redirigido a plataformas de terceros para completar la operacion. Mercado Pago informa que, en suscripciones, el comprador accede al enlace, completa el formulario de pago y, luego de completar el pago, queda inscripto para cobros periodicos segun la frecuencia definida.",
-      "KineFlow no almacena datos completos de tarjetas de credito o medios de pago, salvo identificadores tecnicos necesarios para conciliar pagos, suscripciones o estados de cuenta.",
+      "Los pagos y suscripciones podrán ser procesados a través de Mercado Pago u otros proveedores de pago externos.",
+      "El usuario reconoce que, al contratar un plan pago, podrá ser redirigido a plataformas de terceros para completar la operación. Mercado Pago informa que, en suscripciones, el comprador accede al enlace, completa el formulario de pago y, luego de completar el pago, queda inscripto para cobros periódicos según la frecuencia definida.",
+      "KineFlow no almacena datos completos de tarjetas de crédito o medios de pago, salvo identificadores técnicos necesarios para conciliar pagos, suscripciones o estados de cuenta.",
       "Las condiciones de procesamiento de pagos, validaciones, rechazos, contracargos, comisiones y medios disponibles podran depender del proveedor de pago.",
     ],
   },
   {
-    title: "12. Baja de suscripcion y cancelacion",
+    title: "12. Baja de suscripción y cancelación",
     body: [
       "El usuario podra solicitar la baja de su plan pago desde la Plataforma, por los canales de soporte habilitados o desde el proveedor de pago, segun corresponda.",
-      "KineFlow podra implementar mecanismos automaticos para cancelar o pausar suscripciones. La documentacion de Mercado Pago permite gestionar suscripciones mediante cambios de estado, por ejemplo cancelando una suscripcion existente mediante el estado canceled sobre el recurso correspondiente.",
-      "La baja del plan pago no implica necesariamente la eliminacion inmediata de la cuenta ni de la informacion cargada, salvo que el usuario solicite expresamente la eliminacion de sus datos conforme a la Politica de Privacidad y normativa aplicable.",
+      "KineFlow podrá implementar mecanismos automáticos para cancelar o pausar suscripciones. La documentación de Mercado Pago permite gestionar suscripciones mediante cambios de estado, por ejemplo cancelando una suscripción existente mediante el estado canceled sobre el recurso correspondiente.",
+      "La baja del plan pago no implica necesariamente la eliminación inmediata de la cuenta ni de la información cargada, salvo que el usuario solicite expresamente la eliminación de sus datos conforme a la Política de Privacidad y normativa aplicable.",
       "Salvo indicacion expresa en contrario, la baja tendra efecto hacia adelante y no generara reintegros proporcionales por periodos ya iniciados, excepto cuando corresponda por ley o por decision comercial de KineFlow.",
     ],
   },
@@ -108,7 +108,7 @@ export const termsSections = [
   {
     title: "14. Reembolsos",
     body: [
-      "Los pagos realizados por planes mensuales, suscripciones o servicios digitales no seran reembolsables, salvo error atribuible a KineFlow, cobro duplicado, imposibilidad tecnica grave de prestacion del servicio, obligacion legal aplicable o decision comercial expresa.",
+      "Los pagos realizados por planes mensuales, suscripciones o servicios digitales no serán reembolsables, salvo error atribuible a KineFlow, cobro duplicado, imposibilidad técnica grave de prestación del servicio, obligación legal aplicable o decisión comercial expresa.",
       "En caso de cobros duplicados o errores de facturacion, el usuario debera contactar a KineFlow a traves de [COMPLETAR EMAIL DE SOPORTE] para su analisis.",
     ],
   },
@@ -116,7 +116,7 @@ export const termsSections = [
     title: "15. Propiedad intelectual",
     body: [
       "La Plataforma, su diseno, marca, logotipo, codigo, estructura, funcionalidades, textos, interfaces y demas elementos asociados son propiedad de KineFlow o de sus licenciantes.",
-      "El usuario recibe unicamente una licencia limitada, revocable, no exclusiva, no transferible y no sublicenciable para utilizar la Plataforma conforme a estos Terminos.",
+      "El usuario recibe únicamente una licencia limitada, revocable, no exclusiva, no transferible y no sublicenciable para utilizar la Plataforma conforme a estos Términos.",
       "El uso de KineFlow no transfiere al usuario ningun derecho de propiedad intelectual sobre la Plataforma.",
     ],
   },
@@ -132,7 +132,7 @@ export const termsSections = [
     title: "17. Limitacion de responsabilidad",
     body: [
       "En la maxima medida permitida por la normativa aplicable, KineFlow no sera responsable por decisiones clinicas, profesionales o comerciales tomadas por el usuario; errores en la informacion cargada por el usuario; perdida de ingresos, lucro cesante o dano indirecto; interrupciones temporales del servicio; fallas de terceros proveedores; problemas derivados del mal uso de la Plataforma; incumplimientos legales, fiscales, sanitarios o profesionales del usuario; perdida de datos causada por negligencia del usuario, uso indebido de credenciales o acciones no autorizadas.",
-      "Nada en estos Terminos limitara derechos irrenunciables que pudieran corresponder al usuario bajo normativa de defensa del consumidor u otra normativa aplicable. La Ley 24.240 establece obligaciones de proveedores y derechos de consumidores en relaciones de consumo, incluyendo el antes, durante y despues de la contratacion.",
+      "Nada en estos Términos limitará derechos irrenunciables que pudieran corresponder al usuario bajo normativa de defensa del consumidor u otra normativa aplicable. La Ley 24.240 establece obligaciones de proveedores y derechos de consumidores en relaciones de consumo, incluyendo el antes, durante y después de la contratación.",
     ],
   },
   {
@@ -145,7 +145,7 @@ export const termsSections = [
   {
     title: "19. Suspension o cancelacion de cuentas",
     body: [
-      "KineFlow podra suspender o cancelar cuentas en casos de incumplimiento de estos Terminos; falta de pago; uso abusivo o fraudulento; sospecha de acceso indebido; carga de informacion ilegal; afectacion a la seguridad o estabilidad de la Plataforma; o requerimiento legal, judicial o administrativo.",
+      "KineFlow podrá suspender o cancelar cuentas en casos de incumplimiento de estos Términos; falta de pago; uso abusivo o fraudulento; sospecha de acceso indebido; carga de información ilegal; afectación a la seguridad o estabilidad de la Plataforma; o requerimiento legal, judicial o administrativo.",
       "La suspension o cancelacion no impedira a KineFlow reclamar importes adeudados o danos ocasionados.",
     ],
   },
@@ -166,21 +166,21 @@ export const termsSections = [
   {
     title: "22. Vigencia y terminacion",
     body: [
-      "Estos Terminos estaran vigentes mientras el usuario mantenga una cuenta activa o utilice la Plataforma.",
+      "Estos Términos estarán vigentes mientras el usuario mantenga una cuenta activa o utilice la Plataforma.",
       "El usuario podra dejar de utilizar KineFlow en cualquier momento. La terminacion de la cuenta no afectara obligaciones pendientes, pagos adeudados, responsabilidades generadas ni disposiciones que por su naturaleza deban continuar vigentes.",
     ],
   },
   {
     title: "23. Legislacion aplicable y jurisdiccion",
     body: [
-      "Estos Terminos se regiran por las leyes de la Republica Argentina.",
+      "Estos Términos se regirán por las leyes de la República Argentina.",
       "Toda controversia derivada del uso de la Plataforma sera sometida a los tribunales competentes de la Republica Argentina, salvo que resulte aplicable una jurisdiccion especial o irrenunciable conforme la normativa de defensa del consumidor u otra norma imperativa.",
     ],
   },
   {
     title: "24. Contacto",
     body: [
-      "Para consultas, reclamos, solicitudes de baja, soporte o cuestiones vinculadas a estos Terminos, el usuario podra contactarse a [COMPLETAR EMAIL LEGAL/SOPORTE].",
+      "Para consultas, reclamos, solicitudes de baja, soporte o cuestiones vinculadas a estos Términos, el usuario podrá contactarse a [COMPLETAR EMAIL LEGAL/SOPORTE].",
     ],
   },
 ];

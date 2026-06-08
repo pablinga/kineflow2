@@ -596,12 +596,14 @@ export default function PatientDetailPage() {
                         Tratamientos
                       </h2>
                       <button
-                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:px-4"
                         onClick={() => setTreatmentModalOpen(true)}
+                        title="Nuevo tratamiento"
                         type="button"
                       >
                         <Plus className="h-4 w-4" />
-                        Nuevo tratamiento
+                        <span className="sm:hidden">Tratamiento</span>
+                        <span className="hidden sm:inline">Nuevo tratamiento</span>
                       </button>
                     </div>
                     <div className="mt-5 space-y-4">
@@ -1117,7 +1119,7 @@ export default function PatientDetailPage() {
                     {evolutions.length === 0 ? (
                       <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
                         <p className="font-semibold text-ink">
-                          Este paciente todavía no tiene evoluciónes.
+                          Este paciente todavía no tiene evoluciones.
                         </p>
                       </div>
                     ) : null}
