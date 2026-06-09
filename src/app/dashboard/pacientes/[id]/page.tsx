@@ -71,6 +71,13 @@ const treatmentStatusStyles: Record<TreatmentStatus, string> = {
   PAUSADO: "bg-amber-50 text-amber-700",
 };
 
+const treatmentStatusLabels: Record<TreatmentStatus, string> = {
+  ABANDONADO: "Abandonado",
+  EN_CURSO: "En curso",
+  FINALIZADO: "Finalizado",
+  PAUSADO: "Pausado",
+};
+
 export default function PatientDetailPage() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
@@ -670,7 +677,7 @@ export default function PatientDetailPage() {
                             </p>
                           </div>
                           <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
-                            {activeTreatment.status}
+                            {treatmentStatusLabels[activeTreatment.status]}
                           </span>
                         </div>
                         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
@@ -708,25 +715,23 @@ export default function PatientDetailPage() {
                       </div>
                     ) : null}
                     <div className="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
-                      {treatments.map((item) => {
-                        const treatmentAppointments = appointments.filter(
-                          (appointment) => appointment.treatmentId === item.id,
-                        );
-                        const progress =
-                          item.totalSessions > 0
-                            ? Math.min(100, (item.usedSessions / item.totalSessions) * 100)
-                            : 0;
-                        const expanded = expandedTreatmentId === item.id;
+                      {treatments
+                        .filter((item) => item.id !== activeTreatment?.id)
+                        .map((item) => {
+                          const treatmentAppointments = appointments.filter(
+                            (appointment) => appointment.treatmentId === item.id,
+                          );
+                          const progress =
+                            item.totalSessions > 0
+                              ? Math.min(100, (item.usedSessions / item.totalSessions) * 100)
+                              : 0;
+                          const expanded = expandedTreatmentId === item.id;
 
-                        return (
-                          <article
-                            className={`rounded-lg border p-3 sm:p-4 ${
-                              item.id === activeTreatment?.id
-                                ? "border-emerald-200 bg-emerald-50/40"
-                                : "border-ocean-100"
-                            }`}
-                            key={item.id}
-                          >
+                          return (
+                            <article
+                              className="rounded-lg border border-ocean-100 p-3 sm:p-4"
+                              key={item.id}
+                            >
                             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                               <div>
                                 <p className="font-bold text-ink">{item.diagnosis}</p>
@@ -738,7 +743,7 @@ export default function PatientDetailPage() {
                                 <span
                                   className={`rounded-full px-3 py-1 text-sm font-semibold ${treatmentStatusStyles[item.status]}`}
                                 >
-                                  {item.status}
+                                  {treatmentStatusLabels[item.status]}
                                 </span>
                                 <details className="relative">
                                   <summary className="inline-flex min-h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 text-slate-600">
@@ -814,9 +819,9 @@ export default function PatientDetailPage() {
                                 )}
                               </div>
                             ) : null}
-                          </article>
-                        );
-                      })}
+                            </article>
+                          );
+                        })}
                       {treatments.length === 0 ? (
                         <div className="rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
                           <p className="font-semibold text-ink">

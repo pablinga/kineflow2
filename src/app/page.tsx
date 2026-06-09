@@ -22,17 +22,17 @@ const benefits = [
   {
     icon: CalendarDays,
     title: "Agenda simple",
-    text: "Turnos claros para organizar el dia desde el celular.",
+    text: "Turnos claros para organizar el día desde el celular.",
   },
   {
     icon: UsersRound,
     title: "Pacientes ordenados",
-    text: "Datos, historial y tratamientos en una ficha facil de leer.",
+    text: "Datos, historial y tratamientos en una ficha fácil de leer.",
   },
   {
     icon: HeartPulse,
     title: "Evolución por tratamiento",
-    text: "Notas y seguimiento del progreso en cada sesion.",
+    text: "Notas y seguimiento del progreso en cada sesión.",
   },
   {
     icon: ClipboardList,
@@ -42,7 +42,7 @@ const benefits = [
   {
     icon: CreditCard,
     title: "Control de cobros",
-    text: "Cobros por sesion y pendientes siempre visibles.",
+    text: "Cobros por sesión y pendientes siempre visibles.",
   },
   {
     icon: Smartphone,
@@ -85,7 +85,7 @@ export default async function Home({
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
               KineFlow está pensado para kinesiólogos independientes que
-              necesitan ordenar su dia a dia de forma simple, rapida y desde
+              necesitan ordenar su día a día de forma simple, rápida y desde
               cualquier dispositivo.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -126,9 +126,9 @@ export default async function Home({
               </div>
               <div className="mt-4 space-y-3">
                 {[
-                  ["09:00", "Martina Suarez", "Rehabilitacion de rodilla"],
-                  ["10:30", "Laura Mendez", "Control cervical"],
-                  ["12:00", "Diego Ramos", "Sesion de fuerza"],
+                  ["09:00", "Martina Suárez", "Rehabilitación de rodilla"],
+                  ["10:30", "Laura Méndez", "Control cervical"],
+                  ["12:00", "Diego Ramos", "Sesión de fuerza"],
                 ].map(([time, patient, reason]) => (
                   <div
                     className="grid grid-cols-[4rem_1fr] gap-3 rounded-lg border border-ocean-100 bg-[#F5F7FA] p-3"
@@ -181,7 +181,12 @@ export default async function Home({
                   key={item.title}
                 >
                   <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-ocean-50 text-ocean-600">
-                    <Icon className="h-5 w-5" />
+                    <Icon
+                      aria-hidden="true"
+                      className="h-5 w-5"
+                      strokeWidth={2.25}
+                      vectorEffect="non-scaling-stroke"
+                    />
                   </span>
                   <h3 className="mt-4 font-extrabold text-ink">
                     {item.title}
@@ -205,15 +210,15 @@ export default async function Home({
             </h2>
             <p className="mt-4 leading-7 text-slate-600">
               La experiencia prioriza acciones frecuentes: ver agenda, abrir
-              una ficha, registrar una sesion, cargar evolucion y controlar
+              una ficha, registrar una sesión, cargar evolución y controlar
               cobros.
             </p>
           </div>
           <div className="grid gap-3">
             {[
               "Usalo desde el celular entre turnos.",
-              "Cada paciente mantiene su historial y evolucion ordenados.",
-              "Los cobros por sesion quedan conectados al trabajo diario.",
+              "Cada paciente mantiene su historial y evolución ordenados.",
+              "Los cobros por sesión quedan conectados al trabajo diario.",
             ].map((text) => (
               <div
                 className="flex items-start gap-3 rounded-lg border border-ocean-100 bg-white p-4 shadow-card"
@@ -232,7 +237,7 @@ export default async function Home({
           <div className="max-w-2xl">
             <p className="text-sm font-bold text-ocean-600">Plan</p>
             <h2 className="mt-3 text-3xl font-extrabold text-ink">
-              Un plan para tu practica independiente.
+              Un plan para tu práctica independiente.
             </h2>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -289,11 +294,11 @@ export default async function Home({
           <div>
             <KineFlowIcon className="h-12 w-12" />
             <h2 className="mt-4 text-3xl font-extrabold">
-              Proba KineFlow gratis
+              Probá KineFlow gratis
             </h2>
             <p className="mt-3 max-w-2xl text-ocean-100">
-              Crea tu cuenta y empeza a ordenar pacientes, turnos, sesiones,
-              evolucion y cobros desde una interfaz preparada para celular.
+              Creá tu cuenta y empezá a ordenar pacientes, turnos, sesiones,
+              evolución y cobros desde una interfaz preparada para celular.
             </p>
           </div>
           {signupsEnabled ? (
