@@ -7,7 +7,9 @@ import {
 } from "../src/lib/billing-policy.ts";
 import { formatMonto } from "../src/lib/format.ts";
 import {
+  arePublicAuthLinksVisible,
   areSignupsEnabled,
+  isLoginEnabled,
   SIGNUPS_CLOSED_MESSAGE,
 } from "../src/lib/signups.ts";
 
@@ -128,26 +130,69 @@ test("Registro nuevo fuerza cuenta de kinesiologo independiente", () => {
   assert.match(source, /termsSections\.map/);
 });
 
-test("Feature flag de registro queda abierto por defecto y cierra solo con false literal", () => {
-  const originalValue = process.env.NEXT_PUBLIC_SIGNUPS_ENABLED;
+test("Acceso directo queda abierto por defecto y cierra solo con flags explicitos", () => {
+  const originalSignupValue = process.env.NEXT_PUBLIC_ACCOUNT_CREATION_ENABLED;
+  const originalLoginValue = process.env.NEXT_PUBLIC_LOGIN_ENABLED;
 
-  delete process.env.NEXT_PUBLIC_SIGNUPS_ENABLED;
+  delete process.env.NEXT_PUBLIC_ACCOUNT_CREATION_ENABLED;
+  delete process.env.NEXT_PUBLIC_LOGIN_ENABLED;
   assert.equal(areSignupsEnabled(), true);
+  assert.equal(isLoginEnabled(), true);
 
-  process.env.NEXT_PUBLIC_SIGNUPS_ENABLED = "true";
+  process.env.NEXT_PUBLIC_ACCOUNT_CREATION_ENABLED = "true";
+  process.env.NEXT_PUBLIC_LOGIN_ENABLED = "true";
   assert.equal(areSignupsEnabled(), true);
+  assert.equal(isLoginEnabled(), true);
 
-  process.env.NEXT_PUBLIC_SIGNUPS_ENABLED = "false";
+  process.env.NEXT_PUBLIC_ACCOUNT_CREATION_ENABLED = "false";
+  process.env.NEXT_PUBLIC_LOGIN_ENABLED = "false";
   assert.equal(areSignupsEnabled(), false);
+  assert.equal(isLoginEnabled(), false);
 
-  if (originalValue === undefined) {
-    delete process.env.NEXT_PUBLIC_SIGNUPS_ENABLED;
+  if (originalSignupValue === undefined) {
+    delete process.env.NEXT_PUBLIC_ACCOUNT_CREATION_ENABLED;
   } else {
-    process.env.NEXT_PUBLIC_SIGNUPS_ENABLED = originalValue;
+    process.env.NEXT_PUBLIC_ACCOUNT_CREATION_ENABLED = originalSignupValue;
+  }
+
+  if (originalLoginValue === undefined) {
+    delete process.env.NEXT_PUBLIC_LOGIN_ENABLED;
+  } else {
+    process.env.NEXT_PUBLIC_LOGIN_ENABLED = originalLoginValue;
   }
 });
 
-test("Registro y login bloqueados no llaman a Supabase y muestran mensaje amigable", () => {
+test("Links publicos de registro e ingreso se pueden ocultar sin bloquear acceso directo", () => {
+  const originalSignupValue = process.env.NEXT_PUBLIC_SIGNUPS_ENABLED;
+  const originalLinksValue = process.env.NEXT_PUBLIC_PUBLIC_AUTH_LINKS_VISIBLE;
+
+  delete process.env.NEXT_PUBLIC_SIGNUPS_ENABLED;
+  delete process.env.NEXT_PUBLIC_PUBLIC_AUTH_LINKS_VISIBLE;
+  assert.equal(arePublicAuthLinksVisible(), true);
+
+  process.env.NEXT_PUBLIC_SIGNUPS_ENABLED = "false";
+  assert.equal(arePublicAuthLinksVisible(), false);
+  assert.equal(areSignupsEnabled(), true);
+  assert.equal(isLoginEnabled(), true);
+
+  process.env.NEXT_PUBLIC_SIGNUPS_ENABLED = "true";
+  process.env.NEXT_PUBLIC_PUBLIC_AUTH_LINKS_VISIBLE = "false";
+  assert.equal(arePublicAuthLinksVisible(), false);
+
+  if (originalSignupValue === undefined) {
+    delete process.env.NEXT_PUBLIC_SIGNUPS_ENABLED;
+  } else {
+    process.env.NEXT_PUBLIC_SIGNUPS_ENABLED = originalSignupValue;
+  }
+
+  if (originalLinksValue === undefined) {
+    delete process.env.NEXT_PUBLIC_PUBLIC_AUTH_LINKS_VISIBLE;
+  } else {
+    process.env.NEXT_PUBLIC_PUBLIC_AUTH_LINKS_VISIBLE = originalLinksValue;
+  }
+});
+
+test("Registro y login usan bloqueos explicitos y ocultan links publicos", () => {
   const registerPage = fs.readFileSync("src/app/registro/page.tsx", "utf8");
   const loginPage = fs.readFileSync("src/app/login/page.tsx", "utf8");
   const navbar = fs.readFileSync("src/components/layout/PublicNavbar.tsx", "utf8");
@@ -160,14 +205,13 @@ test("Registro y login bloqueados no llaman a Supabase y muestran mensaje amigab
   assert.match(registerPage, /if \(!signupsEnabled\)[\s\S]*setError\(SIGNUPS_CLOSED_MESSAGE\)[\s\S]*return;/);
   assert.match(registerPage, /disabled=\{loading \|\| !signupsEnabled\}/);
   assert.match(registerPage, /supabase\.auth\.signUp/);
-  assert.match(loginPage, /if \(!signupsEnabled\)[\s\S]*setError\(ACCESS_CLOSED_MESSAGE\)[\s\S]*return;/);
-  assert.match(loginPage, /disabled=\{loading \|\| !signupsEnabled\}/);
+  assert.match(loginPage, /if \(!loginEnabled\)[\s\S]*setError\(ACCESS_CLOSED_MESSAGE\)[\s\S]*return;/);
+  assert.match(loginPage, /disabled=\{loading \|\| !loginEnabled\}/);
   assert.match(loginPage, /supabase\.auth\.signInWithPassword/);
-  assert.match(loginPage, /signupsEnabled \?/);
-  assert.match(loginPage, /SIGNUPS_CLOSED_MESSAGE/);
+  assert.match(loginPage, /showAuthLinks \?/);
   assert.match(navbar, /href="\/login"[\s\S]*Ingresar/);
-  assert.match(navbar, /signupsEnabled \?/);
-  assert.match(home, /\{signupsEnabled \? <a href="\/login">Ingresar<\/a> : null\}/);
+  assert.match(navbar, /showAuthLinks \?/);
+  assert.match(home, /\{showAuthLinks \? <a href="\/login">Ingresar<\/a> : null\}/);
   assert.match(home, /mailto:\$\{contactEmail\}\?subject=Quiero%20probar%20KineFlow/);
 });
 

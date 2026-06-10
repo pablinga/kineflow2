@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { LinkButton } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
-import { areSignupsEnabled } from "@/lib/signups";
+import { arePublicAuthLinksVisible } from "@/lib/signups";
 
 const links = [
   { href: "#beneficios", label: "Beneficios" },
@@ -15,7 +15,7 @@ const links = [
 
 export function PublicNavbar() {
   const [open, setOpen] = useState(false);
-  const signupsEnabled = areSignupsEnabled();
+  const showAuthLinks = arePublicAuthLinksVisible();
 
   return (
     <header className="sticky top-0 z-50 border-b border-ocean-100 bg-white/92 backdrop-blur">
@@ -33,12 +33,12 @@ export function PublicNavbar() {
           ))}
         </div>
         <div className="hidden items-center gap-3 md:flex">
-          {signupsEnabled ? (
+          {showAuthLinks ? (
             <LinkButton href="/login" variant="ghost">
               Ingresar
             </LinkButton>
           ) : null}
-          {signupsEnabled ? (
+          {showAuthLinks ? (
             <LinkButton href="/registro">Comenzar ahora</LinkButton>
           ) : null}
         </div>
@@ -64,12 +64,12 @@ export function PublicNavbar() {
                 {link.label}
               </a>
             ))}
-            {signupsEnabled ? (
+            {showAuthLinks ? (
               <LinkButton className="w-full" href="/login" variant="secondary">
                 Ingresar
               </LinkButton>
             ) : null}
-            {signupsEnabled ? (
+            {showAuthLinks ? (
               <LinkButton className="w-full" href="/registro">
                 Comenzar ahora
               </LinkButton>

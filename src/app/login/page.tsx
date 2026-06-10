@@ -9,7 +9,10 @@ import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { mapAuthError, getFriendlyErrorMessage, logFriendlyError } from "@/lib/error-messages";
-import { SIGNUPS_CLOSED_MESSAGE, areSignupsEnabled } from "@/lib/signups";
+import {
+  arePublicAuthLinksVisible,
+  isLoginEnabled,
+} from "@/lib/signups";
 import { getSupabaseClient } from "@/lib/supabase";
 
 const ACCESS_CLOSED_MESSAGE =
@@ -17,7 +20,8 @@ const ACCESS_CLOSED_MESSAGE =
 
 export default function LoginPage() {
   const router = useRouter();
-  const signupsEnabled = areSignupsEnabled();
+  const loginEnabled = isLoginEnabled();
+  const showAuthLinks = arePublicAuthLinksVisible();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -39,7 +43,7 @@ export default function LoginPage() {
     setError("");
     setMessage("");
 
-    if (!signupsEnabled) {
+    if (!loginEnabled) {
       setError(ACCESS_CLOSED_MESSAGE);
       return;
     }
@@ -112,7 +116,7 @@ export default function LoginPage() {
           <div className="mt-8">
             <h2 className="text-3xl font-bold text-ink">Ingresar</h2>
             <p className="mt-2 text-slate-600">
-              {signupsEnabled
+              {loginEnabled
                 ? "Accede a tu cuenta para continuar."
                 : ACCESS_CLOSED_MESSAGE}
             </p>
@@ -124,7 +128,7 @@ export default function LoginPage() {
                 <Mail className="h-5 w-5 text-ocean-500" />
                 <input
                   className="w-full bg-transparent text-sm outline-none"
-                  disabled={!signupsEnabled}
+                  disabled={!loginEnabled}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="tu@email.com"
                   required
@@ -141,7 +145,7 @@ export default function LoginPage() {
                 <LockKeyhole className="h-5 w-5 text-ocean-500" />
                 <input
                   className="w-full bg-transparent text-sm outline-none"
-                  disabled={!signupsEnabled}
+                  disabled={!loginEnabled}
                   minLength={6}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="********"
@@ -174,22 +178,22 @@ export default function LoginPage() {
             {message ? (
               <Alert tone="info">{message}</Alert>
             ) : null}
-            <Button className="w-full" disabled={loading || !signupsEnabled} type="submit">
+            <Button className="w-full" disabled={loading || !loginEnabled} type="submit">
               {loading ? "Ingresando..." : "Entrar"}
             </Button>
           </form>
-          {signupsEnabled ? (
+          {showAuthLinks ? (
             <p className="mt-6 text-center text-sm text-slate-600">
               No tenes cuenta?{" "}
               <Link className="font-semibold text-ocean-700" href="/registro">
                 Crear cuenta
               </Link>
             </p>
-          ) : (
+          ) : !loginEnabled ? (
             <Alert tone="info" className="mt-6">
-              {SIGNUPS_CLOSED_MESSAGE}
+              {ACCESS_CLOSED_MESSAGE}
             </Alert>
-          )}
+          ) : null}
           <LegalLinks className="mt-6 justify-center text-xs text-slate-500" />
         </div>
       </section>

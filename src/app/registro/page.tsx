@@ -20,7 +20,11 @@ import {
   logFriendlyError,
   mapAuthError,
 } from "@/lib/error-messages";
-import { SIGNUPS_CLOSED_MESSAGE, areSignupsEnabled } from "@/lib/signups";
+import {
+  SIGNUPS_CLOSED_MESSAGE,
+  arePublicAuthLinksVisible,
+  areSignupsEnabled,
+} from "@/lib/signups";
 import {
   termsIntro,
   termsLastUpdated,
@@ -41,6 +45,7 @@ type RegisterField = {
 export default function RegisterPage() {
   const router = useRouter();
   const signupsEnabled = areSignupsEnabled();
+  const showAuthLinks = arePublicAuthLinksVisible();
   const [fullName, setFullName] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
   const [phone, setPhone] = useState("");
@@ -325,12 +330,14 @@ export default function RegisterPage() {
               {loading ? "Creando cuenta..." : "Crear cuenta"}
             </Button>
           </form>
-          <p className="mt-5 text-center text-sm text-slate-600">
-            ¿Ya tenés cuenta?{" "}
-            <Link className="font-semibold text-ocean-700" href="/login">
-              Iniciar sesión
-            </Link>
-          </p>
+          {showAuthLinks ? (
+            <p className="mt-5 text-center text-sm text-slate-600">
+              ¿Ya tenés cuenta?{" "}
+              <Link className="font-semibold text-ocean-700" href="/login">
+                Iniciar sesión
+              </Link>
+            </p>
+          ) : null}
           <LegalLinks className="mt-5 justify-center text-xs text-slate-500" />
         </div>
       </section>

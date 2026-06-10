@@ -16,7 +16,7 @@ import { PublicNavbar } from "@/components/layout/PublicNavbar";
 import { LinkButton } from "@/components/ui/Button";
 import { KineFlowIcon } from "@/components/ui/Logo";
 import { getVisiblePlansForMvp } from "@/lib/plans";
-import { SIGNUPS_CLOSED_MESSAGE, areSignupsEnabled } from "@/lib/signups";
+import { SIGNUPS_CLOSED_MESSAGE, arePublicAuthLinksVisible } from "@/lib/signups";
 
 const benefits = [
   {
@@ -67,7 +67,7 @@ export default async function Home({
   }
 
   const featuredPlans = getVisiblePlansForMvp();
-  const signupsEnabled = areSignupsEnabled();
+  const showAuthLinks = arePublicAuthLinksVisible();
 
   return (
     <main className="min-h-screen bg-white text-ink">
@@ -89,7 +89,7 @@ export default async function Home({
               cualquier dispositivo.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              {signupsEnabled ? (
+              {showAuthLinks ? (
                 <LinkButton href="/registro">
                   Comenzar ahora
                   <ArrowRight className="h-4 w-4" />
@@ -266,7 +266,7 @@ export default async function Home({
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   {plan.audience}
                 </p>
-                {signupsEnabled ? (
+                {showAuthLinks ? (
                   <LinkButton
                     className="mt-5 w-full"
                     href={plan.href}
@@ -301,7 +301,7 @@ export default async function Home({
               evolución y cobros desde una interfaz preparada para celular.
             </p>
           </div>
-          {signupsEnabled ? (
+          {showAuthLinks ? (
             <LinkButton
               href="/registro"
               variant="inverted"
@@ -349,11 +349,11 @@ export default async function Home({
               <MessageSquare className="h-4 w-4" />
               Contacto
             </a>
-            {signupsEnabled ? <a href="/login">Ingresar</a> : null}
-            {signupsEnabled ? <a href="/registro">Registrarse</a> : null}
+            {showAuthLinks ? <a href="/login">Ingresar</a> : null}
+            {showAuthLinks ? <a href="/registro">Registrarse</a> : null}
           </div>
         </div>
-        {signupsEnabled ? null : (
+        {showAuthLinks ? null : (
           <div className="mx-auto mt-6 max-w-7xl rounded-lg border border-ocean-100 bg-ocean-50 px-4 py-3 text-sm font-semibold text-ocean-800">
             {SIGNUPS_CLOSED_MESSAGE}
           </div>
