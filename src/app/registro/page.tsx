@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { LegalLinks } from "@/components/layout/LegalLinks";
 import { Logo } from "@/components/ui/Logo";
-import { Button } from "@/components/ui/Button";
+import { Button, LinkButton } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import {
   getFriendlyErrorMessage,
@@ -21,6 +21,7 @@ import {
   mapAuthError,
 } from "@/lib/error-messages";
 import {
+  ACCESS_REQUEST_MAILTO,
   SIGNUPS_CLOSED_MESSAGE,
   arePublicAuthLinksVisible,
   areSignupsEnabled,
@@ -240,11 +241,16 @@ export default function RegisterPage() {
           <Logo showSlogan />
           <div className="mt-6">
             <h1 className="text-3xl font-bold text-ink">Creá tu cuenta</h1>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
+            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">
               {signupsEnabled
                 ? "Completá tus datos profesionales para empezar a gestionar tus pacientes."
                 : SIGNUPS_CLOSED_MESSAGE}
             </p>
+            {signupsEnabled ? null : (
+              <LinkButton className="mt-4" href={ACCESS_REQUEST_MAILTO}>
+                Solicitar acceso
+              </LinkButton>
+            )}
           </div>
           <form className="mt-6 space-y-4" noValidate onSubmit={handleRegister}>
             <section>

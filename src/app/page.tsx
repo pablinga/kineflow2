@@ -6,7 +6,7 @@ import {
   CreditCard,
   HeartPulse,
   Instagram,
-  MessageSquare,
+  Mail,
   Smartphone,
   UsersRound,
 } from "lucide-react";
@@ -16,7 +16,11 @@ import { PublicNavbar } from "@/components/layout/PublicNavbar";
 import { LinkButton } from "@/components/ui/Button";
 import { KineFlowIcon } from "@/components/ui/Logo";
 import { getVisiblePlansForMvp } from "@/lib/plans";
-import { SIGNUPS_CLOSED_MESSAGE, arePublicAuthLinksVisible } from "@/lib/signups";
+import {
+  ACCESS_REQUEST_MAILTO,
+  SIGNUPS_CLOSED_MESSAGE,
+  arePublicAuthLinksVisible,
+} from "@/lib/signups";
 
 const benefits = [
   {
@@ -322,43 +326,29 @@ export default async function Home({
       </section>
 
       <section
-        className="border-t border-ocean-100 px-4 py-10 sm:px-6 lg:px-8"
+        className="border-t border-ocean-100 px-4 py-7 sm:px-6 lg:px-8"
         id="contacto"
       >
-        <div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 md:flex-row md:items-center">
-          <div>
-            <p className="font-extrabold text-ink">KineFlow</p>
-            <p className="mt-1 text-sm text-slate-500">
-              Gestión simple para kinesiólogos.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-4 text-sm font-semibold text-slate-600">
-            <a
-              className="inline-flex items-center gap-2 hover:text-ocean-600"
-              href={instagramUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              <Instagram className="h-4 w-4" />
-              Instagram
-            </a>
-            <a
-              className="inline-flex items-center gap-2 hover:text-ocean-600"
-              href={`mailto:${contactEmail}?subject=Contacto%20KineFlow`}
-            >
-              <MessageSquare className="h-4 w-4" />
-              Contacto
-            </a>
-            {showAuthLinks ? <a href="/login">Ingresar</a> : null}
-            {showAuthLinks ? <a href="/registro">Registrarse</a> : null}
-          </div>
-        </div>
         {showAuthLinks ? null : (
-          <div className="mx-auto mt-6 max-w-7xl rounded-lg border border-ocean-100 bg-ocean-50 px-4 py-3 text-sm font-semibold text-ocean-800">
-            {SIGNUPS_CLOSED_MESSAGE}
+          <div className="mx-auto mb-7 flex max-w-7xl flex-col gap-4 rounded-lg border border-ocean-100 bg-ocean-50 px-5 py-4 text-ocean-900 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-3xl whitespace-pre-line text-sm font-semibold leading-6">
+              {SIGNUPS_CLOSED_MESSAGE}
+            </p>
+            <LinkButton className="shrink-0" href={ACCESS_REQUEST_MAILTO}>
+              Solicitar acceso
+            </LinkButton>
           </div>
         )}
-        <div className="mx-auto mt-8 grid max-w-7xl gap-6 text-sm text-slate-600 sm:grid-cols-2">
+        <div className="mx-auto grid max-w-7xl gap-6 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <p className="font-extrabold text-ink">KineFlow</p>
+            <p className="mt-2 text-slate-500">
+              Gestión simple para kinesiólogos.
+            </p>
+            <p className="mt-4 text-xs text-slate-500">
+              © 2026 KineFlow. Todos los derechos reservados.
+            </p>
+          </div>
           <div>
             <p className="font-bold text-ink">Legal</p>
             <LegalLinks className="mt-3 flex-col text-sm" />
@@ -366,10 +356,20 @@ export default async function Home({
           <div>
             <p className="font-bold text-ink">Contacto</p>
             <a
-              className="mt-3 inline-block hover:text-ocean-700"
+              className="mt-3 inline-flex items-center gap-2 hover:text-ocean-700"
               href={`mailto:${contactEmail}`}
             >
+              <Mail className="h-4 w-4" />
               {contactEmail}
+            </a>
+            <a
+              className="mt-2 inline-flex items-center gap-2 hover:text-ocean-700"
+              href={instagramUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <Instagram className="h-4 w-4" />
+              @kineflow.ar
             </a>
           </div>
         </div>

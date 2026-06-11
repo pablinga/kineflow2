@@ -200,8 +200,10 @@ test("Registro y login usan bloqueos explicitos y ocultan links publicos", () =>
 
   assert.equal(
     SIGNUPS_CLOSED_MESSAGE,
-    "Por el momento el registro se encuentra cerrado. Si querés probar KineFlow, contactanos.",
+    "🚀 KineFlow se encuentra actualmente en etapa de acceso limitado.\n\nSi sos kinesiólogo y querés conocer la plataforma o participar de las pruebas iniciales, contactanos.",
   );
+  assert.match(registerPage, /ACCESS_REQUEST_MAILTO/);
+  assert.match(registerPage, /Solicitar acceso/);
   assert.match(registerPage, /if \(!signupsEnabled\)[\s\S]*setError\(SIGNUPS_CLOSED_MESSAGE\)[\s\S]*return;/);
   assert.match(registerPage, /disabled=\{loading \|\| !signupsEnabled \|\| !acceptedLegal\}/);
   assert.match(registerPage, /supabase\.auth\.signUp/);
@@ -211,7 +213,11 @@ test("Registro y login usan bloqueos explicitos y ocultan links publicos", () =>
   assert.match(loginPage, /showAuthLinks \?/);
   assert.match(navbar, /href="\/login"[\s\S]*Ingresar/);
   assert.match(navbar, /showAuthLinks \?/);
-  assert.match(home, /\{showAuthLinks \? <a href="\/login">Ingresar<\/a> : null\}/);
+  assert.match(home, /ACCESS_REQUEST_MAILTO/);
+  assert.match(home, /Solicitar acceso/);
+  assert.match(home, /© 2026 KineFlow\. Todos los derechos reservados\./);
+  assert.match(home, /https:\/\/www\.instagram\.com\/kineflow\.ar\//);
+  assert.match(home, /rel="noopener noreferrer"/);
   assert.match(home, /mailto:\$\{contactEmail\}\?subject=Quiero%20probar%20KineFlow/);
 });
 
