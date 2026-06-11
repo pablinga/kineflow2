@@ -1,15 +1,13 @@
 import Link from "next/link";
 
-const legalLinks = [
+export const legalLinks = [
   { href: "/terminos-y-condiciones", label: "Términos y Condiciones" },
   { href: "/politica-de-privacidad", label: "Política de Privacidad" },
   {
-    href: "/politica-de-suscripcion-y-baja",
-    label: "Suscripcion y baja",
+    href: "/suscripciones-cancelaciones-y-reembolsos",
+    label: "Suscripciones, Cancelaciones y Reembolsos",
   },
-  { href: "/baja-de-servicio", label: "Baja de servicio" },
-  { href: "/arrepentimiento", label: "Arrepentimiento" },
-  { href: "/contacto-soporte", label: "Contacto soporte" },
+  { href: "/arrepentimiento", label: "Derecho de Arrepentimiento" },
 ];
 
 export function LegalLinks({ className = "" }: { className?: string }) {

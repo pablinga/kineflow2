@@ -124,10 +124,10 @@ test("Registro nuevo fuerza cuenta de kinesiologo independiente", () => {
 
   assert.match(source, /account_type: "KINESIOLOGO"/);
   assert.doesNotMatch(source, /CONSULTORIO/);
-  assert.match(source, /He leido y acepto/);
-  assert.match(source, /termsOpen/);
-  assert.match(source, /role="dialog"/);
-  assert.match(source, /termsSections\.map/);
+  assert.match(source, /He leído y acepto/);
+  assert.match(source, /LEGAL_VERSION/);
+  assert.match(source, /legal_version: LEGAL_VERSION/);
+  assert.match(source, /href="\/terminos-y-condiciones"/);
 });
 
 test("Acceso directo queda abierto por defecto y cierra solo con flags explicitos", () => {
@@ -203,7 +203,7 @@ test("Registro y login usan bloqueos explicitos y ocultan links publicos", () =>
     "Por el momento el registro se encuentra cerrado. Si querés probar KineFlow, contactanos.",
   );
   assert.match(registerPage, /if \(!signupsEnabled\)[\s\S]*setError\(SIGNUPS_CLOSED_MESSAGE\)[\s\S]*return;/);
-  assert.match(registerPage, /disabled=\{loading \|\| !signupsEnabled\}/);
+  assert.match(registerPage, /disabled=\{loading \|\| !signupsEnabled \|\| !acceptedLegal\}/);
   assert.match(registerPage, /supabase\.auth\.signUp/);
   assert.match(loginPage, /if \(!loginEnabled\)[\s\S]*setError\(ACCESS_CLOSED_MESSAGE\)[\s\S]*return;/);
   assert.match(loginPage, /disabled=\{loading \|\| !loginEnabled\}/);
@@ -565,10 +565,8 @@ test("Links legales existen", () => {
   [
     "src/app/terminos-y-condiciones/page.tsx",
     "src/app/politica-de-privacidad/page.tsx",
-    "src/app/politica-de-suscripcion-y-baja/page.tsx",
-    "src/app/baja-de-servicio/page.tsx",
+    "src/app/suscripciones-cancelaciones-y-reembolsos/page.tsx",
     "src/app/arrepentimiento/page.tsx",
-    "src/app/contacto-soporte/page.tsx",
   ].forEach((path) => assert.equal(fs.existsSync(path), true, path));
 });
 

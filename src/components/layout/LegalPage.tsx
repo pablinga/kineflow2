@@ -18,7 +18,7 @@ export function LegalPage({ title, intro, sections, updatedAt }: LegalPageProps)
           <h1 className="mt-3 text-3xl font-bold">{title}</h1>
           {updatedAt ? (
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              Ultima actualizacion: {updatedAt}
+              Última actualización: {updatedAt}
             </p>
           ) : null}
           <p className="mt-4 leading-7 text-slate-600">{intro}</p>

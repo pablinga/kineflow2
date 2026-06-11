@@ -51,8 +51,8 @@ const benefits = [
   },
 ];
 
-const instagramUrl = "https://www.instagram.com/kineflow.app/";
-const contactEmail = "contacto@kineflow.app";
+const instagramUrl = "https://www.instagram.com/kineflow.ar/";
+const contactEmail = "contacto@kineflow.ar";
 
 export default async function Home({
   searchParams,
@@ -358,9 +358,20 @@ export default async function Home({
             {SIGNUPS_CLOSED_MESSAGE}
           </div>
         )}
-        <div className="mx-auto mt-8 max-w-7xl text-xs text-slate-500">
-          <LegalLinks />
-          <p className="mt-4">Ambiente QA / Preview</p>
+        <div className="mx-auto mt-8 grid max-w-7xl gap-6 text-sm text-slate-600 sm:grid-cols-2">
+          <div>
+            <p className="font-bold text-ink">Legal</p>
+            <LegalLinks className="mt-3 flex-col text-sm" />
+          </div>
+          <div>
+            <p className="font-bold text-ink">Contacto</p>
+            <a
+              className="mt-3 inline-block hover:text-ocean-700"
+              href={`mailto:${contactEmail}`}
+            >
+              {contactEmail}
+            </a>
+          </div>
         </div>
       </section>
     </main>

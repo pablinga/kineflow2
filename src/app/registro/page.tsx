@@ -30,6 +30,7 @@ import {
   termsLastUpdated,
   termsSections,
 } from "@/lib/legal/terms";
+import { LEGAL_VERSION } from "@/lib/legal/version";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type RegisterField = {
@@ -118,6 +119,7 @@ export default function RegisterPage() {
       }
 
       const supabase = getSupabaseClient();
+      const legalAcceptedAt = new Date().toISOString();
       const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -133,7 +135,9 @@ export default function RegisterPage() {
             responsible_name: null,
             role: "kinesiologist",
             specialty,
-            terms_accepted_at: new Date().toISOString(),
+            legal_accepted_at: legalAcceptedAt,
+            legal_version: LEGAL_VERSION,
+            terms_accepted_at: legalAcceptedAt,
           },
         },
       });
@@ -305,28 +309,31 @@ export default function RegisterPage() {
                 type="checkbox"
               />
               <span>
-                He leido y acepto los{" "}
-                <button
+                He leído y acepto los{" "}
+                <Link
                   className="font-semibold text-ocean-700 underline-offset-2 hover:underline"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    setTermsOpen(true);
-                  }}
-                  type="button"
+                  href="/terminos-y-condiciones"
                 >
                   Términos y Condiciones
-                </button>{" "}
+                </Link>{" "}
                 y la{" "}
-                <Link className="font-semibold text-ocean-700" href="/politica-de-privacidad">
+                <Link
+                  className="font-semibold text-ocean-700 underline-offset-2 hover:underline"
+                  href="/politica-de-privacidad"
+                >
                   Política de Privacidad
-                </Link>
-                .
+                </Link>{" "}
+                de KineFlow.
               </span>
             </label>
 
             {error ? <Alert tone="error">{error}</Alert> : null}
             {message ? <Alert tone="success">{message}</Alert> : null}
-            <Button className="w-full" disabled={loading || !signupsEnabled} type="submit">
+            <Button
+              className="w-full"
+              disabled={loading || !signupsEnabled || !acceptedLegal}
+              type="submit"
+            >
               {loading ? "Creando cuenta..." : "Crear cuenta"}
             </Button>
           </form>
@@ -407,7 +414,10 @@ export default function RegisterPage() {
                       {section.title}
                     </h3>
                     <div className="mt-2 space-y-2 text-sm leading-6 text-slate-600">
-                      {section.body.map((paragraph) => (
+                      {(Array.isArray(section.body)
+                        ? section.body
+                        : [section.body]
+                      ).map((paragraph) => (
                         <p key={paragraph}>{paragraph}</p>
                       ))}
                     </div>
