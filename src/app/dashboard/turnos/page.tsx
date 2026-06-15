@@ -705,12 +705,20 @@ export default function AppointmentsPage() {
                   isOutsideMonth ? "opacity-40" : ""
                 } ${isToday ? "border-ocean-400 ring-2 ring-ocean-100" : ""}`}
                 key={day.toISOString()}
-                onClick={(event) => {
-                  if (
-                    (event.target as HTMLElement).closest(
-                      "[data-calendar-appointment]",
-                    )
-                  ) {
+                onClick={(e) => {
+                  const target = e.target as HTMLElement;
+                  const pill = target.closest(
+                    "[data-appointment-id]",
+                  ) as HTMLElement | null;
+
+                  if (pill) {
+                    const id = pill.dataset.appointmentId;
+                    const appointment = appointments.find((item) => item.id === id);
+
+                    if (appointment) {
+                      setActionsAppointment(appointment);
+                    }
+
                     return;
                   }
 
@@ -730,15 +738,10 @@ export default function AppointmentsPage() {
                 </div>
                 <div className="mt-2 hidden space-y-1 md:block">
                   {dayAppointments.slice(0, 3).map((appointment) => (
-                    <button
+                    <div
                       className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment)}`}
-                      data-calendar-appointment
+                      data-appointment-id={appointment.id}
                       key={appointment.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActionsAppointment(appointment);
-                      }}
-                      type="button"
                     >
                       <span className="pointer-events-none truncate">
                         {appointment.time} {appointment.patient}
@@ -746,7 +749,7 @@ export default function AppointmentsPage() {
                       {appointment.paymentStatus !== "paid" ? (
                         <DollarSign className="pointer-events-none h-3 w-3 shrink-0" />
                       ) : null}
-                    </button>
+                    </div>
                   ))}
                   {dayAppointments.length > 3 ? (
                     <p className="px-2 text-xs font-semibold text-slate-500">
@@ -798,20 +801,33 @@ export default function AppointmentsPage() {
                   <div
                     className="min-h-[48px] border-b border-ocean-100 p-1.5"
                     key={`${day.toISOString()}-${hour}`}
+                    onClick={(e) => {
+                      const target = e.target as HTMLElement;
+                      const pill = target.closest(
+                        "[data-appointment-id]",
+                      ) as HTMLElement | null;
+
+                      if (pill) {
+                        const id = pill.dataset.appointmentId;
+                        const appointment = appointments.find(
+                          (item) => item.id === id,
+                        );
+
+                        if (appointment) {
+                          setActionsAppointment(appointment);
+                        }
+                      }
+                    }}
                   >
                     <p className="text-[0.68rem] font-semibold text-slate-400">
                       {String(hour).padStart(2, "0")}:00
                     </p>
                     <div className="mt-1 space-y-1">
                       {slotAppointments.map((appointment) => (
-                        <button
+                        <div
                           className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment)}`}
+                          data-appointment-id={appointment.id}
                           key={appointment.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActionsAppointment(appointment);
-                          }}
-                          type="button"
                         >
                           <span className="pointer-events-none truncate">
                             {appointment.time} {appointment.patient}
@@ -819,7 +835,7 @@ export default function AppointmentsPage() {
                           {appointment.paymentStatus !== "paid" ? (
                             <DollarSign className="pointer-events-none h-3 w-3 shrink-0" />
                           ) : null}
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </div>
