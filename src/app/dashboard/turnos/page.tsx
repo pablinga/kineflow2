@@ -1206,9 +1206,8 @@ export default function AppointmentsPage() {
           ) : null}
 
           {actionsAppointment ? (
-            <div className="fixed inset-0 z-50 flex items-end bg-ink/40 px-3 pb-3 xl:hidden">
-              <div className="w-full rounded-t-2xl border border-ocean-100 bg-white p-4 shadow-soft">
-                <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-slate-200" />
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-3 pb-3">
+              <div className="w-full max-w-sm rounded-xl border border-ocean-100 bg-white p-4 shadow-soft">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-bold text-ink">
