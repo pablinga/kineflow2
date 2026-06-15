@@ -740,11 +740,11 @@ export default function AppointmentsPage() {
                       }}
                       type="button"
                     >
-                      <span className="truncate">
+                      <span className="pointer-events-none truncate">
                         {appointment.time} {appointment.patient}
                       </span>
                       {appointment.paymentStatus !== "paid" ? (
-                        <DollarSign className="h-3 w-3 shrink-0" />
+                        <DollarSign className="pointer-events-none h-3 w-3 shrink-0" />
                       ) : null}
                     </button>
                   ))}
@@ -813,11 +813,11 @@ export default function AppointmentsPage() {
                           }}
                           type="button"
                         >
-                          <span className="truncate">
+                          <span className="pointer-events-none truncate">
                             {appointment.time} {appointment.patient}
                           </span>
                           {appointment.paymentStatus !== "paid" ? (
-                            <DollarSign className="h-3 w-3 shrink-0" />
+                            <DollarSign className="pointer-events-none h-3 w-3 shrink-0" />
                           ) : null}
                         </button>
                       ))}
