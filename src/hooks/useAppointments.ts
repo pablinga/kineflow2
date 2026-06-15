@@ -19,6 +19,7 @@ export type Appointment = {
   time: string;
   patient: string;
   reason: string;
+  conflictWarning: string | null;
   status: string;
   modality: string;
   duration: string;
@@ -60,7 +61,7 @@ export type NewAppointmentInput = {
   patientId: string;
   date: string;
   time: string;
-  reason: string;
+  reason?: string;
   durationMinutes: number;
   modality: AppointmentModality;
   notes: string;
@@ -177,6 +178,7 @@ function mapAppointment(row: AppointmentRow): Appointment {
     }),
     patient: patient?.full_name ?? "Paciente",
     reason: row.reason,
+    conflictWarning: null,
     status: statusLabels[row.status],
     modality: modalityLabels[row.modality],
     duration: `${row.duration_minutes} min`,
@@ -254,6 +256,64 @@ function getClinicNameFromAvailability(row: AvailabilityRow) {
   return clinic?.name ?? "el consultorio";
 }
 
+function getConflictMessage(conflict: Appointment) {
+  const range = formatTimeRange(
+    new Date(conflict.scheduledAt),
+    conflict.durationMinutes,
+  );
+
+  if (conflict.origin === "clinic" && conflict.clinicName) {
+    return `Hay otro turno de ${range} en ${conflict.clinicName}.`;
+  }
+
+  return `Hay otro turno asignado de ${range}.`;
+}
+
+function findAppointmentConflict(
+  appointments: Appointment[],
+  params: {
+    durationMinutes: number;
+    ignoreAppointmentId?: string;
+    scheduledAt: string;
+  },
+) {
+  const start = new Date(params.scheduledAt);
+  const startTime = start.getTime();
+  const endTime = startTime + params.durationMinutes * 60 * 1000;
+
+  return appointments.find((appointment) => {
+    if (appointment.id === params.ignoreAppointmentId) {
+      return false;
+    }
+
+    if (appointment.status === "Cancelado") {
+      return false;
+    }
+
+    return overlaps(
+      startTime,
+      endTime,
+      new Date(appointment.scheduledAt).getTime(),
+      getAppointmentEnd(appointment),
+    );
+  });
+}
+
+function markAppointmentConflicts(appointments: Appointment[]) {
+  return appointments.map((appointment) => {
+    const conflict = findAppointmentConflict(appointments, {
+      durationMinutes: appointment.durationMinutes,
+      ignoreAppointmentId: appointment.id,
+      scheduledAt: appointment.scheduledAt,
+    });
+
+    return {
+      ...appointment,
+      conflictWarning: conflict ? getConflictMessage(conflict) : null,
+    };
+  });
+}
+
 export function useAppointments(patientId?: string) {
   const { accountType } = useRequireAuth();
   const { activePatients } = usePatients();
@@ -323,7 +383,9 @@ export function useAppointments(patientId?: string) {
       }
 
       setAppointments(
-        ((data ?? []) as unknown as AppointmentRow[]).map(mapAppointment),
+        markAppointmentConflicts(
+          ((data ?? []) as unknown as AppointmentRow[]).map(mapAppointment),
+        ),
       );
     } catch (loadError) {
       setError(
@@ -350,39 +412,12 @@ export function useAppointments(patientId?: string) {
     const start = new Date(scheduledAt);
     const startTime = start.getTime();
     const endTime = startTime + durationMinutes * 60 * 1000;
-    const conflict = appointments.find((appointment) => {
-      if (appointment.id === ignoreAppointmentId) {
-        return false;
-      }
-
-      if (appointment.status === "Cancelado") {
-        return false;
-      }
-
-      return overlaps(
-        startTime,
-        endTime,
-        new Date(appointment.scheduledAt).getTime(),
-        getAppointmentEnd(appointment),
-      );
+    const conflict = findAppointmentConflict(appointments, {
+      durationMinutes,
+      ignoreAppointmentId,
+      scheduledAt,
     });
-
-    if (conflict) {
-      const range = formatTimeRange(
-        new Date(conflict.scheduledAt),
-        conflict.durationMinutes,
-      );
-
-      if (conflict.origin === "clinic" && conflict.clinicName) {
-        throw new Error(
-          `El kinesiólogo ya tiene un turno de ${range} en ${conflict.clinicName}.`,
-        );
-      }
-
-      throw new Error(
-        "El kinesiólogo ya tiene un turno asignado en ese horario. Revisá la agenda antes de confirmar.",
-      );
-    }
+    const conflictWarning = conflict ? getConflictMessage(conflict) : null;
 
     const weekday = start.getDay();
     const date = toLocalDateValue(start);
@@ -399,7 +434,7 @@ export function useAppointments(patientId?: string) {
       .eq("weekday", weekday);
 
     if (availabilityError) {
-      return;
+      return conflictWarning;
     }
 
     const reservedAvailability = ((data ?? []) as unknown as AvailabilityRow[])
@@ -435,6 +470,8 @@ export function useAppointments(patientId?: string) {
         )}. En esta franja solo podés atender pacientes asignados por ese consultorio.`,
       );
     }
+
+    return conflictWarning;
   }
 
   async function addAppointment(input: NewAppointmentInput) {
@@ -467,7 +504,7 @@ export function useAppointments(patientId?: string) {
       scheduled_at: scheduledAt,
       duration_minutes: input.durationMinutes,
       modality: input.modality,
-      reason: input.reason,
+      reason: input.reason?.trim() || "Sesion",
       notes: input.notes || null,
       appointment_origin: "independent",
       treatment_id: input.treatmentId || null,
@@ -491,7 +528,7 @@ export function useAppointments(patientId?: string) {
       scheduled_at: scheduledAt,
       duration_minutes: input.durationMinutes,
       modality: input.modality,
-      reason: input.reason,
+      reason: input.reason?.trim() || "Sesion",
       notes: input.notes || null,
       appointment_origin: "clinic",
       clinic_id: input.clinicId,

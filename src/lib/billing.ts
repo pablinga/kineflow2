@@ -54,9 +54,9 @@ export function getPermissionsFromPlan(params: {
 }): BillingPermissions {
   const active = params.subscriptionStatus === "ACTIVE";
   const planDefinition: PlanDefinition = getPlanDefinition(params.plan);
-  const isIndependent =
+  const isOwnPractice =
     params.accountType === "KINESIOLOGO" &&
-    params.plan === "INDEPENDIENTE" &&
+    (params.plan === "FREE" || params.plan === "INDEPENDIENTE") &&
     active;
   const isClinic =
     params.accountType === "CONSULTORIO" &&
@@ -64,10 +64,10 @@ export function getPermissionsFromPlan(params: {
     active;
 
   return {
-    canManageOwnPractice: isIndependent,
-    canCreateOwnPatients: isIndependent,
-    canCreateOwnAppointments: isIndependent,
-    canManageOwnPayments: isIndependent,
+    canManageOwnPractice: isOwnPractice,
+    canCreateOwnPatients: isOwnPractice,
+    canCreateOwnAppointments: isOwnPractice,
+    canManageOwnPayments: isOwnPractice,
     canManageClinic: isClinic,
     canInviteProfessionals: isClinic,
     canCreateClinicAppointments: isClinic,

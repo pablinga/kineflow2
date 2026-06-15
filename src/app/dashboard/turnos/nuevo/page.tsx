@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CalendarCheck, Save } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
+import { PatientSearchSelect } from "@/components/patients/PatientSearchSelect";
 import { useAppointments, type NewAppointmentInput } from "@/hooks/useAppointments";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -28,7 +29,6 @@ const emptyAppointment: NewAppointmentInput = {
   patientId: "",
   date: today,
   time: "",
-  reason: "",
   durationMinutes: 45,
   modality: "presencial",
   notes: "",
@@ -40,7 +40,7 @@ export default function NewAppointmentPage() {
   const router = useRouter();
   const { accountType, authError, loading, redirecting } = useRequireAuth();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
-  const { addAppointment, addClinicAppointment } = useAppointments();
+  const { addAppointment, addClinicAppointment, appointments } = useAppointments();
   const { activePatients, loaded } = usePatients();
   const [clinicProfessionals, setClinicProfessionals] = useState<
     ClinicProfessionalOption[]
@@ -122,6 +122,21 @@ export default function NewAppointmentPage() {
   const preselectedPatient = activePatients.find(
     (patient) => patient.id === patientFromUrl,
   );
+  const conflictingAppointment =
+    appointment.date && appointment.time
+      ? appointments.find((item) => {
+          if (item.status === "Cancelado") {
+            return false;
+          }
+
+          const start = new Date(`${appointment.date}T${appointment.time}`).getTime();
+          const end = start + appointment.durationMinutes * 60 * 1000;
+          const itemStart = new Date(item.scheduledAt).getTime();
+          const itemEnd = itemStart + item.durationMinutes * 60 * 1000;
+
+          return start < itemEnd && end > itemStart;
+        })
+      : null;
 
   function updateField<Field extends keyof NewAppointmentInput>(
     field: Field,
@@ -308,35 +323,25 @@ export default function NewAppointmentPage() {
                   </select>
                 </label>
               ) : null}
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
-                  Paciente
-                </span>
-                <select
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                  onChange={(event) => updatePatient(event.target.value)}
-                  required
+              <div>
+                <PatientSearchSelect
                   disabled={Boolean(preselectedPatient)}
+                  onChange={updatePatient}
+                  patients={activePatients}
+                  required
                   value={appointment.patientId}
-                >
-                  <option value="">Seleccionar paciente</option>
-                  {activePatients.map((patient) => (
-                    <option key={patient.id} value={patient.id}>
-                      {patient.name}
-                    </option>
-                  ))}
-                </select>
+                />
                 {activePatients.length === 0 ? (
                   <p className="mt-2 text-sm text-amber-700">
-                    Primero cargá un paciente activo para asignarle un turno.
+                    Primero carga un paciente activo para asignarle un turno.
                   </p>
                 ) : null}
                 {preselectedPatient ? (
                   <p className="mt-2 text-sm text-ocean-700">
-                    Paciente preselecciónado desde su historial.
+                    Paciente preseleccionado desde su historial.
                   </p>
                 ) : null}
-              </label>
+              </div>
               <label className="block">
                 <span className="text-sm font-semibold text-slate-700">
                   Tratamiento
@@ -369,19 +374,6 @@ export default function NewAppointmentPage() {
                     .
                   </p>
                 ) : null}
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
-                  Motivo
-                </span>
-                <input
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                  onChange={(event) => updateField("reason", event.target.value)}
-                  placeholder="Ej. Rehabilitación de rodilla"
-                  required
-                  type="text"
-                  value={appointment.reason}
-                />
               </label>
               <label className="block">
                 <span className="text-sm font-semibold text-slate-700">Fecha</span>
@@ -451,6 +443,14 @@ export default function NewAppointmentPage() {
               />
             </label>
 
+            {conflictingAppointment ? (
+              <p className="mt-4 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 sm:mt-5">
+                Ya existe un turno de {conflictingAppointment.patient} a las{" "}
+                {conflictingAppointment.time}. PodÃ©s guardar igualmente si la
+                superposiciÃ³n es intencional.
+              </p>
+            ) : null}
+
             {error ? (
               <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 sm:mt-5">
                 {error}
@@ -479,7 +479,11 @@ export default function NewAppointmentPage() {
                 type="submit"
               >
                 <Save className="h-4 w-4" />
-                {saving ? "Guardando..." : "Guardar turno"}
+                {saving
+                  ? "Guardando..."
+                  : conflictingAppointment
+                    ? "Guardar igual"
+                    : "Guardar turno"}
               </button>
             </div>
           </form>
@@ -492,7 +496,7 @@ export default function NewAppointmentPage() {
               <div>
                 <h2 className="font-bold text-ink">Próxima mejora</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Validar disponibilidad horaria y evitar turnos duplicados.
+                  Mostrar advertencias cuando existan turnos superpuestos.
                 </p>
               </div>
             </div>

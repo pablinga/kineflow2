@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, WalletCards } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
+import { PatientSearchSelect } from "@/components/patients/PatientSearchSelect";
 import {
   paymentMethodLabels,
   paymentStatusLabels,
@@ -81,26 +82,6 @@ export default function IncomePage() {
 
   if (loading || !appointmentsLoaded || !patientsLoaded || !planLoaded) {
     return <DashboardLoading />;
-  }
-
-  if (accountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE") {
-    return (
-      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
-        <DashboardSidebar />
-        <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl rounded-lg border border-amber-100 bg-amber-50 p-6 shadow-sm">
-            <h1 className="text-2xl font-bold text-amber-950">
-              Ingresos propios bloqueados
-            </h1>
-            <p className="mt-2 leading-6 text-amber-800">
-              Esta funcionalidad está disponible en KineFlow - Particular.
-              Podés activarlo para gestionar tus pacientes, turnos y cobros
-              propios.
-            </p>
-          </div>
-        </section>
-      </main>
-    );
   }
 
   if (
@@ -218,23 +199,12 @@ export default function IncomePage() {
                   ))}
                 </select>
               </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
-                  Paciente
-                </span>
-                <select
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                  onChange={(event) => setPatientId(event.target.value)}
-                  value={patientId}
-                >
-                  <option value="all">Todos</option>
-                  {activePatients.map((patient) => (
-                    <option key={patient.id} value={patient.id}>
-                      {patient.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <PatientSearchSelect
+                includeAllOption
+                onChange={setPatientId}
+                patients={activePatients}
+                value={patientId}
+              />
             </div>
           </section>
 
@@ -290,7 +260,7 @@ export default function IncomePage() {
                           {displayName}
                         </td>
                         <td className="px-5 py-4 text-slate-600">
-                          {appointment.reason || appointment.modality}
+                          {appointment.modality}
                         </td>
                         <td className="px-5 py-4">
                           <span
@@ -352,7 +322,7 @@ export default function IncomePage() {
                       </Link>
                     </div>
                     <p className="mt-3 text-sm text-slate-600">
-                      {appointment.reason || appointment.modality}
+                      {appointment.modality}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <span

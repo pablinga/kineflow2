@@ -48,6 +48,7 @@ function createEmptyEvolution(patientId: string): NewEvolutionInput {
     sessionDate: today,
     painLevel: 0,
     mobilityNotes: "",
+    strengthNotes: "",
     clinicalNotes: "",
     nextGoals: "",
   };
@@ -895,7 +896,7 @@ export default function PatientDetailPage() {
                         {attendedAppointments.map((appointment) => (
                           <option key={appointment.id} value={appointment.id}>
                             {appointment.date} · {appointment.time} ·{" "}
-                            {appointment.reason}
+                            {appointment.modality}
                           </option>
                         ))}
                       </select>
@@ -940,9 +941,9 @@ export default function PatientDetailPage() {
                     </label>
                   </div>
 
-                  <label className="mt-5 block">
+                <label className="mt-4 block">
                     <span className="text-sm font-semibold text-slate-700">
-                      Movilidad / fuerza
+                      Movilidad
                     </span>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
@@ -957,7 +958,20 @@ export default function PatientDetailPage() {
                   </label>
                   <label className="mt-5 block">
                     <span className="text-sm font-semibold text-slate-700">
-                      Notas clínicas
+                      Fuerza
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        updateField("strengthNotes", event.target.value)
+                      }
+                      type="text"
+                      value={evolution.strengthNotes}
+                    />
+                  </label>
+                  <label className="mt-5 block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Tratamiento
                     </span>
                     <textarea
                       className="mt-2 min-h-32 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
@@ -1074,7 +1088,7 @@ export default function PatientDetailPage() {
                           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                             <div>
                               <p className="font-semibold text-ink">
-                                {appointment.reason}
+                                {appointment.modality}
                               </p>
                               <p className="mt-1 text-sm text-slate-500">
                                 {appointment.date} · {appointment.time}
@@ -1209,8 +1223,11 @@ export default function PatientDetailPage() {
                               <p className="font-semibold text-ink">
                                 {item.date}
                               </p>
-                              <p className="mt-1 truncate text-sm font-semibold text-ocean-800">
-                                {item.mobility}
+                              <p className="mt-1 text-sm font-semibold text-ocean-800">
+                                Movilidad: {item.mobility}
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-emerald-700">
+                                Fuerza: {item.strength}
                               </p>
                             </div>
                             <span className="flex w-fit shrink-0 items-center gap-2 rounded-full bg-ocean-50 px-3 py-1 text-sm font-semibold text-ocean-800 ring-1 ring-ocean-100">
@@ -1422,7 +1439,7 @@ export default function PatientDetailPage() {
                       {evolutionAppointmentOptions.map((appointment) => (
                         <option key={appointment.id} value={appointment.id}>
                           {appointment.date} · {appointment.time} ·{" "}
-                          {appointment.reason}
+                          {appointment.modality}
                         </option>
                       ))}
                     </select>
@@ -1464,7 +1481,7 @@ export default function PatientDetailPage() {
 
                 <label className="mt-4 block">
                   <span className="text-sm font-semibold text-slate-700">
-                    Movilidad / fuerza
+                    Movilidad
                   </span>
                   <input
                     className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
@@ -1475,9 +1492,22 @@ export default function PatientDetailPage() {
                     value={evolution.mobilityNotes}
                   />
                 </label>
+                  <label className="mt-5 block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Fuerza
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        updateField("strengthNotes", event.target.value)
+                      }
+                      type="text"
+                      value={evolution.strengthNotes}
+                    />
+                  </label>
                 <label className="mt-4 block">
                   <span className="text-sm font-semibold text-slate-700">
-                    Notas clínicas
+                    Tratamiento
                   </span>
                   <textarea
                     className="mt-2 min-h-24 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400 sm:min-h-32"
@@ -1530,7 +1560,7 @@ export default function PatientDetailPage() {
                   Reprogramar turno
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  {rescheduling.reason} · {rescheduling.date} ·{" "}
+                  {rescheduling.date} -{" "}
                   {rescheduling.time}
                 </p>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">

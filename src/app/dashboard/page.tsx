@@ -358,7 +358,7 @@ export default function DashboardPage() {
                           {appointment.patient}
                         </Link>
                         <p className="mt-1 text-sm text-slate-500">
-                          {appointment.reason} · {appointment.modality}
+                          {appointment.modality}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">

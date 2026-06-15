@@ -296,7 +296,7 @@ export default function AppointmentsPage() {
     (accountType === "CONSULTORIO" &&
       plan.estadoPlan === "ACTIVO" &&
       plan.plan.startsWith("CONSULTORIO_")) ||
-    plan.plan === "INDEPENDIENTE";
+    accountType === "KINESIOLOGO";
   const patientLimitBlock = getPatientPlanLimitBlock({
     activePatientCount: activePatients.length,
     patientLimit: plan.limitePacientes,
@@ -511,6 +511,12 @@ export default function AppointmentsPage() {
             {formatSessionAmount(appointment.amount)}
           </span>
         </div>
+
+        {appointment.conflictWarning ? (
+          <p className="mt-2 rounded-md border border-amber-100 bg-amber-50 px-2 py-1.5 text-[0.68rem] font-semibold leading-4 text-amber-800">
+            Conflicto de agenda: {appointment.conflictWarning}
+          </p>
+        ) : null}
 
         <div className="mt-2 flex items-center gap-2">
           {canMarkAttended ? (
@@ -764,9 +770,13 @@ export default function AppointmentsPage() {
                         {appointment.patient}
                       </Link>
                       <p className="mt-1 text-sm text-slate-500">
-                        {appointment.reason} · {appointment.modality} ·{" "}
-                        {appointment.originLabel}
+                        {appointment.modality} - {appointment.originLabel}
                       </p>
+                      {appointment.conflictWarning ? (
+                        <p className="mt-2 text-sm font-semibold text-amber-700">
+                          Conflicto de agenda: {appointment.conflictWarning}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <span
@@ -904,7 +914,7 @@ export default function AppointmentsPage() {
               >
                 <h2 className="text-lg font-bold text-ink">Reprogramar turno</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  {rescheduling.patient} · {rescheduling.reason}
+                  {rescheduling.patient}
                 </p>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <label className="block">

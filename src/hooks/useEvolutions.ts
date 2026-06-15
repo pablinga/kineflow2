@@ -17,6 +17,7 @@ export type Evolution = {
   date: string;
   pain: string;
   mobility: string;
+  strength: string;
   notes: string;
 };
 
@@ -26,6 +27,7 @@ export type NewEvolutionInput = {
   sessionDate: string;
   painLevel: number;
   mobilityNotes: string;
+  strengthNotes: string;
   clinicalNotes: string;
   nextGoals: string;
   treatmentId?: string;
@@ -39,6 +41,7 @@ type EvolutionRow = {
   session_date: string;
   pain_level: number | null;
   mobility_notes: string | null;
+  strength_notes: string | null;
   clinical_notes: string;
   patients: { full_name: string } | Array<{ full_name: string }> | null;
 };
@@ -55,6 +58,7 @@ function mapEvolution(row: EvolutionRow): Evolution {
     date: formatDate(row.session_date),
     pain: row.pain_level === null ? "Sin dato" : `${row.pain_level}/10`,
     mobility: row.mobility_notes ?? "Sin nota de movilidad",
+    strength: row.strength_notes ?? "Sin nota de fuerza",
     notes: row.clinical_notes,
   };
 }
@@ -82,7 +86,7 @@ export function useEvolutions(patientId?: string) {
       let query = supabase
         .from("evolutions")
         .select(
-          "id, patient_id, treatment_id, appointment_id, session_date, pain_level, mobility_notes, clinical_notes, patients(full_name)",
+          "id, patient_id, treatment_id, appointment_id, session_date, pain_level, mobility_notes, strength_notes, clinical_notes, patients(full_name)",
         )
         .eq("owner_id", sessionData.user.id)
         .order("session_date", { ascending: false });
@@ -138,6 +142,7 @@ export function useEvolutions(patientId?: string) {
       session_date: input.sessionDate,
       pain_level: input.painLevel,
       mobility_notes: input.mobilityNotes,
+      strength_notes: input.strengthNotes,
       clinical_notes: input.clinicalNotes,
       next_goals: input.nextGoals || null,
     });
