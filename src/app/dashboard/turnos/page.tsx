@@ -93,17 +93,18 @@ function getMonthCalendarDays(date: Date) {
 function getCalendarStatusClass(appointment: Appointment) {
   const border =
     appointment.paymentStatus !== "paid" ? "border-amber-400" : "";
+  const normalizedStatus = appointment.status.toLowerCase();
 
-  if (appointment.status === "AsistiÃ³" || appointment.status === "Asistió") {
+  if (
+    normalizedStatus.includes("asisti") &&
+    !normalizedStatus.includes("no ")
+  ) {
     return `bg-emerald-100 text-emerald-800 border-l-2 ${
       border || "border-emerald-500"
     }`;
   }
 
-  if (
-    appointment.status === "No asistiÃ³" ||
-    appointment.status === "No asistió"
-  ) {
+  if (normalizedStatus.includes("no asisti")) {
     return `bg-red-100 text-red-800 border-l-2 ${border || "border-red-500"}`;
   }
 
@@ -113,14 +114,16 @@ function getCalendarStatusClass(appointment: Appointment) {
 }
 
 function getStatusDotClass(appointment: Appointment) {
-  if (appointment.status === "AsistiÃ³" || appointment.status === "Asistió") {
+  const normalizedStatus = appointment.status.toLowerCase();
+
+  if (
+    normalizedStatus.includes("asisti") &&
+    !normalizedStatus.includes("no ")
+  ) {
     return "bg-emerald-500";
   }
 
-  if (
-    appointment.status === "No asistiÃ³" ||
-    appointment.status === "No asistió"
-  ) {
+  if (normalizedStatus.includes("no asisti")) {
     return "bg-red-500";
   }
 
@@ -683,8 +686,8 @@ export default function AppointmentsPage() {
   function renderMonthView() {
     return (
       <section className="mt-4 overflow-hidden rounded-lg border border-ocean-100 bg-white shadow-card sm:mt-6">
-        <div className="grid grid-cols-7 border-b border-ocean-100 bg-ocean-50 text-center text-xs font-bold uppercase text-slate-500">
-          {["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"].map((day) => (
+        <div className="grid grid-cols-7 border-b border-ocean-100 bg-ocean-50 text-center text-xs font-bold text-slate-500">
+          {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => (
             <div className="px-2 py-3" key={day}>
               {day}
             </div>
@@ -702,9 +705,17 @@ export default function AppointmentsPage() {
                   isOutsideMonth ? "opacity-40" : ""
                 } ${isToday ? "border-ocean-400 ring-2 ring-ocean-100" : ""}`}
                 key={day.toISOString()}
-                onClick={() =>
-                  setSelectedMobileDay({ appointments: dayAppointments, date: day })
-                }
+                onClick={(event) => {
+                  if (
+                    (event.target as HTMLElement).closest(
+                      "[data-calendar-appointment]",
+                    )
+                  ) {
+                    return;
+                  }
+
+                  setSelectedMobileDay({ appointments: dayAppointments, date: day });
+                }}
               >
                 <span className="text-sm font-bold text-ink">
                   {day.getDate()}
@@ -720,12 +731,10 @@ export default function AppointmentsPage() {
                 <div className="mt-2 hidden space-y-1 md:block">
                   {dayAppointments.slice(0, 3).map((appointment) => (
                     <button
-                      className={`flex w-full min-w-0 items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment)}`}
+                      className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment)}`}
+                      data-calendar-appointment
                       key={appointment.id}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setActionsAppointment(appointment);
-                      }}
+                      onClick={() => setActionsAppointment(appointment)}
                       type="button"
                     >
                       <span className="truncate">
@@ -784,7 +793,7 @@ export default function AppointmentsPage() {
 
                 return (
                   <div
-                    className="min-h-20 border-b border-ocean-100 p-2"
+                    className="min-h-[48px] border-b border-ocean-100 p-1.5"
                     key={`${day.toISOString()}-${hour}`}
                   >
                     <p className="text-[0.68rem] font-semibold text-slate-400">
@@ -793,13 +802,13 @@ export default function AppointmentsPage() {
                     <div className="mt-1 space-y-1">
                       {slotAppointments.map((appointment) => (
                         <button
-                          className={`flex w-full min-w-0 items-center gap-1 rounded-md px-2 py-1.5 text-left text-xs font-semibold ${getCalendarStatusClass(appointment)}`}
+                          className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment)}`}
                           key={appointment.id}
                           onClick={() => setActionsAppointment(appointment)}
                           type="button"
                         >
                           <span className="truncate">
-                            {appointment.time} - {appointment.patient}
+                            {appointment.time} {appointment.patient}
                           </span>
                           {appointment.paymentStatus !== "paid" ? (
                             <DollarSign className="h-3 w-3 shrink-0" />
