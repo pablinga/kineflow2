@@ -7,6 +7,7 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  DollarSign,
   Filter,
   MoreVertical,
   RotateCcw,
@@ -46,10 +47,84 @@ type PendingAction = {
   tone: "green" | "red" | "rose";
 };
 
+type CalendarView = "month" | "week" | "day";
+
 function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
   return next;
+}
+
+function addMonths(date: Date, months: number) {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function startOfWeek(date: Date) {
+  const start = new Date(date);
+  const day = start.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + diff);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+function getMonthCalendarDays(date: Date) {
+  const firstDay = startOfMonth(date);
+  const firstCalendarDay = startOfWeek(firstDay);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  const lastCalendarDay = addDays(startOfWeek(lastDay), 6);
+  const days: Date[] = [];
+  let current = firstCalendarDay;
+
+  while (current <= lastCalendarDay) {
+    days.push(new Date(current));
+    current = addDays(current, 1);
+  }
+
+  return days;
+}
+
+function getCalendarStatusClass(appointment: Appointment) {
+  const border =
+    appointment.paymentStatus !== "paid" ? "border-amber-400" : "";
+
+  if (appointment.status === "AsistiÃ³" || appointment.status === "Asistió") {
+    return `bg-emerald-100 text-emerald-800 border-l-2 ${
+      border || "border-emerald-500"
+    }`;
+  }
+
+  if (
+    appointment.status === "No asistiÃ³" ||
+    appointment.status === "No asistió"
+  ) {
+    return `bg-red-100 text-red-800 border-l-2 ${border || "border-red-500"}`;
+  }
+
+  return `bg-slate-100 text-slate-700 border-l-2 ${
+    border || "border-slate-400"
+  }`;
+}
+
+function getStatusDotClass(appointment: Appointment) {
+  if (appointment.status === "AsistiÃ³" || appointment.status === "Asistió") {
+    return "bg-emerald-500";
+  }
+
+  if (
+    appointment.status === "No asistiÃ³" ||
+    appointment.status === "No asistió"
+  ) {
+    return "bg-red-500";
+  }
+
+  return "bg-slate-400";
 }
 
 function sameDay(left: Date, right: Date) {
@@ -121,7 +196,12 @@ export default function AppointmentsPage() {
     paymentMethod: "",
     paymentNotes: "",
   });
-  const [mobileCenterDate, setMobileCenterDate] = useState(() => new Date());
+  const [view, setView] = useState<CalendarView>("month");
+  const [calendarDate, setCalendarDate] = useState(() => new Date());
+  const [selectedMobileDay, setSelectedMobileDay] = useState<{
+    appointments: Appointment[];
+    date: Date;
+  } | null>(null);
   const [originFilter, setOriginFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -166,10 +246,22 @@ export default function AppointmentsPage() {
         new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
     )
     .slice(0, 12);
+  const monthDays = useMemo(
+    () => getMonthCalendarDays(calendarDate),
+    [calendarDate],
+  );
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => addDays(startOfWeek(calendarDate), index)),
+    [calendarDate],
+  );
+  const timeSlots = useMemo(
+    () => Array.from({ length: 13 }, (_, index) => 8 + index),
+    [],
+  );
   const mobileDays = useMemo(
     () =>
       [-1, 0, 1].map((offset) => {
-        const date = addDays(mobileCenterDate, offset);
+        const date = addDays(calendarDate, offset);
         const appointmentsForDay = filteredAppointments
           .filter((appointment) =>
             sameDay(new Date(appointment.scheduledAt), date),
@@ -186,12 +278,41 @@ export default function AppointmentsPage() {
           isToday: sameDay(date, new Date()),
         };
       }),
-    [filteredAppointments, mobileCenterDate],
+    [filteredAppointments, calendarDate],
   );
   const visibleAppointments = mobileDays.flatMap((day) => day.appointments);
-  const visibleRangeLabel = `${formatDate(mobileDays[0]?.date)} - ${formatDate(
-    mobileDays[2]?.date,
-  )}`;
+  const visibleRangeLabel =
+    view === "month"
+      ? calendarDate.toLocaleDateString("es-AR", {
+          month: "long",
+          year: "numeric",
+        })
+      : view === "week"
+        ? `${formatDate(weekDays[0])} - ${formatDate(weekDays[6])}`
+        : `${formatDate(mobileDays[0]?.date)} - ${formatDate(
+            mobileDays[2]?.date,
+          )}`;
+
+  function getAppointmentsForDay(date: Date) {
+    return filteredAppointments
+      .filter((appointment) => sameDay(new Date(appointment.scheduledAt), date))
+      .sort(
+        (a, b) =>
+          new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
+      );
+  }
+
+  function handlePreviousPeriod() {
+    setCalendarDate((date) =>
+      view === "month" ? addMonths(date, -1) : addDays(date, view === "week" ? -7 : -1),
+    );
+  }
+
+  function handleNextPeriod() {
+    setCalendarDate((date) =>
+      view === "month" ? addMonths(date, 1) : addDays(date, view === "week" ? 7 : 1),
+    );
+  }
   function askForStatusChange(
     appointment: Appointment,
     status: AppointmentStatus,
@@ -558,6 +679,144 @@ export default function AppointmentsPage() {
       </article>
     );
   }
+
+  function renderMonthView() {
+    return (
+      <section className="mt-4 overflow-hidden rounded-lg border border-ocean-100 bg-white shadow-card sm:mt-6">
+        <div className="grid grid-cols-7 border-b border-ocean-100 bg-ocean-50 text-center text-xs font-bold uppercase text-slate-500">
+          {["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"].map((day) => (
+            <div className="px-2 py-3" key={day}>
+              {day}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {monthDays.map((day) => {
+            const dayAppointments = getAppointmentsForDay(day);
+            const isOutsideMonth = day.getMonth() !== calendarDate.getMonth();
+            const isToday = sameDay(day, new Date());
+
+            return (
+              <div
+                className={`min-h-24 border-b border-r border-ocean-100 p-2 text-left transition hover:bg-ocean-50 md:min-h-36 ${
+                  isOutsideMonth ? "opacity-40" : ""
+                } ${isToday ? "border-ocean-400 ring-2 ring-ocean-100" : ""}`}
+                key={day.toISOString()}
+                onClick={() =>
+                  setSelectedMobileDay({ appointments: dayAppointments, date: day })
+                }
+              >
+                <span className="text-sm font-bold text-ink">
+                  {day.getDate()}
+                </span>
+                <div className="mt-2 flex flex-wrap gap-1 md:hidden">
+                  {dayAppointments.slice(0, 6).map((appointment) => (
+                    <span
+                      className={`h-2 w-2 rounded-full ${getStatusDotClass(appointment)}`}
+                      key={appointment.id}
+                    />
+                  ))}
+                </div>
+                <div className="mt-2 hidden space-y-1 md:block">
+                  {dayAppointments.slice(0, 3).map((appointment) => (
+                    <button
+                      className={`flex w-full min-w-0 items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment)}`}
+                      key={appointment.id}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setActionsAppointment(appointment);
+                      }}
+                      type="button"
+                    >
+                      <span className="truncate">
+                        {appointment.time} {appointment.patient}
+                      </span>
+                      {appointment.paymentStatus !== "paid" ? (
+                        <DollarSign className="h-3 w-3 shrink-0" />
+                      ) : null}
+                    </button>
+                  ))}
+                  {dayAppointments.length > 3 ? (
+                    <p className="px-2 text-xs font-semibold text-slate-500">
+                      +{dayAppointments.length - 3} mas
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
+  function renderWeekView() {
+    return (
+      <section className="mt-4 overflow-x-auto rounded-lg border border-ocean-100 bg-white shadow-card sm:mt-6">
+        <div className="grid min-w-[56rem] grid-cols-7 border-b border-ocean-100">
+          {weekDays.map((day) => {
+            const isToday = sameDay(day, new Date());
+
+            return (
+              <div className="border-r border-ocean-100 p-3 text-center" key={day.toISOString()}>
+                <span
+                  className={`inline-flex min-h-8 items-center justify-center rounded-full px-3 text-sm font-bold capitalize ${
+                    isToday ? "bg-ocean-600 text-white" : "text-ink"
+                  }`}
+                >
+                  {day.toLocaleDateString("es-AR", {
+                    day: "2-digit",
+                    weekday: "short",
+                  })}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="grid min-w-[56rem] grid-cols-7">
+          {weekDays.map((day) => (
+            <div className="border-r border-ocean-100" key={day.toISOString()}>
+              {timeSlots.map((hour) => {
+                const slotAppointments = getAppointmentsForDay(day).filter(
+                  (appointment) =>
+                    new Date(appointment.scheduledAt).getHours() === hour,
+                );
+
+                return (
+                  <div
+                    className="min-h-20 border-b border-ocean-100 p-2"
+                    key={`${day.toISOString()}-${hour}`}
+                  >
+                    <p className="text-[0.68rem] font-semibold text-slate-400">
+                      {String(hour).padStart(2, "0")}:00
+                    </p>
+                    <div className="mt-1 space-y-1">
+                      {slotAppointments.map((appointment) => (
+                        <button
+                          className={`flex w-full min-w-0 items-center gap-1 rounded-md px-2 py-1.5 text-left text-xs font-semibold ${getCalendarStatusClass(appointment)}`}
+                          key={appointment.id}
+                          onClick={() => setActionsAppointment(appointment)}
+                          type="button"
+                        >
+                          <span className="truncate">
+                            {appointment.time} - {appointment.patient}
+                          </span>
+                          {appointment.paymentStatus !== "paid" ? (
+                            <DollarSign className="h-3 w-3 shrink-0" />
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
@@ -566,9 +825,29 @@ export default function AppointmentsPage() {
             actions={
               <>
               <div className="grid grid-cols-3 rounded-lg border border-ocean-100 bg-white p-1">
+                {[
+                  ["month", "Mes"],
+                  ["week", "Semana"],
+                  ["day", "Día"],
+                ].map(([value, label]) => (
+                  <button
+                    className={`inline-flex min-h-10 items-center justify-center rounded-md px-3 text-xs font-semibold transition sm:text-sm ${
+                      view === value
+                        ? "bg-ocean-600 text-white"
+                        : "text-slate-700 hover:bg-ocean-50"
+                    }`}
+                    key={value}
+                    onClick={() => setView(value as CalendarView)}
+                    type="button"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 rounded-lg border border-ocean-100 bg-white p-1">
                 <button
                   className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md px-2 text-xs font-semibold text-slate-700 transition hover:bg-ocean-50 sm:text-sm"
-                  onClick={() => setMobileCenterDate((date) => addDays(date, -1))}
+                  onClick={handlePreviousPeriod}
                   type="button"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -576,14 +855,14 @@ export default function AppointmentsPage() {
                 </button>
                 <button
                   className="inline-flex min-h-10 items-center justify-center rounded-md px-2 text-xs font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:text-sm"
-                  onClick={() => setMobileCenterDate(new Date())}
+                  onClick={() => setCalendarDate(new Date())}
                   type="button"
                 >
                   Hoy
                 </button>
                 <button
                   className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md px-2 text-xs font-semibold text-slate-700 transition hover:bg-ocean-50 sm:text-sm"
-                  onClick={() => setMobileCenterDate((date) => addDays(date, 1))}
+                  onClick={handleNextPeriod}
                   type="button"
                 >
                   Siguiente
@@ -611,10 +890,29 @@ export default function AppointmentsPage() {
               ) : null}
               </>
             }
-            description={<>Ayer, hoy y mañana · {visibleRangeLabel}</>}
+            description={<>{visibleRangeLabel}</>}
             eyebrow="Turnos"
             title="Agenda"
           />
+
+          <div className="mt-4 flex flex-wrap gap-3 rounded-lg border border-ocean-100 bg-white px-4 py-3 text-xs font-semibold text-slate-600 shadow-sm sm:mt-6">
+            <span className="inline-flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              Asistió
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+              No asistió
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
+              Pendiente
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-4 border-l-2 border-dashed border-amber-400" />
+              Sin cobrar
+            </span>
+          </div>
 
           {patientLimitBlock ? (
             <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
@@ -684,57 +982,62 @@ export default function AppointmentsPage() {
             </div>
           </section>
 
-          {visibleAppointments.length === 0 ? (
+          {view === "month" ? renderMonthView() : null}
+          {view === "week" ? renderWeekView() : null}
+
+          {view === "day" && visibleAppointments.length === 0 ? (
             <div className="mt-4 rounded-lg border border-dashed border-ocean-200 bg-white p-5 text-center shadow-card sm:mt-6 sm:p-8">
               <p className="font-semibold text-ink">
-                No hay turnos para estos días.
+                No hay turnos para estos dias.
               </p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-                Usá Nuevo turno para programar sesiones.
+                Usa Nuevo turno para programar sesiones.
               </p>
             </div>
           ) : null}
 
-          <section className="mt-4 sm:mt-6">
-            <div className="grid gap-4 lg:grid-cols-3">
-              {mobileDays.map((day, index) => (
-                <div
-                  className={`${
-                    index === 1 ? "block" : "hidden lg:block"
-                  } rounded-lg border bg-white p-3 shadow-card ${
-                    day.isToday
-                      ? "border-ocean-300 ring-2 ring-ocean-100"
-                      : "border-ocean-100"
-                  }`}
-                  key={day.date.toISOString()}
-                >
-                  <div className="mb-3 flex items-center justify-between gap-3 border-b border-ocean-100 pb-3">
-                    <div>
-                      <p className="text-sm font-bold capitalize text-ink">
-                        {compactDayLabel(day.date)}
-                      </p>
-                      <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                        {formatDate(day.date)}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-ocean-50 px-3 py-1 text-xs font-semibold text-ocean-800">
-                      {day.appointments.length}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    {day.appointments.map(renderAppointment)}
-                    {day.appointments.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-ocean-100 bg-ocean-50 p-4 text-center">
-                        <p className="text-sm font-medium text-slate-500">
-                          No hay turnos para este dia.
+          {view === "day" ? (
+            <section className="mt-4 sm:mt-6">
+              <div className="grid gap-4 lg:grid-cols-3">
+                {mobileDays.map((day, index) => (
+                  <div
+                    className={`${
+                      index === 1 ? "block" : "hidden lg:block"
+                    } rounded-lg border bg-white p-3 shadow-card ${
+                      day.isToday
+                        ? "border-ocean-300 ring-2 ring-ocean-100"
+                        : "border-ocean-100"
+                    }`}
+                    key={day.date.toISOString()}
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-3 border-b border-ocean-100 pb-3">
+                      <div>
+                        <p className="text-sm font-bold capitalize text-ink">
+                          {compactDayLabel(day.date)}
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                          {formatDate(day.date)}
                         </p>
                       </div>
-                    ) : null}
+                      <span className="rounded-full bg-ocean-50 px-3 py-1 text-xs font-semibold text-ocean-800">
+                        {day.appointments.length}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {day.appointments.map(renderAppointment)}
+                      {day.appointments.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-ocean-100 bg-ocean-50 p-4 text-center">
+                          <p className="text-sm font-medium text-slate-500">
+                            No hay turnos para este dia.
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </section>
+                ))}
+              </div>
+            </section>
+          ) : null}
           <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5">
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -815,6 +1118,61 @@ export default function AppointmentsPage() {
               </div>
             ) : null}
           </section>
+
+          {selectedMobileDay ? (
+            <div className="fixed inset-0 z-40 flex items-end bg-ink/40 px-3 pb-3 md:hidden">
+              <div className="w-full rounded-t-2xl border border-ocean-100 bg-white p-4 shadow-soft">
+                <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-slate-200" />
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-ink">
+                      {formatDate(selectedMobileDay.date)}
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {selectedMobileDay.appointments.length} turnos
+                    </p>
+                  </div>
+                  <button
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-ocean-100 text-slate-500"
+                    onClick={() => setSelectedMobileDay(null)}
+                    type="button"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="mt-4 divide-y divide-ocean-100">
+                  {selectedMobileDay.appointments.map((appointment) => (
+                    <button
+                      className="flex w-full items-center gap-3 px-1 py-3 text-left"
+                      key={appointment.id}
+                      onClick={() => {
+                        setSelectedMobileDay(null);
+                        setActionsAppointment(appointment);
+                      }}
+                      type="button"
+                    >
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(appointment)}`}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold text-ink">
+                          {appointment.patient}
+                        </span>
+                        <span className="mt-0.5 block text-xs font-semibold text-slate-500">
+                          {appointment.time}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                  {selectedMobileDay.appointments.length === 0 ? (
+                    <p className="py-5 text-center text-sm font-semibold text-slate-500">
+                      No hay turnos para este dia.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {actionsAppointment ? (
             <div className="fixed inset-0 z-50 flex items-end bg-ink/40 px-3 pb-3 xl:hidden">
