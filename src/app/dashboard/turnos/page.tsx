@@ -734,8 +734,8 @@ export default function AppointmentsPage() {
                       className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment)}`}
                       data-calendar-appointment
                       key={appointment.id}
-                      onClick={(event) => {
-                        event.stopPropagation();
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setActionsAppointment(appointment);
                       }}
                       type="button"
@@ -807,8 +807,8 @@ export default function AppointmentsPage() {
                         <button
                           className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment)}`}
                           key={appointment.id}
-                          onClick={(event) => {
-                            event.stopPropagation();
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setActionsAppointment(appointment);
                           }}
                           type="button"
