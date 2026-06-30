@@ -5,6 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
+import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { usePatients } from "@/hooks/usePatients";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
@@ -64,6 +65,11 @@ function mapEvolution(row: EvolutionRow): Evolution {
 }
 
 export function useEvolutions(patientId?: string) {
+  const {
+    activeWorkspace,
+    error: activeWorkspaceError,
+    loaded: activeWorkspaceLoaded,
+  } = useActiveWorkspace();
   const { activePatients } = usePatients();
   const { plan } = useSubscriptionPlan();
   const [evolutions, setEvolutions] = useState<Evolution[]>([]);
@@ -71,6 +77,10 @@ export function useEvolutions(patientId?: string) {
   const [error, setError] = useState("");
 
   const loadEvolutions = useCallback(async () => {
+    if (!activeWorkspaceLoaded) {
+      return;
+    }
+
     setLoaded(false);
     setError("");
 
@@ -83,12 +93,24 @@ export function useEvolutions(patientId?: string) {
         throw new Error("No pudimos identificar al usuario.");
       }
 
+      if (activeWorkspaceError) {
+        setError(activeWorkspaceError);
+        setEvolutions([]);
+        return;
+      }
+
+      if (!activeWorkspace?.id) {
+        setError("No encontramos un espacio de trabajo activo.");
+        setEvolutions([]);
+        return;
+      }
+
       let query = supabase
         .from("evolutions")
         .select(
           "id, patient_id, treatment_id, appointment_id, session_date, pain_level, mobility_notes, strength_notes, clinical_notes, patients(full_name)",
         )
-        .eq("owner_id", sessionData.user.id)
+        .eq("workspace_id", activeWorkspace.id)
         .order("session_date", { ascending: false });
 
       if (patientId) {
@@ -110,7 +132,7 @@ export function useEvolutions(patientId?: string) {
     } finally {
       setLoaded(true);
     }
-  }, [patientId]);
+  }, [activeWorkspace?.id, activeWorkspaceError, activeWorkspaceLoaded, patientId]);
 
   useEffect(() => {
     loadEvolutions();
@@ -134,8 +156,13 @@ export function useEvolutions(patientId?: string) {
       throw new Error("No pudimos identificar al usuario.");
     }
 
+    if (!activeWorkspace?.id) {
+      throw new Error("No encontramos un espacio de trabajo activo.");
+    }
+
     const { error: insertError } = await supabase.from("evolutions").insert({
       owner_id: sessionData.user.id,
+      workspace_id: activeWorkspace.id,
       patient_id: input.patientId,
       treatment_id: input.treatmentId || null,
       appointment_id: input.appointmentId || null,

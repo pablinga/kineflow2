@@ -14,6 +14,7 @@ import {
   Phone,
   Plus,
   Save,
+  UserRound,
   WalletCards,
   X,
 } from "lucide-react";
@@ -21,6 +22,7 @@ import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { type Appointment, useAppointments } from "@/hooks/useAppointments";
 import { useEvolutions, type NewEvolutionInput } from "@/hooks/useEvolutions";
+import { usePatientAssignments } from "@/hooks/usePatientAssignments";
 import { usePatients } from "@/hooks/usePatients";
 import {
   useTreatments,
@@ -112,11 +114,22 @@ export default function PatientDetailPage() {
     loaded: patientsLoaded,
     patients,
   } = usePatients();
+  const {
+    assignProfessional,
+    assignments,
+    error: assignmentsError,
+    isClinicAdmin,
+    loaded: assignmentsLoaded,
+    professionals,
+    unassignProfessional,
+  } = usePatientAssignments(patientId);
   const [evolution, setEvolution] = useState<NewEvolutionInput>(() =>
     createEmptyEvolution(patientId),
   );
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [assignmentActionError, setAssignmentActionError] = useState("");
+  const [assignmentUpdatingId, setAssignmentUpdatingId] = useState("");
   const [evolutionModalOpen, setEvolutionModalOpen] = useState(false);
   const [expandedTreatmentId, setExpandedTreatmentId] = useState("");
   const [treatment, setTreatment] = useState<NewTreatmentInput>(() =>
@@ -193,10 +206,22 @@ export default function PatientDetailPage() {
     );
   }
 
-  if (patientsError || appointmentsError || evolutionsError || treatmentsError) {
+  if (
+    patientsError ||
+    appointmentsError ||
+    evolutionsError ||
+    treatmentsError ||
+    assignmentsError
+  ) {
     return (
       <DashboardLoading
-        error={patientsError || appointmentsError || evolutionsError || treatmentsError}
+        error={
+          patientsError ||
+          appointmentsError ||
+          evolutionsError ||
+          treatmentsError ||
+          assignmentsError
+        }
         retryHref={`/dashboard/pacientes/${patientId}`}
         title="No pudimos cargar la ficha"
       />
@@ -209,6 +234,7 @@ export default function PatientDetailPage() {
     !appointmentsLoaded ||
     !evolutionsLoaded ||
     !treatmentsLoaded ||
+    !assignmentsLoaded ||
     !planLoaded
   ) {
     return <DashboardLoading />;
@@ -248,6 +274,9 @@ export default function PatientDetailPage() {
         (appointment) => appointment.treatmentId === activeTreatmentForEvolution.id,
       )
     : attendedAppointments;
+  const assignmentByProfessional = new Map(
+    assignments.map((assignment) => [assignment.professionalId, assignment]),
+  );
 
   function updateField<Field extends keyof NewEvolutionInput>(
     field: Field,
@@ -443,6 +472,42 @@ export default function PatientDetailPage() {
     }
   }
 
+  async function handleAssignProfessional(professionalId: string) {
+    setAssignmentActionError("");
+    setAssignmentUpdatingId(professionalId);
+
+    try {
+      await assignProfessional(professionalId);
+    } catch (assignError) {
+      setAssignmentActionError(
+        getFriendlyErrorMessage(assignError, "No pudimos asignar el profesional."),
+      );
+    } finally {
+      setAssignmentUpdatingId("");
+    }
+  }
+
+  async function handleUnassignProfessional(
+    professionalId: string,
+    assignmentId: string,
+  ) {
+    setAssignmentActionError("");
+    setAssignmentUpdatingId(professionalId);
+
+    try {
+      await unassignProfessional(assignmentId);
+    } catch (unassignError) {
+      setAssignmentActionError(
+        getFriendlyErrorMessage(
+          unassignError,
+          "No pudimos quitar la asignacion.",
+        ),
+      );
+    } finally {
+      setAssignmentUpdatingId("");
+    }
+  }
+
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
@@ -505,6 +570,105 @@ export default function PatientDetailPage() {
                   </p>
                 </div>
               </header>
+
+              {isClinicAdmin ? (
+                <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5">
+                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                    <div>
+                      <h2 className="text-lg font-bold text-ink">
+                        Kinesiologos asignados
+                      </h2>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Defini que profesionales pueden ver la historia clinica
+                        y cargar evoluciones.
+                      </p>
+                    </div>
+                    <span className="w-fit rounded-full bg-ocean-50 px-3 py-1 text-sm font-semibold text-ocean-800">
+                      {assignments.length} asignados
+                    </span>
+                  </div>
+
+                  {assignmentActionError ? (
+                    <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                      {assignmentActionError}
+                    </p>
+                  ) : null}
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {professionals.map((professional) => {
+                      const assignment = assignmentByProfessional.get(
+                        professional.id,
+                      );
+                      const assigned = Boolean(assignment);
+                      const updating = assignmentUpdatingId === professional.id;
+
+                      return (
+                        <article
+                          className="rounded-lg border border-ocean-100 bg-ocean-50 p-3"
+                          key={professional.id}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white"
+                              style={{ backgroundColor: professional.color }}
+                            >
+                              <UserRound className="h-5 w-5" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-bold text-ink">
+                                {professional.name}
+                              </p>
+                              <p className="mt-1 truncate text-sm text-slate-500">
+                                {professional.email}
+                              </p>
+                              <span
+                                className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                  assigned
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : "bg-slate-100 text-slate-600"
+                                }`}
+                              >
+                                {assigned ? "Asignado" : "Sin asignar"}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            className={`mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-lg px-4 text-sm font-semibold transition disabled:opacity-60 ${
+                              assigned
+                                ? "border border-rose-100 bg-white text-rose-700 hover:bg-rose-50"
+                                : "bg-ocean-600 text-white hover:bg-ocean-700"
+                            }`}
+                            disabled={updating}
+                            onClick={() =>
+                              assigned && assignment
+                                ? handleUnassignProfessional(
+                                    professional.id,
+                                    assignment.id,
+                                  )
+                                : handleAssignProfessional(professional.id)
+                            }
+                            type="button"
+                          >
+                            {updating
+                              ? "Actualizando..."
+                              : assigned
+                                ? "Quitar asignacion"
+                                : "Asignar paciente"}
+                          </button>
+                        </article>
+                      );
+                    })}
+                  </div>
+
+                  {professionals.length === 0 ? (
+                    <div className="mt-4 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-5 text-center">
+                      <p className="font-semibold text-ink">
+                        No hay kinesiologos activos en este workspace.
+                      </p>
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
 
               <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5">
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">

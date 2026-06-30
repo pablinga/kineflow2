@@ -45,8 +45,9 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
   admin: SupabaseAdminClient;
   planCode: CommercialPlan;
   providerSubscription: MercadoPagoPreapproval;
+  workspaceId?: string | null;
 }) {
-  const { accountId, accountType, admin, planCode, providerSubscription } =
+  const { accountId, accountType, admin, planCode, providerSubscription, workspaceId } =
     params;
   const internalStatus = mapMercadoPagoStatus(providerSubscription.status);
   const effectivePlanCode = internalStatus === "ACTIVE" ? planCode : "FREE";
@@ -73,7 +74,7 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
     throw new Error("No encontramos el plan interno para actualizar la cuenta.");
   }
 
-  const subscriptionPayload = {
+  const subscriptionPayload: Record<string, unknown> = {
     account_id: accountId,
     account_type: accountType,
     activated_at: activatedAt,
@@ -91,6 +92,10 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
     updated_at: now,
   };
 
+  if (workspaceId !== undefined) {
+    subscriptionPayload.workspace_id = workspaceId;
+  }
+
   console.info("[billing:apply-subscription] Applying Mercado Pago status", {
     accountId,
     effectivePlanCode,
@@ -99,6 +104,7 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
     providerStatus: providerSubscription.status,
     providerSubscriptionId: providerSubscription.id,
     storedStatus,
+    workspaceId: workspaceId ?? null,
   });
 
   const { data: existingSubscription } = await admin

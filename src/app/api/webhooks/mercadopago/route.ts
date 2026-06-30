@@ -391,9 +391,18 @@ function parseExternalReference(reference: unknown) {
     return null;
   }
 
-  const [accountId, planCode, subscriptionId] = reference.split(":");
+  const parts = reference.split(":");
+  const [accountId, planCode] = parts;
 
-  if (!accountId || !planCode || !subscriptionId) {
+  if (!accountId || !planCode || parts.length < 3) {
+    return null;
+  }
+
+  const hasWorkspaceSegment = parts.length >= 4;
+  const workspaceId = hasWorkspaceSegment ? parts[2] : null;
+  const subscriptionId = hasWorkspaceSegment ? parts[3] : parts[2];
+
+  if (!subscriptionId) {
     return null;
   }
 
@@ -401,6 +410,8 @@ function parseExternalReference(reference: unknown) {
     accountId,
     planCode: planCode as CommercialPlan,
     subscriptionId,
+    workspaceId:
+      workspaceId && workspaceId !== "account" ? workspaceId : null,
   };
 }
 
@@ -422,7 +433,7 @@ async function resolveParsedReference(params: {
 
   const { data: subscription } = await params.admin
     .from("subscriptions")
-    .select("id, account_id, plans(code)")
+    .select("id, account_id, workspace_id, plans(code)")
     .eq("provider_subscription_id", params.providerSubscriptionId)
     .maybeSingle();
 
@@ -433,6 +444,8 @@ async function resolveParsedReference(params: {
         ((subscription as { plans?: { code?: string } }).plans
           ?.code as CommercialPlan) ?? ("INDEPENDIENTE" as CommercialPlan),
       subscriptionId: subscription.id as string,
+      workspaceId:
+        (subscription as { workspace_id?: string | null }).workspace_id ?? null,
     };
   }
 
@@ -455,6 +468,7 @@ async function resolveParsedReference(params: {
         accountId: profiles[0].id as string,
         planCode: "INDEPENDIENTE" as CommercialPlan,
         subscriptionId: null,
+        workspaceId: null,
       };
     }
   }
@@ -519,6 +533,7 @@ export async function processMercadoPagoSubscriptionForWebhook(params: {
     admin,
     planCode: parsed.planCode,
     providerSubscription,
+    workspaceId: parsed.workspaceId ?? undefined,
   });
 
   console.info("[mercadopago:webhook] Supabase subscription update complete", {
@@ -532,6 +547,7 @@ export async function processMercadoPagoSubscriptionForWebhook(params: {
     preapproval_id: providerSubscription.id,
     profileStatus: updateResult.profileStatus,
     status_recibido: providerSubscription.status,
+    workspaceId: parsed.workspaceId ?? null,
     providerStatus: updateResult.providerStatus,
     providerSubscriptionId: providerSubscription.id,
   });

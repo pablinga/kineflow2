@@ -9,9 +9,11 @@ type AppointmentStatus = "pending" | "attended" | "cancelled" | "no_show" | "res
 type AppointmentRow = {
   id: string;
   owner_id: string;
+  patient_id: string;
   session_number: number | null;
   status: AppointmentStatus | "confirmed" | "completed";
   treatment_id: string | null;
+  workspace_id: string | null;
 };
 
 type TreatmentRow = {
@@ -72,9 +74,8 @@ export async function POST(request: Request) {
 
   const { data: appointment, error: appointmentError } = await admin
     .from("appointments")
-    .select("id, owner_id, status, treatment_id, session_number")
+    .select("id, owner_id, patient_id, status, treatment_id, session_number, workspace_id")
     .eq("id", appointmentId)
-    .eq("owner_id", user.id)
     .maybeSingle();
 
   if (appointmentError || !appointment) {
@@ -85,15 +86,34 @@ export async function POST(request: Request) {
   }
 
   const currentAppointment = appointment as AppointmentRow;
+  const { data: membership } = currentAppointment.workspace_id
+    ? await admin
+        .from("workspace_members")
+        .select("role")
+        .eq("workspace_id", currentAppointment.workspace_id)
+        .eq("user_id", user.id)
+        .eq("status", "accepted")
+        .maybeSingle()
+    : { data: null };
+  const canUpdateAppointment =
+    currentAppointment.owner_id === user.id ||
+    (membership as { role?: string } | null)?.role === "ADMIN";
+
+  if (!canUpdateAppointment) {
+    return NextResponse.json(
+      { error: "No tenÃ©s permisos para actualizar este turno." },
+      { status: 403 },
+    );
+  }
+
   let treatmentCompleted: { totalSessions: number } | null = null;
 
   if (currentAppointment.treatment_id) {
     const { data: treatment } = await admin
-      .from("treatments")
-      .select("id, status, total_sessions, used_sessions")
-      .eq("id", currentAppointment.treatment_id)
-      .eq("owner_id", user.id)
-      .maybeSingle();
+        .from("treatments")
+        .select("id, status, total_sessions, used_sessions")
+        .eq("id", currentAppointment.treatment_id)
+        .maybeSingle();
 
     if (treatment) {
       const currentTreatment = treatment as TreatmentRow;
@@ -127,7 +147,7 @@ export async function POST(request: Request) {
           used_sessions: usedSessions,
         })
         .eq("id", currentTreatment.id)
-        .eq("owner_id", user.id);
+        .eq("workspace_id", currentAppointment.workspace_id);
 
       if (treatmentError) {
         return NextResponse.json(
@@ -150,8 +170,7 @@ export async function POST(request: Request) {
       session_number: currentAppointment.session_number,
       status,
     })
-    .eq("id", appointmentId)
-    .eq("owner_id", user.id);
+    .eq("id", appointmentId);
 
   if (updateError) {
     return NextResponse.json(

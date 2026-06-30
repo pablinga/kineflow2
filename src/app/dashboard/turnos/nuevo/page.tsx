@@ -8,6 +8,7 @@ import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PatientSearchSelect } from "@/components/patients/PatientSearchSelect";
 import { useAppointments, type NewAppointmentInput } from "@/hooks/useAppointments";
+import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
@@ -21,6 +22,19 @@ type ClinicProfessionalOption = {
   clinic_id: string;
   profiles: { full_name: string; license_number: string | null } | Array<{ full_name: string; license_number: string | null }> | null;
   clinics: { name: string } | Array<{ name: string }> | null;
+};
+
+type WorkspaceProfessionalOption = {
+  id: string;
+  user_id: string;
+  workspaces:
+    | { source_clinic_id: string | null; name: string }
+    | Array<{ source_clinic_id: string | null; name: string }>
+    | null;
+  profiles:
+    | { full_name: string; license_number: string | null }
+    | Array<{ full_name: string; license_number: string | null }>
+    | null;
 };
 
 const today = new Date().toISOString().slice(0, 10);
@@ -39,6 +53,7 @@ const emptyAppointment: NewAppointmentInput = {
 export default function NewAppointmentPage() {
   const router = useRouter();
   const { accountType, authError, loading, redirecting } = useRequireAuth();
+  const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const { addAppointment, addClinicAppointment, appointments } = useAppointments();
   const { activePatients, loaded } = usePatients();
@@ -69,27 +84,65 @@ export default function NewAppointmentPage() {
 
   useEffect(() => {
     async function loadClinicProfessionals() {
-      if (accountType !== "CONSULTORIO") {
+      const effectiveAccountType =
+        activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
+
+      if (effectiveAccountType !== "CONSULTORIO") {
         return;
       }
 
       const { getSupabaseClient } = await import("@/lib/supabase");
       const supabase = getSupabaseClient();
-      const { data } = await supabase
-        .from("clinic_professionals")
-        .select(
-          "id, professional_id, clinic_id, profiles(full_name, license_number), clinics(name)",
-        )
-        .eq("status", "accepted")
-        .order("invited_at", { ascending: false });
+      let mappedProfessionals: ClinicProfessionalOption[] = [];
 
-      setClinicProfessionals(
-        (data ?? []) as unknown as ClinicProfessionalOption[],
-      );
+      if (activeWorkspace?.id) {
+        const { data: workspaceMembers } = await supabase
+          .from("workspace_members")
+          .select(
+            "id, user_id, profiles(full_name, license_number), workspaces(source_clinic_id, name)",
+          )
+          .eq("workspace_id", activeWorkspace.id)
+          .eq("role", "KINESIOLOGO")
+          .eq("status", "accepted")
+          .not("user_id", "is", null);
+
+        mappedProfessionals = ((workspaceMembers ?? []) as unknown as WorkspaceProfessionalOption[])
+          .map((member) => {
+            const workspace = Array.isArray(member.workspaces)
+              ? member.workspaces[0]
+              : member.workspaces;
+            const profile = Array.isArray(member.profiles)
+              ? member.profiles[0]
+              : member.profiles;
+
+            return {
+              clinic_id: workspace?.source_clinic_id ?? "",
+              clinics: workspace ? { name: workspace.name } : null,
+              id: member.id,
+              professional_id: member.user_id,
+              profiles: profile,
+            };
+          })
+          .filter((professional) => Boolean(professional.clinic_id));
+      }
+
+      if (mappedProfessionals.length === 0) {
+        const { data } = await supabase
+          .from("clinic_professionals")
+          .select(
+            "id, professional_id, clinic_id, profiles(full_name, license_number), clinics(name)",
+          )
+          .eq("status", "accepted")
+          .order("invited_at", { ascending: false });
+
+        mappedProfessionals = (data ?? []) as unknown as ClinicProfessionalOption[];
+      }
+
+      setClinicProfessionals(mappedProfessionals);
     }
 
     loadClinicProfessionals();
-  }, [accountType]);
+  }, [accountType, activeWorkspace?.id, activeWorkspace?.type]);
 
   if (authError) {
     return <DashboardLoading error={authError} />;
@@ -104,13 +157,17 @@ export default function NewAppointmentPage() {
     );
   }
 
-  if (loading || !loaded || !planLoaded || !treatmentsLoaded) {
+  if (loading || !loaded || !planLoaded || !treatmentsLoaded || !workspaceLoaded) {
     return <DashboardLoading />;
   }
 
+  const effectiveAccountType =
+    activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
+  const canManageClinicSchedule =
+    activeWorkspace?.type !== "CLINICA" || activeWorkspace.role === "ADMIN";
   const independentPracticeBlocked = false;
   const clinicPlanBlocked =
-    accountType === "CONSULTORIO" &&
+    effectiveAccountType === "CONSULTORIO" &&
     !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));
   const patientLimitBlock = getPatientPlanLimitBlock({
     activePatientCount: activePatients.length,
@@ -174,7 +231,12 @@ export default function NewAppointmentPage() {
     setError("");
 
     try {
-      if (accountType === "CONSULTORIO") {
+      if (effectiveAccountType === "CONSULTORIO") {
+        if (!canManageClinicSchedule) {
+          setError("Solo el administrador de la clinica puede crear turnos.");
+          return;
+        }
+
         if (clinicPlanBlocked) {
           setError(
             "Para crear turnos del consultorio necesitás una suscripción activa del Plan Consultorio.",
@@ -198,10 +260,25 @@ export default function NewAppointmentPage() {
           return;
         }
 
+        const { getSupabaseClient } = await import("@/lib/supabase");
+        const supabase = getSupabaseClient();
+        let clinicProfessionalId = selectedProfessional.id;
+        const { data: clinicProfessionalLink } = await supabase
+          .from("clinic_professionals")
+          .select("id")
+          .eq("clinic_id", selectedProfessional.clinic_id)
+          .eq("professional_id", selectedProfessional.professional_id)
+          .eq("status", "accepted")
+          .maybeSingle();
+
+        if ((clinicProfessionalLink as { id?: string } | null)?.id) {
+          clinicProfessionalId = (clinicProfessionalLink as { id: string }).id;
+        }
+
         await addClinicAppointment({
           ...appointment,
           clinicId: selectedProfessional.clinic_id,
-          clinicProfessionalId: selectedProfessional.id,
+          clinicProfessionalId,
           professionalId: selectedProfessional.professional_id,
         });
       } else {
@@ -260,7 +337,7 @@ export default function NewAppointmentPage() {
             </section>
           ) : null}
 
-          {accountType === "CONSULTORIO" && clinicProfessionals.length === 0 ? (
+          {effectiveAccountType === "CONSULTORIO" && clinicProfessionals.length === 0 ? (
             <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
               Para crear un turno, primero tenés que agregar un kinesiólogo al
               consultorio y esperar que acepte la invitación.
@@ -271,6 +348,12 @@ export default function NewAppointmentPage() {
             <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
               Para crear turnos del consultorio necesitás una suscripción activa
               del Plan Consultorio.
+            </section>
+          ) : null}
+
+          {!canManageClinicSchedule ? (
+            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
+              Solo el administrador de la clinica puede crear turnos.
             </section>
           ) : null}
 
@@ -291,7 +374,7 @@ export default function NewAppointmentPage() {
             onSubmit={handleSubmit}
           >
             <div className="grid gap-4 md:grid-cols-2">
-              {accountType === "CONSULTORIO" ? (
+              {effectiveAccountType === "CONSULTORIO" ? (
                 <label className="block md:col-span-2">
                   <span className="text-sm font-semibold text-slate-700">
                     Kinesiólogo
@@ -472,7 +555,8 @@ export default function NewAppointmentPage() {
                   Boolean(patientLimitBlock) ||
                   independentPracticeBlocked ||
                   clinicPlanBlocked ||
-                  (accountType === "CONSULTORIO" &&
+                  !canManageClinicSchedule ||
+                  (effectiveAccountType === "CONSULTORIO" &&
                     clinicProfessionals.length === 0)
                 }
                 title={patientLimitBlock ?? undefined}

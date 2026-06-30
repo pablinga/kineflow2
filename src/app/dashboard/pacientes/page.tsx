@@ -21,6 +21,7 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { usePatients, type NewPatientInput, type Patient } from "@/hooks/usePatients";
+import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useTreatments, type NewTreatmentInput } from "@/hooks/useTreatments";
@@ -57,6 +58,7 @@ function getPatientInitials(name: string) {
 
 export default function PatientsPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
+  const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const {
     addPatient,
     disablePatient,
@@ -135,25 +137,29 @@ export default function PatientsPage() {
     );
   }
 
-  if (loading || !loaded || !planLoaded) {
+  if (loading || !loaded || !planLoaded || !workspaceLoaded) {
     return <DashboardLoading />;
   }
 
+  const effectiveAccountType =
+    activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
+  const canManagePatients =
+    activeWorkspace?.type !== "CLINICA" || activeWorkspace.role === "ADMIN";
   const activePatients = patients.filter(
     (patient) => patient.status === "Activo",
   );
   const clinicPracticeBlocked =
-    accountType === "CONSULTORIO" &&
+    effectiveAccountType === "CONSULTORIO" &&
     !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));
   const canCreateCurrentPatient = canCreatePatient({
-    accountType,
+    accountType: effectiveAccountType,
     activePatientCount: activePatients.length,
     patientLimit: plan.limitePacientes,
     plan: plan.plan,
     planStatus: plan.estadoPlan,
   });
   const freeLimitReached =
-    accountType === "KINESIOLOGO" &&
+    effectiveAccountType === "KINESIOLOGO" &&
     plan.plan === "FREE" &&
     plan.limitePacientes !== null &&
     plan.limitePacientes >= 0 &&
@@ -218,6 +224,11 @@ export default function PatientsPage() {
 
       if (patientLimitBlock) {
         setActionError(patientLimitBlock);
+        return;
+      }
+
+      if (!canManagePatients) {
+        setActionError("Solo el administrador de la clinica puede crear pacientes.");
         return;
       }
 
@@ -365,16 +376,18 @@ export default function PatientsPage() {
             <CalendarPlus className="h-5 w-5" />
           </Link>
         )}
-        <button
-          aria-label="Editar paciente"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-          onClick={() => openEditPatient(patient)}
-          title="Editar paciente"
-          type="button"
-        >
-          <Pencil className="h-5 w-5" />
-        </button>
-        {patient.status === "Activo" ? (
+        {canManagePatients ? (
+          <button
+            aria-label="Editar paciente"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+            onClick={() => openEditPatient(patient)}
+            title="Editar paciente"
+            type="button"
+          >
+            <Pencil className="h-5 w-5" />
+          </button>
+        ) : null}
+        {canManagePatients && patient.status === "Activo" ? (
           <button
             aria-label="Deshabilitar"
             className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50 hover:text-red-700"
@@ -384,7 +397,7 @@ export default function PatientsPage() {
           >
             <UserX className="h-5 w-5" />
           </button>
-        ) : (
+        ) : canManagePatients ? (
           <button
             aria-label="Reactivar"
             className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700"
@@ -394,7 +407,7 @@ export default function PatientsPage() {
           >
             <UserCheck className="h-5 w-5" />
           </button>
-        )}
+        ) : null}
       </div>
     );
   }
@@ -406,8 +419,13 @@ export default function PatientsPage() {
           <PageHeader
             actions={
             <button
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => {
+                if (!canManagePatients) {
+                  setActionError("Solo el administrador de la clinica puede crear pacientes.");
+                  return;
+                }
+
                 if (patientLimitBlock) {
                   setActionError(patientLimitBlock);
                   return;
@@ -427,7 +445,7 @@ export default function PatientsPage() {
                 setActionError("");
                 setShowForm((value) => !value);
               }}
-              disabled={Boolean(patientLimitBlock)}
+              disabled={Boolean(patientLimitBlock) || !canManagePatients}
               title={patientLimitBlock ?? undefined}
               type="button"
             >

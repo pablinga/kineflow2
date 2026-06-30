@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
-import { useActiveClinic } from "@/hooks/useActiveClinic";
+import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export type PatientStatus = "Activo" | "Inactivo";
@@ -165,16 +165,16 @@ const patientPaymentStatusLabels: Record<
 export function usePatients() {
   const { accountType } = useRequireAuth();
   const {
-    clinic: activeClinic,
-    error: activeClinicError,
-    loaded: activeClinicLoaded,
-  } = useActiveClinic(accountType === "CONSULTORIO");
+    activeWorkspace,
+    error: activeWorkspaceError,
+    loaded: activeWorkspaceLoaded,
+  } = useActiveWorkspace();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
 
   const loadPatients = useCallback(async () => {
-    if (accountType === "CONSULTORIO" && !activeClinicLoaded) {
+    if (!activeWorkspaceLoaded) {
       return;
     }
 
@@ -190,8 +190,14 @@ export function usePatients() {
         throw new Error("No pudimos identificar al usuario.");
       }
 
-      if (accountType === "CONSULTORIO" && activeClinicError) {
-        setError(activeClinicError);
+      if (activeWorkspaceError) {
+        setError(activeWorkspaceError);
+        setPatients([]);
+        return;
+      }
+
+      if (!activeWorkspace?.id) {
+        setError("No encontramos un espacio de trabajo activo.");
         setPatients([]);
         return;
       }
@@ -204,21 +210,7 @@ export function usePatients() {
         .order("status", { ascending: true })
         .order("full_name", { ascending: true });
 
-      if (accountType === "CONSULTORIO") {
-        if (!activeClinic?.id) {
-          setError("No encontramos un consultorio asociado a tu usuario.");
-          setPatients([]);
-          return;
-        }
-
-        patientQuery = patientQuery
-          .eq("owner_id", sessionData.user.id)
-          .eq("clinic_id", activeClinic.id);
-      } else {
-        patientQuery = patientQuery
-          .eq("owner_id", sessionData.user.id)
-          .is("clinic_id", null);
-      }
+      patientQuery = patientQuery.eq("workspace_id", activeWorkspace.id);
 
       const { data, error: queryError } = await patientQuery;
 
@@ -244,12 +236,8 @@ export function usePatients() {
         .select("patient_id, session_date, clinical_notes")
         .in("patient_id", patientIds);
 
-      if (accountType === "CONSULTORIO") {
-        appointmentsQuery = appointmentsQuery.eq("clinic_id", activeClinic?.id ?? "");
-      } else {
-        appointmentsQuery = appointmentsQuery.eq("owner_id", sessionData.user.id);
-        evolutionsQuery = evolutionsQuery.eq("owner_id", sessionData.user.id);
-      }
+      appointmentsQuery = appointmentsQuery.eq("workspace_id", activeWorkspace.id);
+      evolutionsQuery = evolutionsQuery.eq("workspace_id", activeWorkspace.id);
 
       const [
         { data: appointmentsData, error: appointmentsError },
@@ -284,7 +272,7 @@ export function usePatients() {
     } finally {
       setLoaded(true);
     }
-  }, [accountType, activeClinic?.id, activeClinicError, activeClinicLoaded]);
+  }, [activeWorkspace?.id, activeWorkspaceError, activeWorkspaceLoaded]);
 
   useEffect(() => {
     loadPatients();
@@ -295,23 +283,23 @@ export function usePatients() {
       patients.filter(
         (patient) =>
           patient.status === "Activo" &&
-          (accountType === "CONSULTORIO"
+          (activeWorkspace?.type === "CLINICA"
             ? Boolean(patient.clinicId)
             : !patient.clinicId),
       ),
-    [accountType, patients],
+    [activeWorkspace?.type, patients],
   );
 
   async function findDuplicatePatient(params: {
     document: string;
     excludePatientId?: string;
-    ownerId: string;
+    workspaceId: string;
   }) {
     const supabase = getSupabaseClient();
     let query = supabase
       .from("patients")
       .select("id, full_name")
-      .eq("owner_id", params.ownerId)
+      .eq("workspace_id", params.workspaceId)
       .eq("document_number", params.document)
       .limit(1);
 
@@ -341,9 +329,13 @@ export function usePatients() {
       throw new Error("No pudimos identificar al usuario.");
     }
 
-    let clinicId: string | null = null;
+    if (!activeWorkspace?.id) {
+      throw new Error("No encontramos un espacio de trabajo activo.");
+    }
 
-    if (accountType === "CONSULTORIO") {
+    let clinicId: string | null = activeWorkspace.sourceClinicId;
+
+    if (!clinicId && accountType === "CONSULTORIO") {
       const { data: clinicData, error: clinicError } = await supabase
         .from("clinics")
         .select("id")
@@ -364,7 +356,7 @@ export function usePatients() {
 
     const duplicatePatient = await findDuplicatePatient({
       document: normalizedInput.document,
-      ownerId: sessionData.user.id,
+      workspaceId: activeWorkspace.id,
     });
 
     if (duplicatePatient) {
@@ -377,6 +369,7 @@ export function usePatients() {
       .from("patients")
       .insert({
         owner_id: sessionData.user.id,
+        workspace_id: activeWorkspace.id,
         clinic_id: clinicId,
         full_name: normalizedInput.name,
         document_number: normalizedInput.document,
@@ -412,7 +405,7 @@ export function usePatients() {
     const duplicatePatient = await findDuplicatePatient({
       document: normalizedInput.document,
       excludePatientId: id,
-      ownerId: sessionData.user.id,
+      workspaceId: activeWorkspace?.id ?? "",
     });
 
     if (duplicatePatient) {
@@ -431,7 +424,7 @@ export function usePatients() {
         phone: normalizedInput.phone || null,
         status: mapPatientStatusToDb(normalizedInput.status),
       })
-      .eq("owner_id", sessionData.user.id)
+      .eq("workspace_id", activeWorkspace?.id ?? "")
       .eq("id", id);
 
     if (updateError) {
@@ -458,7 +451,7 @@ export function usePatients() {
         status: "inactive",
         disabled_at: new Date().toISOString(),
       })
-      .eq("owner_id", sessionData.user.id)
+      .eq("workspace_id", activeWorkspace?.id ?? "")
       .eq("id", id);
 
     if (updateError) {
@@ -485,7 +478,7 @@ export function usePatients() {
         disabled_at: null,
         status: "active",
       })
-      .eq("owner_id", sessionData.user.id)
+      .eq("workspace_id", activeWorkspace?.id ?? "")
       .eq("id", id);
 
     if (updateError) {

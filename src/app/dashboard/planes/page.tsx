@@ -7,6 +7,7 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { LegalLinks } from "@/components/layout/LegalLinks";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
@@ -17,6 +18,7 @@ import { getPlanDisplayName, plans, type CommercialPlan } from "@/lib/plans";
 
 export default function PlansPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
+  const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const { loaded: patientsLoaded, patients } = usePatients();
   const [selectedPlan, setSelectedPlan] = useState<CommercialPlan | null>(null);
@@ -40,7 +42,7 @@ export default function PlansPage() {
     );
   }
 
-  if (loading || !planLoaded || !patientsLoaded) {
+  if (loading || !planLoaded || !patientsLoaded || !workspaceLoaded) {
     return <DashboardLoading />;
   }
 
@@ -92,7 +94,10 @@ export default function PlansPage() {
       }
 
       const response = await fetch("/api/billing/create-subscription", {
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({
+          planId,
+          workspaceId: activeWorkspace?.id ?? null,
+        }),
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",

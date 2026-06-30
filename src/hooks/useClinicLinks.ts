@@ -154,12 +154,15 @@ export function useClinicLinks() {
         throw new Error("No pudimos identificar al usuario.");
       }
 
+      const userEmail = sessionData.user.email?.trim().toLowerCase() ?? "";
       const { data, error: queryError } = await supabase
         .from("clinic_professionals")
         .select(
           "id, clinic_id, status, invited_at, responded_at, color, role, clinics(name, email, phone, address), clinic_professional_availability(id, weekday, starts_at, ends_at, active, valid_from, valid_to)",
         )
-        .eq("professional_id", sessionData.user.id)
+        .or(
+          `professional_id.eq.${sessionData.user.id},and(professional_id.is.null,professional_email.eq.${userEmail})`,
+        )
         .order("invited_at", { ascending: false });
 
       if (queryError) {
@@ -202,7 +205,6 @@ export function useClinicLinks() {
         responded_at: new Date().toISOString(),
         status,
       })
-      .eq("professional_id", sessionData.user.id)
       .eq("id", id);
 
     if (updateError) {

@@ -7,6 +7,7 @@ import {
   Building2,
   CalendarDays,
   CreditCard,
+  ChevronsUpDown,
   Home,
   Loader2,
   LogOut,
@@ -26,6 +27,11 @@ import {
   resetSubscriptionPlanSnapshot,
   useSubscriptionPlan,
 } from "@/hooks/useSubscriptionPlan";
+import {
+  resetWorkspaceSnapshot,
+  useActiveWorkspace,
+  type WorkspaceType,
+} from "@/hooks/useActiveWorkspace";
 import { shouldShowClinicFeatures } from "@/lib/features";
 
 const LOGOUT_TIMEOUT_MS = 5000;
@@ -83,6 +89,10 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   ]);
 }
 
+function getWorkspaceTypeLabel(type: WorkspaceType) {
+  return type === "CLINICA" ? "Clinica" : "Personal";
+}
+
 export function DashboardSidebar() {
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -91,15 +101,23 @@ export function DashboardSidebar() {
   const router = useRouter();
   const { accountType, loading } = useRequireAuth();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
+  const {
+    activeWorkspace,
+    loaded: workspaceLoaded,
+    selectWorkspace,
+    workspaces,
+  } = useActiveWorkspace();
+  const effectiveAccountType =
+    activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
   const baseNavigation =
-    accountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE"
+    effectiveAccountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE"
       ? navigation.KINESIOLOGO.filter(
           (item) =>
             !["/dashboard/pacientes", "/dashboard/ingresos"].includes(
               item.href,
             ),
         )
-      : navigation[accountType];
+      : navigation[effectiveAccountType];
   const visibleNavigation = shouldShowClinicFeatures()
     ? baseNavigation
     : baseNavigation.filter(
@@ -131,6 +149,7 @@ export function DashboardSidebar() {
       console.info("[logout] Supabase signOut completed");
       resetAuthSnapshot();
       resetSubscriptionPlanSnapshot();
+      resetWorkspaceSnapshot();
       clearSupabaseLocalSession();
       router.replace("/login");
       router.refresh();
@@ -146,6 +165,7 @@ export function DashboardSidebar() {
         );
         resetAuthSnapshot();
         resetSubscriptionPlanSnapshot();
+        resetWorkspaceSnapshot();
         clearSupabaseLocalSession();
         window.location.replace("/login");
         return;
@@ -190,8 +210,42 @@ export function DashboardSidebar() {
             <PanelLeftClose className="h-5 w-5" />
           </button>
         </div>
+        {!loading && workspaceLoaded && workspaces.length > 0 ? (
+          <div className="mb-5">
+            <label className="block text-xs font-bold uppercase tracking-wide text-slate-400">
+              Espacio
+            </label>
+            {workspaces.length > 1 ? (
+              <div className="relative mt-2">
+                <select
+                  className="min-h-11 w-full appearance-none rounded-lg border border-ocean-100 bg-ocean-50 px-3 pr-10 text-sm font-semibold text-ink outline-none transition focus:border-ocean-400"
+                  onChange={(event) => selectWorkspace(event.target.value)}
+                  value={activeWorkspace?.id ?? ""}
+                >
+                  {workspaces.map((workspace) => (
+                    <option key={workspace.id} value={workspace.id}>
+                      {workspace.name} - {getWorkspaceTypeLabel(workspace.type)}
+                    </option>
+                  ))}
+                </select>
+                <ChevronsUpDown className="pointer-events-none absolute right-3 top-3 h-5 w-5 text-ocean-700" />
+              </div>
+            ) : (
+              <div className="mt-2 rounded-lg border border-ocean-100 bg-ocean-50 px-3 py-3">
+                <p className="truncate text-sm font-bold text-ink">
+                  {activeWorkspace?.name}
+                </p>
+                <p className="mt-0.5 text-xs font-semibold text-ocean-700">
+                  {activeWorkspace
+                    ? getWorkspaceTypeLabel(activeWorkspace.type)
+                    : ""}
+                </p>
+              </div>
+            )}
+          </div>
+        ) : null}
         <nav className="hidden space-y-1 lg:block">
-          {loading || !planLoaded ? (
+          {loading || !planLoaded || !workspaceLoaded ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((item) => (
                 <div className="h-11 rounded-lg bg-ocean-50" key={item} />
@@ -256,7 +310,7 @@ export function DashboardSidebar() {
           </p>
         ) : null}
       </aside>
-      {!loading && planLoaded ? (
+      {!loading && planLoaded && workspaceLoaded ? (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ocean-100 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-soft backdrop-blur lg:hidden">
           <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
             {visibleNavigation.slice(0, 5).map((item) => {

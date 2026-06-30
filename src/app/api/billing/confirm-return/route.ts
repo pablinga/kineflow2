@@ -18,15 +18,21 @@ function parseExternalReference(reference: unknown) {
     return null;
   }
 
-  const [accountId, planCode] = reference.split(":");
+  const parts = reference.split(":");
+  const [accountId, planCode] = parts;
 
   if (!accountId || !planCode) {
     return null;
   }
 
+  const hasWorkspaceSegment = parts.length >= 4;
+  const workspaceId = hasWorkspaceSegment ? parts[2] : null;
+
   return {
     accountId,
     planCode: planCode as CommercialPlan,
+    workspaceId:
+      workspaceId && workspaceId !== "account" ? workspaceId : null,
   };
 }
 
@@ -121,6 +127,7 @@ export async function POST(request: Request) {
           admin,
           planCode: parsed?.planCode === "INDEPENDIENTE" ? parsed.planCode : "INDEPENDIENTE",
           providerSubscription,
+          workspaceId: parsed?.workspaceId ?? undefined,
         });
       } else if (!belongsToUser) {
         console.warn("[billing:confirm-return] Preapproval does not belong to user", {

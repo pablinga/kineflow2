@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { useActiveClinic } from "@/hooks/useActiveClinic";
+import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { usePatients } from "@/hooks/usePatients";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
@@ -316,6 +317,11 @@ function markAppointmentConflicts(appointments: Appointment[]) {
 
 export function useAppointments(patientId?: string) {
   const { accountType } = useRequireAuth();
+  const {
+    activeWorkspace,
+    error: activeWorkspaceError,
+    loaded: activeWorkspaceLoaded,
+  } = useActiveWorkspace();
   const { activePatients } = usePatients();
   const { plan } = useSubscriptionPlan();
   const {
@@ -328,7 +334,7 @@ export function useAppointments(patientId?: string) {
   const [error, setError] = useState("");
 
   const loadAppointments = useCallback(async () => {
-    if (accountType === "CONSULTORIO" && !activeClinicLoaded) {
+    if (!activeWorkspaceLoaded) {
       return;
     }
 
@@ -351,25 +357,19 @@ export function useAppointments(patientId?: string) {
         )
         .order("scheduled_at", { ascending: true });
 
-      if (accountType === "CONSULTORIO") {
-        if (activeClinicError) {
-          setError(activeClinicError);
-          setAppointments([]);
-          return;
-        }
-
-        if (!activeClinic?.id) {
-          setError("No encontramos un consultorio asociado a tu usuario.");
-          setAppointments([]);
-          return;
-        }
-
-        query = query.eq("clinic_id", activeClinic.id);
-      } else {
-        query = query
-          .eq("owner_id", sessionData.user.id)
-          .is("clinic_id", null);
+      if (activeWorkspaceError) {
+        setError(activeWorkspaceError);
+        setAppointments([]);
+        return;
       }
+
+      if (!activeWorkspace?.id) {
+        setError("No encontramos un espacio de trabajo activo.");
+        setAppointments([]);
+        return;
+      }
+
+      query = query.eq("workspace_id", activeWorkspace.id);
 
       if (patientId) {
         query = query.eq("patient_id", patientId);
@@ -394,7 +394,7 @@ export function useAppointments(patientId?: string) {
     } finally {
       setLoaded(true);
     }
-  }, [accountType, activeClinic?.id, activeClinicError, activeClinicLoaded, patientId]);
+  }, [activeWorkspace?.id, activeWorkspaceError, activeWorkspaceLoaded, patientId]);
 
   useEffect(() => {
     loadAppointments();
@@ -492,6 +492,10 @@ export function useAppointments(patientId?: string) {
       throw new Error("No pudimos identificar al usuario.");
     }
 
+    if (!activeWorkspace?.id) {
+      throw new Error("No encontramos un espacio de trabajo activo.");
+    }
+
     const scheduledAt = new Date(`${input.date}T${input.time}`).toISOString();
     await validateAppointmentSlot({
       durationMinutes: input.durationMinutes,
@@ -500,6 +504,7 @@ export function useAppointments(patientId?: string) {
 
     const { error: insertError } = await supabase.from("appointments").insert({
       owner_id: sessionData.user.id,
+      workspace_id: activeWorkspace.id,
       patient_id: input.patientId,
       scheduled_at: scheduledAt,
       duration_minutes: input.durationMinutes,
@@ -524,6 +529,7 @@ export function useAppointments(patientId?: string) {
     const supabase = getSupabaseClient();
     const { error: insertError } = await supabase.from("appointments").insert({
       owner_id: input.professionalId,
+      workspace_id: activeWorkspace?.id ?? null,
       patient_id: input.patientId,
       scheduled_at: scheduledAt,
       duration_minutes: input.durationMinutes,
@@ -599,7 +605,9 @@ export function useAppointments(patientId?: string) {
       })
       .eq("id", id);
 
-    if (accountType === "CONSULTORIO") {
+    if (activeWorkspace?.id) {
+      query = query.eq("workspace_id", activeWorkspace.id);
+    } else if (accountType === "CONSULTORIO") {
       query = query.eq("clinic_id", activeClinic?.id ?? "");
     } else {
       const { data: sessionData, error: sessionError } =
@@ -637,7 +645,9 @@ export function useAppointments(patientId?: string) {
       })
       .eq("id", id);
 
-    if (accountType === "CONSULTORIO") {
+    if (activeWorkspace?.id) {
+      query = query.eq("workspace_id", activeWorkspace.id);
+    } else if (accountType === "CONSULTORIO") {
       query = query.eq("clinic_id", activeClinic?.id ?? "");
     } else {
       const { data: sessionData, error: sessionError } =

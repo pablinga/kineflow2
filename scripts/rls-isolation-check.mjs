@@ -16,6 +16,7 @@ const password = `QA-rls-${runId}-pass`;
 const users = [
   { email: `rls-a-${runId}@example.com`, id: "" },
   { email: `rls-b-${runId}@example.com`, id: "" },
+  { email: `rls-c-${runId}@example.com`, id: "" },
 ];
 
 const admin = createClient(supabaseUrl, serviceRoleKey, {
@@ -81,6 +82,7 @@ try {
 
   const userA = await signIn(users[0]);
   const userB = await signIn(users[1]);
+  const userC = await signIn(users[2]);
 
   const { data: patient, error: patientError } = await userA
     .from("patients")
@@ -182,7 +184,145 @@ try {
     "Usuario B pudo editar turno/cobro A.",
   );
 
-  console.info("ok - RLS aisla pacientes, turnos, evoluciones y cobros entre usuarios.");
+  const { data: clinic, error: clinicError } = await admin
+    .from("clinics")
+    .insert({
+      address: "Direccion RLS ficticia",
+      email: `clinica-${runId}@example.com`,
+      name: "Clinica RLS",
+      owner_id: users[0].id,
+      phone: "+54 11 5555 1000",
+    })
+    .select("id")
+    .single();
+
+  if (clinicError || !clinic?.id) {
+    throw new Error(clinicError?.message ?? "No se pudo crear clinica RLS.");
+  }
+
+  const { data: workspace, error: workspaceError } = await admin
+    .from("workspaces")
+    .select("id")
+    .eq("source_clinic_id", clinic.id)
+    .maybeSingle();
+
+  if (workspaceError || !workspace?.id) {
+    throw new Error(
+      workspaceError?.message ?? "No se pudo obtener workspace de clinica RLS.",
+    );
+  }
+
+  const { error: memberError } = await admin.from("workspace_members").insert({
+    email: users[2].email,
+    role: "KINESIOLOGO",
+    status: "accepted",
+    user_id: users[2].id,
+    workspace_id: workspace.id,
+  });
+
+  if (memberError) {
+    throw new Error(memberError.message);
+  }
+
+  const { data: assignedClinicPatient, error: assignedClinicPatientError } =
+    await admin
+      .from("patients")
+      .insert({
+        clinic_id: clinic.id,
+        document_number: `RLS-CLINIC-A-${runId}`,
+        email: `asignado-${runId}@example.com`,
+        full_name: "Paciente Clinica Asignado",
+        initial_condition: "Dato ficticio asignado",
+        owner_id: users[0].id,
+        phone: "+54 11 5555 1101",
+        status: "active",
+        workspace_id: workspace.id,
+      })
+      .select("id")
+      .single();
+
+  if (assignedClinicPatientError || !assignedClinicPatient?.id) {
+    throw new Error(
+      assignedClinicPatientError?.message ??
+        "No se pudo crear paciente asignado.",
+    );
+  }
+
+  const { data: unassignedClinicPatient, error: unassignedClinicPatientError } =
+    await admin
+      .from("patients")
+      .insert({
+        clinic_id: clinic.id,
+        document_number: `RLS-CLINIC-U-${runId}`,
+        email: `no-asignado-${runId}@example.com`,
+        full_name: "Paciente Clinica No Asignado",
+        initial_condition: "Dato ficticio no asignado",
+        owner_id: users[0].id,
+        phone: "+54 11 5555 1102",
+        status: "active",
+        workspace_id: workspace.id,
+      })
+      .select("id")
+      .single();
+
+  if (unassignedClinicPatientError || !unassignedClinicPatient?.id) {
+    throw new Error(
+      unassignedClinicPatientError?.message ??
+        "No se pudo crear paciente no asignado.",
+    );
+  }
+
+  const { error: assignmentError } = await admin
+    .from("patient_assignments")
+    .insert({
+      assigned_by: users[0].id,
+      patient_id: assignedClinicPatient.id,
+      professional_id: users[2].id,
+      workspace_id: workspace.id,
+    });
+
+  if (assignmentError) {
+    throw new Error(assignmentError.message);
+  }
+
+  const [
+    clinicAssignedFromC,
+    clinicUnassignedFromC,
+    clinicAssignedFromB,
+    clinicPatientsFromA,
+  ] = await Promise.all([
+    userC.from("patients").select("id").eq("id", assignedClinicPatient.id),
+    userC.from("patients").select("id").eq("id", unassignedClinicPatient.id),
+    userB.from("patients").select("id").eq("id", assignedClinicPatient.id),
+    userA
+      .from("patients")
+      .select("id")
+      .eq("workspace_id", workspace.id)
+      .order("full_name"),
+  ]);
+
+  await must(!clinicAssignedFromC.error, clinicAssignedFromC.error?.message);
+  await must(!clinicUnassignedFromC.error, clinicUnassignedFromC.error?.message);
+  await must(!clinicAssignedFromB.error, clinicAssignedFromB.error?.message);
+  await must(!clinicPatientsFromA.error, clinicPatientsFromA.error?.message);
+  await must(
+    clinicAssignedFromC.data.length === 1,
+    "Kinesiologo asignado no pudo ver su paciente de clinica.",
+  );
+  await must(
+    clinicUnassignedFromC.data.length === 0,
+    "Kinesiologo pudo ver paciente no asignado de clinica.",
+  );
+  await must(
+    clinicAssignedFromB.data.length === 0,
+    "Usuario externo pudo ver paciente de clinica.",
+  );
+  await must(
+    clinicPatientsFromA.data.length === 2,
+    "Admin de clinica no pudo ver todos los pacientes.",
+  );
+
+  console.info("ok - RLS aisla usuarios y pacientes de clinica por asignacion.");
 } catch (error) {
   console.error(
     "[rls-isolation-check] Acceso indebido o error de configuracion detectado:",

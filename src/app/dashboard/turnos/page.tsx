@@ -33,6 +33,7 @@ import {
 import { paymentStatusStyles } from "@/lib/payment-ui";
 import { formatDate, formatSessionAmount } from "@/lib/format";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
+import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { usePatients } from "@/hooks/usePatients";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
@@ -174,6 +175,7 @@ function actionToneClass(tone: PendingAction["tone"]) {
 
 export default function AppointmentsPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
+  const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const { activePatients, loaded: patientsLoaded } = usePatients();
   const {
@@ -412,15 +414,20 @@ export default function AppointmentsPage() {
     );
   }
 
-  if (loading || !loaded || !planLoaded || !patientsLoaded) {
+  if (loading || !loaded || !planLoaded || !patientsLoaded || !workspaceLoaded) {
     return <DashboardLoading />;
   }
 
+  const effectiveAccountType =
+    activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
+  const canManageClinicSchedule =
+    activeWorkspace?.type !== "CLINICA" || activeWorkspace.role === "ADMIN";
   const canCreateAppointment =
-    (accountType === "CONSULTORIO" &&
+    ((effectiveAccountType === "CONSULTORIO" &&
       plan.estadoPlan === "ACTIVO" &&
       plan.plan.startsWith("CONSULTORIO_")) ||
-    accountType === "KINESIOLOGO";
+      effectiveAccountType === "KINESIOLOGO") &&
+    canManageClinicSchedule;
   const patientLimitBlock = getPatientPlanLimitBlock({
     activePatientCount: activePatients.length,
     patientLimit: plan.limitePacientes,
@@ -957,7 +964,7 @@ export default function AppointmentsPage() {
             </section>
           ) : null}
 
-          {!patientLimitBlock && accountType === "KINESIOLOGO" && !canCreateAppointment ? (
+          {!patientLimitBlock && effectiveAccountType === "KINESIOLOGO" && !canCreateAppointment ? (
             <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm sm:mt-6">
               Con el Plan Free podés probar KineFlow con hasta 5 pacientes.
               Para programar turnos propios y gestionar pacientes ilimitados,

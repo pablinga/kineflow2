@@ -11,6 +11,7 @@ import {
   useClinicAdmin,
 } from "@/hooks/useClinicAdmin";
 import { weekdayLabels } from "@/hooks/useClinicLinks";
+import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
@@ -32,6 +33,7 @@ export default function ClinicsAdminPage() {
     loading,
     redirecting,
   } = useRequireAuth();
+  const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const {
     clinics,
@@ -41,6 +43,7 @@ export default function ClinicsAdminPage() {
     searchProfessionalByLicense,
   } = useClinicAdmin();
   const [licenseQuery, setLicenseQuery] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
   const [foundProfessional, setFoundProfessional] =
     useState<ProfessionalSearchResult | null>(null);
   const [inviteClinicId, setInviteClinicId] = useState("");
@@ -77,11 +80,16 @@ export default function ClinicsAdminPage() {
     );
   }
 
-  if (loading || !loaded || !planLoaded) {
+  if (loading || !loaded || !planLoaded || !workspaceLoaded) {
     return <DashboardLoading />;
   }
 
-  if (accountType !== "CONSULTORIO") {
+  const effectiveAccountType =
+    activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
+  const canManageClinic =
+    activeWorkspace?.type === "CLINICA" && activeWorkspace.role === "ADMIN";
+
+  if (effectiveAccountType !== "CONSULTORIO" || !canManageClinic) {
     return (
       <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
         <DashboardSidebar />
@@ -150,8 +158,23 @@ export default function ClinicsAdminPage() {
   async function handleInvite(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!foundProfessional) {
-      setActionError("Primero busca y seleccióna un kinesiólogo registrado.");
+    const normalizedEmail = inviteEmail.trim().toLowerCase();
+    const invitationTarget = foundProfessional
+      ? {
+          email: foundProfessional.email,
+          fullName: foundProfessional.fullName,
+          id: foundProfessional.id,
+        }
+      : normalizedEmail
+        ? {
+            email: normalizedEmail,
+            fullName: normalizedEmail,
+            id: null,
+          }
+        : null;
+
+    if (!invitationTarget) {
+      setActionError("Buscá un kinesiólogo por matrícula o ingresá un email.");
       return;
     }
 
@@ -165,9 +188,10 @@ export default function ClinicsAdminPage() {
         clinicId: selectedClinicId,
         color: inviteColor,
         maxProfessionals: plan.cantidadKinesiologos,
-        professional: foundProfessional,
+        professional: invitationTarget,
       });
       setLicenseQuery("");
+      setInviteEmail("");
       setFoundProfessional(null);
       setAvailability([emptyAvailability]);
       setMessage("Invitación creada en estado pendiente.");
@@ -228,7 +252,7 @@ export default function ClinicsAdminPage() {
                     Buscar por matrícula
                   </h2>
                   <p className="text-sm text-slate-500">
-                    Solo se pueden invitar usuarios ya registrados.
+                    Podés buscar usuarios registrados o invitar por email.
                   </p>
                 </div>
               </div>
@@ -278,6 +302,19 @@ export default function ClinicsAdminPage() {
                   </div>
                 </div>
               ) : null}
+
+              <label className="mt-5 block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Invitar por email
+                </span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                  placeholder="profesional@email.com"
+                  type="email"
+                  value={inviteEmail}
+                />
+              </label>
             </form>
 
             <form
@@ -432,7 +469,7 @@ export default function ClinicsAdminPage() {
                 disabled={
                   saving === "invite" ||
                   clinics.length === 0 ||
-                  !foundProfessional
+                  (!foundProfessional && !inviteEmail.trim())
                 }
                 type="submit"
               >

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
+import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 
 export type TreatmentStatus =
   | "EN_CURSO"
@@ -69,11 +70,20 @@ function mapTreatment(row: TreatmentRow): Treatment {
 }
 
 export function useTreatments(patientId?: string) {
+  const {
+    activeWorkspace,
+    error: activeWorkspaceError,
+    loaded: activeWorkspaceLoaded,
+  } = useActiveWorkspace();
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
 
   const loadTreatments = useCallback(async () => {
+    if (!activeWorkspaceLoaded) {
+      return;
+    }
+
     setLoaded(false);
     setError("");
 
@@ -86,12 +96,24 @@ export function useTreatments(patientId?: string) {
         throw new Error("No pudimos identificar al usuario.");
       }
 
+      if (activeWorkspaceError) {
+        setError(activeWorkspaceError);
+        setTreatments([]);
+        return;
+      }
+
+      if (!activeWorkspace?.id) {
+        setError("No encontramos un espacio de trabajo activo.");
+        setTreatments([]);
+        return;
+      }
+
       let query = supabase
         .from("treatments")
         .select(
           "id, patient_id, diagnosis, body_region, total_sessions, used_sessions, status, started_at, ended_at, notes",
         )
-        .eq("owner_id", sessionData.user.id);
+        .eq("workspace_id", activeWorkspace.id);
 
       if (patientId) {
         query = query.eq("patient_id", patientId);
@@ -120,7 +142,7 @@ export function useTreatments(patientId?: string) {
     } finally {
       setLoaded(true);
     }
-  }, [patientId]);
+  }, [activeWorkspace?.id, activeWorkspaceError, activeWorkspaceLoaded, patientId]);
 
   useEffect(() => {
     loadTreatments();
@@ -140,11 +162,16 @@ export function useTreatments(patientId?: string) {
       throw new Error("No pudimos identificar al usuario.");
     }
 
+    if (!activeWorkspace?.id) {
+      throw new Error("No encontramos un espacio de trabajo activo.");
+    }
+
     const { error: insertError } = await supabase.from("treatments").insert({
       body_region: input.bodyRegion.trim() || null,
       diagnosis: input.diagnosis.trim(),
       notes: input.notes.trim() || null,
       owner_id: sessionData.user.id,
+      workspace_id: activeWorkspace.id,
       patient_id: input.patientId,
       started_at: input.startedAt,
       status: "EN_CURSO",
@@ -168,6 +195,10 @@ export function useTreatments(patientId?: string) {
       throw new Error("No pudimos identificar al usuario.");
     }
 
+    if (!activeWorkspace?.id) {
+      throw new Error("No encontramos un espacio de trabajo activo.");
+    }
+
     const { error: updateError } = await supabase
       .from("treatments")
       .update({
@@ -177,7 +208,7 @@ export function useTreatments(patientId?: string) {
             : null,
         status,
       })
-      .eq("owner_id", sessionData.user.id)
+      .eq("workspace_id", activeWorkspace.id)
       .eq("id", id);
 
     if (updateError) {

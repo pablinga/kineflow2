@@ -227,6 +227,8 @@ test("Retorno de Mercado Pago activa solo si preapproval pertenece al usuario", 
   assert.match(source, /getMercadoPagoSubscription\(preapprovalId\)/);
   assert.match(source, /applyMercadoPagoSubscriptionToAccount/);
   assert.match(source, /parsed\?\.accountId === user\.id/);
+  assert.match(source, /parts\.length >= 4/);
+  assert.match(source, /workspaceId: parsed\?\.workspaceId \?\? undefined/);
   assert.match(source, /MERCADOPAGO_PLAN_EXTERNAL_REFERENCES/);
   assert.match(source, /"KINEPART"/);
   assert.match(source, /"KINEINDEP"/);
@@ -253,6 +255,10 @@ test("Checkout de Mercado Pago usa NEXT_PUBLIC_APP_URL y rutas QA reales", () =>
   assert.match(mercadoPago, /failure: `\$\{appUrl\}\/suscripcion-error`/);
   assert.match(createSubscription, /getMercadoPagoSubscriptionCheckoutUrl/);
   assert.match(createSubscription, /getMercadoPagoCheckoutInitPoint/);
+  assert.match(createSubscription, /workspaceId\?: string \| null/);
+  assert.match(createSubscription, /workspace\.type !== "PERSONAL"/);
+  assert.match(createSubscription, /workspace\.owner_id !== user\.id/);
+  assert.match(createSubscription, /\$\{workspaceId \?\? "account"\}/);
   assert.doesNotMatch(createSubscription, /createMercadoPagoSubscriptionPreapproval/);
   assert.doesNotMatch(createSubscription, /card_token_id/);
   assert.match(envExample, /NEXT_PUBLIC_APP_URL=https:\/\/qa\.kineflow\.ar/);
@@ -291,8 +297,11 @@ test("Webhook valida KineFlow Particular y mail posterior a activacion", () => {
   const billingServer = fs.readFileSync("src/lib/billing-server.ts", "utf8");
 
   assert.match(webhook, /parsed\.planCode !== "INDEPENDIENTE"/);
+  assert.match(webhook, /parts\.length >= 4/);
+  assert.match(webhook, /workspaceId: parsed\.workspaceId \?\? undefined/);
   assert.match(webhook, /payment_events/);
   assert.match(billingServer, /internalStatus === "ACTIVE"/);
+  assert.match(billingServer, /subscriptionPayload\.workspace_id = workspaceId/);
   assert.match(billingServer, /sendSubscriptionActivatedEmail/);
 });
 
@@ -422,6 +431,77 @@ test("Limite de pacientes se calcula desde subscriptions y plans", () => {
   assert.doesNotMatch(migration, /profiles\.plan|profiles\.estado_plan|profiles\.limite_pacientes|profiles\.cantidad_kinesiologos/);
   assert.match(seed, /insert into public\.subscriptions/);
   assert.doesNotMatch(seed, /plan,\s*estado_plan|fecha_inicio_plan|limite_pacientes|cantidad_kinesiologos/);
+});
+
+test("Migracion workspace crea base multi-clinica sin duplicar datos clinicos", () => {
+  const migration = fs.readFileSync(
+    "supabase/migrations/202606300001_add_workspaces_foundation.sql",
+    "utf8",
+  );
+
+  assert.match(migration, /create table if not exists public\.workspaces/);
+  assert.match(migration, /type in \('PERSONAL', 'CLINICA'\)/);
+  assert.match(migration, /create table if not exists public\.workspace_members/);
+  assert.match(migration, /role in \('ADMIN', 'KINESIOLOGO'\)/);
+  assert.match(migration, /create table if not exists public\.patient_assignments/);
+  assert.match(migration, /add column if not exists workspace_id uuid references public\.workspaces/);
+  assert.match(migration, /set workspace_id = patients\.workspace_id/);
+  assert.match(migration, /public\.is_workspace_admin/);
+  assert.match(migration, /public\.can_access_workspace_patient/);
+  assert.match(migration, /public\.get_workspace_patient_limit/);
+  assert.match(migration, /public\.ensure_profile_personal_workspace/);
+  assert.match(migration, /public\.ensure_clinic_workspace/);
+  assert.match(migration, /public\.sync_clinic_professional_workspace_member/);
+  assert.match(migration, /public\.set_record_workspace_id/);
+  assert.match(migration, /public\.validate_patient_assignment_workspace/);
+  assert.match(migration, /on public\.workspaces for select/);
+  assert.match(migration, /on public\.workspace_members for select/);
+  assert.match(migration, /on public\.patient_assignments for all/);
+});
+
+test("RLS workspace reemplaza permisos sensibles basados solo en owner_id", () => {
+  const migration = fs.readFileSync(
+    "supabase/migrations/202606300002_harden_workspace_rls.sql",
+    "utf8",
+  );
+
+  assert.match(migration, /can_access_workspace_appointment/);
+  assert.match(migration, /can_manage_workspace_appointment/);
+  assert.match(migration, /can_access_workspace_treatment/);
+  assert.match(migration, /can_insert_workspace_patient/);
+  assert.match(migration, /can_insert_workspace_appointment/);
+  assert.match(migration, /can_insert_workspace_evolution/);
+  assert.match(migration, /get_workspace_patient_limit_block_message/);
+  assert.match(migration, /drop policy if exists "Users can read own patients"/);
+  assert.match(migration, /using \(public\.can_access_workspace_patient\(id\)\)/);
+  assert.match(migration, /on public\.appointments for select/);
+  assert.match(migration, /using \(public\.can_access_workspace_appointment\(id\)\)/);
+  assert.match(migration, /on public\.treatments for select/);
+  assert.match(migration, /workspace_id is not null[\s\S]*public\.is_workspace_admin\(workspace_id\)/);
+  assert.doesNotMatch(migration, /on public\.patients for select[\s\S]{0,120}auth\.uid\(\) = owner_id/);
+});
+
+test("Invitaciones workspace permiten email sin duplicar usuarios", () => {
+  const migration = fs.readFileSync(
+    "supabase/migrations/202606300003_allow_email_workspace_invitations.sql",
+    "utf8",
+  );
+  const clinicAdminHook = fs.readFileSync("src/hooks/useClinicAdmin.ts", "utf8");
+  const clinicLinksHook = fs.readFileSync("src/hooks/useClinicLinks.ts", "utf8");
+  const clinicsPage = fs.readFileSync(
+    "src/app/dashboard/consultorios/page.tsx",
+    "utf8",
+  );
+
+  assert.match(migration, /professional_id is null/);
+  assert.match(migration, /professional_email = public\.current_user_email\(\)/);
+  assert.match(migration, /public\.is_workspace_admin\(public\.get_clinic_workspace_id\(clinic_id\)\)/);
+  assert.match(migration, /Clinics can search kinesiologists/);
+  assert.match(clinicAdminHook, /professional_id: input\.professional\.id/);
+  assert.match(clinicLinksHook, /professional_id\.is\.null/);
+  assert.match(clinicLinksHook, /professional_email\.eq/);
+  assert.match(clinicsPage, /Invitar por email/);
+  assert.match(clinicsPage, /inviteEmail/);
 });
 
 test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => {

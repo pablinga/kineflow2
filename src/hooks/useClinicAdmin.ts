@@ -17,12 +17,18 @@ export type ClinicInvitationInput = {
   clinicId: string;
   color: string;
   maxProfessionals: number;
-  professional: ProfessionalSearchResult;
+  professional: ProfessionalInvitationTarget;
   availability: Array<{
     weekday: number;
     startsAt: string;
     endsAt: string;
   }>;
+};
+
+export type ProfessionalInvitationTarget = {
+  id: string | null;
+  email: string;
+  fullName: string;
 };
 
 export type ProfessionalSearchResult = {

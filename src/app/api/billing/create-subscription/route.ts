@@ -5,10 +5,14 @@ import {
   getSubscriptionReturnUrls,
 } from "@/lib/mercadopago";
 import type { CommercialPlan } from "@/lib/plans";
-import { getSupabaseServerClient } from "@/lib/supabase-server";
+import {
+  getSupabaseAdminClient,
+  getSupabaseServerClient,
+} from "@/lib/supabase-server";
 
 type CreateSubscriptionBody = {
   planId?: CommercialPlan;
+  workspaceId?: string | null;
 };
 
 export async function POST(request: Request) {
@@ -24,6 +28,7 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as CreateSubscriptionBody;
   const planId = body.planId;
+  const workspaceId = body.workspaceId?.trim() || null;
 
   if (planId !== "INDEPENDIENTE") {
     return NextResponse.json(
@@ -45,8 +50,36 @@ export async function POST(request: Request) {
     );
   }
 
+  if (workspaceId) {
+    const admin = getSupabaseAdminClient();
+
+    if (!admin) {
+      return NextResponse.json(
+        { error: "No pudimos validar el espacio de trabajo para iniciar el checkout." },
+        { status: 500 },
+      );
+    }
+
+    const { data: workspace } = await admin
+      .from("workspaces")
+      .select("id, owner_id, type")
+      .eq("id", workspaceId)
+      .maybeSingle();
+
+    if (
+      !workspace ||
+      workspace.type !== "PERSONAL" ||
+      workspace.owner_id !== user.id
+    ) {
+      return NextResponse.json(
+        { error: "Este plan solo puede activarse en tu workspace personal." },
+        { status: 403 },
+      );
+    }
+  }
+
   const returnUrls = getSubscriptionReturnUrls();
-  const externalReference = `${user.id}:${planId}:${crypto.randomUUID()}`;
+  const externalReference = `${user.id}:${planId}:${workspaceId ?? "account"}:${crypto.randomUUID()}`;
   const checkoutUrl = getMercadoPagoSubscriptionCheckoutUrl(planId, {
     backUrl: returnUrls.success,
     externalReference,

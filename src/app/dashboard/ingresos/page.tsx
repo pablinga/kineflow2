@@ -20,12 +20,14 @@ import {
 } from "@/lib/appointment-ui";
 import { formatCurrency, paymentStatusStyles } from "@/lib/payment-ui";
 import { formatSessionAmount } from "@/lib/format";
+import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 export default function IncomePage() {
   const { accountType, authError, displayName, loading, redirecting } =
     useRequireAuth();
+  const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const { appointments, error: appointmentsError, loaded: appointmentsLoaded } =
     useAppointments();
@@ -80,13 +82,25 @@ export default function IncomePage() {
     );
   }
 
-  if (loading || !appointmentsLoaded || !patientsLoaded || !planLoaded) {
+  if (
+    loading ||
+    !appointmentsLoaded ||
+    !patientsLoaded ||
+    !planLoaded ||
+    !workspaceLoaded
+  ) {
     return <DashboardLoading />;
   }
 
+  const effectiveAccountType =
+    activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
+  const canViewIncome =
+    activeWorkspace?.type !== "CLINICA" || activeWorkspace.role === "ADMIN";
+
   if (
-    accountType === "CONSULTORIO" &&
-    !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"))
+    !canViewIncome ||
+    (effectiveAccountType === "CONSULTORIO" &&
+      !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_")))
   ) {
     return (
       <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
