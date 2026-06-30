@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BadgeCheck,
+  Building2,
   LockKeyhole,
   Mail,
   Phone,
@@ -44,6 +45,8 @@ type RegisterField = {
   required?: boolean;
 };
 
+type InitialWorkspaceType = "PERSONAL" | "CLINICA";
+
 export default function RegisterPage() {
   const router = useRouter();
   const signupsEnabled = areSignupsEnabled();
@@ -52,6 +55,11 @@ export default function RegisterPage() {
   const [licenseNumber, setLicenseNumber] = useState("");
   const [phone, setPhone] = useState("");
   const [specialty, setSpecialty] = useState("");
+  const [initialWorkspaceType, setInitialWorkspaceType] =
+    useState<InitialWorkspaceType>("PERSONAL");
+  const [clinicName, setClinicName] = useState("");
+  const [clinicAddress, setClinicAddress] = useState("");
+  const [clinicResponsibleName, setClinicResponsibleName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -89,18 +97,28 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      if (!fullName.trim()) {
+      if (initialWorkspaceType === "PERSONAL" && !fullName.trim()) {
         setError("Completá tu nombre para continuar.");
         return;
       }
 
-      if (!licenseNumber.trim()) {
+      if (initialWorkspaceType === "PERSONAL" && !licenseNumber.trim()) {
         setError("Ingresá tu matrícula profesional.");
         return;
       }
 
       if (!phone.trim()) {
         setError("Completá tu teléfono para continuar.");
+        return;
+      }
+
+      if (initialWorkspaceType === "CLINICA" && !clinicName.trim()) {
+        setError("Completa el nombre del consultorio o clinica.");
+        return;
+      }
+
+      if (initialWorkspaceType === "CLINICA" && !clinicResponsibleName.trim()) {
+        setError("Completa el nombre de la persona responsable.");
         return;
       }
 
@@ -121,21 +139,27 @@ export default function RegisterPage() {
 
       const supabase = getSupabaseClient();
       const legalAcceptedAt = new Date().toISOString();
+      const isClinicWorkspace = initialWorkspaceType === "CLINICA";
+      const organizationName = clinicName.trim();
+      const responsibleName = clinicResponsibleName.trim();
       const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
-            account_type: "KINESIOLOGO",
-            full_name: fullName,
-            license_number: licenseNumber,
-            organization_address: null,
-            organization_name: null,
+            account_type: isClinicWorkspace ? "CONSULTORIO" : "KINESIOLOGO",
+            full_name: isClinicWorkspace ? responsibleName : fullName,
+            initial_workspace_type: initialWorkspaceType,
+            license_number: isClinicWorkspace ? null : licenseNumber,
+            organization_address: isClinicWorkspace
+              ? clinicAddress.trim() || null
+              : null,
+            organization_name: isClinicWorkspace ? organizationName : null,
             phone,
-            responsible_name: null,
-            role: "kinesiologist",
-            specialty,
+            responsible_name: isClinicWorkspace ? responsibleName : null,
+            role: isClinicWorkspace ? "clinic" : "kinesiologist",
+            specialty: isClinicWorkspace ? null : specialty,
             legal_accepted_at: legalAcceptedAt,
             legal_version: LEGAL_VERSION,
             terms_accepted_at: legalAcceptedAt,
@@ -207,6 +231,59 @@ export default function RegisterPage() {
     },
   ];
 
+  const clinicFields: RegisterField[] = [
+    {
+      label: "Nombre del consultorio o clinica",
+      placeholder: "KineFlow Centro",
+      type: "text",
+      icon: Building2,
+      value: clinicName,
+      onChange: setClinicName,
+    },
+    {
+      label: "Persona responsable",
+      placeholder: "Dra. Sofia Ruiz",
+      type: "text",
+      icon: UserRound,
+      value: clinicResponsibleName,
+      onChange: setClinicResponsibleName,
+    },
+    {
+      label: "Telefono",
+      placeholder: "+54 9 11 5555-5555",
+      type: "tel",
+      icon: Phone,
+      value: phone,
+      onChange: setPhone,
+    },
+    {
+      label: "Direccion",
+      placeholder: "Av. Corrientes 1234",
+      type: "text",
+      icon: Building2,
+      value: clinicAddress,
+      onChange: setClinicAddress,
+      required: false,
+    },
+  ];
+
+  const initialWorkspaceOptions: Array<{
+    description: string;
+    label: string;
+    value: InitialWorkspaceType;
+  }> = [
+    {
+      description: "Para atender pacientes particulares o a domicilio.",
+      label: "Kinesiologo independiente",
+      value: "PERSONAL",
+    },
+    {
+      description: "Para administrar pacientes, agenda y equipo de una clinica.",
+      label: "Consultorio / Clinica",
+      value: "CLINICA",
+    },
+  ];
+
   const accessFields: RegisterField[] = [
     {
       label: "Email",
@@ -254,9 +331,45 @@ export default function RegisterPage() {
           </div>
           <form className="mt-6 space-y-4" noValidate onSubmit={handleRegister}>
             <section>
-              <h2 className="text-sm font-bold text-ink">Datos profesionales</h2>
+              <h2 className="text-sm font-bold text-ink">Espacio inicial</h2>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
-                {professionalFields.map((field) => {
+                {initialWorkspaceOptions.map((option) => {
+                  const selected = initialWorkspaceType === option.value;
+
+                  return (
+                    <button
+                      className={`rounded-lg border px-4 py-3 text-left transition ${
+                        selected
+                          ? "border-ocean-500 bg-ocean-50 text-ocean-900"
+                          : "border-ocean-100 bg-white text-slate-700 hover:border-ocean-300"
+                      }`}
+                      key={option.value}
+                      onClick={() => setInitialWorkspaceType(option.value)}
+                      type="button"
+                    >
+                      <span className="block text-sm font-bold">
+                        {option.label}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-600">
+                        {option.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-sm font-bold text-ink">
+                {initialWorkspaceType === "CLINICA"
+                  ? "Datos del consultorio / clinica"
+                  : "Datos profesionales"}
+              </h2>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {(initialWorkspaceType === "CLINICA"
+                  ? clinicFields
+                  : professionalFields
+                ).map((field) => {
                   const Icon = field.icon;
                   return (
                     <label className="block" key={field.label}>

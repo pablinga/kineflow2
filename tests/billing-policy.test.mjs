@@ -119,15 +119,27 @@ test("Planes comerciales muestran nombre, precio y copy actualizado", () => {
   });
 });
 
-test("Registro nuevo fuerza cuenta de kinesiologo independiente", () => {
+test("Registro nuevo permite elegir workspace inicial sin duplicar usuarios", () => {
   const source = fs.readFileSync("src/app/registro/page.tsx", "utf8");
+  const migration = fs.readFileSync(
+    "supabase/migrations/202606300004_initial_workspace_registration.sql",
+    "utf8",
+  );
 
-  assert.match(source, /account_type: "KINESIOLOGO"/);
-  assert.doesNotMatch(source, /CONSULTORIO/);
+  assert.match(source, /initialWorkspaceType/);
+  assert.match(source, /Kinesiologo independiente/);
+  assert.match(source, /Consultorio \/ Clinica/);
+  assert.match(source, /account_type: isClinicWorkspace \? "CONSULTORIO" : "KINESIOLOGO"/);
+  assert.match(source, /initial_workspace_type: initialWorkspaceType/);
+  assert.match(source, /organization_name: isClinicWorkspace \? organizationName : null/);
+  assert.match(source, /responsible_name: isClinicWorkspace \? responsibleName : null/);
   assert.match(source, /He leído y acepto/);
   assert.match(source, /LEGAL_VERSION/);
   assert.match(source, /legal_version: LEGAL_VERSION/);
   assert.match(source, /href="\/terminos-y-condiciones"/);
+  assert.match(migration, /coalesce\(new\.account_type, 'KINESIOLOGO'\) <> 'KINESIOLOGO'/);
+  assert.match(migration, /insert into public\.workspaces/);
+  assert.match(migration, /'PERSONAL'/);
 });
 
 test("Acceso directo queda abierto por defecto y cierra solo con flags explicitos", () => {
