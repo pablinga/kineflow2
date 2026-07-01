@@ -59,7 +59,6 @@ export default function RegisterPage() {
     useState<InitialWorkspaceType>("PERSONAL");
   const [clinicName, setClinicName] = useState("");
   const [clinicAddress, setClinicAddress] = useState("");
-  const [clinicResponsibleName, setClinicResponsibleName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -117,11 +116,6 @@ export default function RegisterPage() {
         return;
       }
 
-      if (initialWorkspaceType === "CLINICA" && !clinicResponsibleName.trim()) {
-        setError("Completa el nombre de la persona responsable.");
-        return;
-      }
-
       if (!email.trim() || !email.includes("@")) {
         setError("Ingresá un email válido.");
         return;
@@ -141,7 +135,6 @@ export default function RegisterPage() {
       const legalAcceptedAt = new Date().toISOString();
       const isClinicWorkspace = initialWorkspaceType === "CLINICA";
       const organizationName = clinicName.trim();
-      const responsibleName = clinicResponsibleName.trim();
       const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -149,7 +142,7 @@ export default function RegisterPage() {
           emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             account_type: isClinicWorkspace ? "CONSULTORIO" : "KINESIOLOGO",
-            full_name: isClinicWorkspace ? responsibleName : fullName,
+            full_name: isClinicWorkspace ? organizationName : fullName,
             initial_workspace_type: initialWorkspaceType,
             license_number: isClinicWorkspace ? null : licenseNumber,
             organization_address: isClinicWorkspace
@@ -157,7 +150,7 @@ export default function RegisterPage() {
               : null,
             organization_name: isClinicWorkspace ? organizationName : null,
             phone,
-            responsible_name: isClinicWorkspace ? responsibleName : null,
+            responsible_name: null,
             role: isClinicWorkspace ? "clinic" : "kinesiologist",
             specialty: isClinicWorkspace ? null : specialty,
             legal_accepted_at: legalAcceptedAt,
@@ -241,15 +234,7 @@ export default function RegisterPage() {
       onChange: setClinicName,
     },
     {
-      label: "Persona responsable",
-      placeholder: "Dra. Sofia Ruiz",
-      type: "text",
-      icon: UserRound,
-      value: clinicResponsibleName,
-      onChange: setClinicResponsibleName,
-    },
-    {
-      label: "Telefono",
+      label: "Teléfono",
       placeholder: "+54 9 11 5555-5555",
       type: "tel",
       icon: Phone,
@@ -257,7 +242,7 @@ export default function RegisterPage() {
       onChange: setPhone,
     },
     {
-      label: "Direccion",
+      label: "Dirección",
       placeholder: "Av. Corrientes 1234",
       type: "text",
       icon: Building2,
@@ -314,7 +299,7 @@ export default function RegisterPage() {
   return (
     <main className="grid min-h-screen bg-white lg:grid-cols-[1.15fr_0.85fr]">
       <section className="flex items-center justify-center px-4 py-6 sm:px-6 lg:py-8">
-        <div className="w-full max-w-3xl rounded-lg border border-ocean-100 bg-white p-5 shadow-soft sm:p-6">
+        <div className="w-full max-w-3xl rounded-lg border border-ocean-100 bg-white p-5 shadow-[0_2px_16px_rgba(0,0,0,0.08)] sm:p-6">
           <Logo showSlogan />
           <div className="mt-6">
             <h1 className="text-3xl font-bold text-ink">Creá tu cuenta</h1>
@@ -338,10 +323,10 @@ export default function RegisterPage() {
 
                   return (
                     <button
-                      className={`rounded-lg border px-4 py-3 text-left transition ${
+                      className={`rounded-lg border-[1.5px] px-4 py-3 text-left transition ${
                         selected
                           ? "border-ocean-500 bg-ocean-50 text-ocean-900"
-                          : "border-ocean-100 bg-white text-slate-700 hover:border-ocean-300"
+                          : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
                       }`}
                       key={option.value}
                       onClick={() => setInitialWorkspaceType(option.value)}
@@ -419,7 +404,7 @@ export default function RegisterPage() {
               </div>
             </section>
 
-            <label className="flex items-start gap-3 text-sm leading-6 text-slate-600">
+            <label className="mb-4 flex items-start gap-3 text-sm leading-6 text-slate-600">
               <input
                 checked={acceptedLegal}
                 className="mt-1 h-4 w-4 accent-ocean-600"

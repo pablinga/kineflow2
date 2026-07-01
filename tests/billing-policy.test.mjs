@@ -132,7 +132,8 @@ test("Registro nuevo permite elegir workspace inicial sin duplicar usuarios", ()
   assert.match(source, /account_type: isClinicWorkspace \? "CONSULTORIO" : "KINESIOLOGO"/);
   assert.match(source, /initial_workspace_type: initialWorkspaceType/);
   assert.match(source, /organization_name: isClinicWorkspace \? organizationName : null/);
-  assert.match(source, /responsible_name: isClinicWorkspace \? responsibleName : null/);
+  assert.doesNotMatch(source, /Persona responsable/);
+  assert.match(source, /responsible_name: null/);
   assert.match(source, /He leído y acepto/);
   assert.match(source, /LEGAL_VERSION/);
   assert.match(source, /legal_version: LEGAL_VERSION/);
