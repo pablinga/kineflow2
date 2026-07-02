@@ -100,6 +100,7 @@ export default function IncomePage() {
   if (
     !canViewIncome ||
     (effectiveAccountType === "CONSULTORIO" &&
+      plan.plan !== "FREE" &&
       !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_")))
   ) {
     return (

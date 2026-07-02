@@ -157,6 +157,16 @@ export function usePatientAssignments(patientId?: string) {
       throw new Error(mapSupabaseError(insertError));
     }
 
+    const { error: patientUpdateError } = await supabase
+      .from("patients")
+      .update({ assigned_professional_id: professionalId })
+      .eq("workspace_id", activeWorkspace.id)
+      .eq("id", patientId);
+
+    if (patientUpdateError) {
+      throw new Error(mapSupabaseError(patientUpdateError));
+    }
+
     await loadAssignments();
   }
 
@@ -169,6 +179,28 @@ export function usePatientAssignments(patientId?: string) {
 
     if (updateError) {
       throw new Error(mapSupabaseError(updateError));
+    }
+
+    const assignment = assignments.find((item) => item.id === assignmentId);
+
+    if (activeWorkspace?.id && patientId && assignment) {
+      const nextAssignment = assignments.find(
+        (item) =>
+          item.id !== assignmentId &&
+          item.professionalId !== assignment.professionalId,
+      );
+      const { error: patientUpdateError } = await supabase
+        .from("patients")
+        .update({
+          assigned_professional_id: nextAssignment?.professionalId ?? null,
+        })
+        .eq("workspace_id", activeWorkspace.id)
+        .eq("id", patientId)
+        .eq("assigned_professional_id", assignment.professionalId);
+
+      if (patientUpdateError) {
+        throw new Error(mapSupabaseError(patientUpdateError));
+      }
     }
 
     await loadAssignments();
@@ -186,4 +218,3 @@ export function usePatientAssignments(patientId?: string) {
     unassignProfessional,
   };
 }
-

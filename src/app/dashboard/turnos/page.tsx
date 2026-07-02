@@ -114,23 +114,6 @@ function getCalendarStatusClass(appointment: Appointment) {
   }`;
 }
 
-function getStatusDotClass(appointment: Appointment) {
-  const normalizedStatus = appointment.status.toLowerCase();
-
-  if (
-    normalizedStatus.includes("asisti") &&
-    !normalizedStatus.includes("no ")
-  ) {
-    return "bg-emerald-500";
-  }
-
-  if (normalizedStatus.includes("no asisti")) {
-    return "bg-red-500";
-  }
-
-  return "bg-slate-400";
-}
-
 function sameDay(left: Date, right: Date) {
   return (
     left.getFullYear() === right.getFullYear() &&
@@ -424,8 +407,9 @@ export default function AppointmentsPage() {
     activeWorkspace?.type !== "CLINICA" || activeWorkspace.role === "ADMIN";
   const canCreateAppointment =
     ((effectiveAccountType === "CONSULTORIO" &&
-      plan.estadoPlan === "ACTIVO" &&
-      plan.plan.startsWith("CONSULTORIO_")) ||
+      (plan.plan === "FREE" ||
+        (plan.estadoPlan === "ACTIVO" &&
+          plan.plan.startsWith("CONSULTORIO_")))) ||
       effectiveAccountType === "KINESIOLOGO") &&
     canManageClinicSchedule;
   const patientLimitBlock = getPatientPlanLimitBlock({
@@ -738,8 +722,10 @@ export default function AppointmentsPage() {
                 <div className="mt-2 flex flex-wrap gap-1 md:hidden">
                   {dayAppointments.slice(0, 6).map((appointment) => (
                     <span
-                      className={`h-2 w-2 rounded-full ${getStatusDotClass(appointment)}`}
+                      className="h-2 w-2 rounded-full"
                       key={appointment.id}
+                      style={{ backgroundColor: appointment.originColor }}
+                      title={appointment.originLabel}
                     />
                   ))}
                 </div>
@@ -749,6 +735,8 @@ export default function AppointmentsPage() {
                       className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment)}`}
                       data-appointment-id={appointment.id}
                       key={appointment.id}
+                      style={{ borderLeftColor: appointment.originColor }}
+                      title={`${appointment.patient} · ${appointment.originLabel}`}
                     >
                       <span className="pointer-events-none truncate">
                         {appointment.time} {appointment.patient}
@@ -1190,7 +1178,8 @@ export default function AppointmentsPage() {
                       type="button"
                     >
                       <span
-                        className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(appointment)}`}
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: appointment.originColor }}
                       />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-bold text-ink">

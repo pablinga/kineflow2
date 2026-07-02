@@ -35,6 +35,7 @@ export type NewPatientInput = {
 
 type PatientRow = {
   id: string;
+  assigned_professional_id: string | null;
   full_name: string;
   document_number: string;
   phone: string | null;
@@ -46,6 +47,10 @@ type PatientRow = {
 
 type ClinicIdRow = {
   id: string;
+};
+
+type ClinicProfessionalAccessRow = {
+  can_view_assigned_patients: boolean;
 };
 
 type PatientAppointmentRow = {
@@ -205,12 +210,56 @@ export function usePatients() {
       let patientQuery = supabase
         .from("patients")
         .select(
-          "id, clinic_id, full_name, document_number, phone, email, initial_condition, status",
+          "id, assigned_professional_id, clinic_id, full_name, document_number, phone, email, initial_condition, status",
         )
         .order("status", { ascending: true })
         .order("full_name", { ascending: true });
 
       patientQuery = patientQuery.eq("workspace_id", activeWorkspace.id);
+
+      if (activeWorkspace.type === "PERSONAL") {
+        patientQuery = patientQuery
+          .eq("owner_id", sessionData.user.id)
+          .is("clinic_id", null);
+      } else if (activeWorkspace.role === "ADMIN") {
+        patientQuery = patientQuery.eq(
+          "clinic_id",
+          activeWorkspace.sourceClinicId ?? "",
+        );
+      } else {
+        if (!activeWorkspace.sourceClinicId) {
+          setPatients([]);
+          return;
+        }
+
+        const { data: clinicProfessional, error: clinicProfessionalError } =
+          await supabase
+            .from("clinic_professionals")
+            .select("can_view_assigned_patients")
+            .eq("clinic_id", activeWorkspace.sourceClinicId)
+            .eq("professional_id", sessionData.user.id)
+            .eq("status", "accepted")
+            .maybeSingle();
+
+        if (clinicProfessionalError) {
+          setError(mapSupabaseError(clinicProfessionalError));
+          setPatients([]);
+          return;
+        }
+
+        if (
+          !(
+            clinicProfessional as ClinicProfessionalAccessRow | null
+          )?.can_view_assigned_patients
+        ) {
+          setPatients([]);
+          return;
+        }
+
+        patientQuery = patientQuery
+          .eq("clinic_id", activeWorkspace.sourceClinicId)
+          .eq("assigned_professional_id", sessionData.user.id);
+      }
 
       const { data, error: queryError } = await patientQuery;
 
@@ -272,7 +321,14 @@ export function usePatients() {
     } finally {
       setLoaded(true);
     }
-  }, [activeWorkspace?.id, activeWorkspaceError, activeWorkspaceLoaded]);
+  }, [
+    activeWorkspace?.id,
+    activeWorkspace?.role,
+    activeWorkspace?.sourceClinicId,
+    activeWorkspace?.type,
+    activeWorkspaceError,
+    activeWorkspaceLoaded,
+  ]);
 
   useEffect(() => {
     loadPatients();

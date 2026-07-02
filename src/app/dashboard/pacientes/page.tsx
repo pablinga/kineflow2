@@ -150,6 +150,7 @@ export default function PatientsPage() {
   );
   const clinicPracticeBlocked =
     effectiveAccountType === "CONSULTORIO" &&
+    plan.plan !== "FREE" &&
     !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));
   const canCreateCurrentPatient = canCreatePatient({
     accountType: effectiveAccountType,
@@ -159,7 +160,6 @@ export default function PatientsPage() {
     planStatus: plan.estadoPlan,
   });
   const freeLimitReached =
-    effectiveAccountType === "KINESIOLOGO" &&
     plan.plan === "FREE" &&
     plan.limitePacientes !== null &&
     plan.limitePacientes >= 0 &&

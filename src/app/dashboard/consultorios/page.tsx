@@ -106,7 +106,8 @@ export default function ClinicsAdminPage() {
   }
 
   const hasActiveClinicPlan =
-    plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_");
+    plan.plan === "FREE" ||
+    (plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));
 
   if (!hasActiveClinicPlan) {
     return (

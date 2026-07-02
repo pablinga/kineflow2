@@ -13,6 +13,7 @@ import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 export type Appointment = {
   id: string;
+  workspaceId: string | null;
   patientId: string;
   scheduledAt: string;
   durationMinutes: number;
@@ -84,6 +85,7 @@ export type AppointmentPaymentInput = {
 
 type AppointmentRow = {
   id: string;
+  workspace_id: string | null;
   patient_id: string;
   scheduled_at: string;
   duration_minutes: number;
@@ -168,6 +170,7 @@ function mapAppointment(row: AppointmentRow): Appointment {
 
   return {
     id: row.id,
+    workspaceId: row.workspace_id,
     patientId: row.patient_id,
     scheduledAt: row.scheduled_at,
     durationMinutes: row.duration_minutes,
@@ -353,7 +356,7 @@ export function useAppointments(patientId?: string) {
       let query = supabase
         .from("appointments")
         .select(
-          "id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, payment_status, payment_method, paid_at, payment_notes, patients(full_name), clinics(name, color), clinic_professionals(color)",
+          "id, workspace_id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, payment_status, payment_method, paid_at, payment_notes, patients(full_name), clinics(name, color), clinic_professionals(color)",
         )
         .order("scheduled_at", { ascending: true });
 
@@ -363,13 +366,17 @@ export function useAppointments(patientId?: string) {
         return;
       }
 
-      if (!activeWorkspace?.id) {
+      if (accountType !== "KINESIOLOGO" && !activeWorkspace?.id) {
         setError("No encontramos un espacio de trabajo activo.");
         setAppointments([]);
         return;
       }
 
-      query = query.eq("workspace_id", activeWorkspace.id);
+      if (accountType === "KINESIOLOGO") {
+        query = query.eq("owner_id", sessionData.user.id);
+      } else if (activeWorkspace?.id) {
+        query = query.eq("workspace_id", activeWorkspace.id);
+      }
 
       if (patientId) {
         query = query.eq("patient_id", patientId);
@@ -394,7 +401,13 @@ export function useAppointments(patientId?: string) {
     } finally {
       setLoaded(true);
     }
-  }, [activeWorkspace?.id, activeWorkspaceError, activeWorkspaceLoaded, patientId]);
+  }, [
+    accountType,
+    activeWorkspace?.id,
+    activeWorkspaceError,
+    activeWorkspaceLoaded,
+    patientId,
+  ]);
 
   useEffect(() => {
     loadAppointments();
@@ -605,8 +618,8 @@ export function useAppointments(patientId?: string) {
       })
       .eq("id", id);
 
-    if (activeWorkspace?.id) {
-      query = query.eq("workspace_id", activeWorkspace.id);
+    if (currentAppointment?.workspaceId) {
+      query = query.eq("workspace_id", currentAppointment.workspaceId);
     } else if (accountType === "CONSULTORIO") {
       query = query.eq("clinic_id", activeClinic?.id ?? "");
     } else {
@@ -645,8 +658,12 @@ export function useAppointments(patientId?: string) {
       })
       .eq("id", id);
 
-    if (activeWorkspace?.id) {
-      query = query.eq("workspace_id", activeWorkspace.id);
+    const currentAppointment = appointments.find(
+      (appointment) => appointment.id === id,
+    );
+
+    if (currentAppointment?.workspaceId) {
+      query = query.eq("workspace_id", currentAppointment.workspaceId);
     } else if (accountType === "CONSULTORIO") {
       query = query.eq("clinic_id", activeClinic?.id ?? "");
     } else {

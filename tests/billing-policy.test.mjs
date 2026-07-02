@@ -40,6 +40,26 @@ test("Plan Free permite crear pacientes hasta el limite configurado", () => {
     }),
     false,
   );
+  assert.equal(
+    canCreatePatientByPolicy({
+      accountType: "CONSULTORIO",
+      activePatientCount: 4,
+      patientLimit: 5,
+      plan: "FREE",
+      planStatus: "ACTIVO",
+    }),
+    true,
+  );
+  assert.equal(
+    canCreatePatientByPolicy({
+      accountType: "CONSULTORIO",
+      activePatientCount: 5,
+      patientLimit: 5,
+      plan: "FREE",
+      planStatus: "ACTIVO",
+    }),
+    false,
+  );
 });
 
 test("KineFlow Particular habilita pacientes propios sin limite", () => {
@@ -435,6 +455,10 @@ test("Limite de pacientes se calcula desde subscriptions y plans", () => {
     "supabase/migrations/202606050001_move_patient_limits_to_subscriptions.sql",
     "utf8",
   );
+  const clinicFreeMigration = fs.readFileSync(
+    "supabase/migrations/202607010001_extend_free_plan_to_clinic_workspaces.sql",
+    "utf8",
+  );
   const seed = fs.readFileSync("supabase/seed.qa.sql", "utf8");
 
   assert.match(migration, /join public\.plans on plans\.id = subscriptions\.plan_id/);
@@ -444,11 +468,18 @@ test("Limite de pacientes se calcula desde subscriptions y plans", () => {
   assert.doesNotMatch(migration, /profiles\.plan|profiles\.estado_plan|profiles\.limite_pacientes|profiles\.cantidad_kinesiologos/);
   assert.match(seed, /insert into public\.subscriptions/);
   assert.doesNotMatch(seed, /plan,\s*estado_plan|fecha_inicio_plan|limite_pacientes|cantidad_kinesiologos/);
+  assert.match(clinicFreeMigration, /create or replace function public\.get_workspace_patient_limit/);
+  assert.match(clinicFreeMigration, /where plans\.code = 'FREE'/);
+  assert.doesNotMatch(clinicFreeMigration, /current_account_type = 'CONSULTORIO'/);
 });
 
 test("Migracion workspace crea base multi-clinica sin duplicar datos clinicos", () => {
   const migration = fs.readFileSync(
     "supabase/migrations/202606300001_add_workspaces_foundation.sql",
+    "utf8",
+  );
+  const multiProfessionalMigration = fs.readFileSync(
+    "supabase/migrations/202607020001_multi_professional_clinic_patients.sql",
     "utf8",
   );
 
@@ -470,6 +501,11 @@ test("Migracion workspace crea base multi-clinica sin duplicar datos clinicos", 
   assert.match(migration, /on public\.workspaces for select/);
   assert.match(migration, /on public\.workspace_members for select/);
   assert.match(migration, /on public\.patient_assignments for all/);
+  assert.match(multiProfessionalMigration, /add column if not exists assigned_professional_id/);
+  assert.match(multiProfessionalMigration, /patients_assigned_professional_id_idx/);
+  assert.match(multiProfessionalMigration, /can_view_assigned_patients/);
+  assert.match(multiProfessionalMigration, /assigned_professional_id = auth\.uid\(\)/);
+  assert.match(multiProfessionalMigration, /patients\.clinic_id is null/);
 });
 
 test("RLS workspace reemplaza permisos sensibles basados solo en owner_id", () => {
@@ -551,9 +587,17 @@ test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => 
 test("Listado de pacientes permite reactivar, ordenar y alternar vista", () => {
   const patientsHook = fs.readFileSync("src/hooks/usePatients.ts", "utf8");
   const patientsPage = fs.readFileSync("src/app/dashboard/pacientes/page.tsx", "utf8");
+  const appointmentsHook = fs.readFileSync("src/hooks/useAppointments.ts", "utf8");
 
   assert.match(patientsHook, /\.order\("status", \{ ascending: true \}\)/);
   assert.match(patientsHook, /\.order\("full_name", \{ ascending: true \}\)/);
+  assert.match(patientsHook, /assigned_professional_id/);
+  assert.match(patientsHook, /can_view_assigned_patients/);
+  assert.match(patientsHook, /\.is\("clinic_id", null\)/);
+  assert.match(patientsHook, /\.eq\("assigned_professional_id", sessionData\.user\.id\)/);
+  assert.match(appointmentsHook, /\.eq\("owner_id", sessionData\.user\.id\)/);
+  assert.match(appointmentsHook, /workspace_id, patient_id/);
+  assert.match(appointmentsHook, /originColor/);
   assert.match(patientsHook, /async function reactivatePatient/);
   assert.match(patientsHook, /status: "active"/);
   assert.match(patientsHook, /disabled_at: null/);

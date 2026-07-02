@@ -168,6 +168,7 @@ export default function NewAppointmentPage() {
   const independentPracticeBlocked = false;
   const clinicPlanBlocked =
     effectiveAccountType === "CONSULTORIO" &&
+    plan.plan !== "FREE" &&
     !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));
   const patientLimitBlock = getPatientPlanLimitBlock({
     activePatientCount: activePatients.length,

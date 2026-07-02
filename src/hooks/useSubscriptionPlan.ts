@@ -137,7 +137,7 @@ export function useSubscriptionPlan() {
             activeWorkspace.role === "KINESIOLOGO"
           ) {
             data = {
-              plans: { code: "CONSULTORIO_2" },
+              plans: { code: "FREE" },
               status: "ACTIVE",
             };
           } else {
@@ -151,7 +151,7 @@ export function useSubscriptionPlan() {
           activeWorkspace.role === "KINESIOLOGO"
         ) {
           data = {
-            plans: { code: "CONSULTORIO_2" },
+            plans: { code: "FREE" },
             status: "ACTIVE",
           };
         }

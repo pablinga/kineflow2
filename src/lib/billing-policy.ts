@@ -38,12 +38,6 @@ export function canCreatePatientByPolicy(params: {
   plan: BillingPlan;
   planStatus: BillingPlanStatus;
 }) {
-  if (params.accountType === "CONSULTORIO") {
-    return (
-      params.planStatus === "ACTIVO" && params.plan.startsWith("CONSULTORIO_")
-    );
-  }
-
   if (params.plan === "INDEPENDIENTE") {
     return params.planStatus === "ACTIVO" || params.planStatus === "PENDIENTE";
   }
@@ -52,6 +46,12 @@ export function canCreatePatientByPolicy(params: {
     const limit = params.patientLimit ?? PLAN_LIMITS.FREE.maxPatients;
 
     return limit < 0 || params.activePatientCount < limit;
+  }
+
+  if (params.accountType === "CONSULTORIO") {
+    return (
+      params.planStatus === "ACTIVO" && params.plan.startsWith("CONSULTORIO_")
+    );
   }
 
   return false;

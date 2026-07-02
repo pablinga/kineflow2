@@ -60,7 +60,7 @@ export function getPermissionsFromPlan(params: {
     active;
   const isClinic =
     params.accountType === "CONSULTORIO" &&
-    params.plan.startsWith("CONSULTORIO_") &&
+    (params.plan === "FREE" || params.plan.startsWith("CONSULTORIO_")) &&
     active;
 
   return {
