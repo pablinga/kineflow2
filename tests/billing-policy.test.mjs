@@ -553,6 +553,32 @@ test("Invitaciones workspace permiten email sin duplicar usuarios", () => {
   assert.match(clinicsPage, /inviteEmail/);
 });
 
+test("Equipo de clinica permite invitar profesionales por email", () => {
+  const sidebar = fs.readFileSync("src/components/layout/DashboardSidebar.tsx", "utf8");
+  const teamPage = fs.readFileSync("src/app/dashboard/equipo/page.tsx", "utf8");
+  const invitationPage = fs.readFileSync("src/app/invitacion/page.tsx", "utf8");
+  const inviteRoute = fs.readFileSync("src/app/api/invite-professional/route.ts", "utf8");
+  const migration = fs.readFileSync(
+    "supabase/migrations/202607020002_clinic_invitation_token_flow.sql",
+    "utf8",
+  );
+
+  assert.match(sidebar, /UsersRound/);
+  assert.match(sidebar, /\/dashboard\/equipo/);
+  assert.match(sidebar, /activeWorkspace\?\.type === "CLINICA" && activeWorkspace\.role === "ADMIN"/);
+  assert.match(teamPage, /clinic_professionals/);
+  assert.match(teamPage, /\.in\("status", \["pending", "accepted"\]\)/);
+  assert.match(teamPage, /\/api\/invite-professional/);
+  assert.match(teamPage, /professional_email: normalizedEmail/);
+  assert.match(inviteRoute, /https:\/\/api\.resend\.com\/emails/);
+  assert.match(inviteRoute, /\/invitacion\?token=\$\{token\}/);
+  assert.match(invitationPage, /get_clinic_professional_invitation/);
+  assert.match(invitationPage, /answer_clinic_professional_invitation/);
+  assert.match(invitationPage, /supabase\.auth\.signUp/);
+  assert.match(migration, /grant execute on function public\.get_clinic_professional_invitation/);
+  assert.match(migration, /grant execute on function public\.answer_clinic_professional_invitation/);
+});
+
 test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => {
   const patientsHook = fs.readFileSync("src/hooks/usePatients.ts", "utf8");
   const patientsPage = fs.readFileSync("src/app/dashboard/pacientes/page.tsx", "utf8");

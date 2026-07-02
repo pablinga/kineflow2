@@ -14,6 +14,7 @@ import {
   Menu,
   PanelLeftClose,
   Users,
+  UsersRound,
   WalletCards,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
@@ -55,6 +56,7 @@ const navigation = {
     { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
     { href: "/dashboard/consultorios", label: "Profesionales", icon: Building2 },
+    { href: "/dashboard/equipo", label: "Equipo", icon: UsersRound },
     { href: "/dashboard/ingresos", label: "Ingresos", icon: WalletCards },
     { href: "/dashboard/planes", label: "Plan", icon: CreditCard },
   ],
@@ -109,6 +111,8 @@ export function DashboardSidebar() {
   } = useActiveWorkspace();
   const effectiveAccountType =
     activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
+  const isClinicAdmin =
+    activeWorkspace?.type === "CLINICA" && activeWorkspace.role === "ADMIN";
   const baseNavigation =
     effectiveAccountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE"
       ? navigation.KINESIOLOGO.filter(
@@ -118,13 +122,18 @@ export function DashboardSidebar() {
             ),
         )
       : navigation[effectiveAccountType];
-  const visibleNavigation = shouldShowClinicFeatures()
+  const roleNavigation = isClinicAdmin
     ? baseNavigation
-    : baseNavigation.filter(
+    : baseNavigation.filter((item) => item.href !== "/dashboard/equipo");
+  const visibleNavigation = shouldShowClinicFeatures()
+    ? roleNavigation
+    : roleNavigation.filter(
         (item) =>
-          !["/dashboard/mis-consultorios", "/dashboard/consultorios"].includes(
-            item.href,
-          ),
+          ![
+            "/dashboard/mis-consultorios",
+            "/dashboard/consultorios",
+            "/dashboard/equipo",
+          ].includes(item.href),
       );
 
   async function handleLogout() {
