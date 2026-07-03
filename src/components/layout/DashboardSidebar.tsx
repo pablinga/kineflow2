@@ -56,7 +56,7 @@ const navigation = {
     { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
     { href: "/dashboard/consultorios", label: "Profesionales", icon: Building2 },
-    { href: "/dashboard/equipo", label: "Equipo", icon: UsersRound },
+    { href: "/dashboard/kinesiologos", label: "Kinesiólogos", icon: UsersRound },
     { href: "/dashboard/ingresos", label: "Ingresos", icon: WalletCards },
     { href: "/dashboard/planes", label: "Plan", icon: CreditCard },
   ],
@@ -132,7 +132,7 @@ export function DashboardSidebar() {
           ![
             "/dashboard/mis-consultorios",
             "/dashboard/consultorios",
-            "/dashboard/equipo",
+            "/dashboard/kinesiologos",
           ].includes(item.href),
       );
 
