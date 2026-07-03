@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle, XCircle } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
@@ -22,7 +22,7 @@ function getInvitationRow(data: unknown) {
   return Array.isArray(data) ? data[0] : data;
 }
 
-export default function InvitationPage() {
+function InvitationContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const [invitation, setInvitation] = useState<Invitation | null>(null);
@@ -323,5 +323,24 @@ export default function InvitationPage() {
         ) : null}
       </section>
     </main>
+  );
+}
+
+export default function InvitationPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-ocean-50 px-4 py-8">
+          <section className="w-full max-w-xl rounded-lg border border-ocean-100 bg-white p-6 shadow-soft">
+            <Logo showSlogan />
+            <div className="mt-8 rounded-lg bg-ocean-50 p-5 text-sm font-semibold text-ocean-800">
+              Cargando invitacion...
+            </div>
+          </section>
+        </main>
+      }
+    >
+      <InvitationContent />
+    </Suspense>
   );
 }
