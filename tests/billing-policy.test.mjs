@@ -555,28 +555,33 @@ test("Invitaciones workspace permiten email sin duplicar usuarios", () => {
 
 test("Equipo de clinica permite invitar profesionales por email", () => {
   const sidebar = fs.readFileSync("src/components/layout/DashboardSidebar.tsx", "utf8");
-  const teamPage = fs.readFileSync("src/app/dashboard/equipo/page.tsx", "utf8");
+  const teamPage = fs.readFileSync("src/app/dashboard/kinesiologos/page.tsx", "utf8");
+  const teamHook = fs.readFileSync("src/hooks/useClinicKinesiologists.ts", "utf8");
   const invitationPage = fs.readFileSync("src/app/invitacion/page.tsx", "utf8");
+  const registerPage = fs.readFileSync("src/app/registro/page.tsx", "utf8");
   const inviteRoute = fs.readFileSync("src/app/api/invite-professional/route.ts", "utf8");
   const migration = fs.readFileSync(
-    "supabase/migrations/202607020002_clinic_invitation_token_flow.sql",
+    "supabase/migrations/202607060001_use_active_clinic_professional_status.sql",
     "utf8",
   );
 
   assert.match(sidebar, /UsersRound/);
-  assert.match(sidebar, /\/dashboard\/equipo/);
+  assert.match(sidebar, /\/dashboard\/kinesiologos/);
   assert.match(sidebar, /activeWorkspace\?\.type === "CLINICA" && activeWorkspace\.role === "ADMIN"/);
-  assert.match(teamPage, /clinic_professionals/);
-  assert.match(teamPage, /\.in\("status", \["pending", "accepted"\]\)/);
+  assert.match(teamHook, /clinic_professionals/);
+  assert.match(teamHook, /\.in\("status", \["pending", "active"\]\)/);
+  assert.match(teamPage, /Agregar kinesiólogo/);
   assert.match(teamPage, /\/api\/invite-professional/);
-  assert.match(teamPage, /professional_email: normalizedEmail/);
+  assert.match(teamPage, /lookup\.exists/);
   assert.match(inviteRoute, /https:\/\/api\.resend\.com\/emails/);
   assert.match(inviteRoute, /\/invitacion\?token=\$\{token\}/);
   assert.match(invitationPage, /get_clinic_professional_invitation/);
   assert.match(invitationPage, /answer_clinic_professional_invitation/);
-  assert.match(invitationPage, /supabase\.auth\.signUp/);
-  assert.match(migration, /grant execute on function public\.get_clinic_professional_invitation/);
-  assert.match(migration, /grant execute on function public\.answer_clinic_professional_invitation/);
+  assert.match(invitationPage, /router\.replace\(`\/registro\?token=/);
+  assert.match(registerPage, /answer_clinic_professional_invitation/);
+  assert.match(registerPage, /target_status: "active"/);
+  assert.match(migration, /status in \('pending', 'active', 'inactive'\)/);
+  assert.match(migration, /target_status not in \('active', 'inactive'\)/);
 });
 
 test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => {

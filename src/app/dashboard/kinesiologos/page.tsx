@@ -1,15 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  Mail,
-  MailPlus,
-  RefreshCw,
-  Search,
-  Trash2,
-  UserRound,
-  UsersRound,
-} from "lucide-react";
+import { Mail, MailPlus, RefreshCw, Search, Trash2, UsersRound, X } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -18,7 +10,6 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import {
   getKinesiologistStatusLabel,
-  type KinesiologistLookup,
   useClinicKinesiologists,
 } from "@/hooks/useClinicKinesiologists";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
@@ -27,7 +18,7 @@ import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
 
 function getStatusClasses(status: string) {
-  if (status === "accepted") {
+  if (status === "active") {
     return "bg-emerald-50 text-emerald-700";
   }
 
@@ -52,7 +43,7 @@ export default function ClinicKinesiologistsPage() {
     unlinkKinesiologist,
   } = useClinicKinesiologists();
   const [email, setEmail] = useState("");
-  const [lookup, setLookup] = useState<KinesiologistLookup | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState("");
   const [actionError, setActionError] = useState("");
   const [message, setMessage] = useState("");
@@ -117,57 +108,33 @@ export default function ClinicKinesiologistsPage() {
     return Boolean(result.skipped);
   }
 
-  async function handleLookup(event: React.FormEvent<HTMLFormElement>) {
+  async function handleAddKinesiologist(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving("lookup");
-    setActionError("");
-    setMessage("");
-    setLookup(null);
-
-    try {
-      const result = await findByEmail(email);
-      setLookup(result);
-      setMessage(
-        result.exists
-          ? "Encontramos un usuario existente en KineFlow."
-          : "No encontramos una cuenta con ese email. Podés generar una invitación.",
-      );
-    } catch (lookupError) {
-      setActionError(
-        getFriendlyErrorMessage(lookupError, "No pudimos buscar el email."),
-      );
-    } finally {
-      setSaving("");
-    }
-  }
-
-  async function handleInvite() {
-    if (!lookup) {
-      setActionError("Buscá primero el email del kinesiólogo.");
-      return;
-    }
-
-    setSaving("invite");
+    setSaving("add");
     setActionError("");
     setMessage("");
 
     try {
-      const invitationId = await createOrReactivateInvitation(lookup);
-      const skipped = await sendInvitation(invitationId, lookup.email);
+      const lookup = await findByEmail(email);
+      const linkId = await createOrReactivateInvitation(lookup);
 
-      setMessage(
-        skipped
-          ? "Invitación creada. El email quedó preparado en logs porque Resend no está configurado."
-          : lookup.exists
-            ? "Invitación enviada al kinesiólogo existente."
+      if (lookup.exists) {
+        setMessage("Kinesiólogo vinculado como activo.");
+      } else {
+        const skipped = await sendInvitation(linkId, lookup.email);
+        setMessage(
+          skipped
+            ? "Invitación creada. El email quedó preparado en logs porque Resend no está configurado."
             : "Invitación enviada para que el kinesiólogo se registre.",
-      );
+        );
+      }
+
       setEmail("");
-      setLookup(null);
+      setModalOpen(false);
       await refreshKinesiologists();
-    } catch (inviteError) {
+    } catch (addError) {
       setActionError(
-        getFriendlyErrorMessage(inviteError, "No pudimos crear la invitación."),
+        getFriendlyErrorMessage(addError, "No pudimos agregar el kinesiólogo."),
       );
     } finally {
       setSaving("");
@@ -181,7 +148,6 @@ export default function ClinicKinesiologistsPage() {
 
     try {
       const skipped = await sendInvitation(id, targetEmail);
-
       setMessage(
         skipped
           ? "Invitación preparada en logs porque Resend no está configurado."
@@ -252,7 +218,7 @@ export default function ClinicKinesiologistsPage() {
           <section className="mx-auto max-w-3xl rounded-lg border border-ocean-100 bg-white p-6 shadow-card">
             <h1 className="text-2xl font-bold text-ink">Acceso no disponible</h1>
             <p className="mt-2 text-slate-600">
-              Esta sección es solo para dueños o administradores de clínica.
+              Esta sección es solo para administradores de clínica.
             </p>
           </section>
         </PageContainer>
@@ -266,16 +232,12 @@ export default function ClinicKinesiologistsPage() {
       <PageContainer>
         <PageHeader
           actions={
-            <Button
-              disabled={saving === "invite" || !lookup}
-              onClick={handleInvite}
-              type="button"
-            >
+            <Button onClick={() => setModalOpen(true)} type="button">
               <MailPlus className="h-4 w-4" />
-              {saving === "invite" ? "Enviando..." : "Enviar invitación"}
+              Agregar kinesiólogo
             </Button>
           }
-          description="Agregá kinesiólogos por email, reutilizá usuarios existentes y administrá el equipo vinculado a la clínica."
+          description="Administrá los kinesiólogos vinculados a la clínica sin borrar usuarios ni historial clínico."
           eyebrow="Clínica"
           title="Kinesiólogos"
         />
@@ -291,130 +253,17 @@ export default function ClinicKinesiologistsPage() {
           </Alert>
         ) : null}
 
-        <section className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-          <form
-            className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card"
-            onSubmit={handleLookup}
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
-                <Mail className="h-5 w-5" />
-              </span>
-              <div>
-                <h2 className="text-lg font-bold text-ink">
-                  Agregar por email
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Si ya existe en KineFlow, se mostrarán sus datos actuales.
-                </p>
-              </div>
-            </div>
-
-            <label className="mt-5 block">
-              <span className="text-sm font-semibold text-slate-700">
-                Email del kinesiólogo
-              </span>
-              <span className="mt-2 flex min-h-11 items-center gap-3 rounded-lg border border-ocean-100 px-3 focus-within:border-ocean-400">
-                <Mail className="h-4 w-4 text-ocean-600" />
-                <input
-                  className="w-full bg-transparent text-sm outline-none"
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="profesional@email.com"
-                  required
-                  type="email"
-                  value={email}
-                />
-              </span>
-            </label>
-
-            <Button className="mt-5 w-full" disabled={saving === "lookup"}>
-              <Search className="h-4 w-4" />
-              {saving === "lookup" ? "Buscando..." : "Buscar email"}
-            </Button>
-
-            {lookup ? (
-              <div className="mt-5 rounded-lg border border-ocean-100 bg-ocean-50 p-4">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-ocean-700">
-                    <UserRound className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-bold text-ink">
-                      {lookup.exists ? lookup.name : "Usuario no registrado"}
-                    </p>
-                    <dl className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-                      <div>
-                        <dt className="font-semibold text-slate-500">
-                          Apellido
-                        </dt>
-                        <dd>{lookup.lastName || "-"}</dd>
-                      </div>
-                      <div>
-                        <dt className="font-semibold text-slate-500">Nombre</dt>
-                        <dd>{lookup.firstName || "-"}</dd>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <dt className="font-semibold text-slate-500">Email</dt>
-                        <dd className="break-all">{lookup.email}</dd>
-                      </div>
-                      <div>
-                        <dt className="font-semibold text-slate-500">
-                          Matrícula
-                        </dt>
-                        <dd>{lookup.licenseNumber || "-"}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </form>
-
-          <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-                <UsersRound className="h-5 w-5" />
-              </span>
-              <div>
-                <h2 className="text-lg font-bold text-ink">
-                  Disponibilidad
-                </h2>
-                <p className="text-sm text-slate-500">
-                  La estructura ya admite días, horarios y futuras excepciones.
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              {["Días de atención", "Horario desde", "Horario hasta"].map(
-                (item) => (
-                  <div
-                    className="rounded-lg border border-ocean-100 bg-ocean-50 p-3"
-                    key={item}
-                  >
-                    <p className="text-sm font-bold text-ink">{item}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Preparado para la próxima etapa.
-                    </p>
-                  </div>
-                ),
-              )}
-            </div>
-          </section>
-        </section>
-
         <section className="mt-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <label className="flex min-h-11 flex-1 items-center gap-3 rounded-lg border border-ocean-100 bg-ocean-50 px-4 py-3 focus-within:border-ocean-400">
-              <Search className="h-5 w-5 text-ocean-600" />
-              <input
-                className="w-full bg-transparent text-sm outline-none"
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar por apellido, nombre, email, matrícula o estado"
-                type="search"
-                value={query}
-              />
-            </label>
-          </div>
+          <label className="flex min-h-11 items-center gap-3 rounded-lg border border-ocean-100 bg-ocean-50 px-4 py-3 focus-within:border-ocean-400">
+            <Search className="h-5 w-5 text-ocean-600" />
+            <input
+              className="w-full bg-transparent text-sm outline-none"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Buscar por nombre, apellido, email, matrícula o estado"
+              type="search"
+              value={query}
+            />
+          </label>
 
           <div className="mt-5 overflow-hidden rounded-lg border border-ocean-100 bg-white shadow-card">
             {filteredKinesiologists.length > 0 ? (
@@ -422,8 +271,8 @@ export default function ClinicKinesiologistsPage() {
                 <table className="min-w-full divide-y divide-ocean-100 text-left text-sm">
                   <thead className="bg-ocean-50 text-xs font-bold uppercase text-slate-500">
                     <tr>
-                      <th className="px-4 py-3">Apellido</th>
                       <th className="px-4 py-3">Nombre</th>
+                      <th className="px-4 py-3">Apellido</th>
                       <th className="px-4 py-3">Email</th>
                       <th className="px-4 py-3">Matrícula</th>
                       <th className="px-4 py-3">Estado</th>
@@ -433,11 +282,11 @@ export default function ClinicKinesiologistsPage() {
                   <tbody className="divide-y divide-ocean-50">
                     {filteredKinesiologists.map((item) => (
                       <tr key={item.id}>
-                        <td className="px-4 py-3 font-semibold text-ink">
-                          {item.lastName || "-"}
-                        </td>
                         <td className="px-4 py-3 text-slate-700">
                           {item.firstName || item.name || "-"}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-ink">
+                          {item.lastName || "-"}
                         </td>
                         <td className="px-4 py-3 text-slate-700">
                           {item.email}
@@ -499,6 +348,70 @@ export default function ClinicKinesiologistsPage() {
           </div>
         </section>
       </PageContainer>
+
+      {modalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-4 py-6">
+          <section
+            aria-labelledby="add-kinesiologist-title"
+            aria-modal="true"
+            className="w-full max-w-md rounded-lg bg-white p-5 shadow-2xl"
+            role="dialog"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-ocean-700">Equipo</p>
+                <h2
+                  className="mt-1 text-xl font-bold text-ink"
+                  id="add-kinesiologist-title"
+                >
+                  Agregar kinesiólogo
+                </h2>
+              </div>
+              <button
+                aria-label="Cerrar"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-ocean-50 hover:text-ocean-800"
+                onClick={() => setModalOpen(false)}
+                type="button"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form className="mt-5" onSubmit={handleAddKinesiologist}>
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Email
+                </span>
+                <span className="mt-2 flex min-h-11 items-center gap-3 rounded-lg border border-ocean-100 px-3 focus-within:border-ocean-400">
+                  <Mail className="h-4 w-4 text-ocean-600" />
+                  <input
+                    className="w-full bg-transparent text-sm outline-none"
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="profesional@email.com"
+                    required
+                    type="email"
+                    value={email}
+                  />
+                </span>
+              </label>
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <Button
+                  disabled={saving === "add"}
+                  onClick={() => setModalOpen(false)}
+                  type="button"
+                  variant="secondary"
+                >
+                  Cancelar
+                </Button>
+                <Button disabled={saving === "add"} type="submit">
+                  {saving === "add" ? "Agregando..." : "Confirmar"}
+                </Button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

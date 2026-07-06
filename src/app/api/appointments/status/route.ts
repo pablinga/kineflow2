@@ -92,7 +92,7 @@ export async function POST(request: Request) {
         .select("role")
         .eq("workspace_id", currentAppointment.workspace_id)
         .eq("user_id", user.id)
-        .eq("status", "accepted")
+        .eq("status", "active")
         .maybeSingle()
     : { data: null };
   const canUpdateAppointment =
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
 
   if (!canUpdateAppointment) {
     return NextResponse.json(
-      { error: "No tenÃ©s permisos para actualizar este turno." },
+      { error: "No tenés permisos para actualizar este turno." },
       { status: 403 },
     );
   }
@@ -181,3 +181,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true, treatmentCompleted });
 }
+

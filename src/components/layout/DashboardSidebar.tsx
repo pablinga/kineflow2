@@ -124,7 +124,12 @@ export function DashboardSidebar() {
       : navigation[effectiveAccountType];
   const roleNavigation = isClinicAdmin
     ? baseNavigation
-    : baseNavigation.filter((item) => item.href !== "/dashboard/equipo");
+    : baseNavigation.filter(
+        (item) =>
+          !["/dashboard/equipo", "/dashboard/kinesiologos"].includes(
+            item.href,
+          ),
+      );
   const visibleNavigation = shouldShowClinicFeatures()
     ? roleNavigation
     : roleNavigation.filter(

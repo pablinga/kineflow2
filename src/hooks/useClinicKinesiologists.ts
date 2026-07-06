@@ -7,8 +7,7 @@ import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 
 export type ClinicKinesiologistStatus =
   | "pending"
-  | "accepted"
-  | "rejected"
+  | "active"
   | "inactive";
 
 export type ClinicKinesiologist = {
@@ -115,10 +114,9 @@ function mapLookup(email: string, row: ProfileRow | null): KinesiologistLookup {
 
 export function getKinesiologistStatusLabel(status: ClinicKinesiologistStatus) {
   const labels: Record<ClinicKinesiologistStatus, string> = {
-    accepted: "Vinculado",
+    active: "Activo",
     inactive: "Desvinculado",
-    pending: "Invitación pendiente",
-    rejected: "Invitación rechazada",
+    pending: "Pendiente",
   };
 
   return labels[status];
@@ -156,7 +154,7 @@ export function useClinicKinesiologists() {
           "id, professional_email, professional_id, status, invited_at, profiles(full_name, email, license_number)",
         )
         .eq("clinic_id", clinicId)
-        .in("status", ["pending", "accepted"])
+        .in("status", ["pending", "active"])
         .order("invited_at", { ascending: false });
 
       if (queryError) {
@@ -217,7 +215,7 @@ export function useClinicKinesiologists() {
       .select("id, status")
       .eq("clinic_id", clinicId)
       .eq("professional_email", lookup.email)
-      .in("status", ["pending", "accepted"])
+      .in("status", ["pending", "active"])
       .order("created_at", { ascending: false })
       .limit(1);
 
@@ -230,12 +228,12 @@ export function useClinicKinesiologists() {
       status: ClinicKinesiologistStatus;
     } | null;
 
-    if (activeLink?.status === "accepted") {
+    if (activeLink?.status === "active") {
       throw new Error("Este kinesiólogo ya está vinculado a la clínica.");
     }
 
     if (activeLink?.status === "pending") {
-      return activeLink.id;
+      throw new Error("Ya existe una invitación pendiente para ese email.");
     }
 
     const { data: inactiveRows, error: inactiveError } = await supabase
@@ -243,7 +241,7 @@ export function useClinicKinesiologists() {
       .select("id, status")
       .eq("clinic_id", clinicId)
       .eq("professional_email", lookup.email)
-      .in("status", ["inactive", "rejected"])
+      .eq("status", "inactive")
       .order("created_at", { ascending: false })
       .limit(1);
 
@@ -262,8 +260,8 @@ export function useClinicKinesiologists() {
         .update({
           invited_at: new Date().toISOString(),
           professional_id: lookup.id,
-          responded_at: null,
-          status: "pending",
+          responded_at: lookup.exists ? new Date().toISOString() : null,
+          status: lookup.exists ? "active" : "pending",
         })
         .eq("id", inactiveLink.id)
         .select("id")
@@ -284,7 +282,7 @@ export function useClinicKinesiologists() {
         professional_email: lookup.email,
         professional_id: lookup.id,
         role: "kinesiologist",
-        status: "pending",
+        status: lookup.exists ? "active" : "pending",
       })
       .select("id")
       .single();
@@ -326,3 +324,4 @@ export function useClinicKinesiologists() {
     unlinkKinesiologist,
   };
 }
+

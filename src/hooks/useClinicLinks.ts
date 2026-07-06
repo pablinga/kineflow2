@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 
-export type ClinicLinkStatus = "pending" | "accepted" | "rejected" | "inactive";
+export type ClinicLinkStatus = "pending" | "active" | "inactive";
 
 export type ClinicAvailability = {
   id: string;
@@ -69,8 +69,7 @@ type ClinicLinkRow = {
 
 const statusLabels: Record<ClinicLinkStatus, string> = {
   pending: "Pendiente",
-  accepted: "Aceptado",
-  rejected: "Rechazado",
+  active: "Activo",
   inactive: "Inactivo",
 };
 
@@ -189,7 +188,7 @@ export function useClinicLinks() {
     [links],
   );
 
-  async function answerInvitation(id: string, status: "accepted" | "rejected") {
+  async function answerInvitation(id: string, status: "active" | "inactive") {
     const supabase = getSupabaseClient();
     const { data: sessionData, error: sessionError } =
       await supabase.auth.getUser();
@@ -215,12 +214,12 @@ export function useClinicLinks() {
   }
 
   return {
-    acceptInvitation: (id: string) => answerInvitation(id, "accepted"),
+    acceptInvitation: (id: string) => answerInvitation(id, "active"),
     error,
     links,
     loaded,
     pendingLinks,
     refreshLinks: loadLinks,
-    rejectInvitation: (id: string) => answerInvitation(id, "rejected"),
+    rejectInvitation: (id: string) => answerInvitation(id, "inactive"),
   };
 }

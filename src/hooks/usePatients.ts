@@ -238,7 +238,7 @@ export function usePatients() {
             .select("can_view_assigned_patients")
             .eq("clinic_id", activeWorkspace.sourceClinicId)
             .eq("professional_id", sessionData.user.id)
-            .eq("status", "accepted")
+            .eq("status", "active")
             .maybeSingle();
 
         if (clinicProfessionalError) {

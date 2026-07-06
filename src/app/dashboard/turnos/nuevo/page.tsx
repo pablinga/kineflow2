@@ -103,7 +103,7 @@ export default function NewAppointmentPage() {
           )
           .eq("workspace_id", activeWorkspace.id)
           .eq("role", "KINESIOLOGO")
-          .eq("status", "accepted")
+          .eq("status", "active")
           .not("user_id", "is", null);
 
         mappedProfessionals = ((workspaceMembers ?? []) as unknown as WorkspaceProfessionalOption[])
@@ -132,7 +132,7 @@ export default function NewAppointmentPage() {
           .select(
             "id, professional_id, clinic_id, profiles(full_name, license_number), clinics(name)",
           )
-          .eq("status", "accepted")
+          .eq("status", "active")
           .order("invited_at", { ascending: false });
 
         mappedProfessionals = (data ?? []) as unknown as ClinicProfessionalOption[];
@@ -269,7 +269,7 @@ export default function NewAppointmentPage() {
           .select("id")
           .eq("clinic_id", selectedProfessional.clinic_id)
           .eq("professional_id", selectedProfessional.professional_id)
-          .eq("status", "accepted")
+          .eq("status", "active")
           .maybeSingle();
 
         if ((clinicProfessionalLink as { id?: string } | null)?.id) {
@@ -530,8 +530,8 @@ export default function NewAppointmentPage() {
             {conflictingAppointment ? (
               <p className="mt-4 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 sm:mt-5">
                 Ya existe un turno de {conflictingAppointment.patient} a las{" "}
-                {conflictingAppointment.time}. PodÃ©s guardar igualmente si la
-                superposiciÃ³n es intencional.
+                {conflictingAppointment.time}. Podés guardar igualmente si la
+                superposición es intencional.
               </p>
             ) : null}
 
@@ -591,3 +591,4 @@ export default function NewAppointmentPage() {
     </main>
   );
 }
+

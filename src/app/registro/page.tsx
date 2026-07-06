@@ -20,6 +20,7 @@ import {
   getFriendlyErrorMessage,
   logFriendlyError,
   mapAuthError,
+  mapSupabaseError,
 } from "@/lib/error-messages";
 import {
   ACCESS_REQUEST_MAILTO,
@@ -67,6 +68,7 @@ export default function RegisterPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
+  const [invitationToken, setInvitationToken] = useState("");
 
   useEffect(() => {
     const supabase = getSupabaseClient();
@@ -77,6 +79,33 @@ export default function RegisterPage() {
       }
     });
   }, [router]);
+
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get("token");
+
+    if (!token) {
+      return;
+    }
+
+    setInvitationToken(token);
+    setInitialWorkspaceType("PERSONAL");
+
+    const supabase = getSupabaseClient();
+    supabase
+      .rpc("get_clinic_professional_invitation", {
+        invitation_id: token,
+      })
+      .then(({ data }) => {
+        const invitation = Array.isArray(data) ? data[0] : data;
+        const invitedEmail =
+          (invitation as { professional_email?: string } | null)
+            ?.professional_email ?? "";
+
+        if (invitedEmail) {
+          setEmail(invitedEmail);
+        }
+      });
+  }, []);
 
   async function handleRegister(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -133,7 +162,8 @@ export default function RegisterPage() {
 
       const supabase = getSupabaseClient();
       const legalAcceptedAt = new Date().toISOString();
-      const isClinicWorkspace = initialWorkspaceType === "CLINICA";
+      const isClinicWorkspace =
+        initialWorkspaceType === "CLINICA" && !invitationToken;
       const organizationName = clinicName.trim();
       const { data, error: authError } = await supabase.auth.signUp({
         email,
@@ -166,6 +196,22 @@ export default function RegisterPage() {
         return;
       }
 
+      if (invitationToken && data.user?.id) {
+        const { error: invitationError } = await supabase.rpc(
+          "answer_clinic_professional_invitation",
+          {
+            invitation_id: invitationToken,
+            target_email: email.trim().toLowerCase(),
+            target_professional_id: data.user.id,
+            target_status: "active",
+          },
+        );
+
+        if (invitationError) {
+          throw new Error(mapSupabaseError(invitationError));
+        }
+      }
+
       if (data.session) {
         router.replace("/dashboard");
         router.refresh();
@@ -173,7 +219,9 @@ export default function RegisterPage() {
       }
 
       setMessage(
-        "Cuenta creada. Revisa tu email para confirmar el acceso antes de ingresar.",
+        invitationToken
+          ? "Cuenta creada e invitación aceptada. Revisá tu email para confirmar el acceso antes de ingresar."
+          : "Cuenta creada. Revisa tu email para confirmar el acceso antes de ingresar.",
       );
     } catch (registerError) {
       logFriendlyError("registro.submit", registerError);
@@ -391,6 +439,7 @@ export default function RegisterPage() {
                         <Icon className="h-4 w-4 shrink-0 text-ocean-500" />
                         <input
                           className="w-full bg-transparent text-sm outline-none"
+                          disabled={Boolean(invitationToken) && field.label === "Email"}
                           minLength={field.type === "password" ? 6 : undefined}
                           onChange={(event) => field.onChange(event.target.value)}
                           placeholder={field.placeholder}

@@ -15,8 +15,7 @@ import { shouldShowClinicFeatures } from "@/lib/features";
 
 const statusStyles = {
   pending: "bg-amber-50 text-amber-800",
-  accepted: "bg-emerald-50 text-emerald-700",
-  rejected: "bg-rose-50 text-rose-700",
+  active: "bg-emerald-50 text-emerald-700",
   inactive: "bg-slate-100 text-slate-700",
 };
 
