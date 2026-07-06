@@ -403,19 +403,24 @@ export default function AppointmentsPage() {
 
   const effectiveAccountType =
     activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
-  const canManageClinicSchedule =
-    activeWorkspace?.type !== "CLINICA" || activeWorkspace.role === "ADMIN";
+  const canUseClinicSchedule =
+    activeWorkspace?.type !== "CLINICA" ||
+    activeWorkspace.role === "ADMIN" ||
+    activeWorkspace.role === "KINESIOLOGO";
   const canCreateAppointment =
     ((effectiveAccountType === "CONSULTORIO" &&
       (plan.plan === "FREE" ||
         (plan.estadoPlan === "ACTIVO" &&
           plan.plan.startsWith("CONSULTORIO_")))) ||
       effectiveAccountType === "KINESIOLOGO") &&
-    canManageClinicSchedule;
-  const patientLimitBlock = getPatientPlanLimitBlock({
-    activePatientCount: activePatients.length,
-    patientLimit: plan.limitePacientes,
-  });
+    canUseClinicSchedule;
+  const patientLimitBlock =
+    activeWorkspace?.type === "CLINICA"
+      ? null
+      : getPatientPlanLimitBlock({
+          activePatientCount: activePatients.length,
+          patientLimit: plan.limitePacientes,
+        });
 
   async function confirmStatusChange() {
     if (!pendingAction) {

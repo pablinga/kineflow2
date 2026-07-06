@@ -92,7 +92,7 @@ export async function POST(request: Request) {
         .select("role")
         .eq("workspace_id", currentAppointment.workspace_id)
         .eq("user_id", user.id)
-        .eq("status", "active")
+        .eq("status", "accepted")
         .maybeSingle()
     : { data: null };
   const canUpdateAppointment =

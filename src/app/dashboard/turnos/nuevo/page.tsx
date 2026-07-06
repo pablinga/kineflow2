@@ -18,7 +18,8 @@ import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 
 type ClinicProfessionalOption = {
   id: string;
-  professional_id: string;
+  professional_email: string;
+  professional_id: string | null;
   clinic_id: string;
   profiles: { full_name: string; license_number: string | null } | Array<{ full_name: string; license_number: string | null }> | null;
   clinics: { name: string } | Array<{ name: string }> | null;
@@ -52,7 +53,7 @@ const emptyAppointment: NewAppointmentInput = {
 
 export default function NewAppointmentPage() {
   const router = useRouter();
-  const { accountType, authError, loading, redirecting } = useRequireAuth();
+  const { accountType, authError, loading, redirecting, user } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const { addAppointment, addClinicAppointment, appointments } = useAppointments();
@@ -84,65 +85,71 @@ export default function NewAppointmentPage() {
 
   useEffect(() => {
     async function loadClinicProfessionals() {
-      const effectiveAccountType =
-        activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
-
-      if (effectiveAccountType !== "CONSULTORIO") {
+      if (activeWorkspace?.type !== "CLINICA" || !activeWorkspace.sourceClinicId) {
+        setClinicProfessionals([]);
         return;
       }
 
       const { getSupabaseClient } = await import("@/lib/supabase");
       const supabase = getSupabaseClient();
-      let mappedProfessionals: ClinicProfessionalOption[] = [];
+      let query = supabase
+        .from("clinic_professionals")
+        .select(
+          "id, professional_email, professional_id, clinic_id, profiles(full_name, license_number), clinics(name)",
+        )
+        .eq("clinic_id", activeWorkspace.sourceClinicId)
+        .eq("status", "active")
+        .not("professional_id", "is", null)
+        .order("professional_email", { ascending: true });
 
-      if (activeWorkspace?.id) {
-        const { data: workspaceMembers } = await supabase
-          .from("workspace_members")
-          .select(
-            "id, user_id, profiles(full_name, license_number), workspaces(source_clinic_id, name)",
-          )
-          .eq("workspace_id", activeWorkspace.id)
-          .eq("role", "KINESIOLOGO")
-          .eq("status", "active")
-          .not("user_id", "is", null);
-
-        mappedProfessionals = ((workspaceMembers ?? []) as unknown as WorkspaceProfessionalOption[])
-          .map((member) => {
-            const workspace = Array.isArray(member.workspaces)
-              ? member.workspaces[0]
-              : member.workspaces;
-            const profile = Array.isArray(member.profiles)
-              ? member.profiles[0]
-              : member.profiles;
-
-            return {
-              clinic_id: workspace?.source_clinic_id ?? "",
-              clinics: workspace ? { name: workspace.name } : null,
-              id: member.id,
-              professional_id: member.user_id,
-              profiles: profile,
-            };
-          })
-          .filter((professional) => Boolean(professional.clinic_id));
+      if (activeWorkspace.role === "KINESIOLOGO" && user?.id) {
+        query = query.eq("professional_id", user.id);
       }
 
-      if (mappedProfessionals.length === 0) {
-        const { data } = await supabase
-          .from("clinic_professionals")
-          .select(
-            "id, professional_id, clinic_id, profiles(full_name, license_number), clinics(name)",
-          )
-          .eq("status", "active")
-          .order("invited_at", { ascending: false });
+      const { data } = await query;
 
-        mappedProfessionals = (data ?? []) as unknown as ClinicProfessionalOption[];
-      }
-
-      setClinicProfessionals(mappedProfessionals);
+      setClinicProfessionals((data ?? []) as unknown as ClinicProfessionalOption[]);
     }
 
     loadClinicProfessionals();
-  }, [accountType, activeWorkspace?.id, activeWorkspace?.type]);
+  }, [
+    activeWorkspace?.role,
+    activeWorkspace?.sourceClinicId,
+    activeWorkspace?.type,
+    user?.id,
+  ]);
+
+  useEffect(() => {
+    if (activeWorkspace?.type !== "CLINICA") {
+      return;
+    }
+
+    if (activeWorkspace.role === "KINESIOLOGO") {
+      const ownLink = clinicProfessionals.find(
+        (professional) => professional.professional_id === user?.id,
+      );
+      setSelectedClinicProfessionalId(ownLink?.id ?? "");
+      return;
+    }
+
+    const selectedPatient = activePatients.find(
+      (patient) => patient.id === appointment.patientId,
+    );
+    const assignedProfessional = clinicProfessionals.find(
+      (professional) =>
+        professional.professional_id ===
+        selectedPatient?.assignedProfessionalId,
+    );
+
+    setSelectedClinicProfessionalId(assignedProfessional?.id ?? "");
+  }, [
+    activePatients,
+    activeWorkspace?.role,
+    activeWorkspace?.type,
+    appointment.patientId,
+    clinicProfessionals,
+    user?.id,
+  ]);
 
   if (authError) {
     return <DashboardLoading error={authError} />;
@@ -163,17 +170,24 @@ export default function NewAppointmentPage() {
 
   const effectiveAccountType =
     activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
-  const canManageClinicSchedule =
-    activeWorkspace?.type !== "CLINICA" || activeWorkspace.role === "ADMIN";
+  const canCreateClinicSchedule =
+    activeWorkspace?.type !== "CLINICA" ||
+    activeWorkspace.role === "ADMIN" ||
+    activeWorkspace.role === "KINESIOLOGO";
+  const canChangeClinicProfessional =
+    activeWorkspace?.type === "CLINICA" && activeWorkspace.role === "ADMIN";
   const independentPracticeBlocked = false;
   const clinicPlanBlocked =
     effectiveAccountType === "CONSULTORIO" &&
     plan.plan !== "FREE" &&
     !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));
-  const patientLimitBlock = getPatientPlanLimitBlock({
-    activePatientCount: activePatients.length,
-    patientLimit: plan.limitePacientes,
-  });
+  const patientLimitBlock =
+    activeWorkspace?.type === "CLINICA"
+      ? null
+      : getPatientPlanLimitBlock({
+          activePatientCount: activePatients.length,
+          patientLimit: plan.limitePacientes,
+        });
   const independentPlanMessage =
     "Esta funcionalidad está disponible en KineFlow - Particular. Podés activarlo para gestionar tus pacientes, turnos y cobros propios.";
 
@@ -233,8 +247,8 @@ export default function NewAppointmentPage() {
 
     try {
       if (effectiveAccountType === "CONSULTORIO") {
-        if (!canManageClinicSchedule) {
-          setError("Solo el administrador de la clinica puede crear turnos.");
+        if (!canCreateClinicSchedule) {
+          setError("No tenés permisos para crear turnos de la clínica.");
           return;
         }
 
@@ -256,7 +270,7 @@ export default function NewAppointmentPage() {
           (professional) => professional.id === selectedClinicProfessionalId,
         );
 
-        if (!selectedProfessional) {
+        if (!selectedProfessional?.professional_id) {
           setError("Seleccioná un kinesiólogo vinculado al consultorio.");
           return;
         }
@@ -352,9 +366,9 @@ export default function NewAppointmentPage() {
             </section>
           ) : null}
 
-          {!canManageClinicSchedule ? (
+          {!canCreateClinicSchedule ? (
             <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
-              Solo el administrador de la clinica puede crear turnos.
+              No tenés permisos para crear turnos de la clínica.
             </section>
           ) : null}
 
@@ -382,6 +396,7 @@ export default function NewAppointmentPage() {
                   </span>
                   <select
                     className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                    disabled={!canChangeClinicProfessional}
                     onChange={(event) =>
                       setSelectedClinicProfessionalId(event.target.value)
                     }
@@ -556,7 +571,7 @@ export default function NewAppointmentPage() {
                   Boolean(patientLimitBlock) ||
                   independentPracticeBlocked ||
                   clinicPlanBlocked ||
-                  !canManageClinicSchedule ||
+                  !canCreateClinicSchedule ||
                   (effectiveAccountType === "CONSULTORIO" &&
                     clinicProfessionals.length === 0)
                 }

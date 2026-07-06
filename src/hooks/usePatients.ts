@@ -11,6 +11,7 @@ export type PatientStatus = "Activo" | "Inactivo";
 
 export type Patient = {
   id: string;
+  assignedProfessionalId: string | null;
   clinicId: string | null;
   name: string;
   document: string;
@@ -25,6 +26,7 @@ export type Patient = {
 };
 
 export type NewPatientInput = {
+  assignedProfessionalId?: string;
   name: string;
   document: string;
   phone: string;
@@ -115,6 +117,7 @@ function mapPatient(
       : "Sin sesiónes";
 
   return {
+    assignedProfessionalId: row.assigned_professional_id,
     id: row.id,
     clinicId: row.clinic_id,
     name: row.full_name,
@@ -138,6 +141,7 @@ function mapPatient(
 
 function normalizePatientInput(input: NewPatientInput) {
   return {
+    assignedProfessionalId: input.assignedProfessionalId?.trim() ?? "",
     condition: input.condition.trim(),
     document: input.document.trim(),
     email: input.email.trim(),
@@ -424,6 +428,10 @@ export function usePatients() {
     const { data: insertedPatient, error: insertError } = await supabase
       .from("patients")
       .insert({
+        assigned_professional_id:
+          activeWorkspace.type === "CLINICA"
+            ? normalizedInput.assignedProfessionalId || null
+            : null,
         owner_id: sessionData.user.id,
         workspace_id: activeWorkspace.id,
         clinic_id: clinicId,
@@ -473,6 +481,10 @@ export function usePatients() {
     const { error: updateError } = await supabase
       .from("patients")
       .update({
+        assigned_professional_id:
+          activeWorkspace?.type === "CLINICA"
+            ? normalizedInput.assignedProfessionalId || null
+            : null,
         document_number: normalizedInput.document,
         email: normalizedInput.email || null,
         full_name: normalizedInput.name,

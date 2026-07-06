@@ -28,8 +28,10 @@ import { useTreatments, type NewTreatmentInput } from "@/hooks/useTreatments";
 import { canCreatePatient } from "@/lib/billing";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
+import { getSupabaseClient } from "@/lib/supabase";
 
 const emptyPatient: NewPatientInput = {
+  assignedProfessionalId: "",
   name: "",
   document: "",
   phone: "",
@@ -45,6 +47,32 @@ const emptyInitialTreatment: Omit<NewTreatmentInput, "patientId" | "startedAt"> 
 };
 
 type PatientViewMode = "cards" | "list";
+
+type ClinicProfessionalOption = {
+  email: string;
+  id: string;
+  name: string;
+  professionalId: string;
+};
+
+type ClinicProfessionalRow = {
+  id: string;
+  professional_email: string;
+  professional_id: string | null;
+  profiles:
+    | { full_name: string | null; email: string | null }
+    | Array<{ full_name: string | null; email: string | null }>
+    | null;
+};
+
+function getProfile(
+  profile:
+    | { full_name: string | null; email: string | null }
+    | Array<{ full_name: string | null; email: string | null }>
+    | null,
+) {
+  return Array.isArray(profile) ? profile[0] : profile;
+}
 
 function getPatientInitials(name: string) {
   return name
@@ -78,6 +106,9 @@ export default function PatientsPage() {
   const [initialTreatment, setInitialTreatment] = useState(emptyInitialTreatment);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [editPatient, setEditPatient] = useState<NewPatientInput>(emptyPatient);
+  const [clinicProfessionals, setClinicProfessionals] = useState<
+    ClinicProfessionalOption[]
+  >([]);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
@@ -124,6 +155,50 @@ export default function PatientsPage() {
     window.localStorage.setItem("kineflow.patients.view", viewMode);
   }, [viewMode]);
 
+  useEffect(() => {
+    async function loadClinicProfessionals() {
+      if (
+        activeWorkspace?.type !== "CLINICA" ||
+        activeWorkspace.role !== "ADMIN" ||
+        !activeWorkspace.sourceClinicId
+      ) {
+        setClinicProfessionals([]);
+        return;
+      }
+
+      const supabase = getSupabaseClient();
+      const { data } = await supabase
+        .from("clinic_professionals")
+        .select("id, professional_email, professional_id, profiles(full_name, email)")
+        .eq("clinic_id", activeWorkspace.sourceClinicId)
+        .eq("status", "active")
+        .not("professional_id", "is", null)
+        .order("professional_email", { ascending: true });
+
+      setClinicProfessionals(
+        ((data ?? []) as unknown as ClinicProfessionalRow[])
+          .filter((professional) => Boolean(professional.professional_id))
+          .map((professional) => {
+            const profile = getProfile(professional.profiles);
+            const email = profile?.email ?? professional.professional_email;
+
+            return {
+              email,
+              id: professional.id,
+              name: profile?.full_name || email,
+              professionalId: professional.professional_id ?? "",
+            };
+          }),
+      );
+    }
+
+    loadClinicProfessionals();
+  }, [
+    activeWorkspace?.role,
+    activeWorkspace?.sourceClinicId,
+    activeWorkspace?.type,
+  ]);
+
   if (authError) {
     return <DashboardLoading error={authError} />;
   }
@@ -160,14 +235,18 @@ export default function PatientsPage() {
     planStatus: plan.estadoPlan,
   });
   const freeLimitReached =
+    activeWorkspace?.type !== "CLINICA" &&
     plan.plan === "FREE" &&
     plan.limitePacientes !== null &&
     plan.limitePacientes >= 0 &&
     activePatients.length >= plan.limitePacientes;
-  const patientLimitBlock = getPatientPlanLimitBlock({
-    activePatientCount: activePatients.length,
-    patientLimit: plan.limitePacientes,
-  });
+  const patientLimitBlock =
+    activeWorkspace?.type === "CLINICA"
+      ? null
+      : getPatientPlanLimitBlock({
+          activePatientCount: activePatients.length,
+          patientLimit: plan.limitePacientes,
+        });
   const independentPlanMessage =
     "Esta funcionalidad está disponible en KineFlow - Particular. Podés activarlo para gestionar tus pacientes, turnos y cobros propios.";
 
@@ -205,6 +284,7 @@ export default function PatientsPage() {
       name: patient.name,
       phone: patient.phone,
       status: patient.status,
+      assignedProfessionalId: patient.assignedProfessionalId ?? "",
     });
   }
 
@@ -339,6 +419,38 @@ export default function PatientsPage() {
         ),
       );
     }
+  }
+
+  function renderAssignedProfessionalSelect(params: {
+    onChange: (value: string) => void;
+    value: string;
+  }) {
+    if (activeWorkspace?.type !== "CLINICA" || activeWorkspace.role !== "ADMIN") {
+      return null;
+    }
+
+    return (
+      <label className="block md:col-span-2">
+        <span className="text-sm font-semibold text-slate-700">
+          Kinesiólogo asignado
+        </span>
+        <select
+          className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+          onChange={(event) => params.onChange(event.target.value)}
+          value={params.value}
+        >
+          <option value="">Sin asignar</option>
+          {clinicProfessionals.map((professional) => (
+            <option
+              key={professional.id}
+              value={professional.professionalId}
+            >
+              {professional.name} · {professional.email}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
   }
 
   function renderPatientActions(patient: Patient) {
@@ -612,6 +724,11 @@ export default function PatientsPage() {
                     value={newPatient.condition}
                   />
                 </label>
+                {renderAssignedProfessionalSelect({
+                  onChange: (value) =>
+                    updateField("assignedProfessionalId", value),
+                  value: newPatient.assignedProfessionalId ?? "",
+                })}
               </div>
               <section className="mt-6 rounded-lg border border-ocean-100 bg-ocean-50 p-4">
                 <label className="flex items-center gap-3">
@@ -998,6 +1115,11 @@ export default function PatientsPage() {
                   value={editPatient.condition}
                 />
               </label>
+              {renderAssignedProfessionalSelect({
+                onChange: (value) =>
+                  updateEditField("assignedProfessionalId", value),
+                value: editPatient.assignedProfessionalId ?? "",
+              })}
             </div>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
