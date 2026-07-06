@@ -339,10 +339,10 @@ export default function NewAppointmentPage() {
           <header className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:p-5">
             <p className="text-sm font-semibold text-ocean-700">Nuevo turno</p>
             <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
-              Programar una sesión
+              Programar un turno
             </h1>
             <p className="mt-2 text-slate-600">
-              Completá los datos de la sesión.
+              Completá los datos del turno.
             </p>
           </header>
 
@@ -373,15 +373,9 @@ export default function NewAppointmentPage() {
           ) : null}
 
           {patientLimitBlock ? (
-            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
-              <p>{patientLimitBlock}</p>
-              <Link
-                className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
-                href="/dashboard/planes"
-              >
-                Reactivar plan
-              </Link>
-            </section>
+            <p className="mt-4 text-sm font-medium text-amber-600 sm:mt-6">
+              Plan Free: hasta 5 pacientes. Actualizá tu plan para agregar más.
+            </p>
           ) : null}
 
           <form

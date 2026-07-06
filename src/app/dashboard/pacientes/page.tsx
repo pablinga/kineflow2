@@ -565,7 +565,7 @@ export default function PatientsPage() {
               Nuevo paciente
             </button>
             }
-            description="Cargá pacientes, revisá su historial y agendá nuevas sesiones."
+            description="Cargá pacientes, revisá su historial y agendá nuevos turnos."
             eyebrow="Pacientes"
             title="Gestión de pacientes"
           />

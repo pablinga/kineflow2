@@ -58,6 +58,12 @@ export default function PlansPage() {
     isPlanAllowedForAccount(item.id, accountType),
   );
   const currentPlanName = getPlanDisplayName(plan.plan);
+  const patientLimitLabel =
+    plan.limitePacientes === null || plan.limitePacientes < 0
+      ? "Ilimitado"
+      : `${activePatients.length} de ${plan.limitePacientes} pacientes`;
+  const subscriptionStatus = plan.estadoPlan ?? "SIN SUSCRIPCIÓN";
+  const isFreePlan = plan.plan === "FREE";
   const canCancelSubscription =
     plan.plan === "INDEPENDIENTE" &&
     plan.estadoPlan === "ACTIVO" &&
@@ -181,6 +187,50 @@ export default function PlansPage() {
             title="Plan / Suscripción"
           />
 
+          <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:mt-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="text-2xl font-bold text-ink">
+                    {currentPlanName}
+                  </h2>
+                  <span className="rounded-full bg-ocean-50 px-3 py-1 text-xs font-bold uppercase text-ocean-800">
+                    {subscriptionStatus}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-slate-600">
+                  Límite de pacientes:{" "}
+                  <span className="font-semibold text-ink">
+                    {patientLimitLabel}
+                  </span>
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Estado de suscripción:{" "}
+                  <span className="font-semibold text-ink">
+                    {subscriptionStatus}
+                  </span>
+                </p>
+                {isFreePlan ? (
+                  <p className="mt-3 text-sm font-medium text-amber-700">
+                    Estás en Plan Free: podés trabajar con hasta 5 pacientes.
+                  </p>
+                ) : null}
+              </div>
+              {isFreePlan ? (
+                <button
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 disabled:opacity-60"
+                  disabled={checkoutLoading === "INDEPENDIENTE"}
+                  onClick={() => handleCheckout("INDEPENDIENTE")}
+                  type="button"
+                >
+                  {checkoutLoading === "INDEPENDIENTE"
+                    ? "Preparando..."
+                    : "Mejorar plan"}
+                </button>
+              ) : null}
+            </div>
+          </section>
+
           {canCancelSubscription ? (
             <section className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 p-4 sm:mt-6">
               <p className="font-bold text-emerald-900">
@@ -208,12 +258,10 @@ export default function PlansPage() {
               ["Plan actual", currentPlanName],
               ["Estado", plan.estadoPlan],
               [
-                "Limite de pacientes",
-                plan.limitePacientes === null || plan.limitePacientes < 0
-                  ? "Ilimitado"
-                  : String(plan.limitePacientes),
+                "Límite de pacientes",
+                patientLimitLabel,
               ],
-              ["Pacientes usados", String(activePatients.length)],
+              ["Pacientes usados", `${activePatients.length} activos`],
             ].map(([label, value]) => (
               <article
                 className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card"
@@ -227,7 +275,7 @@ export default function PlansPage() {
 
           {reachedFreeLimit ? (
             <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6">
-              Llegaste al limite de 5 pacientes del Plan Free. Para cargar
+              Llegaste al límite de 5 pacientes del Plan Free. Para cargar
               nuevos pacientes, activá KineFlow - Particular.
             </section>
           ) : null}

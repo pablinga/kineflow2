@@ -68,6 +68,9 @@ export default function IncomePage() {
     (sum, appointment) => sum + appointment.amount,
     0,
   );
+  const hasRegisteredCharges = appointments.some(
+    (appointment) => appointment.amount > 0 || appointment.paymentStatus === "paid",
+  );
 
   if (authError) {
     return <DashboardLoading error={authError} />;
@@ -133,7 +136,7 @@ export default function IncomePage() {
                 Control económico
               </h1>
               <p className="mt-2 text-slate-600">
-                Seguimiento simple de cobros por sesión o turno.
+                Seguimiento simple de cobros por sesión.
               </p>
             </div>
             <div className="rounded-lg bg-emerald-50 px-4 py-3">
@@ -373,7 +376,9 @@ export default function IncomePage() {
             {filteredAppointments.length === 0 ? (
               <div className="p-8 text-center">
                 <p className="font-semibold text-ink">
-                  No hay ingresos para los filtros selecciónados.
+                  {hasRegisteredCharges
+                    ? "No hay ingresos para los filtros seleccionados."
+                    : "Todavía no registraste cobros. Cuando marques sesiones como cobradas, vas a poder ver el resumen de ingresos acá."}
                 </p>
               </div>
             ) : null}

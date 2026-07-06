@@ -92,7 +92,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
 }
 
 function getWorkspaceTypeLabel(type: WorkspaceType) {
-  return type === "CLINICA" ? "Clinica" : "Personal";
+  return type === "CLINICA" ? "Clínica" : "Personal";
 }
 
 export function DashboardSidebar() {
@@ -102,7 +102,7 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { accountType, loading } = useRequireAuth();
-  const { loaded: planLoaded, plan } = useSubscriptionPlan();
+  const { plan } = useSubscriptionPlan();
   const {
     activeWorkspace,
     loaded: workspaceLoaded,
@@ -259,34 +259,26 @@ export function DashboardSidebar() {
           </div>
         ) : null}
         <nav className="hidden space-y-1 lg:block">
-          {loading || !planLoaded || !workspaceLoaded ? (
-            <div className="space-y-2">
-              {[1, 2, 3, 4, 5].map((item) => (
-                <div className="h-11 rounded-lg bg-ocean-50" key={item} />
-              ))}
-            </div>
-          ) : (
-            visibleNavigation.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
+          {visibleNavigation.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
 
-              return (
-                <Link
-                  className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition ${
-                    active
-                      ? "bg-ocean-500 text-white shadow-soft"
-                      : "text-slate-600 hover:bg-ocean-50 hover:text-ocean-800"
-                  }`}
-                  href={item.href}
-                  key={item.label}
-                  onClick={() => setOpen(false)}
-                >
-                  <Icon className="h-5 w-5" />
-                  {item.label}
-                </Link>
-              );
-            })
-          )}
+            return (
+              <Link
+                className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition ${
+                  active
+                    ? "bg-ocean-500 text-white shadow-soft"
+                    : "text-slate-600 hover:bg-ocean-50 hover:text-ocean-800"
+                }`}
+                href={item.href}
+                key={item.label}
+                onClick={() => setOpen(false)}
+              >
+                <Icon className="h-5 w-5" />
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
         <div className="space-y-2 lg:hidden">
           <p className="px-1 text-xs font-bold uppercase tracking-wide text-slate-400">
@@ -324,7 +316,7 @@ export function DashboardSidebar() {
           </p>
         ) : null}
       </aside>
-      {!loading && planLoaded && workspaceLoaded ? (
+      {visibleNavigation.length > 0 ? (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ocean-100 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-soft backdrop-blur lg:hidden">
           <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
             {visibleNavigation.slice(0, 5).map((item) => {

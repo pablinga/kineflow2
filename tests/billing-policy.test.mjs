@@ -711,16 +711,14 @@ test("Usuarios sobre el limite Free no pueden crear actividad nueva", () => {
     assert.match(source, /Archiv(?:a|á|Ã¡) pacientes o reactiv(?:a|á|Ã¡) tu plan/);
   });
 
-  [
-    patientsPage,
-    appointmentsPage,
-    newAppointmentPage,
-    patientDetailPage,
-  ].forEach((source) => {
+  [patientsPage, appointmentsPage, patientDetailPage].forEach((source) => {
     assert.match(source, /Reactivar plan/);
     assert.match(source, /patientLimitBlock/);
     assert.match(source, /title=\{patientLimitBlock/);
   });
+  assert.match(newAppointmentPage, /Plan Free: hasta 5 pacientes/);
+  assert.match(newAppointmentPage, /patientLimitBlock/);
+  assert.match(newAppointmentPage, /title=\{patientLimitBlock/);
 
   assert.match(appointmentsHook, /getPatientPlanLimitBlock/);
   assert.match(appointmentsHook, /throw new Error\(patientLimitBlock\)/);
