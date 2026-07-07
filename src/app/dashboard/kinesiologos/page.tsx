@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import {
+  getKinesiologistRoleLabel,
   getKinesiologistStatusLabel,
   useClinicKinesiologists,
 } from "@/hooks/useClinicKinesiologists";
@@ -237,9 +238,9 @@ export default function ClinicKinesiologistsPage() {
               Agregar kinesiólogo
             </Button>
           }
-          description="Administrá los kinesiólogos vinculados a la clínica sin borrar usuarios ni historial clínico."
+          description="Gestioná los kinesiólogos que trabajan en la clínica."
           eyebrow="Clínica"
-          title="Kinesiólogos"
+          title="Equipo"
         />
 
         {error || actionError ? (
@@ -276,6 +277,7 @@ export default function ClinicKinesiologistsPage() {
                       <th className="px-4 py-3">Email</th>
                       <th className="px-4 py-3">Matrícula</th>
                       <th className="px-4 py-3">Estado</th>
+                      <th className="px-4 py-3">Rol</th>
                       <th className="px-4 py-3 text-right">Acciones</th>
                     </tr>
                   </thead>
@@ -302,6 +304,9 @@ export default function ClinicKinesiologistsPage() {
                           >
                             {getKinesiologistStatusLabel(item.status)}
                           </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {getKinesiologistRoleLabel(item.role)}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex justify-end gap-1">
@@ -338,11 +343,19 @@ export default function ClinicKinesiologistsPage() {
               <div className="p-8 text-center">
                 <UsersRound className="mx-auto h-10 w-10 text-ocean-500" />
                 <p className="mt-3 font-bold text-ink">
-                  Todavía no hay kinesiólogos vinculados
+                  Todavía no agregaste kinesiólogos a la clínica.
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
                   Agregá el primer kinesiólogo por email.
                 </p>
+                <Button
+                  className="mt-4"
+                  onClick={() => setModalOpen(true)}
+                  type="button"
+                >
+                  <MailPlus className="h-4 w-4" />
+                  Agregar primer kinesiólogo
+                </Button>
               </div>
             )}
           </div>

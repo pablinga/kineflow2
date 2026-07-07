@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
+"use client";
 
-export default function TeamPage() {
-  redirect("/dashboard/kinesiologos");
-}
+export { default } from "../kinesiologos/page";

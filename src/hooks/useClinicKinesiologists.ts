@@ -19,6 +19,7 @@ export type ClinicKinesiologist = {
   licenseNumber: string;
   name: string;
   professionalId: string | null;
+  role: string;
   status: ClinicKinesiologistStatus;
 };
 
@@ -43,6 +44,7 @@ type ClinicKinesiologistRow = {
   invited_at: string;
   professional_email: string;
   professional_id: string | null;
+  role: string | null;
   status: ClinicKinesiologistStatus;
   profiles: ProfileValue | ProfileValue[] | null;
 };
@@ -93,6 +95,7 @@ function mapKinesiologist(row: ClinicKinesiologistRow): ClinicKinesiologist {
     licenseNumber: profile?.license_number ?? "",
     name,
     professionalId: row.professional_id,
+    role: row.role ?? "kinesiologist",
     status: row.status,
   };
 }
@@ -116,10 +119,14 @@ export function getKinesiologistStatusLabel(status: ClinicKinesiologistStatus) {
   const labels: Record<ClinicKinesiologistStatus, string> = {
     active: "Activo",
     inactive: "Desvinculado",
-    pending: "Pendiente",
+    pending: "Invitación pendiente",
   };
 
   return labels[status];
+}
+
+export function getKinesiologistRoleLabel(role: string) {
+  return role.toUpperCase() === "ADMIN" ? "Admin" : "Kinesiólogo";
 }
 
 export function useClinicKinesiologists() {
@@ -151,7 +158,7 @@ export function useClinicKinesiologists() {
       const { data, error: queryError } = await supabase
         .from("clinic_professionals")
         .select(
-          "id, professional_email, professional_id, status, invited_at, profiles(full_name, email, license_number)",
+          "id, professional_email, professional_id, role, status, invited_at, profiles(full_name, email, license_number)",
         )
         .eq("clinic_id", clinicId)
         .in("status", ["pending", "active"])

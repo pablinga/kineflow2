@@ -450,7 +450,7 @@ export default function PatientsPage() {
           </p>
           <Link
             className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white transition hover:bg-ocean-700"
-            href="/dashboard/kinesiologos"
+            href="/dashboard/equipo"
           >
             Agregar kinesiólogo
           </Link>
