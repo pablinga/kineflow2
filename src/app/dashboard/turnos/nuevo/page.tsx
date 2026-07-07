@@ -25,19 +25,6 @@ type ClinicProfessionalOption = {
   clinics: { name: string } | Array<{ name: string }> | null;
 };
 
-type WorkspaceProfessionalOption = {
-  id: string;
-  user_id: string;
-  workspaces:
-    | { source_clinic_id: string | null; name: string }
-    | Array<{ source_clinic_id: string | null; name: string }>
-    | null;
-  profiles:
-    | { full_name: string; license_number: string | null }
-    | Array<{ full_name: string; license_number: string | null }>
-    | null;
-};
-
 const today = new Date().toISOString().slice(0, 10);
 
 const emptyAppointment: NewAppointmentInput = {
@@ -354,8 +341,18 @@ export default function NewAppointmentPage() {
 
           {effectiveAccountType === "CONSULTORIO" && clinicProfessionals.length === 0 ? (
             <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
-              Para crear un turno, primero tenés que agregar un kinesiólogo al
-              consultorio y esperar que acepte la invitación.
+              <p>
+                Para crear un turno, primero tenés que agregar un kinesiólogo al
+                consultorio y esperar que acepte la invitación.
+              </p>
+              {activeWorkspace?.role === "ADMIN" ? (
+                <Link
+                  className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white transition hover:bg-ocean-700"
+                  href="/dashboard/kinesiologos"
+                >
+                  Agregar kinesiólogo
+                </Link>
+              ) : null}
             </section>
           ) : null}
 

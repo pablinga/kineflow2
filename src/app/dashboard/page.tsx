@@ -34,6 +34,7 @@ import { formatSessionAmount } from "@/lib/format";
 import { getPlanDisplayName } from "@/lib/plans";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 
 function startOfMonth(date: Date) {
@@ -77,6 +78,7 @@ function getPaymentBadge(appointment: { amount: number; paymentStatus: string; p
 
 export default function DashboardPage() {
   const { authError, displayName, loading, redirecting } = useRequireAuth();
+  const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const {
     activePatients,
@@ -104,16 +106,26 @@ export default function DashboardPage() {
     !patientsLoaded ||
     !appointmentsLoaded ||
     !evolutionsLoaded ||
-    !planLoaded
+    !planLoaded ||
+    !workspaceLoaded
   ) {
     return <DashboardLoading />;
   }
 
   const currentPlanName = getPlanDisplayName(plan.plan);
-  const patientLimitBlock = getPatientPlanLimitBlock({
-    activePatientCount: activePatients.length,
-    patientLimit: plan.limitePacientes,
-  });
+  const isClinicWorkspace = activeWorkspace?.type === "CLINICA";
+  const patientLimitBlock = isClinicWorkspace
+    ? null
+    : getPatientPlanLimitBlock({
+        activePatientCount: activePatients.length,
+        patientLimit: plan.limitePacientes,
+      });
+  const dashboardTitle = isClinicWorkspace
+    ? `Panel de ${activeWorkspace.name}`
+    : `Hola, ${displayName}`;
+  const dashboardDescription = isClinicWorkspace
+    ? "Equipo, pacientes, agenda e ingresos de la clínica en un solo lugar."
+    : "Pacientes, turnos, evoluciones y cobros en un solo lugar.";
 
   const upcomingAppointments = [...appointments]
     .filter(isUpcomingActiveAppointment)
@@ -224,9 +236,9 @@ export default function DashboardPage() {
               )}
               </>
             }
-            description="Pacientes, turnos, evoluciones y cobros en un solo lugar."
+            description={dashboardDescription}
             eyebrow="Dashboard"
-            title={<>Hola, {displayName}</>}
+            title={dashboardTitle}
           />
 
           {patientLimitBlock ? (

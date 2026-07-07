@@ -312,6 +312,17 @@ export default function PatientsPage() {
         return;
       }
 
+      if (
+        activeWorkspace?.type === "CLINICA" &&
+        activeWorkspace.role === "ADMIN" &&
+        clinicProfessionals.length === 0
+      ) {
+        setActionError(
+          "Primero agregá un kinesiólogo a la clínica para poder asignarle el paciente.",
+        );
+        return;
+      }
+
       if (!canCreateCurrentPatient) {
         setActionError(
           freeLimitReached
@@ -427,6 +438,24 @@ export default function PatientsPage() {
   }) {
     if (activeWorkspace?.type !== "CLINICA" || activeWorkspace.role !== "ADMIN") {
       return null;
+    }
+
+    if (clinicProfessionals.length === 0) {
+      return (
+        <div className="md:col-span-2 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-4">
+          <p className="text-sm font-bold text-ink">Kinesiólogo asignado</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            Todavía no hay kinesiólogos activos en esta clínica. Agregá el
+            equipo antes de crear pacientes y turnos.
+          </p>
+          <Link
+            className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white transition hover:bg-ocean-700"
+            href="/dashboard/kinesiologos"
+          >
+            Agregar kinesiólogo
+          </Link>
+        </div>
+      );
     }
 
     return (

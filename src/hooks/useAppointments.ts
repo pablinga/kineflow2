@@ -327,11 +327,9 @@ export function useAppointments(patientId?: string) {
   } = useActiveWorkspace();
   const { activePatients } = usePatients();
   const { plan } = useSubscriptionPlan();
-  const {
-    clinic: activeClinic,
-    error: activeClinicError,
-    loaded: activeClinicLoaded,
-  } = useActiveClinic(accountType === "CONSULTORIO");
+  const { clinic: activeClinic } = useActiveClinic(
+    accountType === "CONSULTORIO",
+  );
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -366,16 +364,19 @@ export function useAppointments(patientId?: string) {
         return;
       }
 
-      if (accountType !== "KINESIOLOGO" && !activeWorkspace?.id) {
+      if (!activeWorkspace?.id) {
         setError("No encontramos un espacio de trabajo activo.");
         setAppointments([]);
         return;
       }
 
-      if (accountType === "KINESIOLOGO") {
+      query = query.eq("workspace_id", activeWorkspace.id);
+
+      if (
+        activeWorkspace.type === "PERSONAL" ||
+        activeWorkspace.role === "KINESIOLOGO"
+      ) {
         query = query.eq("owner_id", sessionData.user.id);
-      } else if (activeWorkspace?.id) {
-        query = query.eq("workspace_id", activeWorkspace.id);
       }
 
       if (patientId) {
@@ -402,8 +403,9 @@ export function useAppointments(patientId?: string) {
       setLoaded(true);
     }
   }, [
-    accountType,
     activeWorkspace?.id,
+    activeWorkspace?.role,
+    activeWorkspace?.type,
     activeWorkspaceError,
     activeWorkspaceLoaded,
     patientId,

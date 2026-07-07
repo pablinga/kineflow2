@@ -54,9 +54,8 @@ const navigation = {
   CONSULTORIO: [
     { href: "/dashboard", label: "Inicio", icon: Home },
     { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
-    { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
-    { href: "/dashboard/consultorios", label: "Profesionales", icon: Building2 },
     { href: "/dashboard/kinesiologos", label: "Kinesiólogos", icon: UsersRound },
+    { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
     { href: "/dashboard/ingresos", label: "Ingresos", icon: WalletCards },
     { href: "/dashboard/planes", label: "Plan", icon: CreditCard },
   ],
