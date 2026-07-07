@@ -566,10 +566,11 @@ test("Equipo de clinica permite invitar profesionales por email", () => {
   );
 
   assert.match(sidebar, /UsersRound/);
-  assert.match(sidebar, /\/dashboard\/kinesiologos/);
+  assert.match(sidebar, /\/dashboard\/equipo/);
   assert.match(sidebar, /activeWorkspace\?\.type === "CLINICA" && activeWorkspace\.role === "ADMIN"/);
   assert.match(teamHook, /clinic_professionals/);
-  assert.match(teamHook, /\.in\("status", \["pending", "active"\]\)/);
+  assert.match(teamHook, /CLINIC_PROFESSIONAL_STATUS\.pending/);
+  assert.match(teamHook, /CLINIC_PROFESSIONAL_STATUS\.active/);
   assert.match(teamPage, /Agregar kinesiólogo/);
   assert.match(teamPage, /\/api\/invite-professional/);
   assert.match(teamPage, /lookup\.exists/);
