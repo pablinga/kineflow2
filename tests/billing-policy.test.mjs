@@ -564,17 +564,17 @@ test("Equipo de clinica permite invitar profesionales por email", () => {
   const invitationPage = fs.readFileSync("src/app/invitacion/page.tsx", "utf8");
   const registerPage = fs.readFileSync("src/app/registro/page.tsx", "utf8");
   const inviteRoute = fs.readFileSync("src/app/api/invite-professional/route.ts", "utf8");
-  const migration = fs.readFileSync(
-    "supabase/migrations/202607060001_use_active_clinic_professional_status.sql",
-    "utf8",
-  );
+  const migration = [
+    "supabase/migrations/202605270002_add_clinic_professional_model.sql",
+    "supabase/migrations/202607020002_clinic_invitation_token_flow.sql",
+  ].map((path) => fs.readFileSync(path, "utf8")).join("\n");
 
   assert.match(sidebar, /UsersRound/);
   assert.match(sidebar, /\/dashboard\/equipo/);
   assert.match(sidebar, /activeWorkspace\?\.type === "CLINICA" && activeWorkspace\.role === "ADMIN"/);
   assert.match(teamHook, /clinic_professionals/);
   assert.match(teamHook, /CLINIC_PROFESSIONAL_STATUS\.pending/);
-  assert.match(teamHook, /CLINIC_PROFESSIONAL_STATUS\.active/);
+  assert.match(teamHook, /CLINIC_PROFESSIONAL_STATUS\.accepted/);
   assert.match(teamPage, /Agregar kinesiólogo/);
   assert.match(teamPage, /\/api\/invite-professional/);
   assert.match(teamPage, /lookup\.exists/);
@@ -584,12 +584,12 @@ test("Equipo de clinica permite invitar profesionales por email", () => {
   assert.match(invitationPage, /answer_clinic_professional_invitation/);
   assert.match(invitationPage, /router\.replace\(`\/registro\?token=/);
   assert.match(registerPage, /answer_clinic_professional_invitation/);
-  assert.match(registerPage, /target_status: CLINIC_PROFESSIONAL_STATUS\.active/);
-  assert.match(migration, /status in \('pending', 'active', 'inactive'\)/);
-  assert.match(migration, /target_status not in \('active', 'inactive'\)/);
+  assert.match(registerPage, /target_status: CLINIC_PROFESSIONAL_STATUS\.accepted/);
+  assert.match(migration, /status in \('pending', 'accepted', 'rejected', 'inactive'\)/);
+  assert.match(migration, /target_status not in \('accepted', 'rejected'\)/);
 });
 
-test("Equipo agrega un kinesiologo existente como activo", () => {
+test("Equipo agrega un kinesiologo existente como aceptado", () => {
   const decision = decideClinicProfessionalMembership({
     activeLink: null,
     clinicId: "clinic-a",
@@ -605,7 +605,7 @@ test("Equipo agrega un kinesiologo existente como activo", () => {
   assert.equal(decision.payload.clinic_id, "clinic-a");
   assert.equal(decision.payload.professional_email, "kine@email.com");
   assert.equal(decision.payload.professional_id, "professional-a");
-  assert.equal(decision.payload.status, "active");
+  assert.equal(decision.payload.status, "accepted");
 });
 
 test("Equipo invita un kinesiologo no registrado como pendiente", () => {
@@ -630,7 +630,7 @@ test("Equipo bloquea agregar nuevamente al mismo kinesiologo", () => {
   const decision = decideClinicProfessionalMembership({
     activeLink: {
       id: "link-a",
-      status: "active",
+      status: "accepted",
     },
     clinicId: "clinic-a",
     inactiveLink: null,
@@ -684,12 +684,12 @@ test("Equipo reactiva un kinesiologo inactivo", () => {
   assert.equal(decision.id, "link-inactive");
   assert.equal(decision.payload.professional_id, "professional-a");
   assert.equal(decision.payload.responded_at, "2026-07-08T12:00:00.000Z");
-  assert.equal(decision.payload.status, "active");
+  assert.equal(decision.payload.status, "accepted");
 });
 
 test("Equipo rechaza status invalido para clinic_professionals", () => {
   assert.throws(
-    () => assertClinicProfessionalStatus("accepted"),
+    () => assertClinicProfessionalStatus("active"),
     /Status de kinesiologo de clinica invalido/,
   );
 });
@@ -709,7 +709,7 @@ test("Equipo permite que un usuario trabaje en mas de una clinica", () => {
   assert.equal(decision.type, "insert");
   assert.equal(decision.payload.clinic_id, "clinic-b");
   assert.equal(decision.payload.professional_id, "professional-a");
-  assert.equal(decision.payload.status, "active");
+  assert.equal(decision.payload.status, "accepted");
 });
 
 test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => {

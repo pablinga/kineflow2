@@ -19,7 +19,7 @@ import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
 
 function getStatusClasses(status: string) {
-  if (status === "active") {
+  if (status === "accepted") {
     return "bg-emerald-50 text-emerald-700";
   }
 

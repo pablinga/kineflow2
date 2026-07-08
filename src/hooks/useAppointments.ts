@@ -458,7 +458,7 @@ export function useAppointments(patientId?: string) {
           ? availability.clinic_professionals[0]
           : availability.clinic_professionals;
 
-        if (link?.status !== "active") {
+        if (link?.status !== "accepted") {
           return false;
         }
 

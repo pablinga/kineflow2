@@ -166,7 +166,7 @@ export function useClinicAdmin() {
       .from("clinic_professionals")
       .select("id", { count: "exact", head: true })
       .eq("clinic_id", input.clinicId)
-      .eq("status", CLINIC_PROFESSIONAL_STATUS.active);
+      .eq("status", CLINIC_PROFESSIONAL_STATUS.accepted);
 
     if (countError) {
       throw new Error(mapSupabaseError(countError));

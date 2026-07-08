@@ -1,7 +1,8 @@
 export const CLINIC_PROFESSIONAL_STATUS = {
-  active: "active",
+  accepted: "accepted",
   inactive: "inactive",
   pending: "pending",
+  rejected: "rejected",
 } as const;
 
 export type ClinicProfessionalStatus =
