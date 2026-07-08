@@ -125,8 +125,8 @@ export default function ClinicKinesiologistsPage() {
         const skipped = await sendInvitation(linkId, lookup.email);
         setMessage(
           skipped
-            ? "Invitación creada. El email quedó preparado en logs porque Resend no está configurado."
-            : "Invitación enviada para que el kinesiólogo se registre.",
+            ? "No encontramos una cuenta asociada a este email. Se enviará una invitación. El email quedó preparado en logs porque Resend no está configurado."
+            : "No encontramos una cuenta asociada a este email. Se enviará una invitación.",
         );
       }
 

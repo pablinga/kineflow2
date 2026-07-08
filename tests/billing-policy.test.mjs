@@ -12,6 +12,10 @@ import {
   isLoginEnabled,
   SIGNUPS_CLOSED_MESSAGE,
 } from "../src/lib/signups.ts";
+import {
+  assertClinicProfessionalStatus,
+  decideClinicProfessionalMembership,
+} from "../src/lib/clinic-professional-membership.ts";
 
 function test(name, fn) {
   fn();
@@ -580,9 +584,132 @@ test("Equipo de clinica permite invitar profesionales por email", () => {
   assert.match(invitationPage, /answer_clinic_professional_invitation/);
   assert.match(invitationPage, /router\.replace\(`\/registro\?token=/);
   assert.match(registerPage, /answer_clinic_professional_invitation/);
-  assert.match(registerPage, /target_status: "active"/);
+  assert.match(registerPage, /target_status: CLINIC_PROFESSIONAL_STATUS\.active/);
   assert.match(migration, /status in \('pending', 'active', 'inactive'\)/);
   assert.match(migration, /target_status not in \('active', 'inactive'\)/);
+});
+
+test("Equipo agrega un kinesiologo existente como activo", () => {
+  const decision = decideClinicProfessionalMembership({
+    activeLink: null,
+    clinicId: "clinic-a",
+    inactiveLink: null,
+    lookup: {
+      email: "KINE@EMAIL.COM",
+      exists: true,
+      id: "professional-a",
+    },
+  });
+
+  assert.equal(decision.type, "insert");
+  assert.equal(decision.payload.clinic_id, "clinic-a");
+  assert.equal(decision.payload.professional_email, "kine@email.com");
+  assert.equal(decision.payload.professional_id, "professional-a");
+  assert.equal(decision.payload.status, "active");
+});
+
+test("Equipo invita un kinesiologo no registrado como pendiente", () => {
+  const decision = decideClinicProfessionalMembership({
+    activeLink: null,
+    clinicId: "clinic-a",
+    inactiveLink: null,
+    lookup: {
+      email: "nuevo@email.com",
+      exists: false,
+      id: null,
+    },
+  });
+
+  assert.equal(decision.type, "insert");
+  assert.equal(decision.payload.professional_email, "nuevo@email.com");
+  assert.equal(decision.payload.professional_id, null);
+  assert.equal(decision.payload.status, "pending");
+});
+
+test("Equipo bloquea agregar nuevamente al mismo kinesiologo", () => {
+  const decision = decideClinicProfessionalMembership({
+    activeLink: {
+      id: "link-a",
+      status: "active",
+    },
+    clinicId: "clinic-a",
+    inactiveLink: null,
+    lookup: {
+      email: "kine@email.com",
+      exists: true,
+      id: "professional-a",
+    },
+  });
+
+  assert.equal(decision.type, "duplicate");
+  assert.equal(decision.message, "Este kinesiologo ya pertenece a la clinica");
+});
+
+test("Equipo informa una invitacion pendiente duplicada", () => {
+  const decision = decideClinicProfessionalMembership({
+    activeLink: {
+      id: "link-a",
+      status: "pending",
+    },
+    clinicId: "clinic-a",
+    inactiveLink: null,
+    lookup: {
+      email: "nuevo@email.com",
+      exists: false,
+      id: null,
+    },
+  });
+
+  assert.equal(decision.type, "duplicate");
+  assert.equal(decision.message, "La invitacion ya se encuentra pendiente");
+});
+
+test("Equipo reactiva un kinesiologo inactivo", () => {
+  const decision = decideClinicProfessionalMembership({
+    activeLink: null,
+    clinicId: "clinic-a",
+    inactiveLink: {
+      id: "link-inactive",
+      status: "inactive",
+    },
+    lookup: {
+      email: "kine@email.com",
+      exists: true,
+      id: "professional-a",
+    },
+    now: "2026-07-08T12:00:00.000Z",
+  });
+
+  assert.equal(decision.type, "reactivate");
+  assert.equal(decision.id, "link-inactive");
+  assert.equal(decision.payload.professional_id, "professional-a");
+  assert.equal(decision.payload.responded_at, "2026-07-08T12:00:00.000Z");
+  assert.equal(decision.payload.status, "active");
+});
+
+test("Equipo rechaza status invalido para clinic_professionals", () => {
+  assert.throws(
+    () => assertClinicProfessionalStatus("accepted"),
+    /Status de kinesiologo de clinica invalido/,
+  );
+});
+
+test("Equipo permite que un usuario trabaje en mas de una clinica", () => {
+  const decision = decideClinicProfessionalMembership({
+    activeLink: null,
+    clinicId: "clinic-b",
+    inactiveLink: null,
+    lookup: {
+      email: "kine@email.com",
+      exists: true,
+      id: "professional-a",
+    },
+  });
+
+  assert.equal(decision.type, "insert");
+  assert.equal(decision.payload.clinic_id, "clinic-b");
+  assert.equal(decision.payload.professional_id, "professional-a");
+  assert.equal(decision.payload.status, "active");
 });
 
 test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => {

@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
+import {
+  CLINIC_PROFESSIONAL_ROLE,
+  CLINIC_PROFESSIONAL_STATUS,
+} from "@/lib/clinic-professionals";
 
 export type Clinic = {
   id: string;
@@ -162,7 +166,7 @@ export function useClinicAdmin() {
       .from("clinic_professionals")
       .select("id", { count: "exact", head: true })
       .eq("clinic_id", input.clinicId)
-      .eq("status", "active");
+      .eq("status", CLINIC_PROFESSIONAL_STATUS.active);
 
     if (countError) {
       throw new Error(mapSupabaseError(countError));
@@ -181,8 +185,8 @@ export function useClinicAdmin() {
         professional_email: input.professional.email.trim().toLowerCase(),
         professional_id: input.professional.id,
         color: input.color,
-        role: "kinesiologist",
-        status: "pending",
+        role: CLINIC_PROFESSIONAL_ROLE.kinesiologist,
+        status: CLINIC_PROFESSIONAL_STATUS.pending,
       })
       .select("id")
       .single();

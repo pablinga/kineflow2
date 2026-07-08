@@ -35,6 +35,7 @@ import {
 } from "@/lib/legal/terms";
 import { LEGAL_VERSION } from "@/lib/legal/version";
 import { getSupabaseClient } from "@/lib/supabase";
+import { CLINIC_PROFESSIONAL_STATUS } from "@/lib/clinic-professionals";
 
 type RegisterField = {
   label: string;
@@ -203,7 +204,7 @@ export default function RegisterPage() {
             invitation_id: invitationToken,
             target_email: email.trim().toLowerCase(),
             target_professional_id: data.user.id,
-            target_status: "active",
+            target_status: CLINIC_PROFESSIONAL_STATUS.active,
           },
         );
 

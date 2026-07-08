@@ -5,10 +5,14 @@ import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages"
 import { getSupabaseClient } from "@/lib/supabase";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import {
-  CLINIC_PROFESSIONAL_ROLE,
   CLINIC_PROFESSIONAL_STATUS,
   type ClinicProfessionalStatus,
 } from "@/lib/clinic-professionals";
+import {
+  decideClinicProfessionalMembership,
+  getInvitationNotice,
+  normalizeProfessionalEmail,
+} from "@/lib/clinic-professional-membership";
 
 export type ClinicKinesiologistStatus = ClinicProfessionalStatus;
 
@@ -117,6 +121,19 @@ function mapLookup(email: string, row: ProfileRow | null): KinesiologistLookup {
   };
 }
 
+function getClinicProfessionalSaveError(error: unknown) {
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? String((error as { code?: unknown }).code ?? "")
+      : "";
+
+  if (code === "23505") {
+    return "Este kinesiologo ya pertenece a la clinica";
+  }
+
+  return "No pudimos agregar al kinesiologo. Intenta nuevamente";
+}
+
 export function getKinesiologistStatusLabel(status: ClinicKinesiologistStatus) {
   const labels: Record<ClinicKinesiologistStatus, string> = {
     active: "Activo",
@@ -195,7 +212,7 @@ export function useClinicKinesiologists() {
   }, [loadKinesiologists]);
 
   async function findByEmail(email: string) {
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = normalizeProfessionalEmail(email);
 
     if (!normalizedEmail || !normalizedEmail.includes("@")) {
       throw new Error("Ingresá un email válido.");
@@ -267,14 +284,6 @@ export function useClinicKinesiologists() {
       } | null;
     }
 
-    if (activeLink?.status === CLINIC_PROFESSIONAL_STATUS.active) {
-      throw new Error("Este kinesiólogo ya está vinculado a la clínica.");
-    }
-
-    if (activeLink?.status === CLINIC_PROFESSIONAL_STATUS.pending) {
-      throw new Error("Ya existe una invitación pendiente para ese email.");
-    }
-
     const { data: inactiveRows, error: inactiveError } = await supabase
       .from("clinic_professionals")
       .select("id, status")
@@ -314,62 +323,53 @@ export function useClinicKinesiologists() {
       } | null;
     }
 
-    if (inactiveLink) {
-      const payload = {
-        invited_at: new Date().toISOString(),
-        professional_id: lookup.id,
-        responded_at: lookup.exists ? new Date().toISOString() : null,
-        status: lookup.exists
-          ? CLINIC_PROFESSIONAL_STATUS.active
-          : CLINIC_PROFESSIONAL_STATUS.pending,
-      };
+    const decision = decideClinicProfessionalMembership({
+      activeLink,
+      clinicId,
+      inactiveLink,
+      lookup,
+    });
 
+    if (decision.type === "duplicate") {
+      throw new Error(decision.message);
+    }
+
+    if (decision.type === "reactivate") {
       console.info("[clinic_professionals:update]", {
-        id: inactiveLink.id,
-        payload,
+        id: decision.id,
+        payload: decision.payload,
       });
 
       const { data, error: updateError } = await supabase
         .from("clinic_professionals")
-        .update(payload)
-        .eq("id", inactiveLink.id)
+        .update(decision.payload)
+        .eq("id", decision.id)
         .select("id")
         .single();
 
       if (updateError) {
         console.error("[clinic_professionals:update:error]", updateError);
-        throw new Error(
-          "No pudimos agregar al kinesiologo a la clinica. Intenta nuevamente.",
-        );
+        throw new Error(getClinicProfessionalSaveError(updateError));
       }
 
       await loadKinesiologists();
       return (data as { id: string }).id;
     }
 
-    const payload = {
-      clinic_id: clinicId,
-      professional_email: lookup.email,
-      professional_id: lookup.id,
-      role: CLINIC_PROFESSIONAL_ROLE.kinesiologist,
-      status: lookup.exists
-        ? CLINIC_PROFESSIONAL_STATUS.active
-        : CLINIC_PROFESSIONAL_STATUS.pending,
-    };
-
-    console.info("[clinic_professionals:insert]", payload);
+    console.info("[clinic_professionals:insert]", {
+      invitationNotice: getInvitationNotice(lookup),
+      payload: decision.payload,
+    });
 
     const { data, error: insertError } = await supabase
       .from("clinic_professionals")
-      .insert(payload)
+      .insert(decision.payload)
       .select("id")
       .single();
 
     if (insertError) {
       console.error("[clinic_professionals:insert:error]", insertError);
-      throw new Error(
-        "No pudimos agregar al kinesiologo a la clinica. Intenta nuevamente.",
-      );
+      throw new Error(getClinicProfessionalSaveError(insertError));
     }
 
     await loadKinesiologists();

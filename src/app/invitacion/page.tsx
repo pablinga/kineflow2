@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
+import { CLINIC_PROFESSIONAL_STATUS } from "@/lib/clinic-professionals";
 
 type Invitation = {
   clinic_id: string;
@@ -88,7 +89,11 @@ function InvitationContent() {
     loadInvitation();
   }, [loadInvitation]);
 
-  async function answerInvitation(status: "active" | "inactive") {
+  async function answerInvitation(
+    status:
+      | typeof CLINIC_PROFESSIONAL_STATUS.active
+      | typeof CLINIC_PROFESSIONAL_STATUS.inactive,
+  ) {
     if (!invitation || !sessionUser?.email) {
       setError("No pudimos identificar tu cuenta.");
       return;
@@ -115,7 +120,7 @@ function InvitationContent() {
       }
 
       setMessage(
-        status === "active"
+        status === CLINIC_PROFESSIONAL_STATUS.active
           ? "Invitación aceptada. Ya podés entrar a KineFlow."
           : "Invitación rechazada.",
       );
@@ -166,7 +171,7 @@ function InvitationContent() {
               Te invitaron a unirte al equipo de esta clínica en KineFlow.
             </p>
 
-            {invitation.status !== "pending" ? (
+            {invitation.status !== CLINIC_PROFESSIONAL_STATUS.pending ? (
               <Alert className="mt-6" tone="info">
                 Esta invitación ya fue respondida.
               </Alert>
@@ -179,7 +184,9 @@ function InvitationContent() {
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <Button
                     disabled={saving}
-                    onClick={() => answerInvitation("active")}
+                    onClick={() =>
+                      answerInvitation(CLINIC_PROFESSIONAL_STATUS.active)
+                    }
                     type="button"
                   >
                     <CheckCircle className="h-4 w-4" />
@@ -187,7 +194,9 @@ function InvitationContent() {
                   </Button>
                   <Button
                     disabled={saving}
-                    onClick={() => answerInvitation("inactive")}
+                    onClick={() =>
+                      answerInvitation(CLINIC_PROFESSIONAL_STATUS.inactive)
+                    }
                     type="button"
                     variant="secondary"
                   >

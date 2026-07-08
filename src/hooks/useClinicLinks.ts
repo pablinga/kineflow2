@@ -3,8 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
+import {
+  CLINIC_PROFESSIONAL_STATUS,
+  type ClinicProfessionalStatus,
+} from "@/lib/clinic-professionals";
 
-export type ClinicLinkStatus = "pending" | "active" | "inactive";
+export type ClinicLinkStatus = ClinicProfessionalStatus;
 
 export type ClinicAvailability = {
   id: string;
@@ -184,11 +188,19 @@ export function useClinicLinks() {
   }, [loadLinks]);
 
   const pendingLinks = useMemo(
-    () => links.filter((link) => link.status === "pending"),
+    () =>
+      links.filter(
+        (link) => link.status === CLINIC_PROFESSIONAL_STATUS.pending,
+      ),
     [links],
   );
 
-  async function answerInvitation(id: string, status: "active" | "inactive") {
+  async function answerInvitation(
+    id: string,
+    status:
+      | typeof CLINIC_PROFESSIONAL_STATUS.active
+      | typeof CLINIC_PROFESSIONAL_STATUS.inactive,
+  ) {
     const supabase = getSupabaseClient();
     const { data: sessionData, error: sessionError } =
       await supabase.auth.getUser();
@@ -214,12 +226,14 @@ export function useClinicLinks() {
   }
 
   return {
-    acceptInvitation: (id: string) => answerInvitation(id, "active"),
+    acceptInvitation: (id: string) =>
+      answerInvitation(id, CLINIC_PROFESSIONAL_STATUS.active),
     error,
     links,
     loaded,
     pendingLinks,
     refreshLinks: loadLinks,
-    rejectInvitation: (id: string) => answerInvitation(id, "inactive"),
+    rejectInvitation: (id: string) =>
+      answerInvitation(id, CLINIC_PROFESSIONAL_STATUS.inactive),
   };
 }
