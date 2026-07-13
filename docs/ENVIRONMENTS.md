@@ -86,3 +86,17 @@ MERCADOPAGO_WEBHOOK_SECRET
 - Usar usuarios de prueba y emails ficticios en QA.
 - No cargar backups ni exports productivos en `kineflow-qa`.
 - Antes de correr SQL destructivo, confirmar visualmente el nombre del proyecto en el dashboard de Supabase.
+
+## URLs de recuperación de contraseña en Supabase Auth
+
+El flujo de recuperación usa `supabase.auth.resetPasswordForEmail` y redirige al usuario a `/nueva-password` sobre el mismo origen donde está corriendo KineFlow. No hay URLs de localhost hardcodeadas: local, QA y producción usan el dominio actual del navegador.
+
+En Supabase Auth, configurar:
+
+- Site URL: el dominio principal del ambiente, por ejemplo `https://qa.kineflow.ar` en QA y `https://kineflow.ar` en producción.
+- Redirect URLs permitidas:
+  - `http://localhost:3000/nueva-password` para desarrollo local.
+  - `https://qa.kineflow.ar/nueva-password` para QA.
+  - `https://kineflow.ar/nueva-password` para producción.
+
+Si Vercel Preview usa dominios temporales, agregar también el patrón de preview correspondiente de ese proyecto para `/nueva-password`.

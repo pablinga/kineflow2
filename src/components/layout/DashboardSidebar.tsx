@@ -42,7 +42,7 @@ const navigation = {
   KINESIOLOGO: [
     { href: "/dashboard", label: "Inicio", icon: Home },
     { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
-    { href: "/dashboard/turnos", label: "Turnos", icon: CalendarDays },
+    { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
     {
       href: "/dashboard/mis-consultorios",
       label: "Mis consultorios",
@@ -63,6 +63,13 @@ const navigation = {
   AccountType,
   Array<{ href: string; label: string; icon: typeof Home }>
 >;
+
+const mobileNavigationOrder = [
+  "/dashboard",
+  "/dashboard/turnos",
+  "/dashboard/pacientes",
+  "/dashboard/planes",
+];
 
 function clearSupabaseLocalSession() {
   if (typeof window === "undefined") {
@@ -115,10 +122,7 @@ export function DashboardSidebar() {
   const baseNavigation =
     effectiveAccountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE"
       ? navigation.KINESIOLOGO.filter(
-          (item) =>
-            !["/dashboard/pacientes", "/dashboard/ingresos"].includes(
-              item.href,
-            ),
+          (item) => item.href !== "/dashboard/ingresos",
         )
       : navigation[effectiveAccountType];
   const roleNavigation = isClinicAdmin
@@ -139,6 +143,11 @@ export function DashboardSidebar() {
             "/dashboard/kinesiologos",
           ].includes(item.href),
       );
+  const visibleMobileNavigation = mobileNavigationOrder
+    .map((href) => visibleNavigation.find((item) => item.href === href))
+    .filter((item): item is (typeof visibleNavigation)[number] =>
+      Boolean(item),
+    );
 
   async function handleLogout() {
     if (loggingOut) {
@@ -315,10 +324,10 @@ export function DashboardSidebar() {
           </p>
         ) : null}
       </aside>
-      {visibleNavigation.length > 0 ? (
+      {visibleMobileNavigation.length > 0 ? (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ocean-100 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-soft backdrop-blur lg:hidden">
-          <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
-            {visibleNavigation.slice(0, 5).map((item) => {
+          <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
+            {visibleMobileNavigation.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
 

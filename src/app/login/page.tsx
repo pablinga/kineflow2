@@ -3,17 +3,20 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, LockKeyhole } from "lucide-react";
+import { Mail } from "lucide-react";
 import { LegalLinks } from "@/components/layout/LegalLinks";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
-import { mapAuthError, getFriendlyErrorMessage, logFriendlyError } from "@/lib/error-messages";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import {
-  arePublicAuthLinksVisible,
-  isLoginEnabled,
-} from "@/lib/signups";
+  getFriendlyErrorMessage,
+  logFriendlyError,
+  mapAuthError,
+} from "@/lib/error-messages";
+import { arePublicAuthLinksVisible, isLoginEnabled } from "@/lib/signups";
 import { getSupabaseClient } from "@/lib/supabase";
+import { MIN_PASSWORD_LENGTH, isValidEmail } from "@/lib/auth";
 
 const ACCESS_CLOSED_MESSAGE =
   "Por el momento el acceso se encuentra cerrado. Si querés probar KineFlow, contactanos.";
@@ -56,7 +59,7 @@ export default function LoginPage() {
         return;
       }
 
-      if (!email.includes("@")) {
+      if (!isValidEmail(email)) {
         setError("Ingresá un email válido.");
         return;
       }
@@ -102,10 +105,10 @@ export default function LoginPage() {
             KineFlow
           </p>
           <h1 className="mt-4 text-4xl font-bold">
-            Volve a tu panel en segundos.
+            Volvé a tu panel en segundos.
           </h1>
           <p className="mt-5 leading-8 text-ocean-100">
-            Revisa turnos, continua evoluciones y manten cada tratamiento
+            Revisá turnos, continuá evoluciones y mantené cada tratamiento
             organizado desde cualquier dispositivo.
           </p>
         </div>
@@ -117,16 +120,19 @@ export default function LoginPage() {
             <h2 className="text-3xl font-bold text-ink">Ingresar</h2>
             <p className="mt-2 text-slate-600">
               {loginEnabled
-                ? "Accede a tu cuenta para continuar."
+                ? "Accedé a tu cuenta para continuar."
                 : ACCESS_CLOSED_MESSAGE}
             </p>
           </div>
           <form className="mt-8 space-y-5" noValidate onSubmit={handleLogin}>
             <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Email</span>
+              <span className="text-sm font-semibold text-slate-700">
+                Email
+              </span>
               <span className="mt-2 flex items-center gap-3 rounded-lg border border-ocean-100 bg-white px-4 py-3 focus-within:border-ocean-400">
                 <Mail className="h-5 w-5 text-ocean-500" />
                 <input
+                  autoComplete="email"
                   className="w-full bg-transparent text-sm outline-none"
                   disabled={!loginEnabled}
                   onChange={(event) => setEmail(event.target.value)}
@@ -137,54 +143,40 @@ export default function LoginPage() {
                 />
               </span>
             </label>
-            <label className="block">
-              <span className="text-sm font-semibold text-slate-700">
-                Contraseña
-              </span>
-              <span className="mt-2 flex items-center gap-3 rounded-lg border border-ocean-100 bg-white px-4 py-3 focus-within:border-ocean-400">
-                <LockKeyhole className="h-5 w-5 text-ocean-500" />
-                <input
-                  className="w-full bg-transparent text-sm outline-none"
-                  disabled={!loginEnabled}
-                  minLength={6}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="********"
-                  required
-                  type="password"
-                  value={password}
-                />
-              </span>
-            </label>
-            <div className="flex items-center justify-between text-sm">
+            <PasswordInput
+              autoComplete="current-password"
+              disabled={!loginEnabled}
+              label="Contraseña"
+              minLength={MIN_PASSWORD_LENGTH}
+              onChange={setPassword}
+              required
+              value={password}
+            />
+            <div className="flex items-center justify-between gap-4 text-sm">
               <label className="flex items-center gap-2 text-slate-600">
                 <input className="h-4 w-4 accent-ocean-600" type="checkbox" />
                 Recordarme
               </label>
-              <button
-                className="font-semibold text-ocean-700"
-                onClick={() =>
-                  setMessage(
-                    "Estamos preparando la recuperacion online. Por ahora escribinos para restablecer el acceso.",
-                  )
-                }
-                type="button"
+              <Link
+                className="font-semibold text-ocean-700 hover:text-ocean-800"
+                href="/recuperar-password"
               >
-                Recuperar acceso
-              </button>
+                ¿Olvidaste tu contraseña?
+              </Link>
             </div>
-            {error ? (
-              <Alert tone="error">{error}</Alert>
-            ) : null}
-            {message ? (
-              <Alert tone="info">{message}</Alert>
-            ) : null}
-            <Button className="w-full" disabled={loading || !loginEnabled} type="submit">
+            {error ? <Alert tone="error">{error}</Alert> : null}
+            {message ? <Alert tone="info">{message}</Alert> : null}
+            <Button
+              className="w-full"
+              disabled={loading || !loginEnabled}
+              type="submit"
+            >
               {loading ? "Ingresando..." : "Entrar"}
             </Button>
           </form>
           {showAuthLinks ? (
             <p className="mt-6 text-center text-sm text-slate-600">
-              No tenes cuenta?{" "}
+              ¿No tenés cuenta?{" "}
               <Link className="font-semibold text-ocean-700" href="/registro">
                 Crear cuenta
               </Link>

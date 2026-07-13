@@ -589,6 +589,47 @@ test("Equipo de clinica permite invitar profesionales por email", () => {
   assert.match(migration, /target_status not in \('accepted', 'rejected'\)/);
 });
 
+test("Navegacion principal muestra agenda y pacientes en desktop y mobile", () => {
+  const sidebar = fs.readFileSync("src/components/layout/DashboardSidebar.tsx", "utf8");
+
+  assert.match(sidebar, /\{ href: "\/dashboard\/pacientes", label: "Pacientes", icon: Users \}/);
+  assert.match(sidebar, /\{ href: "\/dashboard\/turnos", label: "Agenda", icon: CalendarDays \}/);
+  assert.doesNotMatch(sidebar, /label: "Turnos"/);
+  assert.match(sidebar, /const mobileNavigationOrder = \[\s*"\/dashboard",\s*"\/dashboard\/turnos",\s*"\/dashboard\/pacientes",\s*"\/dashboard\/planes",\s*\]/);
+  assert.match(sidebar, /grid-cols-4/);
+  assert.match(sidebar, /item\.href !== "\/dashboard\/ingresos"/);
+  assert.doesNotMatch(sidebar, /\["\/dashboard\/pacientes", "\/dashboard\/ingresos"\]/);
+});
+
+test("Recuperacion de contraseña usa Supabase Auth y campo reutilizable", () => {
+  const loginPage = fs.readFileSync("src/app/login/page.tsx", "utf8");
+  const recoverPage = fs.readFileSync("src/app/recuperar-password/page.tsx", "utf8");
+  const newPasswordPage = fs.readFileSync("src/app/nueva-password/page.tsx", "utf8");
+  const passwordInput = fs.readFileSync("src/components/ui/PasswordInput.tsx", "utf8");
+  const authHelpers = fs.readFileSync("src/lib/auth.ts", "utf8");
+  const docs = fs.readFileSync("docs/ENVIRONMENTS.md", "utf8");
+  const registerPage = fs.readFileSync("src/app/registro/page.tsx", "utf8");
+
+  assert.match(loginPage, /href="\/recuperar-password"/);
+  assert.match(loginPage, /¿Olvidaste tu contraseña\?/);
+  assert.match(recoverPage, /resetPasswordForEmail/);
+  assert.match(recoverPage, /redirectTo: getBrowserAuthRedirectUrl\("\/nueva-password"\)/);
+  assert.match(authHelpers, /PASSWORD_RECOVERY_CONFIRMATION/);
+  assert.match(authHelpers, /window\.location\.origin/);
+  assert.doesNotMatch(authHelpers + recoverPage + newPasswordPage, /localhost/);
+  assert.match(newPasswordPage, /exchangeCodeForSession/);
+  assert.match(newPasswordPage, /setSession/);
+  assert.match(newPasswordPage, /updateUser\(\{\s*password,\s*\}\)/);
+  assert.match(newPasswordPage, /Las contraseñas no coinciden/);
+  assert.match(newPasswordPage, /El enlace de recuperación es inválido o venció/);
+  assert.match(passwordInput, /type=\{visible \? "text" : "password"\}/);
+  assert.match(passwordInput, /aria-label=\{visible \? "Ocultar contraseña" : "Mostrar contraseña"\}/);
+  assert.match(passwordInput, /type="button"/);
+  assert.match(registerPage, /<PasswordInput/);
+  assert.match(docs, /\/nueva-password/);
+  assert.match(docs, /Redirect URLs permitidas/);
+});
+
 test("Equipo agrega un kinesiologo existente como aceptado", () => {
   const decision = decideClinicProfessionalMembership({
     activeLink: null,

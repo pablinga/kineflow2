@@ -16,6 +16,7 @@ import { LegalLinks } from "@/components/layout/LegalLinks";
 import { Logo } from "@/components/ui/Logo";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import {
   getFriendlyErrorMessage,
   logFriendlyError,
@@ -36,6 +37,7 @@ import {
 import { LEGAL_VERSION } from "@/lib/legal/version";
 import { getSupabaseClient } from "@/lib/supabase";
 import { CLINIC_PROFESSIONAL_STATUS } from "@/lib/clinic-professionals";
+import { MIN_PASSWORD_LENGTH, isValidEmail } from "@/lib/auth";
 
 type RegisterField = {
   label: string;
@@ -146,12 +148,12 @@ export default function RegisterPage() {
         return;
       }
 
-      if (!email.trim() || !email.includes("@")) {
+      if (!email.trim() || !isValidEmail(email)) {
         setError("Ingresá un email válido.");
         return;
       }
 
-      if (password.length < 6) {
+      if (password.length < MIN_PASSWORD_LENGTH) {
         setError("La contraseña debe tener al menos 6 caracteres.");
         return;
       }
@@ -431,6 +433,21 @@ export default function RegisterPage() {
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {accessFields.map((field) => {
                   const Icon = field.icon;
+                  if (field.type === "password") {
+                    return (
+                      <PasswordInput
+                        autoComplete="new-password"
+                        className="md:[&>span:last-child]:mt-1.5"
+                        key={field.label}
+                        label={field.label}
+                        minLength={MIN_PASSWORD_LENGTH}
+                        onChange={field.onChange}
+                        required
+                        value={field.value}
+                      />
+                    );
+                  }
+
                   return (
                     <label className="block" key={field.label}>
                       <span className="text-sm font-semibold text-slate-700">
@@ -441,7 +458,6 @@ export default function RegisterPage() {
                         <input
                           className="w-full bg-transparent text-sm outline-none"
                           disabled={Boolean(invitationToken) && field.label === "Email"}
-                          minLength={field.type === "password" ? 6 : undefined}
                           onChange={(event) => field.onChange(event.target.value)}
                           placeholder={field.placeholder}
                           type={field.type}
