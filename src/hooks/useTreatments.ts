@@ -5,6 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export type TreatmentStatus =
   | "EN_CURSO"
@@ -69,7 +70,11 @@ function mapTreatment(row: TreatmentRow): Treatment {
   };
 }
 
-export function useTreatments(patientId?: string) {
+export function useTreatments(
+  patientId?: string,
+  options: { enabled?: boolean } = {},
+) {
+  const { user } = useRequireAuth();
   const {
     activeWorkspace,
     error: activeWorkspaceError,
@@ -78,8 +83,16 @@ export function useTreatments(patientId?: string) {
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
+  const enabled = options.enabled ?? true;
 
   const loadTreatments = useCallback(async () => {
+    if (!enabled) {
+      setTreatments([]);
+      setLoaded(true);
+      setError("");
+      return;
+    }
+
     if (!activeWorkspaceLoaded) {
       return;
     }
@@ -89,10 +102,8 @@ export function useTreatments(patientId?: string) {
 
     try {
       const supabase = getSupabaseClient();
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getUser();
 
-      if (sessionError || !sessionData.user) {
+      if (!user) {
         throw new Error("No pudimos identificar al usuario.");
       }
 
@@ -142,7 +153,14 @@ export function useTreatments(patientId?: string) {
     } finally {
       setLoaded(true);
     }
-  }, [activeWorkspace?.id, activeWorkspaceError, activeWorkspaceLoaded, patientId]);
+  }, [
+    activeWorkspace?.id,
+    activeWorkspaceError,
+    activeWorkspaceLoaded,
+    enabled,
+    patientId,
+    user,
+  ]);
 
   useEffect(() => {
     loadTreatments();

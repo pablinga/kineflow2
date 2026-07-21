@@ -798,7 +798,7 @@ test("Listado de pacientes permite reactivar, ordenar y alternar vista", () => {
   assert.match(patientsHook, /assigned_professional_id/);
   assert.match(patientsHook, /can_view_assigned_patients/);
   assert.match(patientsHook, /\.is\("clinic_id", null\)/);
-  assert.match(patientsHook, /\.eq\("assigned_professional_id", sessionData\.user\.id\)/);
+  assert.match(patientsHook, /\.eq\("assigned_professional_id", user\.id\)/);
   assert.match(appointmentsHook, /\.eq\("owner_id", sessionData\.user\.id\)/);
   assert.match(appointmentsHook, /workspace_id, patient_id/);
   assert.match(appointmentsHook, /originColor/);
@@ -1104,4 +1104,30 @@ test("Links publicos visibles no hacen prefetch automatico en auth", () => {
   assert.match(recovery, /href="\/login"[\s\S]*prefetch=\{false\}/);
   assert.match(newPassword, /href="\/recuperar-password"[\s\S]*prefetch=\{false\}/);
   assert.match(home, /href="\/registro"[\s\S]*prefetch=\{false\}/);
+});
+
+test("Pacientes carga paginada sin validar usuario dos veces", () => {
+  const hook = fs.readFileSync("src/hooks/usePatients.ts", "utf8");
+  const page = fs.readFileSync("src/app/dashboard/pacientes/page.tsx", "utf8");
+  const treatmentsHook = fs.readFileSync("src/hooks/useTreatments.ts", "utf8");
+  const loadPatientsBlock = hook.slice(
+    hook.indexOf("const loadPatients"),
+    hook.indexOf("async function findDuplicatePatient"),
+  );
+
+  assert.match(hook, /const \{ accountType, user \} = useRequireAuth\(\)/);
+  assert.doesNotMatch(loadPatientsBlock, /supabase\.auth\.getUser\(\)/);
+  assert.match(hook, /\.select\([\s\S]*\{ count: "exact" \}/);
+  assert.match(hook, /\.range\(from, from \+ pageSize - 1\)/);
+  assert.match(hook, /if \(patientIds\.length === 0\)/);
+  assert.match(hook, /\.from\("appointments"\)[\s\S]*\.in\("patient_id", patientIds\)/);
+  assert.match(hook, /\.from\("evolutions"\)[\s\S]*\.in\("patient_id", patientIds\)/);
+  assert.match(page, /PATIENTS_PAGE_SIZE = 25/);
+  assert.match(page, /usePatients\(\{\s*page: currentPage,\s*pageSize: PATIENTS_PAGE_SIZE,\s*search: query,\s*\}\)/);
+  assert.match(page, /useTreatments\(undefined, \{ enabled: false \}\)/);
+  assert.match(page, /setCurrentPage\(1\)/);
+  assert.match(page, /Mostrando \{pageStart\}-\{pageEnd\} de \{totalCount\} pacientes/);
+  assert.match(page, /href=\{`\/dashboard\/pacientes\/\$\{patient\.id\}`\}[\s\S]*prefetch=\{false\}/);
+  assert.match(treatmentsHook, /options: \{ enabled\?: boolean \} = \{\}/);
+  assert.match(treatmentsHook, /if \(!enabled\)/);
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CalendarPlus,
@@ -48,6 +48,8 @@ const emptyInitialTreatment: Omit<NewTreatmentInput, "patientId" | "startedAt"> 
 
 type PatientViewMode = "cards" | "list";
 
+const PATIENTS_PAGE_SIZE = 25;
+
 type ClinicProfessionalOption = {
   email: string;
   id: string;
@@ -87,18 +89,26 @@ function getPatientInitials(name: string) {
 export default function PatientsPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
+  const [query, setQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const {
     addPatient,
     disablePatient,
     error,
     loaded,
+    activePatientCount,
+    pageSize,
     patients,
     reactivatePatient,
+    totalCount,
     updatePatient,
-  } = usePatients();
+  } = usePatients({
+    page: currentPage,
+    pageSize: PATIENTS_PAGE_SIZE,
+    search: query,
+  });
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
-  const { addTreatment } = useTreatments();
-  const [query, setQuery] = useState("");
+  const { addTreatment } = useTreatments(undefined, { enabled: false });
   const [viewMode, setViewMode] = useState<PatientViewMode>("cards");
   const [showForm, setShowForm] = useState(false);
   const [newPatient, setNewPatient] = useState<NewPatientInput>(emptyPatient);
@@ -113,23 +123,7 @@ export default function PatientsPage() {
   const [actionError, setActionError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
 
-  const filteredPatients = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-
-    if (!normalized) {
-      return patients;
-    }
-
-    return patients.filter((patient) =>
-      [
-        patient.name,
-        patient.document,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalized),
-    );
-  }, [patients, query]);
+  const filteredPatients = patients;
 
   const activeFilteredPatients = filteredPatients.filter(
     (patient) => patient.status === "Activo",
@@ -137,6 +131,10 @@ export default function PatientsPage() {
   const inactiveFilteredPatients = filteredPatients.filter(
     (patient) => patient.status === "Inactivo",
   );
+  const totalPages =
+    pageSize && pageSize > 0 ? Math.max(Math.ceil(totalCount / pageSize), 1) : 1;
+  const pageStart = totalCount === 0 ? 0 : (currentPage - 1) * PATIENTS_PAGE_SIZE + 1;
+  const pageEnd = Math.min(currentPage * PATIENTS_PAGE_SIZE, totalCount);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -154,6 +152,12 @@ export default function PatientsPage() {
   useEffect(() => {
     window.localStorage.setItem("kineflow.patients.view", viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   useEffect(() => {
     async function loadClinicProfessionals() {
@@ -220,16 +224,13 @@ export default function PatientsPage() {
     activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
   const canManagePatients =
     activeWorkspace?.type !== "CLINICA" || activeWorkspace.role === "ADMIN";
-  const activePatients = patients.filter(
-    (patient) => patient.status === "Activo",
-  );
   const clinicPracticeBlocked =
     effectiveAccountType === "CONSULTORIO" &&
     plan.plan !== "FREE" &&
     !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));
   const canCreateCurrentPatient = canCreatePatient({
     accountType: effectiveAccountType,
-    activePatientCount: activePatients.length,
+    activePatientCount,
     patientLimit: plan.limitePacientes,
     plan: plan.plan,
     planStatus: plan.estadoPlan,
@@ -239,12 +240,12 @@ export default function PatientsPage() {
     plan.plan === "FREE" &&
     plan.limitePacientes !== null &&
     plan.limitePacientes >= 0 &&
-    activePatients.length >= plan.limitePacientes;
+    activePatientCount >= plan.limitePacientes;
   const patientLimitBlock =
     activeWorkspace?.type === "CLINICA"
       ? null
       : getPatientPlanLimitBlock({
-          activePatientCount: activePatients.length,
+          activePatientCount,
           patientLimit: plan.limitePacientes,
         });
   const independentPlanMessage =
@@ -489,6 +490,7 @@ export default function PatientsPage() {
           aria-label="Ver historial"
           className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
           href={`/dashboard/pacientes/${patient.id}`}
+          prefetch={false}
           title="Ver historial"
         >
           <FileText className="h-5 w-5" />
@@ -619,7 +621,7 @@ export default function PatientsPage() {
               <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div>
                   <p className="font-bold text-ink">
-                    Plan Free: {activePatients.length}
+                    Plan Free: {activePatientCount}
                     /{plan.limitePacientes} pacientes activos
                   </p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
@@ -855,7 +857,10 @@ export default function PatientsPage() {
               <Search className="h-5 w-5 text-ocean-600" />
               <input
                 className="w-full bg-transparent text-sm outline-none"
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setCurrentPage(1);
+                }}
                 placeholder="Buscar por nombre, DNI, patología, email, teléfono o estado"
                 type="search"
                 value={query}
@@ -889,7 +894,7 @@ export default function PatientsPage() {
               </div>
             </div>
 
-            {patients.length === 0 ? (
+            {totalCount === 0 && !query.trim() ? (
               <div className="mt-6 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-8 text-center">
                 <UserRound className="mx-auto h-8 w-8 text-ocean-600" />
                 <p className="mt-3 font-semibold text-ink">
@@ -929,6 +934,7 @@ export default function PatientsPage() {
                                 <Link
                                   className="block truncate font-bold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
                                   href={`/dashboard/pacientes/${patient.id}`}
+                                  prefetch={false}
                                 >
                                   {patient.name}
                                 </Link>
@@ -985,6 +991,7 @@ export default function PatientsPage() {
                           <Link
                             className="block truncate font-bold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
                             href={`/dashboard/pacientes/${patient.id}`}
+                            prefetch={false}
                           >
                             {patient.name}
                           </Link>
@@ -1048,12 +1055,43 @@ export default function PatientsPage() {
               </div>
             )}
 
-            {patients.length > 0 && filteredPatients.length === 0 ? (
+            {query.trim() && totalCount === 0 ? (
               <div className="mt-6 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-8 text-center">
                 <UserRound className="mx-auto h-8 w-8 text-ocean-600" />
                 <p className="mt-3 font-semibold text-ink">
                   No encontramos pacientes con esa búsqueda.
                 </p>
+              </div>
+            ) : null}
+
+            {totalCount > PATIENTS_PAGE_SIZE ? (
+              <div className="mt-6 flex flex-col gap-3 rounded-lg border border-ocean-100 bg-white px-4 py-3 text-sm text-slate-600 shadow-card sm:flex-row sm:items-center sm:justify-between">
+                <p>
+                  Mostrando {pageStart}-{pageEnd} de {totalCount} pacientes
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-ocean-200 px-4 font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((value) => Math.max(value - 1, 1))}
+                    type="button"
+                  >
+                    Anterior
+                  </button>
+                  <span className="font-semibold text-ink">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-ocean-200 px-4 font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={currentPage >= totalPages}
+                    onClick={() =>
+                      setCurrentPage((value) => Math.min(value + 1, totalPages))
+                    }
+                    type="button"
+                  >
+                    Siguiente
+                  </button>
+                </div>
               </div>
             ) : null}
           </section>

@@ -51,6 +51,12 @@ type ClinicIdRow = {
   id: string;
 };
 
+export type UsePatientsOptions = {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+};
+
 type ClinicProfessionalAccessRow = {
   can_view_assigned_patients: boolean;
 };
@@ -171,16 +177,21 @@ const patientPaymentStatusLabels: Record<
   waived: "Bonificado",
 };
 
-export function usePatients() {
-  const { accountType } = useRequireAuth();
+export function usePatients(options: UsePatientsOptions = {}) {
+  const { accountType, user } = useRequireAuth();
   const {
     activeWorkspace,
     error: activeWorkspaceError,
     loaded: activeWorkspaceLoaded,
   } = useActiveWorkspace();
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [activePatientCount, setActivePatientCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
+  const page = Math.max(options.page ?? 1, 1);
+  const pageSize = options.pageSize ?? null;
+  const search = options.search?.trim() ?? "";
 
   const loadPatients = useCallback(async () => {
     if (!activeWorkspaceLoaded) {
@@ -192,10 +203,8 @@ export function usePatients() {
 
     try {
       const supabase = getSupabaseClient();
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getUser();
 
-      if (sessionError || !sessionData.user) {
+      if (!user) {
         throw new Error("No pudimos identificar al usuario.");
       }
 
@@ -215,24 +224,39 @@ export function usePatients() {
         .from("patients")
         .select(
           "id, assigned_professional_id, clinic_id, full_name, document_number, phone, email, initial_condition, status",
+          { count: "exact" },
         )
         .order("status", { ascending: true })
         .order("full_name", { ascending: true });
+      let activeCountQuery = supabase
+        .from("patients")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active");
 
       patientQuery = patientQuery.eq("workspace_id", activeWorkspace.id);
+      activeCountQuery = activeCountQuery.eq("workspace_id", activeWorkspace.id);
 
       if (activeWorkspace.type === "PERSONAL") {
         patientQuery = patientQuery
-          .eq("owner_id", sessionData.user.id)
+          .eq("owner_id", user.id)
+          .is("clinic_id", null);
+        activeCountQuery = activeCountQuery
+          .eq("owner_id", user.id)
           .is("clinic_id", null);
       } else if (activeWorkspace.role === "ADMIN") {
         patientQuery = patientQuery.eq(
           "clinic_id",
           activeWorkspace.sourceClinicId ?? "",
         );
+        activeCountQuery = activeCountQuery.eq(
+          "clinic_id",
+          activeWorkspace.sourceClinicId ?? "",
+        );
       } else {
         if (!activeWorkspace.sourceClinicId) {
           setPatients([]);
+          setActivePatientCount(0);
+          setTotalCount(0);
           return;
         }
 
@@ -241,7 +265,7 @@ export function usePatients() {
             .from("clinic_professionals")
             .select("can_view_assigned_patients")
             .eq("clinic_id", activeWorkspace.sourceClinicId)
-            .eq("professional_id", sessionData.user.id)
+            .eq("professional_id", user.id)
             .eq("status", "accepted")
             .maybeSingle();
 
@@ -257,23 +281,60 @@ export function usePatients() {
           )?.can_view_assigned_patients
         ) {
           setPatients([]);
+          setActivePatientCount(0);
+          setTotalCount(0);
           return;
         }
 
         patientQuery = patientQuery
           .eq("clinic_id", activeWorkspace.sourceClinicId)
-          .eq("assigned_professional_id", sessionData.user.id);
+          .eq("assigned_professional_id", user.id);
+        activeCountQuery = activeCountQuery
+          .eq("clinic_id", activeWorkspace.sourceClinicId)
+          .eq("assigned_professional_id", user.id);
       }
 
-      const { data, error: queryError } = await patientQuery;
+      const normalizedSearch = search.toLowerCase().replace(/[,%]/g, " ").trim();
 
-      if (queryError) {
-        setError(mapSupabaseError(queryError));
+      if (normalizedSearch) {
+        const searchFilters = [
+          `full_name.ilike.%${normalizedSearch}%`,
+          `document_number.ilike.%${normalizedSearch}%`,
+          `initial_condition.ilike.%${normalizedSearch}%`,
+          `email.ilike.%${normalizedSearch}%`,
+          `phone.ilike.%${normalizedSearch}%`,
+        ];
+
+        if ("activo".includes(normalizedSearch)) {
+          searchFilters.push("status.eq.active");
+        }
+
+        if ("inactivo".includes(normalizedSearch)) {
+          searchFilters.push("status.eq.inactive");
+        }
+
+        patientQuery = patientQuery.or(searchFilters.join(","));
+      }
+
+      if (pageSize) {
+        const from = (page - 1) * pageSize;
+        patientQuery = patientQuery.range(from, from + pageSize - 1);
+      }
+
+      const [
+        { data, error: queryError, count },
+        { count: activeCount, error: activeCountError },
+      ] = await Promise.all([patientQuery, activeCountQuery]);
+
+      if (queryError || activeCountError) {
+        setError(mapSupabaseError(queryError ?? activeCountError));
         return;
       }
 
       const patientRows = (data ?? []) as PatientRow[];
       const patientIds = patientRows.map((patient) => patient.id);
+      setTotalCount(count ?? patientRows.length);
+      setActivePatientCount(activeCount ?? 0);
 
       if (patientIds.length === 0) {
         setPatients([]);
@@ -332,6 +393,10 @@ export function usePatients() {
     activeWorkspace?.type,
     activeWorkspaceError,
     activeWorkspaceLoaded,
+    page,
+    pageSize,
+    search,
+    user,
   ]);
 
   useEffect(() => {
@@ -558,13 +623,17 @@ export function usePatients() {
 
   return {
     activePatients,
+    activePatientCount,
     addPatient,
     disablePatient,
     error,
     loaded,
+    page,
+    pageSize,
     patients,
     reactivatePatient,
     refreshPatients: loadPatients,
+    totalCount,
     updatePatient,
   };
 }
