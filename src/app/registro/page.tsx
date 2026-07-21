@@ -482,6 +482,7 @@ export default function RegisterPage() {
                 <Link
                   className="font-semibold text-ocean-700 underline-offset-2 hover:underline"
                   href="/terminos-y-condiciones"
+                  prefetch={false}
                 >
                   Términos y Condiciones
                 </Link>{" "}
@@ -489,6 +490,7 @@ export default function RegisterPage() {
                 <Link
                   className="font-semibold text-ocean-700 underline-offset-2 hover:underline"
                   href="/politica-de-privacidad"
+                  prefetch={false}
                 >
                   Política de Privacidad
                 </Link>{" "}
@@ -509,7 +511,11 @@ export default function RegisterPage() {
           {showAuthLinks ? (
             <p className="mt-5 text-center text-sm text-slate-600">
               ¿Ya tenés cuenta?{" "}
-              <Link className="font-semibold text-ocean-700" href="/login">
+              <Link
+                className="font-semibold text-ocean-700"
+                href="/login"
+                prefetch={false}
+              >
                 Iniciar sesión
               </Link>
             </p>

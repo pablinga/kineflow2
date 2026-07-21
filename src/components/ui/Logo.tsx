@@ -42,7 +42,7 @@ export function KineFlowIcon({ className = "" }: { className?: string }) {
 
 export function Logo({ compact = false, showSlogan = false }: LogoProps) {
   return (
-    <Link className="flex items-center gap-3" href="/">
+    <Link className="flex items-center gap-3" href="/" prefetch={false}>
       <KineFlowIcon className="h-10 w-10 shrink-0 shadow-soft" />
       {compact ? null : (
         <span className="leading-none">

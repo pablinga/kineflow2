@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { type AnchorHTMLAttributes, type ButtonHTMLAttributes } from "react";
+import {
+  type AnchorHTMLAttributes,
+  type ButtonHTMLAttributes,
+  type ComponentProps,
+} from "react";
 import { clsx } from "clsx";
 
 type ButtonVariant =
@@ -34,6 +38,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 type LinkButtonProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
   href: string;
+  prefetch?: ComponentProps<typeof Link>["prefetch"];
   variant?: ButtonVariant;
 };
 

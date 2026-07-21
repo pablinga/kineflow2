@@ -235,6 +235,7 @@ export default function NewPasswordPage() {
               <Link
                 className="font-semibold text-ocean-700"
                 href="/recuperar-password"
+                prefetch={false}
               >
                 Pedir un nuevo enlace
               </Link>

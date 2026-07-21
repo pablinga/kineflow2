@@ -1081,3 +1081,27 @@ test("Listener de auth se limpia y no fuerza refresh o polling del dashboard", (
   assert.doesNotMatch(sidebar, /router\.refresh\(\)/);
   assert.match(sidebar, /prefetch=\{false\}/);
 });
+
+test("Links publicos visibles no hacen prefetch automatico en auth", () => {
+  const logo = fs.readFileSync("src/components/ui/Logo.tsx", "utf8");
+  const legalLinks = fs.readFileSync("src/components/layout/LegalLinks.tsx", "utf8");
+  const publicNavbar = fs.readFileSync("src/components/layout/PublicNavbar.tsx", "utf8");
+  const login = fs.readFileSync("src/app/login/page.tsx", "utf8");
+  const register = fs.readFileSync("src/app/registro/page.tsx", "utf8");
+  const recovery = fs.readFileSync("src/app/recuperar-password/page.tsx", "utf8");
+  const newPassword = fs.readFileSync("src/app/nueva-password/page.tsx", "utf8");
+  const home = fs.readFileSync("src/app/page.tsx", "utf8");
+
+  assert.match(logo, /href="\/" prefetch=\{false\}/);
+  assert.match(legalLinks, /prefetch=\{false\}/);
+  assert.match(publicNavbar, /href="\/login" prefetch=\{false\}/);
+  assert.match(publicNavbar, /href="\/registro" prefetch=\{false\}/);
+  assert.match(login, /href="\/recuperar-password"[\s\S]*prefetch=\{false\}/);
+  assert.match(login, /href="\/registro"[\s\S]*prefetch=\{false\}/);
+  assert.match(register, /href="\/terminos-y-condiciones"[\s\S]*prefetch=\{false\}/);
+  assert.match(register, /href="\/politica-de-privacidad"[\s\S]*prefetch=\{false\}/);
+  assert.match(register, /href="\/login"[\s\S]*prefetch=\{false\}/);
+  assert.match(recovery, /href="\/login"[\s\S]*prefetch=\{false\}/);
+  assert.match(newPassword, /href="\/recuperar-password"[\s\S]*prefetch=\{false\}/);
+  assert.match(home, /href="\/registro"[\s\S]*prefetch=\{false\}/);
+});

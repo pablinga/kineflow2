@@ -14,7 +14,12 @@ export function LegalLinks({ className = "" }: { className?: string }) {
   return (
     <nav className={`flex flex-wrap gap-x-4 gap-y-2 ${className}`}>
       {legalLinks.map((link) => (
-        <Link className="hover:text-ocean-700" href={link.href} key={link.href}>
+        <Link
+          className="hover:text-ocean-700"
+          href={link.href}
+          key={link.href}
+          prefetch={false}
+        >
           {link.label}
         </Link>
       ))}

@@ -159,6 +159,7 @@ export default function LoginPage() {
               <Link
                 className="font-semibold text-ocean-700 hover:text-ocean-800"
                 href="/recuperar-password"
+                prefetch={false}
               >
                 ¿Olvidaste tu contraseña?
               </Link>
@@ -176,7 +177,11 @@ export default function LoginPage() {
           {showAuthLinks ? (
             <p className="mt-6 text-center text-sm text-slate-600">
               ¿No tenés cuenta?{" "}
-              <Link className="font-semibold text-ocean-700" href="/registro">
+              <Link
+                className="font-semibold text-ocean-700"
+                href="/registro"
+                prefetch={false}
+              >
                 Crear cuenta
               </Link>
             </p>

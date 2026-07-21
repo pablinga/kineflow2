@@ -34,12 +34,14 @@ export function PublicNavbar() {
         </div>
         <div className="hidden items-center gap-3 md:flex">
           {showAuthLinks ? (
-            <LinkButton href="/login" variant="ghost">
+            <LinkButton href="/login" prefetch={false} variant="ghost">
               Ingresar
             </LinkButton>
           ) : null}
           {showAuthLinks ? (
-            <LinkButton href="/registro">Comenzar ahora</LinkButton>
+            <LinkButton href="/registro" prefetch={false}>
+              Comenzar ahora
+            </LinkButton>
           ) : null}
         </div>
         <button
@@ -65,12 +67,17 @@ export function PublicNavbar() {
               </a>
             ))}
             {showAuthLinks ? (
-              <LinkButton className="w-full" href="/login" variant="secondary">
+              <LinkButton
+                className="w-full"
+                href="/login"
+                prefetch={false}
+                variant="secondary"
+              >
                 Ingresar
               </LinkButton>
             ) : null}
             {showAuthLinks ? (
-              <LinkButton className="w-full" href="/registro">
+              <LinkButton className="w-full" href="/registro" prefetch={false}>
                 Comenzar ahora
               </LinkButton>
             ) : null}

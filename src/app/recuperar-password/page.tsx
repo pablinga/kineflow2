@@ -118,7 +118,11 @@ export default function RecoverPasswordPage() {
             </Button>
           </form>
           <p className="mt-6 text-center text-sm text-slate-600">
-            <Link className="font-semibold text-ocean-700" href="/login">
+            <Link
+              className="font-semibold text-ocean-700"
+              href="/login"
+              prefetch={false}
+            >
               Volver al inicio de sesión
             </Link>
           </p>

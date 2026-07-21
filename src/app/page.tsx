@@ -94,7 +94,7 @@ export default async function Home({
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               {showAuthLinks ? (
-                <LinkButton href="/registro">
+                <LinkButton href="/registro" prefetch={false}>
                   Comenzar ahora
                   <ArrowRight className="h-4 w-4" />
                 </LinkButton>
@@ -274,6 +274,7 @@ export default async function Home({
                   <LinkButton
                     className="mt-5 w-full"
                     href={plan.href}
+                    prefetch={false}
                     variant={plan.recommended ? "primary" : "secondary"}
                   >
                     {plan.cta}
@@ -307,9 +308,10 @@ export default async function Home({
           </div>
           {showAuthLinks ? (
             <LinkButton
-              href="/registro"
-              variant="inverted"
               className="shrink-0 px-6"
+              href="/registro"
+              prefetch={false}
+              variant="inverted"
             >
               Crear cuenta gratis
             </LinkButton>
