@@ -174,7 +174,6 @@ export function DashboardSidebar() {
       resetWorkspaceSnapshot();
       clearSupabaseLocalSession();
       router.replace("/login");
-      router.refresh();
       window.setTimeout(() => {
         if (window.location.pathname !== "/login") {
           window.location.replace("/login");
@@ -281,6 +280,7 @@ export function DashboardSidebar() {
                 href={item.href}
                 key={item.label}
                 onClick={() => setOpen(false)}
+                prefetch={false}
               >
                 <Icon className="h-5 w-5" />
                 {item.label}
@@ -296,6 +296,7 @@ export function DashboardSidebar() {
             className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-slate-600 transition hover:bg-ocean-50 hover:text-ocean-800"
             href="/dashboard/planes"
             onClick={() => setOpen(false)}
+            prefetch={false}
           >
             <CreditCard className="h-5 w-5" />
             Mi plan
@@ -338,9 +339,10 @@ export function DashboardSidebar() {
                       ? "bg-ocean-50 text-ocean-700"
                       : "text-slate-500 hover:bg-ocean-50 hover:text-ocean-700"
                   }`}
-                  href={item.href}
-                  key={item.href}
-                >
+                        href={item.href}
+                        key={item.href}
+                        prefetch={false}
+                      >
                   <Icon className="h-5 w-5" />
                   <span className="max-w-full truncate">{item.label}</span>
                 </Link>

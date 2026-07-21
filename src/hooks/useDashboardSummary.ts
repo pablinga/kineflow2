@@ -150,6 +150,14 @@ function startDevTimer(name: string) {
   return () => console.timeEnd(name);
 }
 
+function debugDashboard(message: string, details?: unknown) {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
+  console.debug(message, details ?? "");
+}
+
 function startOfDay(date: Date) {
   const next = new Date(date);
   next.setHours(0, 0, 0, 0);
@@ -249,6 +257,8 @@ export function useDashboardSummary() {
     setError("");
     const endTimer = startDevTimer("kineflow:dashboard-data-load");
     let queryCount = 0;
+
+    debugDashboard("[DASHBOARD LOAD]", "start");
 
     try {
       if (workspaceError) {

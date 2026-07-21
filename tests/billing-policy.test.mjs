@@ -16,6 +16,10 @@ import {
   assertClinicProfessionalStatus,
   decideClinicProfessionalMembership,
 } from "../src/lib/clinic-professional-membership.ts";
+import {
+  decideAuthEvent,
+  getAuthRouteKind,
+} from "../src/lib/auth-event-policy.ts";
 
 function test(name, fn) {
   fn();
@@ -980,4 +984,100 @@ test("Guard de sesion tiene timeout para no quedar tildado tras volver de pagos"
   assert.match(source, /auth_verify_timeout/);
   assert.match(source, /withTimeout\(\s*supabase\.auth\.getSession\(\)/);
   assert.match(source, /withTimeout\([\s\S]*\.from\("profiles"\)/);
+});
+
+test("Eventos de auth no recargan dashboard en refresh de token", () => {
+  assert.equal(getAuthRouteKind("/dashboard"), "dashboard");
+  assert.equal(getAuthRouteKind("/dashboard/pacientes"), "dashboard");
+  assert.equal(getAuthRouteKind("/login"), "login");
+  assert.equal(getAuthRouteKind("/"), "public");
+
+  assert.equal(
+    decideAuthEvent({
+      currentUserId: null,
+      event: "SIGNED_IN",
+      hasLoadedSessionContext: false,
+      routeKind: "login",
+      sessionUserId: "user-a",
+    }),
+    "redirect-dashboard",
+  );
+  assert.equal(
+    decideAuthEvent({
+      currentUserId: "user-a",
+      event: "SIGNED_IN",
+      hasLoadedSessionContext: true,
+      routeKind: "dashboard",
+      sessionUserId: "user-a",
+    }),
+    "keep-session",
+  );
+  assert.equal(
+    decideAuthEvent({
+      currentUserId: "user-a",
+      event: "TOKEN_REFRESHED",
+      hasLoadedSessionContext: true,
+      routeKind: "dashboard",
+      sessionUserId: "user-a",
+    }),
+    "keep-session",
+  );
+  assert.equal(
+    decideAuthEvent({
+      currentUserId: "user-a",
+      event: "USER_UPDATED",
+      hasLoadedSessionContext: true,
+      routeKind: "dashboard",
+      sessionUserId: "user-a",
+    }),
+    "keep-session",
+  );
+  assert.equal(
+    decideAuthEvent({
+      currentUserId: null,
+      event: "INITIAL_SESSION",
+      hasLoadedSessionContext: false,
+      routeKind: "dashboard",
+      sessionUserId: "user-a",
+    }),
+    "load-session-context",
+  );
+  assert.equal(
+    decideAuthEvent({
+      currentUserId: "user-a",
+      event: "SIGNED_OUT",
+      hasLoadedSessionContext: true,
+      routeKind: "dashboard",
+      sessionUserId: null,
+    }),
+    "redirect-login",
+  );
+  assert.equal(
+    decideAuthEvent({
+      currentUserId: "user-a",
+      event: "SIGNED_IN",
+      hasLoadedSessionContext: true,
+      routeKind: "dashboard",
+      sessionUserId: "user-b",
+    }),
+    "load-session-context",
+  );
+});
+
+test("Listener de auth se limpia y no fuerza refresh o polling del dashboard", () => {
+  const provider = fs.readFileSync("src/contexts/AuthSessionContext.tsx", "utf8");
+  const authPolicy = fs.readFileSync("src/lib/auth-event-policy.ts", "utf8");
+  const login = fs.readFileSync("src/app/login/page.tsx", "utf8");
+  const register = fs.readFileSync("src/app/registro/page.tsx", "utf8");
+  const sidebar = fs.readFileSync("src/components/layout/DashboardSidebar.tsx", "utf8");
+
+  assert.match(provider, /supabase\.auth\.onAuthStateChange/);
+  assert.match(provider, /listener\.subscription\.unsubscribe\(\)/);
+  assert.match(authPolicy, /TOKEN_REFRESHED/);
+  assert.match(provider, /decision === "keep-session"/);
+  assert.doesNotMatch(provider, /setInterval|refetchInterval|refreshInterval/);
+  assert.doesNotMatch(login, /router\.refresh\(\)/);
+  assert.doesNotMatch(register, /router\.refresh\(\)/);
+  assert.doesNotMatch(sidebar, /router\.refresh\(\)/);
+  assert.match(sidebar, /prefetch=\{false\}/);
 });

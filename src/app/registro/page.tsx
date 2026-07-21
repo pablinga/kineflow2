@@ -217,7 +217,6 @@ export default function RegisterPage() {
 
       if (data.session) {
         router.replace("/dashboard");
-        router.refresh();
         return;
       }
 

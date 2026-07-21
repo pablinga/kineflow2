@@ -13,6 +13,10 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { getPermissionsFromPlan, type BillingPermissions } from "@/lib/billing";
+import {
+  decideAuthEvent,
+  getAuthRouteKind,
+} from "@/lib/auth-event-policy";
 import { getFriendlyErrorMessage, mapAuthError, mapSupabaseError } from "@/lib/error-messages";
 import {
   defaultPlan,
@@ -208,11 +212,20 @@ function startDevTimer(name: string) {
   return () => console.timeEnd(name);
 }
 
+function debugAuth(message: string, details?: unknown) {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
+  console.debug(message, details ?? "");
+}
+
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const pathnameRef = useRef(pathname);
   const hasLoadedRef = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
   const enabled = pathname.startsWith("/dashboard");
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<AuthProfile | null>(null);
@@ -235,6 +248,21 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const accountType = profile?.accountType ?? "KINESIOLOGO";
   const displayName = getProfileDisplayName(profile?.profileName ?? "", user);
 
+  const clearSessionState = useCallback(() => {
+    setUser(null);
+    setProfile(null);
+    setWorkspaces([]);
+    setActiveWorkspaceId(null);
+    setMembership(null);
+    setPlan(defaultPlan);
+    setPermissions(defaultPermissions);
+    setAuthError("");
+    setWorkspaceError("");
+    setWorkspaceLoaded(true);
+    setPlanLoaded(true);
+    hasLoadedRef.current = false;
+  }, []);
+
   const loadSessionContext = useCallback(async () => {
     if (!enabled) {
       return;
@@ -244,6 +272,8 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     const endContextTimer = startDevTimer("kineflow:auth-context-load");
     let queryCount = 0;
 
+    debugAuth("[PROFILE LOAD]", "start");
+    debugAuth("[WORKSPACE LOAD]", "start");
     setLoading(true);
     setRedirecting(false);
     setAuthError("");
@@ -265,13 +295,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 
       if (!data.session) {
         setRedirecting(true);
-        setUser(null);
-        setProfile(null);
-        setWorkspaces([]);
-        setActiveWorkspaceId(null);
-        setMembership(null);
-        setWorkspaceLoaded(true);
-        setPlanLoaded(true);
+        clearSessionState();
         router.replace(
           `/login?redirect=${encodeURIComponent(pathnameRef.current)}`,
         );
@@ -430,25 +454,23 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       endSessionTimer();
+      clearSessionState();
       setAuthError(
         getFriendlyErrorMessage(error, "No pudimos verificar tu sesiÃ³n."),
       );
-      setUser(null);
-      setProfile(null);
-      setWorkspaces([]);
-      setActiveWorkspaceId(null);
-      setMembership(null);
-      setWorkspaceLoaded(true);
-      setPlanLoaded(true);
     } finally {
       endContextTimer();
       setLoading(false);
     }
-  }, [enabled, router]);
+  }, [clearSessionState, enabled, router]);
 
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
+
+  useEffect(() => {
+    currentUserIdRef.current = user?.id ?? null;
+  }, [user?.id]);
 
   useEffect(() => {
     if (!enabled) {
@@ -465,18 +487,51 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (!session) {
-        hasLoadedRef.current = false;
+      const decision = decideAuthEvent({
+        currentUserId: currentUserIdRef.current,
+        event,
+        hasLoadedSessionContext: hasLoadedRef.current,
+        routeKind: getAuthRouteKind(pathnameRef.current),
+        sessionUserId: session?.user.id ?? null,
+      });
+
+      debugAuth("[AUTH EVENT]", {
+        decision,
+        event,
+        pathname: pathnameRef.current,
+        sessionUserId: session?.user.id ?? null,
+      });
+
+      if (decision === "keep-session") {
+        if (session?.user && session.user.id === currentUserIdRef.current) {
+          setUser(session.user);
+        }
+
+        return;
+      }
+
+      if (decision === "clear-session") {
+        clearSessionState();
+        return;
+      }
+
+      if (decision === "redirect-login") {
+        clearSessionState();
         setRedirecting(true);
-        setUser(null);
+        debugAuth("[AUTH REDIRECT]", "/login");
         router.replace(
           `/login?redirect=${encodeURIComponent(pathnameRef.current)}`,
         );
         return;
       }
 
-      if (event !== "INITIAL_SESSION") {
-        hasLoadedRef.current = false;
+      if (decision === "redirect-dashboard") {
+        debugAuth("[AUTH REDIRECT]", "/dashboard");
+        router.replace("/dashboard");
+        return;
+      }
+
+      if (decision === "load-session-context") {
         void loadSessionContext();
       }
     });
@@ -490,7 +545,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [enabled, loadSessionContext, router]);
+  }, [clearSessionState, enabled, loadSessionContext, router]);
 
   const selectWorkspace = useCallback((workspaceId: string) => {
     const workspace = workspaces.find((item) => item.id === workspaceId);

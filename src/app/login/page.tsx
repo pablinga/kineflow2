@@ -83,7 +83,6 @@ export default function LoginPage() {
 
       const params = new URLSearchParams(window.location.search);
       router.replace(params.get("redirect") || "/dashboard");
-      router.refresh();
     } catch (loginError) {
       logFriendlyError("login.submit", loginError);
       setError(
