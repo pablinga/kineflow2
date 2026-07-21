@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { appointmentStatusLabels } from "@/lib/appointment-ui";
 import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -110,16 +111,6 @@ const emptySummary: DashboardSummary = {
   upcomingAppointments: [],
 };
 
-const statusLabels: Record<AppointmentStatus, string> = {
-  attended: "AsistiÃ³",
-  cancelled: "Cancelado",
-  completed: "AsistiÃ³",
-  confirmed: "Pendiente",
-  no_show: "No asistiÃ³",
-  pending: "Pendiente",
-  rescheduled: "Reprogramado",
-};
-
 const modalityLabels: Record<DashboardAppointmentRow["modality"], string> = {
   domicilio: "Domicilio",
   presencial: "Presencial",
@@ -212,7 +203,7 @@ function mapAppointment(row: DashboardAppointmentRow): DashboardAppointment {
     paymentStatus,
     paymentStatusLabel: paymentStatusLabels[paymentStatus],
     scheduledAt: row.scheduled_at,
-    status: statusLabels[row.status],
+    status: appointmentStatusLabels[row.status],
     time: date.toLocaleTimeString("es-AR", {
       hour: "2-digit",
       hour12: false,

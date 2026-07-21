@@ -5,6 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
+import { appointmentStatusLabels } from "@/lib/appointment-ui";
 import { useActiveClinic } from "@/hooks/useActiveClinic";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -127,16 +128,6 @@ type AvailabilityRow = {
     | null;
 };
 
-const statusLabels: Record<AppointmentRow["status"], string> = {
-  pending: "Pendiente",
-  attended: "Asistió",
-  cancelled: "Cancelado",
-  no_show: "No asistió",
-  rescheduled: "Reprogramado",
-  confirmed: "Pendiente",
-  completed: "Asistió",
-};
-
 const modalityLabels: Record<AppointmentModality, string> = {
   presencial: "Presencial",
   domicilio: "Domicilio",
@@ -182,7 +173,7 @@ function mapAppointment(row: AppointmentRow): Appointment {
     patient: patient?.full_name ?? "Paciente",
     reason: row.reason,
     conflictWarning: null,
-    status: statusLabels[row.status],
+    status: appointmentStatusLabels[row.status],
     modality: modalityLabels[row.modality],
     duration: `${row.duration_minutes} min`,
     origin,

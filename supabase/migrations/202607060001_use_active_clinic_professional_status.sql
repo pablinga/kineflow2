@@ -315,7 +315,7 @@ begin
       errcode = 'P0001',
       message = case
         when conflicting_record.clinic_name is not null then
-          'El kinesiÃ³logo ya tiene un turno de '
+          'El kinesiólogo ya tiene un turno de '
           || to_char(timezone('America/Argentina/Buenos_Aires', conflicting_record.scheduled_at), 'HH24:MI')
           || ' a '
           || to_char(timezone('America/Argentina/Buenos_Aires', conflicting_record.ends_at), 'HH24:MI')
@@ -323,7 +323,7 @@ begin
           || conflicting_record.clinic_name
           || '.'
         else
-          'El kinesiÃ³logo ya tiene un turno asignado en ese horario. RevisÃ¡ la agenda antes de confirmar.'
+          'El kinesiólogo ya tiene un turno asignado en ese horario. Revisá la agenda antes de confirmar.'
       end;
   end if;
 
@@ -348,9 +348,9 @@ begin
     if found then
       raise exception using
         errcode = 'P0001',
-        message = 'Este horario estÃ¡ reservado para '
+        message = 'Este horario está reservado para '
           || reserved_record.name
-          || '. En esta franja solo podÃ©s atender pacientes asignados por ese consultorio.';
+          || '. En esta franja solo podés atender pacientes asignados por ese consultorio.';
     end if;
   else
     select exists (
@@ -373,7 +373,7 @@ begin
     if not availability_exists then
       raise exception using
         errcode = 'P0001',
-        message = 'El turno de consultorio debe estar dentro de una franja asignada y aceptada por el kinesiÃ³logo.';
+        message = 'El turno de consultorio debe estar dentro de una franja asignada y aceptada por el kinesiólogo.';
     end if;
   end if;
 

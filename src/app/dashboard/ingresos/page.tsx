@@ -138,9 +138,9 @@ export default function IncomePage() {
             <h1 className="text-2xl font-bold text-amber-950">
               Ingresos del consultorio bloqueados
             </h1>
-            <p className="mt-2 leading-6 text-amber-800">
-              Para ver ingresos y reportes del consultorio necesitas una
-              suscripcion activa del Plan Consultorio.
+              <p className="mt-2 leading-6 text-amber-800">
+                Para ver ingresos y reportes del consultorio necesitas una
+                suscripción activa del Plan Consultorio.
             </p>
           </div>
         </section>
@@ -157,10 +157,10 @@ export default function IncomePage() {
             <div>
               <p className="text-sm font-semibold text-ocean-700">Ingresos</p>
               <h1 className="mt-1 text-3xl font-bold text-ink">
-                Control economico
+                Control económico
               </h1>
               <p className="mt-2 text-slate-600">
-                Seguimiento simple de cobros por sesion.
+                Seguimiento simple de cobros por sesión.
               </p>
             </div>
             <div className="rounded-lg bg-emerald-50 px-4 py-3">
@@ -296,7 +296,7 @@ export default function IncomePage() {
                   <tr>
                     <th className="px-5 py-3 font-semibold">Fecha</th>
                     <th className="px-5 py-3 font-semibold">Paciente</th>
-                    <th className="px-5 py-3 font-semibold">Atencion</th>
+                    <th className="px-5 py-3 font-semibold">Atención</th>
                     <th className="px-5 py-3 font-semibold">Turno</th>
                     <th className="px-5 py-3 font-semibold">Cobro</th>
                     <th className="px-5 py-3 font-semibold">Medio</th>

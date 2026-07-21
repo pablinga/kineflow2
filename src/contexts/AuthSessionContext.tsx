@@ -456,7 +456,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       endSessionTimer();
       clearSessionState();
       setAuthError(
-        getFriendlyErrorMessage(error, "No pudimos verificar tu sesiÃ³n."),
+        getFriendlyErrorMessage(error, "No pudimos verificar tu sesión."),
       );
     } finally {
       endContextTimer();

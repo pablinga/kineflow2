@@ -328,7 +328,7 @@ test("Post pago consulta Supabase antes de mostrar Plan activo", () => {
   assert.match(page, /kind === "success" && !isActive[\s\S]*"KineFlow - Particular"/);
   assert.match(page, /Suscripción recibida/);
   assert.match(page, /Plan activo/);
-  assert.match(page, /Tu plan est(?:a|á|Ã¡) activo/);
+  assert.match(page, /Tu plan est(?:a|á) activo/);
   assert.match(page, /confirmando el pago con Mercado Pago/);
   assert.match(rootSuccess, /SubscriptionReturnPage kind="success"/);
 });
@@ -766,11 +766,11 @@ test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => 
   );
 
   [patientsHook, patientsPage, migration].forEach((source) => {
-    assert.match(source, /Ingres(?:a|á|Ã¡) al menos un medio de contacto/);
+    assert.match(source, /Ingres(?:a|á) al menos un medio de contacto/);
   });
 
   [patientsHook, migration].forEach((source) => {
-    assert.match(source, /Ya ten(?:e|é|Ã©)s un paciente registrado con ese DNI/);
+    assert.match(source, /Ya ten(?:e|é)s un paciente registrado con ese DNI/);
   });
 
   assert.match(patientsHook, /findDuplicatePatient/);
@@ -881,7 +881,7 @@ test("Usuarios sobre el limite Free no pueden crear actividad nueva", () => {
 
   [helper, migration].forEach((source) => {
     assert.match(source, /Tu plan Free permite hasta/);
-    assert.match(source, /Archiv(?:a|á|Ã¡) pacientes o reactiv(?:a|á|Ã¡) tu plan/);
+    assert.match(source, /Archiv(?:a|á) pacientes o reactiv(?:a|á) tu plan/);
   });
 
   [patientsPage, appointmentsPage, patientDetailPage].forEach((source) => {
@@ -1194,4 +1194,56 @@ test("Links a detalle de paciente no hacen prefetch automatico", () => {
       assert.match(nearbySource, /prefetch=\{false\}/, path);
     }
   });
+});
+
+test("Textos visibles usan UTF-8 sin mojibake", () => {
+  const filesToScan = [
+    ".editorconfig",
+    "src",
+    "supabase",
+    "tests",
+  ];
+  const sourceFiles = [];
+
+  function collectFiles(path) {
+    const stats = fs.statSync(path);
+
+    if (stats.isDirectory()) {
+      fs.readdirSync(path)
+        .filter((entry) => !entry.startsWith("."))
+        .forEach((entry) => collectFiles(`${path}/${entry}`));
+      return;
+    }
+
+    if (/\.(css|html|js|jsx|json|md|mjs|sql|ts|tsx)$/.test(path)) {
+      sourceFiles.push(path);
+    }
+  }
+
+  filesToScan.forEach(collectFiles);
+
+  sourceFiles.forEach((path) => {
+    const source = fs.readFileSync(path, "utf8");
+
+    assert.doesNotMatch(source, /\u00c3|\u00c2/, path);
+  });
+
+  const appointmentUi = fs.readFileSync("src/lib/appointment-ui.ts", "utf8");
+  const visibleSource = sourceFiles
+    .map((path) => fs.readFileSync(path, "utf8"))
+    .join("\n");
+
+  [
+    "Asistió",
+    "No asistió",
+    "Atención",
+    "Evolución",
+    "Kinesiólogo",
+    "Clínica",
+    "Sesión",
+    "Descripción",
+  ].forEach((text) => {
+    assert.match(visibleSource, new RegExp(text));
+  });
+  assert.match(appointmentUi, /appointmentStatusLabels/);
 });

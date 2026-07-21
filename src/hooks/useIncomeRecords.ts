@@ -11,6 +11,7 @@ import {
 } from "@/hooks/useAppointments";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { formatDate } from "@/lib/format";
+import { appointmentStatusLabels } from "@/lib/appointment-ui";
 import { getSupabaseClient } from "@/lib/supabase";
 
 export type IncomeRecord = {
@@ -88,16 +89,6 @@ const emptySummary: IncomeSummary = {
   pendingCount: 0,
 };
 
-const statusLabels: Record<IncomeAppointmentRow["status"], string> = {
-  attended: "AsistiÃ³",
-  cancelled: "Cancelado",
-  completed: "AsistiÃ³",
-  confirmed: "Pendiente",
-  no_show: "No asistiÃ³",
-  pending: "Pendiente",
-  rescheduled: "Reprogramado",
-};
-
 const modalityLabels: Record<IncomeAppointmentRow["modality"], string> = {
   domicilio: "Domicilio",
   presencial: "Presencial",
@@ -128,7 +119,7 @@ function mapIncomeRecord(row: IncomeAppointmentRow): IncomeRecord {
     paymentStatus,
     paymentStatusLabel: paymentStatusLabels[paymentStatus],
     scheduledAt: row.scheduled_at,
-    status: statusLabels[row.status],
+    status: appointmentStatusLabels[row.status],
     time: date.toLocaleTimeString("es-AR", {
       hour: "2-digit",
       hour12: false,
