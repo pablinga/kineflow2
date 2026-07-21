@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuthSessionContext } from "@/contexts/AuthSessionContext";
 import { getSupabaseClient } from "@/lib/supabase";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 
@@ -79,6 +80,7 @@ export function resetWorkspaceSnapshot() {
 }
 
 export function useActiveWorkspace() {
+  const sessionContext = useAuthSessionContext();
   const [workspaces, setWorkspaces] = useState<ActiveWorkspace[]>(
     workspaceSnapshot.workspaces,
   );
@@ -221,8 +223,12 @@ export function useActiveWorkspace() {
   }, []);
 
   useEffect(() => {
+    if (sessionContext) {
+      return;
+    }
+
     loadWorkspaces();
-  }, [loadWorkspaces]);
+  }, [loadWorkspaces, sessionContext]);
 
   async function selectWorkspace(workspaceId: string) {
     const workspace = workspaces.find((item) => item.id === workspaceId);
@@ -243,11 +249,11 @@ export function useActiveWorkspace() {
   }
 
   return {
-    activeWorkspace,
-    error,
-    loaded,
-    refreshWorkspaces: loadWorkspaces,
-    selectWorkspace,
-    workspaces,
+    activeWorkspace: sessionContext?.activeWorkspace ?? activeWorkspace,
+    error: sessionContext?.workspaceError ?? error,
+    loaded: sessionContext?.workspaceLoaded ?? loaded,
+    refreshWorkspaces: sessionContext?.refreshSessionContext ?? loadWorkspaces,
+    selectWorkspace: sessionContext?.selectWorkspace ?? selectWorkspace,
+    workspaces: sessionContext?.workspaces ?? workspaces,
   };
 }

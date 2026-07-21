@@ -3,10 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
+import { useAuthSessionContext } from "@/contexts/AuthSessionContext";
 import { getSupabaseClient } from "@/lib/supabase";
 import { getFriendlyErrorMessage, mapAuthError } from "@/lib/error-messages";
 
 export type AccountType = "KINESIOLOGO" | "CONSULTORIO";
+export type AuthProfile = {
+  accountType: AccountType;
+  profileName: string;
+};
 
 type ProfileRow = {
   account_type: AccountType | null;
@@ -55,6 +60,7 @@ export function resetAuthSnapshot() {
 }
 
 export function useRequireAuth() {
+  const sessionContext = useAuthSessionContext();
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<User | null>(authSnapshot.user);
@@ -67,6 +73,10 @@ export function useRequireAuth() {
   const [profileName, setProfileName] = useState(authSnapshot.profileName);
 
   useEffect(() => {
+    if (sessionContext) {
+      return;
+    }
+
     let mounted = true;
     let subscription: { unsubscribe: () => void } | undefined;
 
@@ -232,7 +242,7 @@ export function useRequireAuth() {
       mounted = false;
       subscription?.unsubscribe();
     };
-  }, [pathname, router]);
+  }, [pathname, router, sessionContext]);
 
   const displayName = useMemo(() => {
     if (profileName.trim()) {
@@ -249,15 +259,18 @@ export function useRequireAuth() {
   }, [profileName, user]);
 
   return {
-    accountType,
-    authError,
-    displayName,
-    isClinicAccount: accountType === "CONSULTORIO",
-    isKinesiologistAccount: accountType === "KINESIOLOGO",
-    isAuthenticated: Boolean(user),
-    loading,
-    profileLoaded: !loading && !authError && Boolean(user),
-    redirecting,
-    user,
+    accountType: sessionContext?.accountType ?? accountType,
+    authError: sessionContext?.authError ?? authError,
+    displayName: sessionContext?.displayName ?? displayName,
+    isClinicAccount:
+      (sessionContext?.accountType ?? accountType) === "CONSULTORIO",
+    isKinesiologistAccount:
+      (sessionContext?.accountType ?? accountType) === "KINESIOLOGO",
+    isAuthenticated: Boolean(sessionContext?.user ?? user),
+    loading: sessionContext?.loading ?? loading,
+    profileLoaded:
+      sessionContext?.profileLoaded ?? (!loading && !authError && Boolean(user)),
+    redirecting: sessionContext?.redirecting ?? redirecting,
+    user: sessionContext?.user ?? user,
   };
 }

@@ -8,7 +8,6 @@ import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { useActiveClinic } from "@/hooks/useActiveClinic";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-import { usePatients } from "@/hooks/usePatients";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 export type Appointment = {
@@ -325,7 +324,6 @@ export function useAppointments(patientId?: string) {
     error: activeWorkspaceError,
     loaded: activeWorkspaceLoaded,
   } = useActiveWorkspace();
-  const { activePatients } = usePatients();
   const { plan } = useSubscriptionPlan();
   const { clinic: activeClinic } = useActiveClinic(
     accountType === "CONSULTORIO",
@@ -490,15 +488,6 @@ export function useAppointments(patientId?: string) {
   }
 
   async function addAppointment(input: NewAppointmentInput) {
-    const patientLimitBlock = getPatientPlanLimitBlock({
-      activePatientCount: activePatients.length,
-      patientLimit: plan.limitePacientes,
-    });
-
-    if (patientLimitBlock) {
-      throw new Error(patientLimitBlock);
-    }
-
     const supabase = getSupabaseClient();
     const { data: sessionData, error: sessionError } =
       await supabase.auth.getUser();
@@ -509,6 +498,39 @@ export function useAppointments(patientId?: string) {
 
     if (!activeWorkspace?.id) {
       throw new Error("No encontramos un espacio de trabajo activo.");
+    }
+
+    let activePatientCount = 0;
+
+    if (plan.limitePacientes !== null) {
+      let activePatientsQuery = supabase
+        .from("patients")
+        .select("id", { count: "exact", head: true })
+        .eq("workspace_id", activeWorkspace.id)
+        .eq("status", "active");
+
+      if (activeWorkspace.type === "PERSONAL") {
+        activePatientsQuery = activePatientsQuery
+          .eq("owner_id", sessionData.user.id)
+          .is("clinic_id", null);
+      }
+
+      const { count, error: countError } = await activePatientsQuery;
+
+      if (countError) {
+        throw new Error(mapSupabaseError(countError));
+      }
+
+      activePatientCount = count ?? 0;
+    }
+
+    const patientLimitBlock = getPatientPlanLimitBlock({
+      activePatientCount,
+      patientLimit: plan.limitePacientes,
+    });
+
+    if (patientLimitBlock) {
+      throw new Error(patientLimitBlock);
     }
 
     const scheduledAt = new Date(`${input.date}T${input.time}`).toISOString();

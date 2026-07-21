@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuthSessionContext } from "@/contexts/AuthSessionContext";
 import { getSupabaseClient } from "@/lib/supabase";
 import {
   defaultPlan,
@@ -71,6 +72,7 @@ function getJoinedPlanCode(subscription: unknown) {
 }
 
 export function useSubscriptionPlan() {
+  const sessionContext = useAuthSessionContext();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const [plan, setPlan] = useState<UserPlan>(planSnapshot.plan);
   const [loaded, setLoaded] = useState(
@@ -78,6 +80,10 @@ export function useSubscriptionPlan() {
   );
 
   useEffect(() => {
+    if (sessionContext) {
+      return;
+    }
+
     let mounted = true;
 
     async function loadPlan() {
@@ -190,10 +196,16 @@ export function useSubscriptionPlan() {
     return () => {
       mounted = false;
     };
-  }, [activeWorkspace?.id, activeWorkspace?.role, activeWorkspace?.type, workspaceLoaded]);
+  }, [
+    activeWorkspace?.id,
+    activeWorkspace?.role,
+    activeWorkspace?.type,
+    sessionContext,
+    workspaceLoaded,
+  ]);
 
   return {
-    loaded,
-    plan,
+    loaded: sessionContext?.planLoaded ?? loaded,
+    plan: sessionContext?.plan ?? plan,
   };
 }

@@ -15,19 +15,11 @@ import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { useAppointments } from "@/hooks/useAppointments";
-import { useEvolutions } from "@/hooks/useEvolutions";
-import { usePatients } from "@/hooks/usePatients";
 import {
   appointmentStatusStyles,
-  getAppointmentDisplayStatus,
-  isPastPendingAppointment,
-  isUpcomingActiveAppointment,
 } from "@/lib/appointment-ui";
 import {
   formatCurrency,
-  getPaymentDate,
-  isAttendedPendingPayment,
   paymentStatusStyles,
 } from "@/lib/payment-ui";
 import { formatSessionAmount } from "@/lib/format";
@@ -36,14 +28,7 @@ import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
-
-function startOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1).getTime();
-}
-
-function endOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 1).getTime();
-}
+import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 
 function getAttendanceBadgeLabel(status: string) {
   return status === "Pendiente" ? "Pendiente asistencia" : status;
@@ -55,6 +40,13 @@ function getAttendanceBadgeClass(status: string) {
   }
 
   return appointmentStatusStyles[status] ?? "bg-sky-50 text-sky-700";
+}
+
+function getAppointmentDisplayStatus(appointment: { scheduledAt: string; status: string }) {
+  return appointment.status === "Pendiente" &&
+    new Date(appointment.scheduledAt).getTime() < Date.now()
+    ? "Sin registrar asistencia"
+    : appointment.status;
 }
 
 function getPaymentBadge(appointment: { amount: number; paymentStatus: string; paymentStatusLabel: string }) {
@@ -81,12 +73,10 @@ export default function DashboardPage() {
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const {
-    activePatients,
-    loaded: patientsLoaded,
-    patients,
-  } = usePatients();
-  const { appointments, loaded: appointmentsLoaded } = useAppointments();
-  const { loaded: evolutionsLoaded } = useEvolutions();
+    error: dashboardError,
+    loaded: dashboardLoaded,
+    summary,
+  } = useDashboardSummary();
 
   if (authError) {
     return <DashboardLoading error={authError} />;
@@ -103,9 +93,7 @@ export default function DashboardPage() {
 
   if (
     loading ||
-    !patientsLoaded ||
-    !appointmentsLoaded ||
-    !evolutionsLoaded ||
+    !dashboardLoaded ||
     !planLoaded ||
     !workspaceLoaded
   ) {
@@ -117,7 +105,7 @@ export default function DashboardPage() {
   const patientLimitBlock = isClinicWorkspace
     ? null
     : getPatientPlanLimitBlock({
-        activePatientCount: activePatients.length,
+        activePatientCount: summary.activePatientCount,
         patientLimit: plan.limitePacientes,
       });
   const dashboardTitle = isClinicWorkspace
@@ -126,72 +114,38 @@ export default function DashboardPage() {
   const dashboardDescription = isClinicWorkspace
     ? "Equipo, pacientes, agenda e ingresos de la clínica en un solo lugar."
     : "Pacientes, turnos, evoluciones y cobros en un solo lugar.";
-
-  const upcomingAppointments = [...appointments]
-    .filter(isUpcomingActiveAppointment)
-    .sort(
-      (a, b) =>
-        new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
-    )
-    .slice(0, 6);
-  const actionRequired = appointments.filter(isPastPendingAppointment);
-  const paymentActionRequired = appointments.filter(isAttendedPendingPayment);
-  const currentMonthStart = startOfMonth(new Date());
-  const currentMonthEnd = endOfMonth(new Date());
-  const today = new Date();
-  const appointmentsToday = appointments.filter((appointment) => {
-    const scheduledAt = new Date(appointment.scheduledAt);
-    return (
-      scheduledAt.getFullYear() === today.getFullYear() &&
-      scheduledAt.getMonth() === today.getMonth() &&
-      scheduledAt.getDate() === today.getDate()
-    );
-  });
-  const paidAppointments = appointments.filter(
-    (appointment) => appointment.paymentStatus === "paid",
-  );
-  const monthIncome = paidAppointments
-    .filter((appointment) => {
-      const paymentDate = getPaymentDate(appointment).getTime();
-      return paymentDate >= currentMonthStart && paymentDate < currentMonthEnd;
-    })
-    .reduce((total, appointment) => total + appointment.amount, 0);
-  const pendingPaymentAppointments = appointments.filter(
-    (appointment) =>
-      appointment.paymentStatus === "pending" && appointment.amount > 0,
-  );
-  const pendingPaymentAmount = pendingPaymentAppointments.reduce(
-    (total, appointment) => total + appointment.amount,
-    0,
-  );
+  const upcomingAppointments = summary.upcomingAppointments;
+  const actionRequired = summary.actionRequired;
+  const paymentActionRequired = summary.paymentActionRequired;
   const nextAppointment = upcomingAppointments[0];
 
   const summaryCards = [
     {
       label: "Turnos de hoy",
-      value: String(appointmentsToday.length),
+      value: String(summary.appointmentsTodayCount),
       detail:
-        appointmentsToday.length === 0
+        summary.appointmentsTodayCount === 0
           ? "Sin turnos para hoy"
           : "Agenda del dia",
     },
     {
       label: "Pacientes activos",
-      value: String(activePatients.length),
-      detail: patients.length === 0 ? "Sin pacientes cargados" : "En seguimiento",
+      value: String(summary.activePatientCount),
+      detail:
+        summary.totalPatientCount === 0 ? "Sin pacientes cargados" : "En seguimiento",
     },
     {
       label: "Ingresos del mes",
-      value: formatCurrency(monthIncome),
+      value: formatCurrency(summary.monthIncome),
       detail: "Cobros registrados",
     },
     {
       label: "Pendientes de cobro",
-      value: formatCurrency(pendingPaymentAmount),
+      value: formatCurrency(summary.pendingPaymentAmount),
       detail:
-        pendingPaymentAppointments.length === 0
+        summary.pendingPaymentCount === 0
           ? "Sin cobros pendientes"
-          : `${pendingPaymentAppointments.length} sesiones`,
+          : `${summary.pendingPaymentCount} sesiones`,
     },
     {
       label: "Próximo turno",
@@ -250,6 +204,12 @@ export default function DashboardPage() {
               >
                 Reactivar plan
               </Link>
+            </section>
+          ) : null}
+
+          {dashboardError ? (
+            <section className="mt-4 rounded-lg border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700 sm:mt-6 sm:p-5">
+              <p>{dashboardError}</p>
             </section>
           ) : null}
 
@@ -533,7 +493,7 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="mt-5 divide-y divide-ocean-100">
-              {patients.slice(0, 6).map((patient) => (
+              {summary.recentPatients.map((patient) => (
                 <div
                   className="grid gap-3 py-4 md:grid-cols-[1fr_1fr_auto] md:items-center"
                   key={patient.id}
@@ -557,7 +517,7 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            {patients.length === 0 ? (
+            {summary.recentPatients.length === 0 ? (
               <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
                 <p className="font-semibold text-ink">
                   Todavía no hay pacientes cargados.
