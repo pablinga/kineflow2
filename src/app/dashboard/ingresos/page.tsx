@@ -1,76 +1,106 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, WalletCards } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
-import { PatientSearchSelect } from "@/components/patients/PatientSearchSelect";
 import {
   paymentMethodLabels,
   paymentStatusLabels,
   type PaymentMethod,
   type PaymentStatus,
-  useAppointments,
 } from "@/hooks/useAppointments";
-import { usePatients } from "@/hooks/usePatients";
-import {
-  appointmentStatusStyles,
-  getAppointmentDisplayStatus,
-} from "@/lib/appointment-ui";
-import { formatCurrency, paymentStatusStyles } from "@/lib/payment-ui";
+import { useIncomeRecords } from "@/hooks/useIncomeRecords";
+import { appointmentStatusStyles } from "@/lib/appointment-ui";
 import { formatSessionAmount } from "@/lib/format";
+import { formatCurrency, paymentStatusStyles } from "@/lib/payment-ui";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
+const INCOME_PAGE_SIZE = 25;
+
+function getArgentinaDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+  }).formatToParts(date);
+
+  return {
+    day: parts.find((part) => part.type === "day")?.value ?? "01",
+    month: parts.find((part) => part.type === "month")?.value ?? "01",
+    year: parts.find((part) => part.type === "year")?.value ?? "1970",
+  };
+}
+
+function getDefaultFromDate() {
+  const { month, year } = getArgentinaDateParts();
+
+  return `${year}-${month}-01`;
+}
+
+function getDefaultToDate() {
+  const { day, month, year } = getArgentinaDateParts();
+
+  return `${year}-${month}-${day}`;
+}
+
+function getAppointmentDisplayStatus(appointment: {
+  scheduledAt: string;
+  status: string;
+}) {
+  return appointment.status === "Pendiente" &&
+    new Date(appointment.scheduledAt).getTime() < Date.now()
+    ? "Sin registrar asistencia"
+    : appointment.status;
+}
+
 export default function IncomePage() {
-  const { accountType, authError, displayName, loading, redirecting } =
-    useRequireAuth();
+  const { accountType, authError, loading, redirecting } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
-  const { appointments, error: appointmentsError, loaded: appointmentsLoaded } =
-    useAppointments();
-  const { activePatients, loaded: patientsLoaded } = usePatients();
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [fromDate, setFromDate] = useState(getDefaultFromDate);
+  const [toDate, setToDate] = useState(getDefaultToDate);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | "all">(
     "all",
   );
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "all">(
     "all",
   );
-  const [patientId, setPatientId] = useState("all");
+  const [patientSearch, setPatientSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const {
+    error: incomeError,
+    loaded: incomeLoaded,
+    records,
+    summary,
+    totalCount,
+  } = useIncomeRecords({
+    fromDate,
+    page: currentPage,
+    pageSize: INCOME_PAGE_SIZE,
+    patientSearch,
+    paymentMethod,
+    paymentStatus,
+    toDate,
+  });
+  const totalPages = Math.max(Math.ceil(totalCount / INCOME_PAGE_SIZE), 1);
+  const pageStart =
+    totalCount === 0 ? 0 : (currentPage - 1) * INCOME_PAGE_SIZE + 1;
+  const pageEnd = Math.min(currentPage * INCOME_PAGE_SIZE, totalCount);
 
-  const filteredAppointments = useMemo(
-    () =>
-      appointments.filter((appointment) => {
-        const scheduledAt = new Date(appointment.scheduledAt).getTime();
-        const from = fromDate
-          ? new Date(`${fromDate}T00:00:00`).getTime()
-          : null;
-        const to = toDate ? new Date(`${toDate}T23:59:59`).getTime() : null;
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [fromDate, patientSearch, paymentMethod, paymentStatus, toDate]);
 
-        return (
-          (!from || scheduledAt >= from) &&
-          (!to || scheduledAt <= to) &&
-          (paymentStatus === "all" ||
-            appointment.paymentStatus === paymentStatus) &&
-          (paymentMethod === "all" ||
-            appointment.paymentMethod === paymentMethod) &&
-          (patientId === "all" || appointment.patientId === patientId)
-        );
-      }),
-    [appointments, fromDate, patientId, paymentMethod, paymentStatus, toDate],
-  );
-
-  const total = filteredAppointments.reduce(
-    (sum, appointment) => sum + appointment.amount,
-    0,
-  );
-  const hasRegisteredCharges = appointments.some(
-    (appointment) => appointment.amount > 0 || appointment.paymentStatus === "paid",
-  );
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   if (authError) {
     return <DashboardLoading error={authError} />;
@@ -79,19 +109,13 @@ export default function IncomePage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesión activa. Te estamos llevando al login."
+        message="No hay una sesion activa. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
   }
 
-  if (
-    loading ||
-    !appointmentsLoaded ||
-    !patientsLoaded ||
-    !planLoaded ||
-    !workspaceLoaded
-  ) {
+  if (loading || !incomeLoaded || !planLoaded || !workspaceLoaded) {
     return <DashboardLoading />;
   }
 
@@ -115,8 +139,8 @@ export default function IncomePage() {
               Ingresos del consultorio bloqueados
             </h1>
             <p className="mt-2 leading-6 text-amber-800">
-              Para ver ingresos y reportes del consultorio necesitás una
-              suscripción activa del Plan Consultorio.
+              Para ver ingresos y reportes del consultorio necesitas una
+              suscripcion activa del Plan Consultorio.
             </p>
           </div>
         </section>
@@ -133,25 +157,25 @@ export default function IncomePage() {
             <div>
               <p className="text-sm font-semibold text-ocean-700">Ingresos</p>
               <h1 className="mt-1 text-3xl font-bold text-ink">
-                Control económico
+                Control economico
               </h1>
               <p className="mt-2 text-slate-600">
-                Seguimiento simple de cobros por sesión.
+                Seguimiento simple de cobros por sesion.
               </p>
             </div>
             <div className="rounded-lg bg-emerald-50 px-4 py-3">
               <p className="text-sm font-semibold text-emerald-700">
-                Total filtrado
+                Total cobrado
               </p>
               <p className="mt-1 text-2xl font-bold text-ink">
-                {formatCurrency(total)}
+                {formatCurrency(summary.paidAmount)}
               </p>
             </div>
           </header>
 
-          {appointmentsError ? (
+          {incomeError ? (
             <p className="mt-6 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              {appointmentsError}
+              {incomeError}
             </p>
           ) : null}
 
@@ -217,13 +241,38 @@ export default function IncomePage() {
                   ))}
                 </select>
               </label>
-              <PatientSearchSelect
-                includeAllOption
-                onChange={setPatientId}
-                patients={activePatients}
-                value={patientId}
-              />
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Paciente
+                </span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => setPatientSearch(event.target.value)}
+                  placeholder="Buscar paciente"
+                  type="search"
+                  value={patientSearch}
+                />
+              </label>
             </div>
+          </section>
+
+          <section className="mt-6 grid gap-3 md:grid-cols-4">
+            {[
+              { label: "Cobrado", value: formatCurrency(summary.paidAmount) },
+              { label: "Pendiente", value: formatCurrency(summary.pendingAmount) },
+              { label: "Sesiones cobradas", value: String(summary.paidCount) },
+              { label: "Ticket promedio", value: formatCurrency(summary.averageAmount) },
+            ].map((item) => (
+              <article
+                className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card"
+                key={item.label}
+              >
+                <p className="text-sm font-semibold text-slate-500">
+                  {item.label}
+                </p>
+                <p className="mt-2 text-xl font-bold text-ink">{item.value}</p>
+              </article>
+            ))}
           </section>
 
           <section className="mt-6 rounded-lg border border-ocean-100 bg-white shadow-card">
@@ -236,7 +285,7 @@ export default function IncomePage() {
                   Sesiones y cobros
                 </h2>
                 <p className="text-sm text-slate-500">
-                  {filteredAppointments.length} registros encontrados.
+                  {totalCount} registros encontrados.
                 </p>
               </div>
             </div>
@@ -247,8 +296,7 @@ export default function IncomePage() {
                   <tr>
                     <th className="px-5 py-3 font-semibold">Fecha</th>
                     <th className="px-5 py-3 font-semibold">Paciente</th>
-                    <th className="px-5 py-3 font-semibold">Profesional</th>
-                    <th className="px-5 py-3 font-semibold">Atención</th>
+                    <th className="px-5 py-3 font-semibold">Atencion</th>
                     <th className="px-5 py-3 font-semibold">Turno</th>
                     <th className="px-5 py-3 font-semibold">Cobro</th>
                     <th className="px-5 py-3 font-semibold">Medio</th>
@@ -258,24 +306,22 @@ export default function IncomePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-ocean-100">
-                  {filteredAppointments.map((appointment) => {
+                  {records.map((appointment) => {
                     const status = getAppointmentDisplayStatus(appointment);
 
                     return (
                       <tr key={appointment.id}>
                         <td className="px-5 py-4 font-semibold text-slate-600">
-                          {appointment.date} · {appointment.time}
+                          {appointment.date} - {appointment.time}
                         </td>
                         <td className="px-5 py-4">
                           <Link
                             className="font-semibold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
                             href={`/dashboard/pacientes/${appointment.patientId}`}
+                            prefetch={false}
                           >
                             {appointment.patient}
                           </Link>
-                        </td>
-                        <td className="px-5 py-4 text-slate-600">
-                          {displayName}
                         </td>
                         <td className="px-5 py-4 text-slate-600">
                           {appointment.modality}
@@ -315,7 +361,7 @@ export default function IncomePage() {
             </div>
 
             <div className="divide-y divide-ocean-100 md:hidden">
-              {filteredAppointments.map((appointment) => {
+              {records.map((appointment) => {
                 const status = getAppointmentDisplayStatus(appointment);
 
                 return (
@@ -323,11 +369,12 @@ export default function IncomePage() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold text-slate-500">
-                          {appointment.date} · {appointment.time}
+                          {appointment.date} - {appointment.time}
                         </p>
                         <Link
                           className="mt-1 block font-bold text-ink underline-offset-4 hover:text-ocean-700 hover:underline"
                           href={`/dashboard/pacientes/${appointment.patientId}`}
+                          prefetch={false}
                         >
                           {appointment.patient}
                         </Link>
@@ -335,6 +382,7 @@ export default function IncomePage() {
                       <Link
                         className="rounded-lg border border-ocean-100 p-2 text-ocean-700"
                         href={`/dashboard/pacientes/${appointment.patientId}`}
+                        prefetch={false}
                       >
                         <ArrowUpRight className="h-4 w-4" />
                       </Link>
@@ -373,13 +421,44 @@ export default function IncomePage() {
               })}
             </div>
 
-            {filteredAppointments.length === 0 ? (
+            {records.length === 0 ? (
               <div className="p-8 text-center">
                 <p className="font-semibold text-ink">
-                  {hasRegisteredCharges
-                    ? "No hay ingresos para los filtros seleccionados."
-                    : "Todavía no registraste cobros. Cuando marques sesiones como cobradas, vas a poder ver el resumen de ingresos acá."}
+                  No hay ingresos para los filtros seleccionados.
                 </p>
+              </div>
+            ) : null}
+
+            {totalCount > INCOME_PAGE_SIZE ? (
+              <div className="flex flex-col gap-3 border-t border-ocean-100 px-5 py-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+                <p>
+                  Mostrando {pageStart}-{pageEnd} de {totalCount} registros
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-ocean-200 px-4 font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={currentPage <= 1}
+                    onClick={() =>
+                      setCurrentPage((value) => Math.max(value - 1, 1))
+                    }
+                    type="button"
+                  >
+                    Anterior
+                  </button>
+                  <span className="font-semibold text-ink">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-ocean-200 px-4 font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={currentPage >= totalPages}
+                    onClick={() =>
+                      setCurrentPage((value) => Math.min(value + 1, totalPages))
+                    }
+                    type="button"
+                  >
+                    Siguiente
+                  </button>
+                </div>
               </div>
             ) : null}
           </section>

@@ -598,6 +598,7 @@ export default function AppointmentsPage() {
             <Link
               className="mt-1 block min-w-0 truncate text-xs font-semibold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
               href={`/dashboard/pacientes/${appointment.patientId}`}
+              prefetch={false}
               title={`Ver detalle de ${appointment.patient}`}
             >
               {appointment.patient}
@@ -652,6 +653,7 @@ export default function AppointmentsPage() {
             <Link
               className="inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-600 px-2 text-[0.68rem] font-semibold text-white transition hover:bg-ocean-700"
               href={`/dashboard/pacientes/${appointment.patientId}?appointment=${appointment.id}`}
+              prefetch={false}
             >
               Evolución
             </Link>
@@ -1100,6 +1102,7 @@ export default function AppointmentsPage() {
                       <Link
                         className="font-semibold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
                         href={`/dashboard/pacientes/${appointment.patientId}`}
+                        prefetch={false}
                       >
                         {appointment.patient}
                       </Link>
@@ -1217,6 +1220,7 @@ export default function AppointmentsPage() {
                     <Link
                       className="mt-1 block text-sm font-semibold text-ocean-800 underline-offset-4 hover:underline"
                       href={`/dashboard/pacientes/${actionsAppointment.patientId}`}
+                      prefetch={false}
                     >
                       {actionsAppointment.patient}
                     </Link>

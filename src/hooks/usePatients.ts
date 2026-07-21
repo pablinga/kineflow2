@@ -193,7 +193,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
   const pageSize = options.pageSize ?? null;
   const search = options.search?.trim() ?? "";
 
-  const loadPatients = useCallback(async () => {
+  const loadPatients = useCallback(async (signal?: AbortSignal) => {
     if (!activeWorkspaceLoaded) {
       return;
     }
@@ -260,14 +260,21 @@ export function usePatients(options: UsePatientsOptions = {}) {
           return;
         }
 
+        const baseClinicProfessionalQuery = supabase
+          .from("clinic_professionals")
+          .select("can_view_assigned_patients")
+          .eq("clinic_id", activeWorkspace.sourceClinicId)
+          .eq("professional_id", user.id)
+          .eq("status", "accepted");
+        const clinicProfessionalQuery = signal
+          ? baseClinicProfessionalQuery.abortSignal(signal)
+          : baseClinicProfessionalQuery;
         const { data: clinicProfessional, error: clinicProfessionalError } =
-          await supabase
-            .from("clinic_professionals")
-            .select("can_view_assigned_patients")
-            .eq("clinic_id", activeWorkspace.sourceClinicId)
-            .eq("professional_id", user.id)
-            .eq("status", "accepted")
-            .maybeSingle();
+          await clinicProfessionalQuery.maybeSingle();
+
+        if (signal?.aborted) {
+          return;
+        }
 
         if (clinicProfessionalError) {
           setError(mapSupabaseError(clinicProfessionalError));
@@ -321,10 +328,21 @@ export function usePatients(options: UsePatientsOptions = {}) {
         patientQuery = patientQuery.range(from, from + pageSize - 1);
       }
 
+      const abortablePatientQuery = signal
+        ? patientQuery.abortSignal(signal)
+        : patientQuery;
+      const abortableActiveCountQuery = signal
+        ? activeCountQuery.abortSignal(signal)
+        : activeCountQuery;
       const [
         { data, error: queryError, count },
         { count: activeCount, error: activeCountError },
-      ] = await Promise.all([patientQuery, activeCountQuery]);
+      ] = await Promise.all([abortablePatientQuery, abortableActiveCountQuery]);
+
+
+      if (signal?.aborted) {
+        return;
+      }
 
       if (queryError || activeCountError) {
         setError(mapSupabaseError(queryError ?? activeCountError));
@@ -333,10 +351,10 @@ export function usePatients(options: UsePatientsOptions = {}) {
 
       const patientRows = (data ?? []) as PatientRow[];
       const patientIds = patientRows.map((patient) => patient.id);
-      setTotalCount(count ?? patientRows.length);
-      setActivePatientCount(activeCount ?? 0);
 
       if (patientIds.length === 0) {
+        setTotalCount(count ?? patientRows.length);
+        setActivePatientCount(activeCount ?? 0);
         setPatients([]);
         return;
       }
@@ -353,10 +371,23 @@ export function usePatients(options: UsePatientsOptions = {}) {
       appointmentsQuery = appointmentsQuery.eq("workspace_id", activeWorkspace.id);
       evolutionsQuery = evolutionsQuery.eq("workspace_id", activeWorkspace.id);
 
+      const abortableAppointmentsQuery = signal
+        ? appointmentsQuery.abortSignal(signal)
+        : appointmentsQuery;
+      const abortableEvolutionsQuery = signal
+        ? evolutionsQuery.abortSignal(signal)
+        : evolutionsQuery;
       const [
         { data: appointmentsData, error: appointmentsError },
         { data: evolutionsData, error: evolutionsError },
-      ] = await Promise.all([appointmentsQuery, evolutionsQuery]);
+      ] = await Promise.all([
+        abortableAppointmentsQuery,
+        abortableEvolutionsQuery,
+      ]);
+
+      if (signal?.aborted) {
+        return;
+      }
 
       if (appointmentsError || evolutionsError) {
         setError(
@@ -370,6 +401,8 @@ export function usePatients(options: UsePatientsOptions = {}) {
         return;
       }
 
+      setTotalCount(count ?? patientRows.length);
+      setActivePatientCount(activeCount ?? 0);
       setPatients(
         patientRows.map((patient) =>
           mapPatient(
@@ -380,11 +413,17 @@ export function usePatients(options: UsePatientsOptions = {}) {
         ),
       );
     } catch (loadError) {
+      if (signal?.aborted) {
+        return;
+      }
+
       setError(
         getFriendlyErrorMessage(loadError, "No pudimos cargar pacientes."),
       );
     } finally {
-      setLoaded(true);
+      if (!signal?.aborted) {
+        setLoaded(true);
+      }
     }
   }, [
     activeWorkspace?.id,
@@ -400,7 +439,13 @@ export function usePatients(options: UsePatientsOptions = {}) {
   ]);
 
   useEffect(() => {
-    loadPatients();
+    const controller = new AbortController();
+
+    void loadPatients(controller.signal);
+
+    return () => {
+      controller.abort();
+    };
   }, [loadPatients]);
 
   const activePatients = useMemo(

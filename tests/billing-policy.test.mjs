@@ -1131,3 +1131,67 @@ test("Pacientes carga paginada sin validar usuario dos veces", () => {
   assert.match(treatmentsHook, /options: \{ enabled\?: boolean \} = \{\}/);
   assert.match(treatmentsHook, /if \(!enabled\)/);
 });
+
+test("Ingresos carga solo datos financieros acotados y paginados", () => {
+  const page = fs.readFileSync("src/app/dashboard/ingresos/page.tsx", "utf8");
+  const hook = fs.readFileSync("src/hooks/useIncomeRecords.ts", "utf8");
+
+  assert.match(page, /useIncomeRecords\(\{/);
+  assert.doesNotMatch(page, /useAppointments\(/);
+  assert.doesNotMatch(page, /usePatients\(/);
+  assert.doesNotMatch(page, /PatientSearchSelect/);
+  assert.match(page, /INCOME_PAGE_SIZE = 25/);
+  assert.match(page, /America\/Argentina\/Buenos_Aires/);
+  assert.match(page, /href=\{`\/dashboard\/pacientes\/\$\{appointment\.patientId\}`\}[\s\S]*prefetch=\{false\}/);
+
+  assert.match(hook, /from\("appointments"\)/);
+  assert.match(hook, /scheduled_at/);
+  assert.match(hook, /session_amount/);
+  assert.match(hook, /payment_status/);
+  assert.match(hook, /paid_at/);
+  assert.match(hook, /\.range\(from, to\)/);
+  assert.match(hook, /AbortController/);
+  assert.match(hook, /\.abortSignal\(signal\)/);
+  assert.match(hook, /Promise\.all/);
+  assert.doesNotMatch(hook, /from\("patients"\)/);
+  assert.doesNotMatch(hook, /from\("evolutions"\)/);
+  assert.doesNotMatch(hook, /\.in\("patient_id"/);
+});
+
+test("Pantallas previas cancelan cargas pendientes al navegar", () => {
+  const patientsHook = fs.readFileSync("src/hooks/usePatients.ts", "utf8");
+  const appointmentsHook = fs.readFileSync("src/hooks/useAppointments.ts", "utf8");
+  const appointmentsLoadBlock = appointmentsHook.slice(
+    appointmentsHook.indexOf("const loadAppointments"),
+    appointmentsHook.indexOf("async function validateAppointmentSlot"),
+  );
+
+  [patientsHook, appointmentsHook].forEach((source) => {
+    assert.match(source, /new AbortController\(\)/);
+    assert.match(source, /controller\.abort\(\)/);
+    assert.match(source, /\.abortSignal\(signal\)/);
+    assert.match(source, /signal\?\.aborted/);
+  });
+
+  assert.match(appointmentsHook, /const \{ accountType, user \} = useRequireAuth\(\)/);
+  assert.doesNotMatch(appointmentsLoadBlock, /supabase\.auth\.getUser\(\)/);
+});
+
+test("Links a detalle de paciente no hacen prefetch automatico", () => {
+  [
+    "src/app/dashboard/page.tsx",
+    "src/app/dashboard/ingresos/page.tsx",
+    "src/app/dashboard/pacientes/page.tsx",
+    "src/app/dashboard/turnos/page.tsx",
+    "src/app/dashboard/turnos/nuevo/page.tsx",
+  ].forEach((path) => {
+    const source = fs.readFileSync(path, "utf8");
+    const matches = source.matchAll(/href=\{`\/dashboard\/pacientes\/[^`]+`\}/g);
+
+    for (const match of matches) {
+      const nearbySource = source.slice(match.index, match.index + 220);
+
+      assert.match(nearbySource, /prefetch=\{false\}/, path);
+    }
+  });
+});

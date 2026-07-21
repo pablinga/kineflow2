@@ -326,6 +326,7 @@ export default function DashboardPage() {
                         <Link
                           className="font-semibold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
                           href={`/dashboard/pacientes/${appointment.patientId}`}
+                          prefetch={false}
                         >
                           {appointment.patient}
                         </Link>
@@ -374,6 +375,7 @@ export default function DashboardPage() {
                       className="block rounded-lg border border-orange-100 bg-orange-50 p-3 transition hover:bg-orange-100"
                       href={`/dashboard/pacientes/${appointment.patientId}`}
                       key={appointment.id}
+                      prefetch={false}
                     >
                       <p className="text-sm font-semibold text-orange-800">
                         Sin registrar asistencia
@@ -511,6 +513,7 @@ export default function DashboardPage() {
                   <Link
                     className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
                     href={`/dashboard/pacientes/${patient.id}`}
+                    prefetch={false}
                   >
                     Ver paciente
                   </Link>

@@ -318,7 +318,7 @@ function markAppointmentConflicts(appointments: Appointment[]) {
 }
 
 export function useAppointments(patientId?: string) {
-  const { accountType } = useRequireAuth();
+  const { accountType, user } = useRequireAuth();
   const {
     activeWorkspace,
     error: activeWorkspaceError,
@@ -332,7 +332,7 @@ export function useAppointments(patientId?: string) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
 
-  const loadAppointments = useCallback(async () => {
+  const loadAppointments = useCallback(async (signal?: AbortSignal) => {
     if (!activeWorkspaceLoaded) {
       return;
     }
@@ -342,10 +342,8 @@ export function useAppointments(patientId?: string) {
 
     try {
       const supabase = getSupabaseClient();
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getUser();
 
-      if (sessionError || !sessionData.user) {
+      if (!user) {
         throw new Error("No pudimos identificar al usuario.");
       }
 
@@ -374,14 +372,19 @@ export function useAppointments(patientId?: string) {
         activeWorkspace.type === "PERSONAL" ||
         activeWorkspace.role === "KINESIOLOGO"
       ) {
-        query = query.eq("owner_id", sessionData.user.id);
+        query = query.eq("owner_id", user.id);
       }
 
       if (patientId) {
         query = query.eq("patient_id", patientId);
       }
 
-      const { data, error: queryError } = await query;
+      const abortableQuery = signal ? query.abortSignal(signal) : query;
+      const { data, error: queryError } = await abortableQuery;
+
+      if (signal?.aborted) {
+        return;
+      }
 
       if (queryError) {
         setError(mapSupabaseError(queryError));
@@ -394,11 +397,17 @@ export function useAppointments(patientId?: string) {
         ),
       );
     } catch (loadError) {
+      if (signal?.aborted) {
+        return;
+      }
+
       setError(
         getFriendlyErrorMessage(loadError, "No pudimos cargar turnos."),
       );
     } finally {
-      setLoaded(true);
+      if (!signal?.aborted) {
+        setLoaded(true);
+      }
     }
   }, [
     activeWorkspace?.id,
@@ -407,10 +416,17 @@ export function useAppointments(patientId?: string) {
     activeWorkspaceError,
     activeWorkspaceLoaded,
     patientId,
+    user,
   ]);
 
   useEffect(() => {
-    loadAppointments();
+    const controller = new AbortController();
+
+    void loadAppointments(controller.signal);
+
+    return () => {
+      controller.abort();
+    };
   }, [loadAppointments]);
 
   async function validateAppointmentSlot({

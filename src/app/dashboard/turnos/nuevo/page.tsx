@@ -458,6 +458,7 @@ export default function NewAppointmentPage() {
                     <Link
                       className="font-semibold text-ocean-700 underline-offset-4 hover:underline"
                       href={`/dashboard/pacientes/${appointment.patientId}`}
+                      prefetch={false}
                     >
                       ficha
                     </Link>
