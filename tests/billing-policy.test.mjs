@@ -760,6 +760,10 @@ test("Equipo permite que un usuario trabaje en mas de una clinica", () => {
 test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => {
   const patientsHook = fs.readFileSync("src/hooks/usePatients.ts", "utf8");
   const patientsPage = fs.readFileSync("src/app/dashboard/pacientes/page.tsx", "utf8");
+  const newPatientModal = fs.readFileSync(
+    "src/components/patients/NuevoPacienteModal.tsx",
+    "utf8",
+  );
   const migration = fs.readFileSync(
     "supabase/migrations/202606050002_validate_patient_identity_and_contact.sql",
     "utf8",
@@ -779,13 +783,35 @@ test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => 
   assert.match(patientsHook, /\.select\("id"\)/);
   assert.match(patientsHook, /updatePatient/);
   assert.match(patientsPage, /Editar paciente/);
-  assert.match(patientsPage, /Crear tratamiento inicial/);
+  assert.match(newPatientModal, /Crear tratamiento inicial/);
   assert.match(patientsPage, /addTreatment/);
   assert.match(patientsPage, /initialTreatment/);
   assert.match(patientsPage, /Paciente actualizado correctamente/);
   assert.match(migration, /patients\.owner_id = new\.owner_id/);
   assert.match(migration, /patients\.id is distinct from new\.id/);
   assert.doesNotMatch(migration, /update of document_number, full_name, phone, email, initial_condition, status/);
+});
+
+test("Nuevo paciente se abre en modal accesible sin cambiar la logica de alta", () => {
+  const patientsPage = fs.readFileSync("src/app/dashboard/pacientes/page.tsx", "utf8");
+  const newPatientModal = fs.readFileSync(
+    "src/components/patients/NuevoPacienteModal.tsx",
+    "utf8",
+  );
+
+  assert.match(patientsPage, /<NuevoPacienteModal/);
+  assert.match(patientsPage, /onSubmit=\{handleSubmit\}/);
+  assert.match(patientsPage, /onUpdateField=\{updateField\}/);
+  assert.match(patientsPage, /onUpdateInitialTreatmentField=\{updateInitialTreatmentField\}/);
+  assert.match(patientsPage, /setShowForm\(true\)/);
+  assert.doesNotMatch(patientsPage, /className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5"[\s\S]*onSubmit=\{handleSubmit\}/);
+  assert.match(newPatientModal, /role="dialog"/);
+  assert.match(newPatientModal, /aria-modal="true"/);
+  assert.match(newPatientModal, /document\.body\.style\.overflow = "hidden"/);
+  assert.match(newPatientModal, /event\.key === "Escape"/);
+  assert.match(newPatientModal, /event\.target === event\.currentTarget/);
+  assert.match(newPatientModal, /firstInputRef\.current\?\.focus\(\)/);
+  assert.match(newPatientModal, /focusableSelector/);
 });
 
 test("Listado de pacientes permite reactivar, ordenar y alternar vista", () => {
@@ -1080,6 +1106,79 @@ test("Listener de auth se limpia y no fuerza refresh o polling del dashboard", (
   assert.doesNotMatch(register, /router\.refresh\(\)/);
   assert.doesNotMatch(sidebar, /router\.refresh\(\)/);
   assert.match(sidebar, /prefetch=\{false\}/);
+});
+
+test("Usuario historico particular sin workspace se recupera al iniciar sesion", () => {
+  const migration = fs.readFileSync(
+    "supabase/migrations/202607220001_recover_historical_personal_workspaces.sql",
+    "utf8",
+  );
+  const provider = fs.readFileSync("src/contexts/AuthSessionContext.tsx", "utf8");
+  const route = fs.readFileSync(
+    "src/app/api/workspaces/ensure-personal/route.ts",
+    "utf8",
+  );
+
+  assert.match(migration, /create or replace function public\.ensure_kinesiologist_personal_workspace/);
+  assert.match(migration, /add column if not exists workspace_id uuid references public\.workspaces/);
+  assert.match(migration, /pg_advisory_xact_lock/);
+  assert.match(migration, /profiles\.account_type = 'KINESIOLOGO'/);
+  assert.match(migration, /not exists \([\s\S]*workspaces\.type = 'PERSONAL'/);
+  assert.match(migration, /'PERSONAL'[\s\S]*'ADMIN'[\s\S]*'accepted'/);
+  assert.match(provider, /ensurePersonalWorkspace\(data\.session\.access_token\)/);
+  assert.match(provider, /!workspaceRows\.some\(\(workspace\) => workspace\.type === "PERSONAL"\)/);
+  assert.match(route, /supabase\.auth\.getUser\(token\)/);
+  assert.match(route, /admin\.rpc\([\s\S]*ensure_kinesiologist_personal_workspace/);
+});
+
+test("Recuperacion de workspace particular es idempotente y no duplica usuarios existentes", () => {
+  const workspaceMigration = fs.readFileSync(
+    "supabase/migrations/202606300001_add_workspaces_foundation.sql",
+    "utf8",
+  );
+  const recoveryMigration = fs.readFileSync(
+    "supabase/migrations/202607220001_recover_historical_personal_workspaces.sql",
+    "utf8",
+  );
+
+  assert.match(workspaceMigration, /create unique index if not exists workspaces_personal_owner_uidx/);
+  assert.match(workspaceMigration, /where type = 'PERSONAL'/);
+  assert.match(workspaceMigration, /create unique index if not exists workspace_members_active_user_uidx/);
+  assert.match(recoveryMigration, /on conflict do nothing/g);
+  assert.match(recoveryMigration, /select workspaces\.id[\s\S]*where workspaces\.type = 'PERSONAL'[\s\S]*workspaces\.owner_id = target_user_id/);
+});
+
+test("Recuperacion conserva datos historicos del particular y los asocia al workspace personal", () => {
+  const migration = fs.readFileSync(
+    "supabase/migrations/202607220001_recover_historical_personal_workspaces.sql",
+    "utf8",
+  );
+
+  assert.match(migration, /update public\.patients[\s\S]*patients\.workspace_id is null[\s\S]*patients\.owner_id = target_user_id[\s\S]*patients\.clinic_id is null/);
+  assert.match(migration, /update public\.appointments[\s\S]*appointments\.workspace_id is null[\s\S]*appointments\.owner_id = target_user_id[\s\S]*appointments\.clinic_id is null/);
+  assert.match(migration, /update public\.evolutions[\s\S]*evolutions\.workspace_id is null[\s\S]*evolutions\.owner_id = target_user_id/);
+  assert.match(migration, /update public\.treatments[\s\S]*treatments\.workspace_id is null[\s\S]*treatments\.owner_id = target_user_id/);
+  assert.match(migration, /update public\.subscriptions[\s\S]*subscriptions\.workspace_id is null[\s\S]*subscriptions\.account_id = target_user_id[\s\S]*subscriptions\.account_type = 'KINESIOLOGO'/);
+  assert.doesNotMatch(migration, /delete from public\.(patients|appointments|evolutions|treatments|subscriptions)/);
+});
+
+test("Recuperacion respeta clinicas y kinesiologos miembros de clinicas", () => {
+  const migration = fs.readFileSync(
+    "supabase/migrations/202607220001_recover_historical_personal_workspaces.sql",
+    "utf8",
+  );
+  const provider = fs.readFileSync("src/contexts/AuthSessionContext.tsx", "utf8");
+  const route = fs.readFileSync(
+    "src/app/api/workspaces/ensure-personal/route.ts",
+    "utf8",
+  );
+
+  assert.match(migration, /coalesce\(target_profile\.account_type, 'KINESIOLOGO'\) <> 'KINESIOLOGO'[\s\S]*return null/);
+  assert.doesNotMatch(migration, /insert into public\.clinics/);
+  assert.match(migration, /patients\.clinic_id is null/);
+  assert.match(migration, /appointments\.clinic_id is null/);
+  assert.match(provider, /workspaceRows\.some\(\(workspace\) => workspace\.type === "PERSONAL"\)/);
+  assert.match(route, /\(profile\?\.account_type \?\? "KINESIOLOGO"\) !== "KINESIOLOGO"/);
 });
 
 test("Links publicos visibles no hacen prefetch automatico en auth", () => {

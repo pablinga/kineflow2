@@ -116,6 +116,28 @@ function storeWorkspaceId(userId: string, workspaceId: string) {
   window.localStorage.setItem(`kineflow.activeWorkspace.${userId}`, workspaceId);
 }
 
+async function ensurePersonalWorkspace(accessToken: string) {
+  const response = await fetch("/api/workspaces/ensure-personal", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    let message = "No pudimos preparar tu espacio de trabajo.";
+
+    try {
+      const body = (await response.json()) as { error?: string };
+      message = body.error || message;
+    } catch {
+      // Keep the generic message when the server response is not JSON.
+    }
+
+    throw new Error(message);
+  }
+}
+
 function chooseWorkspace(
   workspaces: ActiveWorkspace[],
   preferredWorkspaceId: string | null,
@@ -306,7 +328,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       setUser(currentUser);
 
       queryCount += 3;
-      const [profileResult, workspaceResult, membershipResult] = await Promise.all([
+      let [profileResult, workspaceResult, membershipResult] = await Promise.all([
         supabase
           .from("profiles")
           .select("account_type, full_name, organization_name")
@@ -350,11 +372,43 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       };
       const fallbackType =
         nextAccountType === "CONSULTORIO" ? "CLINICA" : "PERSONAL";
+      let workspaceRows = (workspaceResult.data ?? []) as WorkspaceRow[];
+
+      if (
+        nextAccountType === "KINESIOLOGO" &&
+        !workspaceRows.some((workspace) => workspace.type === "PERSONAL")
+      ) {
+        await ensurePersonalWorkspace(data.session.access_token);
+        queryCount += 2;
+        [workspaceResult, membershipResult] = await Promise.all([
+          supabase
+            .from("workspaces")
+            .select("id, name, type, source_clinic_id")
+            .order("type", { ascending: false })
+            .order("created_at", { ascending: true }),
+          supabase
+            .from("workspace_members")
+            .select("workspace_id, role")
+            .eq("user_id", currentUser.id)
+            .eq("status", "accepted"),
+        ]);
+
+        if (workspaceResult.error) {
+          throw new Error(mapSupabaseError(workspaceResult.error));
+        }
+
+        if (membershipResult.error) {
+          throw new Error(mapSupabaseError(membershipResult.error));
+        }
+
+        workspaceRows = (workspaceResult.data ?? []) as WorkspaceRow[];
+      }
+
       const membershipRows = (membershipResult.data ?? []) as MembershipRow[];
       const membershipByWorkspace = new Map(
         membershipRows.map((row) => [row.workspace_id, row.role]),
       );
-      const nextWorkspaces = ((workspaceResult.data ?? []) as WorkspaceRow[])
+      const nextWorkspaces = workspaceRows
         .map((workspace) => ({
           id: workspace.id,
           name: workspace.name,
