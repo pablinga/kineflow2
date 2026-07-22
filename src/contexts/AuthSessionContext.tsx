@@ -334,7 +334,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       setUser(currentUser);
 
       queryCount += 3;
-      let [profileResult, workspaceResult, membershipResult] = await Promise.all([
+      const sessionContextResults = await Promise.all([
         supabase
           .from("profiles")
           .select("account_type, full_name, organization_name")
@@ -351,6 +351,9 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           .eq("user_id", currentUser.id)
           .eq("status", "accepted"),
       ]);
+      const profileResult = sessionContextResults[0];
+      let workspaceResult = sessionContextResults[1];
+      let membershipResult = sessionContextResults[2];
 
       if (profileResult.error) {
         throw new Error(mapSupabaseError(profileResult.error));
