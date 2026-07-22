@@ -247,6 +247,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathnameRef = useRef(pathname);
   const hasLoadedRef = useRef(false);
+  const loadSessionContextInFlightRef = useRef<Promise<void> | null>(null);
   const currentUserIdRef = useRef<string | null>(null);
   const enabled = pathname.startsWith("/dashboard");
   const [user, setUser] = useState<User | null>(null);
@@ -290,6 +291,11 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (loadSessionContextInFlightRef.current) {
+      return loadSessionContextInFlightRef.current;
+    }
+
+    const loadPromise = (async () => {
     const endSessionTimer = startDevTimer("kineflow:session-resolution");
     const endContextTimer = startDevTimer("kineflow:auth-context-load");
     let queryCount = 0;
@@ -515,6 +521,17 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     } finally {
       endContextTimer();
       setLoading(false);
+    }
+    })();
+
+    loadSessionContextInFlightRef.current = loadPromise;
+
+    try {
+      await loadPromise;
+    } finally {
+      if (loadSessionContextInFlightRef.current === loadPromise) {
+        loadSessionContextInFlightRef.current = null;
+      }
     }
   }, [clearSessionState, enabled, router]);
 

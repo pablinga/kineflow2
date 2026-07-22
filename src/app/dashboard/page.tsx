@@ -11,6 +11,7 @@ import {
   UsersRound,
   WalletCards,
 } from "lucide-react";
+import { PendingClinicInvitationsBanner } from "@/components/dashboard/PendingClinicInvitationsBanner";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -29,6 +30,7 @@ import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
+import { usePendingClinicInvitations } from "@/hooks/usePendingClinicInvitations";
 
 function getAttendanceBadgeLabel(status: string) {
   return status === "Pendiente" ? "Pendiente asistencia" : status;
@@ -69,14 +71,30 @@ function getPaymentBadge(appointment: { amount: number; paymentStatus: string; p
 }
 
 export default function DashboardPage() {
-  const { authError, displayName, loading, redirecting } = useRequireAuth();
-  const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
+  const { authError, displayName, loading, redirecting, user } = useRequireAuth();
+  const {
+    activeWorkspace,
+    loaded: workspaceLoaded,
+    refreshWorkspaces,
+  } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const {
     error: dashboardError,
     loaded: dashboardLoaded,
     summary,
   } = useDashboardSummary();
+  const {
+    acceptInvitation,
+    actionError: invitationActionError,
+    notice: invitationNotice,
+    pendingInvitations,
+    rejectInvitation,
+  } = usePendingClinicInvitations(user);
+
+  async function handleAcceptInvitation(id: string) {
+    await acceptInvitation(id);
+    await refreshWorkspaces();
+  }
 
   if (authError) {
     return <DashboardLoading error={authError} />;
@@ -193,6 +211,14 @@ export default function DashboardPage() {
             description={dashboardDescription}
             eyebrow="Dashboard"
             title={dashboardTitle}
+          />
+
+          <PendingClinicInvitationsBanner
+            actionError={invitationActionError}
+            invitations={pendingInvitations}
+            notice={invitationNotice}
+            onAccept={handleAcceptInvitation}
+            onReject={rejectInvitation}
           />
 
           {patientLimitBlock ? (

@@ -593,6 +593,34 @@ test("Equipo de clinica permite invitar profesionales por email", () => {
   assert.match(migration, /target_status not in \('accepted', 'rejected'\)/);
 });
 
+test("Inicio muestra y responde invitaciones pendientes a clinicas", () => {
+  const dashboardPage = fs.readFileSync("src/app/dashboard/page.tsx", "utf8");
+  const hook = fs.readFileSync(
+    "src/hooks/usePendingClinicInvitations.ts",
+    "utf8",
+  );
+  const banner = fs.readFileSync(
+    "src/components/dashboard/PendingClinicInvitationsBanner.tsx",
+    "utf8",
+  );
+
+  assert.match(dashboardPage, /usePendingClinicInvitations\(user\)/);
+  assert.match(dashboardPage, /<PendingClinicInvitationsBanner/);
+  assert.match(dashboardPage, /await refreshWorkspaces\(\)/);
+  assert.match(hook, /\.from\("clinic_professionals"\)/);
+  assert.match(hook, /\.eq\("status", "pending"\)/);
+  assert.match(hook, /professional_id\.eq\.\$\{user\.id\}/);
+  assert.match(hook, /professional_email\.eq\.\$\{userEmail\}/);
+  assert.match(hook, /clinics\(name\)/);
+  assert.match(hook, /answer_clinic_professional_invitation/);
+  assert.match(hook, /answerInvitation\(id, "active"\)/);
+  assert.match(hook, /answerInvitation\(id, "inactive"\)/);
+  assert.match(hook, /target_professional_id: user\.id/);
+  assert.match(banner, /La clínica \{invitation\.clinicName\} te invitó a unirte al equipo/);
+  assert.match(banner, /Aceptar/);
+  assert.match(banner, /Rechazar/);
+});
+
 test("Navegacion principal muestra agenda y pacientes en desktop y mobile", () => {
   const sidebar = fs.readFileSync("src/components/layout/DashboardSidebar.tsx", "utf8");
 
@@ -1101,6 +1129,8 @@ test("Listener de auth se limpia y no fuerza refresh o polling del dashboard", (
   assert.match(provider, /listener\.subscription\.unsubscribe\(\)/);
   assert.match(authPolicy, /TOKEN_REFRESHED/);
   assert.match(provider, /decision === "keep-session"/);
+  assert.match(provider, /loadSessionContextInFlightRef/);
+  assert.match(provider, /if \(loadSessionContextInFlightRef\.current\)/);
   assert.doesNotMatch(provider, /setInterval|refetchInterval|refreshInterval/);
   assert.doesNotMatch(login, /router\.refresh\(\)/);
   assert.doesNotMatch(register, /router\.refresh\(\)/);
