@@ -157,12 +157,15 @@ export default function NewAppointmentPage() {
 
   const effectiveAccountType =
     activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
+  const isClinicWorkspace = activeWorkspace?.type === "CLINICA";
+  const isClinicAdmin = isClinicWorkspace && activeWorkspace.role === "ADMIN";
+  const isClinicProfessional =
+    isClinicWorkspace && activeWorkspace.role === "KINESIOLOGO";
   const canCreateClinicSchedule =
-    activeWorkspace?.type !== "CLINICA" ||
+    !isClinicWorkspace ||
     activeWorkspace.role === "ADMIN" ||
     activeWorkspace.role === "KINESIOLOGO";
-  const canChangeClinicProfessional =
-    activeWorkspace?.type === "CLINICA" && activeWorkspace.role === "ADMIN";
+  const canChangeClinicProfessional = isClinicAdmin;
   const independentPracticeBlocked = false;
   const clinicPlanBlocked =
     effectiveAccountType === "CONSULTORIO" &&
@@ -233,9 +236,14 @@ export default function NewAppointmentPage() {
     setError("");
 
     try {
-      if (effectiveAccountType === "CONSULTORIO") {
+      if (isClinicWorkspace) {
         if (!canCreateClinicSchedule) {
           setError("No tenés permisos para crear turnos de la clínica.");
+          return;
+        }
+
+        if (!activeWorkspace.sourceClinicId) {
+          setError("No encontramos la clínica asociada al espacio activo.");
           return;
         }
 
@@ -246,16 +254,20 @@ export default function NewAppointmentPage() {
           return;
         }
 
-        if (clinicProfessionals.length === 0) {
+        if (isClinicAdmin && clinicProfessionals.length === 0) {
           setError(
             "Todavía no tenés kinesiólogos activos. Cuando el profesional acepte la invitación, vas a poder asignarle turnos.",
           );
           return;
         }
 
-        const selectedProfessional = clinicProfessionals.find(
-          (professional) => professional.id === selectedClinicProfessionalId,
-        );
+        const selectedProfessional = isClinicProfessional
+          ? clinicProfessionals.find(
+              (professional) => professional.professional_id === user?.id,
+            )
+          : clinicProfessionals.find(
+              (professional) => professional.id === selectedClinicProfessionalId,
+            );
 
         if (!selectedProfessional?.professional_id) {
           setError("Seleccioná un kinesiólogo vinculado al consultorio.");
@@ -339,7 +351,7 @@ export default function NewAppointmentPage() {
             </section>
           ) : null}
 
-          {effectiveAccountType === "CONSULTORIO" && clinicProfessionals.length === 0 ? (
+          {isClinicAdmin && clinicProfessionals.length === 0 ? (
             <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
               <p>
                 Para crear un turno, primero tenés que agregar un kinesiólogo al
@@ -380,7 +392,7 @@ export default function NewAppointmentPage() {
             onSubmit={handleSubmit}
           >
             <div className="grid gap-4 md:grid-cols-2">
-              {effectiveAccountType === "CONSULTORIO" ? (
+              {isClinicAdmin ? (
                 <label className="block md:col-span-2">
                   <span className="text-sm font-semibold text-slate-700">
                     Kinesiólogo
@@ -564,8 +576,7 @@ export default function NewAppointmentPage() {
                   independentPracticeBlocked ||
                   clinicPlanBlocked ||
                   !canCreateClinicSchedule ||
-                  (effectiveAccountType === "CONSULTORIO" &&
-                    clinicProfessionals.length === 0)
+                  (isClinicAdmin && clinicProfessionals.length === 0)
                 }
                 title={patientLimitBlock ?? undefined}
                 type="submit"

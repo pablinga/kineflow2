@@ -785,6 +785,21 @@ test("Equipo permite que un usuario trabaje en mas de una clinica", () => {
   assert.equal(decision.payload.status, "accepted");
 });
 
+test("Nuevo turno en workspace de clinica usa turno clinico para kinesiologo invitado", () => {
+  const page = fs.readFileSync(
+    "src/app/dashboard/turnos/nuevo/page.tsx",
+    "utf8",
+  );
+
+  assert.match(page, /const isClinicWorkspace = activeWorkspace\?\.type === "CLINICA"/);
+  assert.match(page, /if \(isClinicWorkspace\)/);
+  assert.match(page, /const isClinicProfessional =/);
+  assert.match(page, /professional\.professional_id === user\?\.id/);
+  assert.match(page, /await addClinicAppointment/);
+  assert.match(page, /\{isClinicAdmin \? \(/);
+  assert.match(page, /\(isClinicAdmin && clinicProfessionals\.length === 0\)/);
+});
+
 test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => {
   const patientsHook = fs.readFileSync("src/hooks/usePatients.ts", "utf8");
   const patientsPage = fs.readFileSync("src/app/dashboard/pacientes/page.tsx", "utf8");
