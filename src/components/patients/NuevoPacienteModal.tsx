@@ -55,6 +55,11 @@ export function NuevoPacienteModal({
 }: NuevoPacienteModalProps) {
   const modalRef = useRef<HTMLFormElement | null>(null);
   const firstInputRef = useRef<HTMLInputElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!isOpen) {
@@ -68,7 +73,7 @@ export function NuevoPacienteModal({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -105,7 +110,7 @@ export function NuevoPacienteModal({
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) {
     return null;

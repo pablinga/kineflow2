@@ -267,6 +267,13 @@ export default function PatientsPage() {
     setInitialTreatment((current) => ({ ...current, [field]: value }));
   }
 
+  function closeNewPatientModal() {
+    setShowForm(false);
+    setNewPatient(emptyPatient);
+    setCreateInitialTreatment(false);
+    setInitialTreatment(emptyInitialTreatment);
+  }
+
   function validateContact(input: NewPatientInput) {
     if (!input.phone.trim() && !input.email.trim()) {
       return "Ingresá al menos un medio de contacto (teléfono o email)";
@@ -694,7 +701,7 @@ export default function PatientsPage() {
             initialTreatment={initialTreatment}
             isOpen={showForm}
             newPatient={newPatient}
-            onClose={() => setShowForm(false)}
+            onClose={closeNewPatientModal}
             onSubmit={handleSubmit}
             onToggleInitialTreatment={setCreateInitialTreatment}
             onUpdateField={updateField}
