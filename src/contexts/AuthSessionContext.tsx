@@ -242,6 +242,20 @@ function debugAuth(message: string, details?: unknown) {
   console.debug(message, details ?? "");
 }
 
+function hasSameRelevantUserData(current: User | null, next: User) {
+  return (
+    current?.id === next.id &&
+    current.email === next.email &&
+    current.phone === next.phone &&
+    current.updated_at === next.updated_at &&
+    current.confirmed_at === next.confirmed_at &&
+    current.email_confirmed_at === next.email_confirmed_at &&
+    current.phone_confirmed_at === next.phone_confirmed_at &&
+    current.user_metadata?.full_name === next.user_metadata?.full_name &&
+    current.user_metadata?.account_type === next.user_metadata?.account_type
+  );
+}
+
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -578,7 +592,11 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 
       if (decision === "keep-session") {
         if (session?.user && session.user.id === currentUserIdRef.current) {
-          setUser(session.user);
+          setUser((current) =>
+            hasSameRelevantUserData(current, session.user)
+              ? current
+              : session.user,
+          );
         }
 
         return;

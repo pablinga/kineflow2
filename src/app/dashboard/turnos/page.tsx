@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   CalendarPlus,
@@ -11,6 +11,7 @@ import {
   Filter,
   MoreVertical,
   RotateCcw,
+  X,
   XCircle,
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
@@ -49,6 +50,23 @@ type PendingAction = {
 };
 
 type CalendarView = "month" | "week" | "day";
+
+type DayDetail = {
+  appointments: Appointment[];
+  date: Date;
+};
+
+type PositionedAppointment = {
+  appointment: Appointment;
+  column: number;
+  columns: number;
+  endMinutes: number;
+  startMinutes: number;
+};
+
+const DEFAULT_DAY_START_MINUTES = 8 * 60;
+const DEFAULT_DAY_END_MINUTES = 20 * 60;
+const DAY_AGENDA_HOUR_HEIGHT = 72;
 
 function addDays(date: Date, days: number) {
   const next = new Date(date);
@@ -140,6 +158,291 @@ function compactDayLabel(date: Date) {
   return date.toLocaleDateString("es-AR", { weekday: "short" });
 }
 
+function getAppointmentStartMinutes(appointment: Appointment) {
+  const scheduledAt = new Date(appointment.scheduledAt);
+
+  if (!Number.isNaN(scheduledAt.getTime())) {
+    return scheduledAt.getHours() * 60 + scheduledAt.getMinutes();
+  }
+
+  const [hours = 0, minutes = 0] = appointment.time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function formatMinutesAsTime(minutes: number) {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  return `${String(hours).padStart(2, "0")}:${String(
+    remainingMinutes,
+  ).padStart(2, "0")}`;
+}
+
+function getDayAgendaRange(appointments: Appointment[]) {
+  if (appointments.length === 0) {
+    return {
+      endMinutes: DEFAULT_DAY_END_MINUTES,
+      startMinutes: DEFAULT_DAY_START_MINUTES,
+    };
+  }
+
+  const appointmentStart = Math.min(
+    ...appointments.map(getAppointmentStartMinutes),
+  );
+  const appointmentEnd = Math.max(
+    ...appointments.map(
+      (appointment) =>
+        getAppointmentStartMinutes(appointment) + appointment.durationMinutes,
+    ),
+  );
+
+  return {
+    endMinutes: Math.max(
+      DEFAULT_DAY_END_MINUTES,
+      Math.ceil(appointmentEnd / 60) * 60,
+    ),
+    startMinutes: Math.min(
+      DEFAULT_DAY_START_MINUTES,
+      Math.floor(appointmentStart / 60) * 60,
+    ),
+  };
+}
+
+function getDayAgendaHours(startMinutes: number, endMinutes: number) {
+  const firstHour = Math.floor(startMinutes / 60);
+  const lastHour = Math.ceil(endMinutes / 60);
+
+  return Array.from({ length: lastHour - firstHour + 1 }, (_, index) => {
+    const minutes = (firstHour + index) * 60;
+
+    return {
+      label: formatMinutesAsTime(minutes),
+      minutes,
+    };
+  });
+}
+
+function positionDayAppointments(
+  appointments: Appointment[],
+): PositionedAppointment[] {
+  const sorted = appointments
+    .map((appointment) => {
+      const startMinutes = getAppointmentStartMinutes(appointment);
+
+      return {
+        appointment,
+        endMinutes: startMinutes + appointment.durationMinutes,
+        startMinutes,
+      };
+    })
+    .sort(
+      (left, right) =>
+        left.startMinutes - right.startMinutes ||
+        left.endMinutes - right.endMinutes,
+    );
+  const positioned: PositionedAppointment[] = [];
+  let currentGroup: typeof sorted = [];
+  let currentGroupEnd = 0;
+
+  function flushGroup() {
+    if (currentGroup.length === 0) {
+      return;
+    }
+
+    const columnEnds: number[] = [];
+    const groupPositioned = currentGroup.map((item) => {
+      const column = columnEnds.findIndex((end) => end <= item.startMinutes);
+      const assignedColumn = column === -1 ? columnEnds.length : column;
+      columnEnds[assignedColumn] = item.endMinutes;
+
+      return {
+        ...item,
+        column: assignedColumn,
+        columns: 1,
+      };
+    });
+    const columns = Math.max(1, columnEnds.length);
+
+    positioned.push(
+      ...groupPositioned.map((item) => ({
+        ...item,
+        columns,
+      })),
+    );
+    currentGroup = [];
+    currentGroupEnd = 0;
+  }
+
+  sorted.forEach((appointment) => {
+    if (
+      currentGroup.length > 0 &&
+      appointment.startMinutes >= currentGroupEnd
+    ) {
+      flushGroup();
+    }
+
+    currentGroup.push(appointment);
+    currentGroupEnd = Math.max(currentGroupEnd, appointment.endMinutes);
+  });
+
+  flushGroup();
+
+  return positioned;
+}
+
+function DayDetailPanel({
+  day,
+  onClose,
+  onOpenActions,
+}: {
+  day: DayDetail;
+  onClose: () => void;
+  onOpenActions: (appointment: Appointment) => void;
+}) {
+  const { startMinutes, endMinutes } = getDayAgendaRange(day.appointments);
+  const hours = getDayAgendaHours(startMinutes, endMinutes);
+  const positionedAppointments = positionDayAppointments(day.appointments);
+  const pixelsPerMinute = DAY_AGENDA_HOUR_HEIGHT / 60;
+  const agendaHeight = (endMinutes - startMinutes) * pixelsPerMinute;
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-40 flex items-end bg-ink/40 px-3 pb-3 pt-10 sm:px-4 sm:py-6 md:items-center md:justify-center"
+      onClick={onClose}
+      role="dialog"
+    >
+      <div
+        className="max-h-[88vh] w-full overflow-hidden rounded-t-2xl border border-ocean-100 bg-white shadow-soft md:max-w-3xl md:rounded-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mx-auto mt-4 h-1 w-12 rounded-full bg-slate-200 md:hidden" />
+        <div className="flex items-start justify-between gap-4 border-b border-ocean-100 p-4 sm:p-5">
+          <div>
+            <h2 className="text-lg font-bold text-ink">
+              {formatDate(day.date)}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {day.appointments.length} turnos
+            </p>
+          </div>
+          <button
+            aria-label="Cerrar detalle de dia"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-ocean-100 text-slate-500 transition hover:bg-ocean-50"
+            onClick={onClose}
+            type="button"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {day.appointments.length === 0 ? (
+          <p className="p-6 text-center text-sm font-semibold text-slate-500">
+            No hay turnos para este dia.
+          </p>
+        ) : (
+          <div className="max-h-[68vh] overflow-y-auto px-4 py-4 sm:px-5">
+            <div className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-3">
+              <div
+                className="relative"
+                style={{ height: `${agendaHeight}px` }}
+              >
+                {hours.slice(0, -1).map((hour) => (
+                  <div
+                    className="absolute left-0 text-xs font-bold text-slate-400"
+                    key={hour.minutes}
+                    style={{
+                      top: `${(hour.minutes - startMinutes) * pixelsPerMinute}px`,
+                    }}
+                  >
+                    {hour.label}
+                  </div>
+                ))}
+              </div>
+              <div
+                className="relative rounded-lg border border-ocean-100 bg-white"
+                style={{ height: `${agendaHeight}px` }}
+              >
+                {hours.slice(0, -1).map((hour) => (
+                  <div
+                    className="absolute inset-x-0 border-t border-ocean-100"
+                    key={hour.minutes}
+                    style={{
+                      height: `${DAY_AGENDA_HOUR_HEIGHT}px`,
+                      top: `${(hour.minutes - startMinutes) * pixelsPerMinute}px`,
+                    }}
+                  />
+                ))}
+                {positionedAppointments.map(
+                  ({
+                    appointment,
+                    column,
+                    columns,
+                    endMinutes: appointmentEnd,
+                    startMinutes: appointmentStart,
+                  }) => {
+                    const gap = 0.75;
+                    const width = `calc(${100 / columns}% - ${gap}rem)`;
+                    const left = `calc(${(100 / columns) * column}% + ${
+                      column === 0 ? 0 : gap / 2
+                    }rem)`;
+
+                    return (
+                      <button
+                        className="absolute overflow-hidden rounded-lg border-l-4 bg-white px-2.5 py-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-card focus:outline-none focus:ring-2 focus:ring-ocean-300"
+                        key={appointment.id}
+                        onClick={() => {
+                          onClose();
+                          onOpenActions(appointment);
+                        }}
+                        style={{
+                          backgroundColor: `${appointment.originColor}1A`,
+                          borderColor: appointment.originColor,
+                          height: `${Math.max(
+                            (appointmentEnd - appointmentStart) *
+                              pixelsPerMinute,
+                            34,
+                          )}px`,
+                          left,
+                          top: `${
+                            (appointmentStart - startMinutes) * pixelsPerMinute
+                          }px`,
+                          width,
+                        }}
+                        title={`${appointment.patient} - ${appointment.time} - ${appointment.duration}`}
+                        type="button"
+                      >
+                        <span className="block truncate text-xs font-bold text-ink sm:text-sm">
+                          {appointment.patient}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[0.68rem] font-semibold text-slate-600 sm:text-xs">
+                          {appointment.time} - {formatMinutesAsTime(appointmentEnd)}
+                        </span>
+                      </button>
+                    );
+                  },
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function isFutureAppointment(appointment: Appointment) {
   return new Date(appointment.scheduledAt).getTime() > Date.now();
 }
@@ -186,10 +489,8 @@ export default function AppointmentsPage() {
   });
   const [view, setView] = useState<CalendarView>("month");
   const [calendarDate, setCalendarDate] = useState(() => new Date());
-  const [selectedMobileDay, setSelectedMobileDay] = useState<{
-    appointments: Appointment[];
-    date: Date;
-  } | null>(null);
+  const [selectedMobileDay, setSelectedMobileDay] =
+    useState<DayDetail | null>(null);
   const [originFilter, setOriginFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -1154,59 +1455,11 @@ export default function AppointmentsPage() {
           </section>
 
           {selectedMobileDay ? (
-            <div className="fixed inset-0 z-40 flex items-end bg-ink/40 px-3 pb-3 md:hidden">
-              <div className="w-full rounded-t-2xl border border-ocean-100 bg-white p-4 shadow-soft">
-                <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-slate-200" />
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-bold text-ink">
-                      {formatDate(selectedMobileDay.date)}
-                    </h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {selectedMobileDay.appointments.length} turnos
-                    </p>
-                  </div>
-                  <button
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-ocean-100 text-slate-500"
-                    onClick={() => setSelectedMobileDay(null)}
-                    type="button"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="mt-4 divide-y divide-ocean-100">
-                  {selectedMobileDay.appointments.map((appointment) => (
-                    <button
-                      className="flex w-full items-center gap-3 px-1 py-3 text-left"
-                      key={appointment.id}
-                      onClick={() => {
-                        setSelectedMobileDay(null);
-                        setActionsAppointment(appointment);
-                      }}
-                      type="button"
-                    >
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: appointment.originColor }}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-bold text-ink">
-                          {appointment.patient}
-                        </span>
-                        <span className="mt-0.5 block text-xs font-semibold text-slate-500">
-                          {appointment.time}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                  {selectedMobileDay.appointments.length === 0 ? (
-                    <p className="py-5 text-center text-sm font-semibold text-slate-500">
-                      No hay turnos para este dia.
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            </div>
+            <DayDetailPanel
+              day={selectedMobileDay}
+              onClose={() => setSelectedMobileDay(null)}
+              onOpenActions={setActionsAppointment}
+            />
           ) : null}
 
           {actionsAppointment ? (
