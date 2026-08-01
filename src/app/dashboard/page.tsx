@@ -19,11 +19,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import {
   appointmentStatusStyles,
 } from "@/lib/appointment-ui";
-import {
-  formatCurrency,
-  paymentStatusStyles,
-} from "@/lib/payment-ui";
-import { formatSessionAmount } from "@/lib/format";
+import { paymentStatusStyles } from "@/lib/payment-ui";
 import { getPlanDisplayName } from "@/lib/plans";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
@@ -153,19 +149,6 @@ export default function DashboardPage() {
         summary.totalPatientCount === 0 ? "Sin pacientes cargados" : "En seguimiento",
     },
     {
-      label: "Ingresos del mes",
-      value: formatCurrency(summary.monthIncome),
-      detail: "Cobros registrados",
-    },
-    {
-      label: "Pendientes de cobro",
-      value: formatCurrency(summary.pendingPaymentAmount),
-      detail:
-        summary.pendingPaymentCount === 0
-          ? "Sin cobros pendientes"
-          : `${summary.pendingPaymentCount} sesiones`,
-    },
-    {
       label: "Próximo turno",
       value: nextAppointment?.time ?? "-",
       detail: nextAppointment
@@ -290,25 +273,18 @@ export default function DashboardPage() {
             </section>
           )}
 
-          <section className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 xl:grid-cols-5">
+          <section className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-3">
             {summaryCards.map((card) => (
               <article
                 className="rounded-lg border border-ocean-100 bg-white p-3 shadow-card sm:p-4"
                 key={card.label}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">
-                      {card.label}
-                    </p>
-                    <p className="mt-2 text-2xl font-bold text-ink">
-                      {card.value}
-                    </p>
-                  </div>
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
-                    <ArrowUpRight className="h-4 w-4" />
-                  </span>
-                </div>
+                <p className="text-sm font-medium text-slate-500">
+                  {card.label}
+                </p>
+                <p className="mt-2 text-2xl font-bold text-ink">
+                  {card.value}
+                </p>
                 <p className="mt-3 text-sm font-medium text-ocean-700">
                   {card.detail}
                 </p>
@@ -396,38 +372,38 @@ export default function DashboardPage() {
               <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card">
                 <h2 className="text-lg font-bold text-ink">Requieren acción</h2>
                 <div className="mt-4 space-y-3">
-                  {actionRequired.map((appointment) => (
+                  {actionRequired.length > 0 ? (
                     <Link
-                      className="block rounded-lg border border-orange-100 bg-orange-50 p-3 transition hover:bg-orange-100"
-                      href={`/dashboard/pacientes/${appointment.patientId}`}
-                      key={appointment.id}
-                      prefetch={false}
+                      className="block rounded-lg border border-amber-100 bg-amber-50 p-3 transition hover:bg-amber-100"
+                      href="/dashboard/turnos"
                     >
-                      <p className="text-sm font-semibold text-orange-800">
-                        Sin registrar asistencia
+                      <p className="text-sm font-semibold text-amber-800">
+                        {actionRequired.length}{" "}
+                        {actionRequired.length === 1
+                          ? "turno sin registrar asistencia"
+                          : "turnos sin registrar asistencia"}
                       </p>
-                      <p className="mt-1 text-sm text-slate-700">
-                        {appointment.patient} · {appointment.date} {appointment.time}
+                      <p className="mt-1 text-sm font-semibold text-ocean-700">
+                        Revisar
                       </p>
                     </Link>
-                  ))}
-                  {paymentActionRequired.map((appointment) => (
+                  ) : null}
+                  {paymentActionRequired.length > 0 ? (
                     <Link
                       className="block rounded-lg border border-amber-100 bg-amber-50 p-3 transition hover:bg-amber-100"
                       href="/dashboard/ingresos"
-                      key={`payment-${appointment.id}`}
                     >
                       <p className="text-sm font-semibold text-amber-800">
-                        Cobro pendiente
+                        {paymentActionRequired.length}{" "}
+                        {paymentActionRequired.length === 1
+                          ? "cobro pendiente"
+                          : "cobros pendientes"}
                       </p>
-                      <p className="mt-1 text-sm text-slate-700">
-                        {appointment.patient} · {appointment.date}{" "}
-                        {appointment.time} ·{" "}
-                        {formatSessionAmount(appointment.amount)}
+                      <p className="mt-1 text-sm font-semibold text-ocean-700">
+                        Revisar
                       </p>
                     </Link>
-                  ))}
-                </div>
+                  ) : null}                </div>
                 {actionRequired.length === 0 &&
                 paymentActionRequired.length === 0 ? (
                   <p className="mt-4 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-4 text-sm text-slate-600">
@@ -523,7 +499,7 @@ export default function DashboardPage() {
             <div className="mt-5 divide-y divide-ocean-100">
               {summary.recentPatients.map((patient) => (
                 <div
-                  className="grid gap-3 py-4 md:grid-cols-[1fr_1fr_auto] md:items-center"
+                  className="grid gap-3 py-4 md:grid-cols-[1fr_auto] md:items-center"
                   key={patient.id}
                 >
                   <div>
@@ -531,10 +507,6 @@ export default function DashboardPage() {
                     <p className="mt-1 text-sm text-slate-500">
                       {patient.condition}
                     </p>
-                  </div>
-                  <div className="text-sm text-slate-600">
-                    <p>Último turno: {patient.lastSession}</p>
-                    <p>Última evolución: {patient.progress}</p>
                   </div>
                   <Link
                     className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"

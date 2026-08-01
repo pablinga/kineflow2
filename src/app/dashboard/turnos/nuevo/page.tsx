@@ -112,6 +112,7 @@ export default function NewAppointmentPage() {
   const [professionalAvailabilityNotice, setProfessionalAvailabilityNotice] =
     useState("");
   const hasLoadedOnceRef = useRef(false);
+  const hasManuallySelectedProfessionalRef = useRef(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -169,6 +170,10 @@ export default function NewAppointmentPage() {
         (professional) => professional.professional_id === user?.id,
       );
       setSelectedClinicProfessionalId(ownLink?.id ?? "");
+      return;
+    }
+
+    if (hasManuallySelectedProfessionalRef.current) {
       return;
     }
 
@@ -536,9 +541,10 @@ export default function NewAppointmentPage() {
                   <select
                     className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
                     disabled={!canChangeClinicProfessional}
-                    onChange={(event) =>
-                      setSelectedClinicProfessionalId(event.target.value)
-                    }
+                    onChange={(event) => {
+                      hasManuallySelectedProfessionalRef.current = true;
+                      setSelectedClinicProfessionalId(event.target.value);
+                    }}
                     required
                     value={selectedClinicProfessionalId}
                   >

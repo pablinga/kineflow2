@@ -461,9 +461,14 @@ function actionToneClass(tone: PendingAction["tone"]) {
 
 export default function AppointmentsPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
-  const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
+  const {
+    activeWorkspace,
+    loaded: workspaceLoaded,
+    workspaces,
+  } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const { activePatients, loaded: patientsLoaded } = usePatients();
+  const [viewAllWorkspaces, setViewAllWorkspaces] = useState(false);
   const {
     appointments,
     error,
@@ -471,7 +476,7 @@ export default function AppointmentsPage() {
     rescheduleAppointment,
     updateAppointmentPayment,
     updateAppointmentStatus,
-  } = useAppointments();
+  } = useAppointments(undefined, { unified: viewAllWorkspaces });
   const [actionError, setActionError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
   const [updatingId, setUpdatingId] = useState("");
@@ -493,6 +498,7 @@ export default function AppointmentsPage() {
     useState<DayDetail | null>(null);
   const [originFilter, setOriginFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const canUseUnifiedAgenda = workspaces.length > 1;
 
   const clinicOptions = useMemo(
     () =>
@@ -512,6 +518,21 @@ export default function AppointmentsPage() {
     () => Array.from(new Set(appointments.map((appointment) => appointment.status))),
     [appointments],
   );
+  const unifiedLegendOptions = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          appointments.map((appointment) => [
+            `${appointment.originLabel}-${appointment.originColor}`,
+            {
+              color: appointment.originColor,
+              label: appointment.originLabel,
+            },
+          ]),
+        ).values(),
+      ),
+    [appointments],
+  );
   const filteredAppointments = useMemo(
     () =>
       appointments.filter((appointment) => {
@@ -527,6 +548,12 @@ export default function AppointmentsPage() {
       }),
     [appointments, originFilter, statusFilter],
   );
+
+  useEffect(() => {
+    if (!canUseUnifiedAgenda && viewAllWorkspaces) {
+      setViewAllWorkspaces(false);
+    }
+  }, [canUseUnifiedAgenda, viewAllWorkspaces]);
 
   const upcomingAppointments = [...filteredAppointments]
     .filter(isUpcomingActiveAppointment)
@@ -1313,7 +1340,36 @@ export default function AppointmentsPage() {
                   ))}
                 </select>
               </div>
+              {canUseUnifiedAgenda ? (
+                <label className="inline-flex min-h-11 items-center gap-3 rounded-lg border border-ocean-100 bg-ocean-50 px-4 text-sm font-semibold text-ocean-900">
+                  <input
+                    checked={viewAllWorkspaces}
+                    className="h-4 w-4 rounded border-ocean-200 text-ocean-600"
+                    onChange={(event) =>
+                      setViewAllWorkspaces(event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                  Ver todos mis espacios
+                </label>
+              ) : null}
             </div>
+            {viewAllWorkspaces && unifiedLegendOptions.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2 border-t border-ocean-100 pt-3">
+                {unifiedLegendOptions.map((item) => (
+                  <span
+                    className="inline-flex items-center gap-2 rounded-full bg-ocean-50 px-3 py-1 text-xs font-semibold text-slate-700"
+                    key={`${item.label}-${item.color}`}
+                  >
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    {item.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </section>
 
           {view === "month" ? renderMonthView() : null}

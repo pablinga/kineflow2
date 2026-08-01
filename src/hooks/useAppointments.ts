@@ -308,12 +308,16 @@ function markAppointmentConflicts(appointments: Appointment[]) {
   });
 }
 
-export function useAppointments(patientId?: string) {
+export function useAppointments(
+  patientId?: string,
+  options: { unified?: boolean } = {},
+) {
   const { accountType, user } = useRequireAuth();
   const {
     activeWorkspace,
     error: activeWorkspaceError,
     loaded: activeWorkspaceLoaded,
+    workspaces,
   } = useActiveWorkspace();
   const { plan } = useSubscriptionPlan();
   const { clinic: activeClinic } = useActiveClinic(
@@ -322,6 +326,8 @@ export function useAppointments(patientId?: string) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
+  const unified = options.unified ?? false;
+  const workspaceIdsKey = workspaces.map((workspace) => workspace.id).join(",");
 
   const loadAppointments = useCallback(async (signal?: AbortSignal) => {
     if (!activeWorkspaceLoaded) {
@@ -357,13 +363,28 @@ export function useAppointments(patientId?: string) {
         return;
       }
 
-      query = query.eq("workspace_id", activeWorkspace.id);
+      if (unified) {
+        const unifiedWorkspaceIds = workspaceIdsKey
+          ? workspaceIdsKey.split(",")
+          : [];
 
-      if (
-        activeWorkspace.type === "PERSONAL" ||
-        activeWorkspace.role === "KINESIOLOGO"
-      ) {
-        query = query.eq("owner_id", user.id);
+        if (unifiedWorkspaceIds.length === 0) {
+          setAppointments([]);
+          return;
+        }
+
+        query = query
+          .in("workspace_id", unifiedWorkspaceIds)
+          .eq("owner_id", user.id);
+      } else {
+        query = query.eq("workspace_id", activeWorkspace.id);
+
+        if (
+          activeWorkspace.type === "PERSONAL" ||
+          activeWorkspace.role === "KINESIOLOGO"
+        ) {
+          query = query.eq("owner_id", user.id);
+        }
       }
 
       if (patientId) {
@@ -407,7 +428,9 @@ export function useAppointments(patientId?: string) {
     activeWorkspaceError,
     activeWorkspaceLoaded,
     patientId,
+    unified,
     user,
+    workspaceIdsKey,
   ]);
 
   useEffect(() => {

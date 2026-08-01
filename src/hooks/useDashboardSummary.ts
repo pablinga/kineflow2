@@ -60,9 +60,7 @@ export type DashboardPatient = {
   clinicId: string | null;
   condition: string;
   id: string;
-  lastSession: string;
   name: string;
-  progress: string;
   status: "Activo" | "Inactivo";
 };
 
@@ -217,9 +215,7 @@ function mapPatient(row: DashboardPatientRow): DashboardPatient {
     clinicId: row.clinic_id,
     condition: row.initial_condition,
     id: row.id,
-    lastSession: "Ver historia",
     name: row.full_name,
-    progress: "Ver evoluciones",
     status: row.status === "active" ? "Activo" : "Inactivo",
   };
 }
