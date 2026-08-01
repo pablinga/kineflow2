@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { Eye, EyeOff, LockKeyhole } from "lucide-react";
 import { clsx } from "clsx";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 
 type PasswordInputProps = {
   autoComplete?: string;
@@ -32,7 +33,7 @@ export function PasswordInput({
 
   return (
     <label className={clsx("block", className)} htmlFor={inputId}>
-      <span className="text-sm font-semibold text-slate-700">{label}</span>
+      <FieldLabel required={required}>{label}</FieldLabel>
       <span className="mt-2 flex min-h-11 items-center gap-3 rounded-lg border border-ocean-100 bg-white px-4 py-3 focus-within:border-ocean-400">
         <LockKeyhole className="h-5 w-5 shrink-0 text-ocean-500" />
         <input

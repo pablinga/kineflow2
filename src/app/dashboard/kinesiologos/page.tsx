@@ -18,6 +18,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 import { weekdayLabels } from "@/hooks/useClinicLinks";
 import {
   type KinesiologistAvailabilityInput,
@@ -108,40 +109,55 @@ function AvailabilityRowsEditor({
           className="grid gap-3 rounded-lg border border-ocean-100 p-3 sm:grid-cols-[1fr_7rem_7rem_auto]"
           key={`${item.weekday}-${index}`}
         >
-          <select
-            className="min-h-11 rounded-lg border border-ocean-100 bg-white px-3 text-sm outline-none focus:border-ocean-400"
-            onChange={(event) =>
-              updateAvailabilityRow(index, "weekday", Number(event.target.value))
-            }
-            value={item.weekday}
-          >
-            {weekdayLabels.map((label, weekday) => (
-              <option key={label} value={weekday}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <input
-            className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
-            onChange={(event) =>
-              updateAvailabilityRow(index, "startsAt", event.target.value)
-            }
-            required
-            type="time"
-            value={item.startsAt}
-          />
-          <input
-            className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
-            onChange={(event) =>
-              updateAvailabilityRow(index, "endsAt", event.target.value)
-            }
-            required
-            type="time"
-            value={item.endsAt}
-          />
+          <label className="block">
+            <FieldLabel className="text-xs font-semibold text-slate-600">
+              Día
+            </FieldLabel>
+            <select
+              className="mt-1 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-3 text-sm outline-none focus:border-ocean-400"
+              onChange={(event) =>
+                updateAvailabilityRow(index, "weekday", Number(event.target.value))
+              }
+              value={item.weekday}
+            >
+              {weekdayLabels.map((label, weekday) => (
+                <option key={label} value={weekday}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <FieldLabel className="text-xs font-semibold text-slate-600" required>
+              Inicio
+            </FieldLabel>
+            <input
+              className="mt-1 min-h-11 w-full rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
+              onChange={(event) =>
+                updateAvailabilityRow(index, "startsAt", event.target.value)
+              }
+              required
+              type="time"
+              value={item.startsAt}
+            />
+          </label>
+          <label className="block">
+            <FieldLabel className="text-xs font-semibold text-slate-600" required>
+              Fin
+            </FieldLabel>
+            <input
+              className="mt-1 min-h-11 w-full rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
+              onChange={(event) =>
+                updateAvailabilityRow(index, "endsAt", event.target.value)
+              }
+              required
+              type="time"
+              value={item.endsAt}
+            />
+          </label>
           <button
             aria-label="Eliminar horario"
-            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-rose-100 px-3 text-rose-700 transition hover:bg-rose-50"
+            className="inline-flex min-h-11 items-center justify-center self-end rounded-lg border border-rose-100 px-3 text-rose-700 transition hover:bg-rose-50"
             onClick={() =>
               onChange(availability.filter((_, itemIndex) => itemIndex !== index))
             }
@@ -763,9 +779,7 @@ export default function ClinicKinesiologistsPage() {
 
             <form className="mt-5" onSubmit={handleAddKinesiologist}>
               <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
-                  Email
-                </span>
+                <FieldLabel required>Email</FieldLabel>
                 <span className="mt-2 flex min-h-11 items-center gap-3 rounded-lg border border-ocean-100 px-3 focus-within:border-ocean-400">
                   <Mail className="h-4 w-4 text-ocean-600" />
                   <input
@@ -807,67 +821,88 @@ export default function ClinicKinesiologistsPage() {
                     className="grid gap-3 rounded-lg border border-ocean-100 p-3 sm:grid-cols-[1fr_7rem_7rem_auto]"
                     key={`${item.weekday}-${index}`}
                   >
-                    <select
-                      className="min-h-11 rounded-lg border border-ocean-100 bg-white px-3 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) =>
-                        setAvailability((current) =>
-                          current.map((availabilityItem, itemIndex) =>
-                            itemIndex === index
-                              ? {
-                                  ...availabilityItem,
-                                  weekday: Number(event.target.value),
-                                }
-                              : availabilityItem,
-                          ),
-                        )
-                      }
-                      value={item.weekday}
-                    >
-                      {weekdayLabels.map((label, weekday) => (
-                        <option key={label} value={weekday}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) =>
-                        setAvailability((current) =>
-                          current.map((availabilityItem, itemIndex) =>
-                            itemIndex === index
-                              ? {
-                                  ...availabilityItem,
-                                  startsAt: event.target.value,
-                                }
-                              : availabilityItem,
-                          ),
-                        )
-                      }
-                      required
-                      type="time"
-                      value={item.startsAt}
-                    />
-                    <input
-                      className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) =>
-                        setAvailability((current) =>
-                          current.map((availabilityItem, itemIndex) =>
-                            itemIndex === index
-                              ? {
-                                  ...availabilityItem,
-                                  endsAt: event.target.value,
-                                }
-                              : availabilityItem,
-                          ),
-                        )
-                      }
-                      required
-                      type="time"
-                      value={item.endsAt}
-                    />
+                    <label className="block">
+                      <FieldLabel className="text-xs font-semibold text-slate-600">
+                        Día
+                      </FieldLabel>
+                      <select
+                        className="mt-1 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-3 text-sm outline-none focus:border-ocean-400"
+                        onChange={(event) =>
+                          setAvailability((current) =>
+                            current.map((availabilityItem, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...availabilityItem,
+                                    weekday: Number(event.target.value),
+                                  }
+                                : availabilityItem,
+                            ),
+                          )
+                        }
+                        value={item.weekday}
+                      >
+                        {weekdayLabels.map((label, weekday) => (
+                          <option key={label} value={weekday}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <FieldLabel
+                        className="text-xs font-semibold text-slate-600"
+                        required
+                      >
+                        Inicio
+                      </FieldLabel>
+                      <input
+                        className="mt-1 min-h-11 w-full rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
+                        onChange={(event) =>
+                          setAvailability((current) =>
+                            current.map((availabilityItem, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...availabilityItem,
+                                    startsAt: event.target.value,
+                                  }
+                                : availabilityItem,
+                            ),
+                          )
+                        }
+                        required
+                        type="time"
+                        value={item.startsAt}
+                      />
+                    </label>
+                    <label className="block">
+                      <FieldLabel
+                        className="text-xs font-semibold text-slate-600"
+                        required
+                      >
+                        Fin
+                      </FieldLabel>
+                      <input
+                        className="mt-1 min-h-11 w-full rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
+                        onChange={(event) =>
+                          setAvailability((current) =>
+                            current.map((availabilityItem, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...availabilityItem,
+                                    endsAt: event.target.value,
+                                  }
+                                : availabilityItem,
+                            ),
+                          )
+                        }
+                        required
+                        type="time"
+                        value={item.endsAt}
+                      />
+                    </label>
                     <button
                       aria-label="Eliminar horario"
-                      className="inline-flex min-h-11 items-center justify-center rounded-lg border border-rose-100 px-3 text-rose-700 transition hover:bg-rose-50"
+                      className="inline-flex min-h-11 items-center justify-center self-end rounded-lg border border-rose-100 px-3 text-rose-700 transition hover:bg-rose-50"
                       onClick={() =>
                         setAvailability((current) =>
                           current.filter((_, itemIndex) => itemIndex !== index),

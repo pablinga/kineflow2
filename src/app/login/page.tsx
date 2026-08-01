@@ -8,6 +8,7 @@ import { LegalLinks } from "@/components/layout/LegalLinks";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import {
   getFriendlyErrorMessage,
@@ -125,9 +126,7 @@ export default function LoginPage() {
           </div>
           <form className="mt-8 space-y-5" noValidate onSubmit={handleLogin}>
             <label className="block">
-              <span className="text-sm font-semibold text-slate-700">
-                Email
-              </span>
+              <FieldLabel required>Email</FieldLabel>
               <span className="mt-2 flex items-center gap-3 rounded-lg border border-ocean-100 bg-white px-4 py-3 focus-within:border-ocean-400">
                 <Mail className="h-5 w-5 text-ocean-500" />
                 <input

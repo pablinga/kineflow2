@@ -21,6 +21,7 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { NuevoPacienteModal } from "@/components/patients/NuevoPacienteModal";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 import { usePatients, type NewPatientInput, type Patient } from "@/hooks/usePatients";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -840,10 +841,7 @@ export default function PatientsPage() {
                     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                       <div className="flex min-w-0 gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ocean-100 text-sm font-bold text-ocean-800">
-                          {patient.name
-                            .split(" ")
-                            .map((part) => part[0])
-                            .join("")}
+                          {getPatientInitials(patient.name)}
                         </div>
                         <div className="min-w-0">
                           <Link
@@ -899,11 +897,23 @@ export default function PatientsPage() {
                           {patient.lastSession}
                         </p>
                       </div>
-                      <div className="rounded-lg bg-ocean-50 p-3">
+                      <div
+                        className={`rounded-lg p-3 ${
+                          patient.nextAppointment === "Sin turno"
+                            ? "bg-ocean-50"
+                            : "bg-emerald-50"
+                        }`}
+                      >
                         <p className="text-xs font-semibold uppercase text-slate-500">
                           Próximo turno
                         </p>
-                        <p className="mt-1 text-sm font-semibold text-ocean-800">
+                        <p
+                          className={`mt-1 text-sm font-semibold ${
+                            patient.nextAppointment === "Sin turno"
+                              ? "text-ocean-800"
+                              : "text-emerald-800"
+                          }`}
+                        >
                           {patient.nextAppointment}
                         </p>
                       </div>
@@ -963,9 +973,7 @@ export default function PatientsPage() {
             <h2 className="text-lg font-bold text-ink">Editar paciente</h2>
             <div className="mt-5 grid gap-5 md:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
-                  Nombre completo
-                </span>
+                <FieldLabel required>Nombre completo</FieldLabel>
                 <input
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                   onChange={(event) => updateEditField("name", event.target.value)}
@@ -975,7 +983,7 @@ export default function PatientsPage() {
                 />
               </label>
               <label className="block">
-                <span className="text-sm font-semibold text-slate-700">DNI</span>
+                <FieldLabel required>DNI</FieldLabel>
                 <input
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                   onChange={(event) =>
@@ -1027,9 +1035,9 @@ export default function PatientsPage() {
                 </select>
               </label>
               <label className="block md:col-span-2">
-                <span className="text-sm font-semibold text-slate-700">
+                <FieldLabel required>
                   Motivo de consulta / diagnóstico inicial
-                </span>
+                </FieldLabel>
                 <input
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                   onChange={(event) =>

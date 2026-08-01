@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { Plus, X } from "lucide-react";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 import type { NewPatientInput } from "@/hooks/usePatients";
 import type { NewTreatmentInput } from "@/hooks/useTreatments";
 
@@ -156,9 +157,7 @@ export function NuevoPacienteModal({
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className="block">
-            <span className="text-sm font-semibold text-slate-700">
-              Nombre completo
-            </span>
+            <FieldLabel required>Nombre completo</FieldLabel>
             <input
               className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
               onChange={(event) => onUpdateField("name", event.target.value)}
@@ -170,7 +169,7 @@ export function NuevoPacienteModal({
             />
           </label>
           <label className="block">
-            <span className="text-sm font-semibold text-slate-700">DNI</span>
+            <FieldLabel required>DNI</FieldLabel>
             <input
               className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
               onChange={(event) => onUpdateField("document", event.target.value)}
@@ -203,9 +202,9 @@ export function NuevoPacienteModal({
             />
           </label>
           <label className="block md:col-span-2">
-            <span className="text-sm font-semibold text-slate-700">
+            <FieldLabel required>
               Motivo de consulta / diagnóstico inicial
-            </span>
+            </FieldLabel>
             <input
               className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
               onChange={(event) => onUpdateField("condition", event.target.value)}
@@ -235,9 +234,9 @@ export function NuevoPacienteModal({
           {createInitialTreatment ? (
             <div className="mt-4 grid gap-5 md:grid-cols-2">
               <label className="block md:col-span-2">
-                <span className="text-sm font-semibold text-slate-700">
+                <FieldLabel required={createInitialTreatment}>
                   Diagnóstico
-                </span>
+                </FieldLabel>
                 <input
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
                   onChange={(event) =>

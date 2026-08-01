@@ -7,6 +7,7 @@ import { ArrowLeft, CalendarCheck, Save } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PatientSearchSelect } from "@/components/patients/PatientSearchSelect";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 import { useAppointments, type NewAppointmentInput } from "@/hooks/useAppointments";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { usePatients } from "@/hooks/usePatients";
@@ -514,7 +515,7 @@ export default function NewAppointmentPage() {
           >
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-semibold text-slate-700">Fecha</span>
+                <FieldLabel required>Fecha</FieldLabel>
                 <input
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                   onChange={(event) => updateField("date", event.target.value)}
@@ -524,7 +525,7 @@ export default function NewAppointmentPage() {
                 />
               </label>
               <label className="block">
-                <span className="text-sm font-semibold text-slate-700">Hora</span>
+                <FieldLabel required>Hora</FieldLabel>
                 <input
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                   onChange={(event) => updateField("time", event.target.value)}
@@ -535,9 +536,7 @@ export default function NewAppointmentPage() {
               </label>
               {isClinicAdmin ? (
                 <label className="block md:col-span-2">
-                  <span className="text-sm font-semibold text-slate-700">
-                    Kinesiólogo
-                  </span>
+                  <FieldLabel required>Kinesiólogo</FieldLabel>
                   <select
                     className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
                     disabled={!canChangeClinicProfessional}

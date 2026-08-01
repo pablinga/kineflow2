@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 import { type Appointment, useAppointments } from "@/hooks/useAppointments";
 import { useEvolutions, type NewEvolutionInput } from "@/hooks/useEvolutions";
 import { usePatientAssignments } from "@/hooks/usePatientAssignments";
@@ -671,17 +672,9 @@ export default function PatientDetailPage() {
               ) : null}
 
               <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                  <div className="rounded-lg bg-ocean-50 p-3">
-                    <p className="text-xs font-bold uppercase text-ocean-700">
-                      Estado
-                    </p>
-                    <p className="mt-1 text-lg font-bold text-ink">
-                      {patient.status}
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-emerald-50 p-3 sm:col-span-2 xl:col-span-1">
-                    <p className="text-xs font-bold uppercase text-emerald-700">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-lg bg-slate-50 p-3 sm:col-span-2 xl:col-span-1">
+                    <p className="text-xs font-bold uppercase text-slate-600">
                       Tratamiento activo
                     </p>
                     <p className="mt-1 truncate text-lg font-bold text-ink">
@@ -698,16 +691,24 @@ export default function PatientDetailPage() {
                         : "0/0"}
                     </p>
                   </div>
-                  <div className="rounded-lg bg-sky-50 p-3">
-                    <p className="text-xs font-bold uppercase text-sky-700">
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <p className="text-xs font-bold uppercase text-slate-600">
                       Última visita
                     </p>
                     <p className="mt-1 text-lg font-bold text-ink">
                       {lastVisit?.date ?? "Sin visitas"}
                     </p>
                   </div>
-                  <div className="rounded-lg bg-amber-50 p-3">
-                    <p className="text-xs font-bold uppercase text-amber-700">
+                  <div
+                    className={`rounded-lg p-3 ${
+                      totalPending > 0 ? "bg-amber-50" : "bg-slate-50"
+                    }`}
+                  >
+                    <p
+                      className={`text-xs font-bold uppercase ${
+                        totalPending > 0 ? "text-amber-700" : "text-slate-600"
+                      }`}
+                    >
                       Pendiente
                     </p>
                     <p className="mt-1 text-lg font-bold text-ink">
@@ -746,7 +747,11 @@ export default function PatientDetailPage() {
                     Nueva evolución
                   </button>
                   <Link
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-amber-200 px-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-50"
+                    className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
+                      totalPending > 0
+                        ? "border-amber-200 text-amber-800 hover:bg-amber-50"
+                        : "border-ocean-200 text-ocean-800 hover:bg-ocean-50"
+                    }`}
                     href="/dashboard/ingresos"
                   >
                     <WalletCards className="h-4 w-4" />
@@ -841,9 +846,54 @@ export default function PatientDetailPage() {
                               {activeTreatment.bodyRegion || "Sin región"}
                             </p>
                           </div>
-                          <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
-                            {treatmentStatusLabels[activeTreatment.status]}
-                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
+                              {treatmentStatusLabels[activeTreatment.status]}
+                            </span>
+                            <details className="relative">
+                              <summary className="inline-flex min-h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600">
+                                ...
+                              </summary>
+                              <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
+                                <button
+                                  className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-amber-700 hover:bg-amber-50"
+                                  onClick={() =>
+                                    handleTreatmentStatus(
+                                      activeTreatment.id,
+                                      "PAUSADO",
+                                    )
+                                  }
+                                  type="button"
+                                >
+                                  Pausar
+                                </button>
+                                <button
+                                  className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-sky-700 hover:bg-sky-50"
+                                  onClick={() =>
+                                    handleTreatmentStatus(
+                                      activeTreatment.id,
+                                      "FINALIZADO",
+                                    )
+                                  }
+                                  type="button"
+                                >
+                                  Finalizar
+                                </button>
+                                <button
+                                  className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                                  onClick={() =>
+                                    handleTreatmentStatus(
+                                      activeTreatment.id,
+                                      "ABANDONADO",
+                                    )
+                                  }
+                                  type="button"
+                                >
+                                  Marcar como abandonado
+                                </button>
+                              </div>
+                            </details>
+                          </div>
                         </div>
                         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                           <div className="rounded-lg bg-white p-2">
@@ -1072,9 +1122,7 @@ export default function PatientDetailPage() {
                       ) : null}
                     </label>
                     <label className="block">
-                      <span className="text-sm font-semibold text-slate-700">
-                        Fecha
-                      </span>
+                      <FieldLabel required>Fecha</FieldLabel>
                       <input
                         className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                         onChange={(event) =>
@@ -1106,9 +1154,7 @@ export default function PatientDetailPage() {
                   </div>
 
                 <label className="mt-4 block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Movilidad
-                    </span>
+                    <FieldLabel required>Movilidad</FieldLabel>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                       onChange={(event) =>
@@ -1134,9 +1180,7 @@ export default function PatientDetailPage() {
                     />
                   </label>
                   <label className="mt-5 block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Tratamiento
-                    </span>
+                    <FieldLabel required>Tratamiento</FieldLabel>
                     <textarea
                       className="mt-2 min-h-32 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
                       onChange={(event) =>
@@ -1458,9 +1502,7 @@ export default function PatientDetailPage() {
 
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <label className="block md:col-span-2">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Diagnóstico
-                    </span>
+                    <FieldLabel required>Diagnóstico</FieldLabel>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                       onChange={(event) =>
@@ -1486,9 +1528,7 @@ export default function PatientDetailPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Total de sesiones
-                    </span>
+                    <FieldLabel required>Total de sesiones</FieldLabel>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                       min={1}
@@ -1504,9 +1544,7 @@ export default function PatientDetailPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Fecha de inicio
-                    </span>
+                    <FieldLabel required>Fecha de inicio</FieldLabel>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                       onChange={(event) =>
@@ -1609,9 +1647,7 @@ export default function PatientDetailPage() {
                     </select>
                   </label>
                   <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Fecha
-                    </span>
+                    <FieldLabel required>Fecha</FieldLabel>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                       onChange={(event) =>
@@ -1670,11 +1706,9 @@ export default function PatientDetailPage() {
                     />
                   </label>
                 <label className="mt-4 block">
-                  <span className="text-sm font-semibold text-slate-700">
-                    Tratamiento
-                  </span>
+                  <FieldLabel required>Tratamiento</FieldLabel>
                   <textarea
-                    className="mt-2 min-h-24 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400 sm:min-h-32"
+                    className="mt-2 min-h-16 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400 sm:min-h-20"
                     onChange={(event) =>
                       updateField("clinicalNotes", event.target.value)
                     }
@@ -1687,7 +1721,7 @@ export default function PatientDetailPage() {
                     Próximos objetivos
                   </span>
                   <textarea
-                    className="mt-2 min-h-20 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400 sm:min-h-24"
+                    className="mt-2 min-h-14 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400 sm:min-h-16"
                     onChange={(event) => updateField("nextGoals", event.target.value)}
                     value={evolution.nextGoals}
                   />
@@ -1729,9 +1763,7 @@ export default function PatientDetailPage() {
                 </p>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Fecha
-                    </span>
+                    <FieldLabel required>Fecha</FieldLabel>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                       onChange={(event) => setRescheduleDate(event.target.value)}
@@ -1741,9 +1773,7 @@ export default function PatientDetailPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Hora
-                    </span>
+                    <FieldLabel required>Hora</FieldLabel>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                       onChange={(event) => setRescheduleTime(event.target.value)}

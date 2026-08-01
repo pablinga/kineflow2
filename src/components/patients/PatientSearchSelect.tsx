@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 import type { Patient } from "@/hooks/usePatients";
 
 type PatientSearchSelectProps = {
@@ -55,7 +56,7 @@ export function PatientSearchSelect({
 
   return (
     <label className="block">
-      <span className="text-sm font-semibold text-slate-700">{label}</span>
+      <FieldLabel required={required}>{label}</FieldLabel>
       <input
         className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
         disabled={disabled}

@@ -16,6 +16,7 @@ import { LegalLinks } from "@/components/layout/LegalLinks";
 import { Logo } from "@/components/ui/Logo";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import {
   getFriendlyErrorMessage,
@@ -408,9 +409,9 @@ export default function RegisterPage() {
                   const Icon = field.icon;
                   return (
                     <label className="block" key={field.label}>
-                      <span className="text-sm font-semibold text-slate-700">
+                      <FieldLabel required={field.required}>
                         {field.label}
-                      </span>
+                      </FieldLabel>
                       <span className="mt-1.5 flex min-h-11 items-center gap-3 rounded-lg border border-ocean-100 bg-white px-3 focus-within:border-ocean-400">
                         <Icon className="h-4 w-4 shrink-0 text-ocean-500" />
                         <input
@@ -449,9 +450,9 @@ export default function RegisterPage() {
 
                   return (
                     <label className="block" key={field.label}>
-                      <span className="text-sm font-semibold text-slate-700">
+                      <FieldLabel required={field.required}>
                         {field.label}
-                      </span>
+                      </FieldLabel>
                       <span className="mt-1.5 flex min-h-11 items-center gap-3 rounded-lg border border-ocean-100 bg-white px-3 focus-within:border-ocean-400">
                         <Icon className="h-4 w-4 shrink-0 text-ocean-500" />
                         <input
@@ -477,7 +478,7 @@ export default function RegisterPage() {
                 required
                 type="checkbox"
               />
-              <span>
+              <FieldLabel className="text-sm leading-6 text-slate-600" required>
                 He leído y acepto los{" "}
                 <Link
                   className="font-semibold text-ocean-700 underline-offset-2 hover:underline"
@@ -495,7 +496,7 @@ export default function RegisterPage() {
                   Política de Privacidad
                 </Link>{" "}
                 de KineFlow.
-              </span>
+              </FieldLabel>
             </label>
 
             {error ? <Alert tone="error">{error}</Alert> : null}

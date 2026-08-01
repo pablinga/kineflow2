@@ -18,6 +18,7 @@ import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { FieldLabel } from "@/components/ui/FieldLabel";
 import {
   type Appointment,
   type AppointmentPaymentInput,
@@ -1620,9 +1621,7 @@ export default function AppointmentsPage() {
                 </p>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Fecha
-                    </span>
+                    <FieldLabel required>Fecha</FieldLabel>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                       onChange={(event) => setRescheduleDate(event.target.value)}
@@ -1632,9 +1631,7 @@ export default function AppointmentsPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Hora
-                    </span>
+                    <FieldLabel required>Hora</FieldLabel>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                       onChange={(event) => setRescheduleTime(event.target.value)}
@@ -1678,9 +1675,7 @@ export default function AppointmentsPage() {
 
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Monto
-                    </span>
+                    <FieldLabel required>Monto</FieldLabel>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
                       min={0}
@@ -1697,9 +1692,7 @@ export default function AppointmentsPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Medio de pago
-                    </span>
+                    <FieldLabel required>Medio de pago</FieldLabel>
                     <select
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
                       onChange={(event) =>
