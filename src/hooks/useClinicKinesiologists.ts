@@ -65,6 +65,12 @@ type ProfileRow = ProfileValue & {
   id: string;
 };
 
+type AvailabilityRow = {
+  weekday: number;
+  starts_at: string;
+  ends_at: string;
+};
+
 function getProfile(profile: ProfileValue | ProfileValue[] | null) {
   return Array.isArray(profile) ? profile[0] : profile;
 }
@@ -138,6 +144,33 @@ function getClinicProfessionalSaveError(error: unknown) {
   }
 
   return "No pudimos agregar al kinesiologo. Intenta nuevamente";
+}
+
+function normalizeTime(value: string) {
+  return value.slice(0, 5);
+}
+
+function validateAvailability(availability: KinesiologistAvailabilityInput[]) {
+  const invalidAvailability = availability.some(
+    (item) => !item.startsAt || !item.endsAt || item.startsAt >= item.endsAt,
+  );
+
+  if (invalidAvailability) {
+    throw new Error("Revisá que cada franja tenga un horario válido.");
+  }
+}
+
+function mapAvailabilityRows(
+  clinicProfessionalId: string,
+  availability: KinesiologistAvailabilityInput[],
+) {
+  return availability.map((item) => ({
+    clinic_professional_id: clinicProfessionalId,
+    weekday: item.weekday,
+    starts_at: item.startsAt,
+    ends_at: item.endsAt,
+    active: true,
+  }));
 }
 
 export function getKinesiologistStatusLabel(status: ClinicKinesiologistStatus) {
@@ -391,28 +424,65 @@ export function useClinicKinesiologists() {
       return;
     }
 
-    const invalidAvailability = availability.some(
-      (item) => !item.startsAt || !item.endsAt || item.startsAt >= item.endsAt,
-    );
-
-    if (invalidAvailability) {
-      throw new Error("Revisá que cada franja tenga un horario válido.");
-    }
+    validateAvailability(availability);
 
     const supabase = getSupabaseClient();
-    const availabilityRows = availability.map((item) => ({
-      clinic_professional_id: clinicProfessionalId,
-      weekday: item.weekday,
-      starts_at: item.startsAt,
-      ends_at: item.endsAt,
-      active: true,
-    }));
     const { error: availabilityError } = await supabase
       .from("clinic_professional_availability")
-      .insert(availabilityRows);
+      .insert(mapAvailabilityRows(clinicProfessionalId, availability));
 
     if (availabilityError) {
       throw new Error(mapSupabaseError(availabilityError));
+    }
+  }
+
+  async function loadAvailability(clinicProfessionalId: string) {
+    const supabase = getSupabaseClient();
+    const { data, error: availabilityError } = await supabase
+      .from("clinic_professional_availability")
+      .select("weekday, starts_at, ends_at")
+      .eq("clinic_professional_id", clinicProfessionalId)
+      .eq("active", true)
+      .order("weekday", { ascending: true })
+      .order("starts_at", { ascending: true });
+
+    if (availabilityError) {
+      throw new Error(mapSupabaseError(availabilityError));
+    }
+
+    return ((data ?? []) as AvailabilityRow[]).map((item) => ({
+      weekday: item.weekday,
+      startsAt: normalizeTime(item.starts_at),
+      endsAt: normalizeTime(item.ends_at),
+    }));
+  }
+
+  async function updateAvailability(
+    clinicProfessionalId: string,
+    availability: KinesiologistAvailabilityInput[],
+  ) {
+    validateAvailability(availability);
+
+    const supabase = getSupabaseClient();
+    const { error: deleteError } = await supabase
+      .from("clinic_professional_availability")
+      .delete()
+      .eq("clinic_professional_id", clinicProfessionalId);
+
+    if (deleteError) {
+      throw new Error(mapSupabaseError(deleteError));
+    }
+
+    if (availability.length === 0) {
+      return;
+    }
+
+    const { error: insertError } = await supabase
+      .from("clinic_professional_availability")
+      .insert(mapAvailabilityRows(clinicProfessionalId, availability));
+
+    if (insertError) {
+      throw new Error(mapSupabaseError(insertError));
     }
   }
 
@@ -440,9 +510,11 @@ export function useClinicKinesiologists() {
     error,
     findByEmail,
     kinesiologists,
+    loadAvailability,
     loaded,
     refreshKinesiologists: loadKinesiologists,
     saveAvailability,
+    updateAvailability,
     unlinkKinesiologist,
   };
 }

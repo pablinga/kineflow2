@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CalendarCheck, Save } from "lucide-react";
@@ -23,6 +23,14 @@ type ClinicProfessionalOption = {
   clinic_id: string;
   profiles: { full_name: string; license_number: string | null } | Array<{ full_name: string; license_number: string | null }> | null;
   clinics: { name: string } | Array<{ name: string }> | null;
+  clinic_professional_availability:
+    | Array<{
+        weekday: number;
+        starts_at: string;
+        ends_at: string;
+        active: boolean;
+      }>
+    | null;
 };
 
 const today = new Date().toISOString().slice(0, 10);
@@ -37,6 +45,48 @@ const emptyAppointment: NewAppointmentInput = {
   sessionNumber: null,
   treatmentId: "",
 };
+
+function parseTimeToMinutes(value: string) {
+  const [hours = "0", minutes = "0"] = value.slice(0, 5).split(":");
+
+  return Number(hours) * 60 + Number(minutes);
+}
+
+function getAppointmentWeekday(date: string) {
+  return new Date(`${date}T00:00:00`).getDay();
+}
+
+function professionalMatchesAvailability(
+  professional: ClinicProfessionalOption,
+  appointment: NewAppointmentInput,
+) {
+  const activeAvailability = (
+    professional.clinic_professional_availability ?? []
+  ).filter((availability) => availability.active);
+
+  if (activeAvailability.length === 0) {
+    return true;
+  }
+
+  if (!appointment.date || !appointment.time) {
+    return true;
+  }
+
+  const weekday = getAppointmentWeekday(appointment.date);
+  const startMinutes = parseTimeToMinutes(appointment.time);
+  const endMinutes = startMinutes + appointment.durationMinutes;
+
+  return activeAvailability.some((availability) => {
+    if (availability.weekday !== weekday) {
+      return false;
+    }
+
+    return (
+      startMinutes >= parseTimeToMinutes(availability.starts_at) &&
+      endMinutes <= parseTimeToMinutes(availability.ends_at)
+    );
+  });
+}
 
 export default function NewAppointmentPage() {
   const router = useRouter();
@@ -59,6 +109,9 @@ export default function NewAppointmentPage() {
   } = useTreatments(appointment.patientId || undefined);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [professionalAvailabilityNotice, setProfessionalAvailabilityNotice] =
+    useState("");
+  const hasLoadedOnceRef = useRef(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -82,7 +135,7 @@ export default function NewAppointmentPage() {
       let query = supabase
         .from("clinic_professionals")
         .select(
-          "id, professional_email, professional_id, clinic_id, profiles(full_name, license_number), clinics(name)",
+          "id, professional_email, professional_id, clinic_id, profiles(full_name, license_number), clinics(name), clinic_professional_availability(weekday, starts_at, ends_at, active)",
         )
         .eq("clinic_id", activeWorkspace.sourceClinicId)
         .eq("status", "accepted")
@@ -138,6 +191,62 @@ export default function NewAppointmentPage() {
     user?.id,
   ]);
 
+  const pageReady =
+    !loading && loaded && planLoaded && treatmentsLoaded && workspaceLoaded;
+  const isInitialLoading =
+    !hasLoadedOnceRef.current &&
+    (loading || !loaded || !planLoaded || !treatmentsLoaded || !workspaceLoaded);
+  const isRefreshingTreatments =
+    hasLoadedOnceRef.current &&
+    Boolean(appointment.patientId) &&
+    !treatmentsLoaded;
+
+  useEffect(() => {
+    if (pageReady) {
+      hasLoadedOnceRef.current = true;
+    }
+  }, [pageReady]);
+
+  const availableClinicProfessionals = useMemo(
+    () =>
+      clinicProfessionals.filter((professional) =>
+        professionalMatchesAvailability(professional, appointment),
+      ),
+    [appointment, clinicProfessionals],
+  );
+
+  useEffect(() => {
+    if (
+      !appointment.date ||
+      !appointment.time ||
+      !selectedClinicProfessionalId
+    ) {
+      setProfessionalAvailabilityNotice("");
+      return;
+    }
+
+    const selectedProfessional = clinicProfessionals.find(
+      (professional) => professional.id === selectedClinicProfessionalId,
+    );
+
+    if (
+      selectedProfessional &&
+      !professionalMatchesAvailability(selectedProfessional, appointment)
+    ) {
+      setSelectedClinicProfessionalId("");
+      setProfessionalAvailabilityNotice(
+        "Este profesional no atiende en el horario elegido. Seleccioná otro.",
+      );
+      return;
+    }
+
+    setProfessionalAvailabilityNotice("");
+  }, [
+    appointment,
+    clinicProfessionals,
+    selectedClinicProfessionalId,
+  ]);
+
   if (authError) {
     return <DashboardLoading error={authError} />;
   }
@@ -151,7 +260,7 @@ export default function NewAppointmentPage() {
     );
   }
 
-  if (loading || !loaded || !planLoaded || !treatmentsLoaded || !workspaceLoaded) {
+  if (isInitialLoading) {
     return <DashboardLoading />;
   }
 
@@ -274,6 +383,13 @@ export default function NewAppointmentPage() {
           return;
         }
 
+        if (!professionalMatchesAvailability(selectedProfessional, appointment)) {
+          setError(
+            "El kinesiólogo seleccionado no atiende en este día/horario según su disponibilidad configurada.",
+          );
+          return;
+        }
+
         const { getSupabaseClient } = await import("@/lib/supabase");
         const supabase = getSupabaseClient();
         let clinicProfessionalId = selectedProfessional.id;
@@ -392,6 +508,26 @@ export default function NewAppointmentPage() {
             onSubmit={handleSubmit}
           >
             <div className="grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">Fecha</span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => updateField("date", event.target.value)}
+                  required
+                  type="date"
+                  value={appointment.date}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">Hora</span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => updateField("time", event.target.value)}
+                  required
+                  type="time"
+                  value={appointment.time}
+                />
+              </label>
               {isClinicAdmin ? (
                 <label className="block md:col-span-2">
                   <span className="text-sm font-semibold text-slate-700">
@@ -407,7 +543,7 @@ export default function NewAppointmentPage() {
                     value={selectedClinicProfessionalId}
                   >
                     <option value="">Seleccionar profesional vinculado</option>
-                    {clinicProfessionals.map((professional) => {
+                    {availableClinicProfessionals.map((professional) => {
                       const profile = Array.isArray(professional.profiles)
                         ? professional.profiles[0]
                         : professional.profiles;
@@ -423,6 +559,11 @@ export default function NewAppointmentPage() {
                       );
                     })}
                   </select>
+                  {professionalAvailabilityNotice ? (
+                    <p className="mt-2 text-sm text-amber-700">
+                      {professionalAvailabilityNotice}
+                    </p>
+                  ) : null}
                 </label>
               ) : null}
               <div>
@@ -450,20 +591,36 @@ export default function NewAppointmentPage() {
                 </span>
                 <select
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                  disabled={!appointment.patientId}
+                  disabled={!appointment.patientId || isRefreshingTreatments}
                   onChange={(event) => updateTreatment(event.target.value)}
                   value={appointment.treatmentId}
                 >
-                  <option value="">Sin tratamiento</option>
-                  {activeTreatments.map((treatment) => (
-                    <option key={treatment.id} value={treatment.id}>
-                      {treatment.diagnosis}
-                      {treatment.bodyRegion ? ` · ${treatment.bodyRegion}` : ""} (
-                      {treatment.usedSessions}/{treatment.totalSessions} sesiones)
-                    </option>
-                  ))}
+                  <option value="">
+                    {isRefreshingTreatments
+                      ? "Cargando tratamientos..."
+                      : "Sin tratamiento"}
+                  </option>
+                  {isRefreshingTreatments
+                    ? null
+                    : activeTreatments.map((treatment) => (
+                        <option key={treatment.id} value={treatment.id}>
+                          {treatment.diagnosis}
+                          {treatment.bodyRegion
+                            ? ` · ${treatment.bodyRegion}`
+                            : ""}{" "}
+                          ({treatment.usedSessions}/{treatment.totalSessions}{" "}
+                          sesiones)
+                        </option>
+                      ))}
                 </select>
-                {appointment.patientId && activeTreatments.length === 0 ? (
+                {isRefreshingTreatments ? (
+                  <p className="mt-2 text-sm text-ocean-700">
+                    Cargando tratamientos...
+                  </p>
+                ) : null}
+                {appointment.patientId &&
+                !isRefreshingTreatments &&
+                activeTreatments.length === 0 ? (
                   <p className="mt-2 text-sm text-slate-500">
                     Este paciente no tiene tratamientos activos. Creá uno desde
                     su{" "}
@@ -477,26 +634,6 @@ export default function NewAppointmentPage() {
                     .
                   </p>
                 ) : null}
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-700">Fecha</span>
-                <input
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                  onChange={(event) => updateField("date", event.target.value)}
-                  required
-                  type="date"
-                  value={appointment.date}
-                />
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-700">Hora</span>
-                <input
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                  onChange={(event) => updateField("time", event.target.value)}
-                  required
-                  type="time"
-                  value={appointment.time}
-                />
               </label>
               <label className="block">
                 <span className="text-sm font-semibold text-slate-700">

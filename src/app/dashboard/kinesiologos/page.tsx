@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Clock,
   Mail,
   MailPlus,
   Plus,
@@ -20,6 +21,7 @@ import { Button } from "@/components/ui/Button";
 import { weekdayLabels } from "@/hooks/useClinicLinks";
 import {
   type KinesiologistAvailabilityInput,
+  type ClinicKinesiologist,
   getKinesiologistRoleLabel,
   getKinesiologistStatusLabel,
   useClinicKinesiologists,
@@ -47,6 +49,259 @@ const emptyAvailability: KinesiologistAvailabilityInput = {
   endsAt: "13:00",
 };
 
+const focusableSelector = [
+  "a[href]",
+  "button:not([disabled])",
+  "textarea:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
+type AvailabilityRowsEditorProps = {
+  availability: KinesiologistAvailabilityInput[];
+  onChange: (availability: KinesiologistAvailabilityInput[]) => void;
+};
+
+function AvailabilityRowsEditor({
+  availability,
+  onChange,
+}: AvailabilityRowsEditorProps) {
+  function updateAvailabilityRow(
+    index: number,
+    field: keyof KinesiologistAvailabilityInput,
+    value: string | number,
+  ) {
+    onChange(
+      availability.map((availabilityItem, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...availabilityItem,
+              [field]: value,
+            }
+          : availabilityItem,
+      ),
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="font-bold text-ink">Días y horarios</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Opcional para dejar sin disponibilidad configurada.
+          </p>
+        </div>
+        <button
+          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+          onClick={() => onChange([...availability, { ...emptyAvailability }])}
+          type="button"
+        >
+          <Plus className="h-4 w-4" />
+          Agregar
+        </button>
+      </div>
+
+      {availability.map((item, index) => (
+        <div
+          className="grid gap-3 rounded-lg border border-ocean-100 p-3 sm:grid-cols-[1fr_7rem_7rem_auto]"
+          key={`${item.weekday}-${index}`}
+        >
+          <select
+            className="min-h-11 rounded-lg border border-ocean-100 bg-white px-3 text-sm outline-none focus:border-ocean-400"
+            onChange={(event) =>
+              updateAvailabilityRow(index, "weekday", Number(event.target.value))
+            }
+            value={item.weekday}
+          >
+            {weekdayLabels.map((label, weekday) => (
+              <option key={label} value={weekday}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <input
+            className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
+            onChange={(event) =>
+              updateAvailabilityRow(index, "startsAt", event.target.value)
+            }
+            required
+            type="time"
+            value={item.startsAt}
+          />
+          <input
+            className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
+            onChange={(event) =>
+              updateAvailabilityRow(index, "endsAt", event.target.value)
+            }
+            required
+            type="time"
+            value={item.endsAt}
+          />
+          <button
+            aria-label="Eliminar horario"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-rose-100 px-3 text-rose-700 transition hover:bg-rose-50"
+            onClick={() =>
+              onChange(availability.filter((_, itemIndex) => itemIndex !== index))
+            }
+            type="button"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+type EditAvailabilityModalProps = {
+  availability: KinesiologistAvailabilityInput[];
+  kinesiologist: ClinicKinesiologist;
+  loading: boolean;
+  onChange: (availability: KinesiologistAvailabilityInput[]) => void;
+  onClose: () => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  saving: boolean;
+};
+
+function EditAvailabilityModal({
+  availability,
+  kinesiologist,
+  loading,
+  onChange,
+  onClose,
+  onSubmit,
+  saving,
+}: EditAvailabilityModalProps) {
+  const modalRef = useRef<HTMLFormElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== "Tab" || !modalRef.current) {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        modalRef.current.querySelectorAll<HTMLElement>(focusableSelector),
+      ).filter((element) => element.offsetParent !== null);
+
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      }
+
+      if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  const displayName =
+    kinesiologist.name || kinesiologist.email || "kinesiólogo seleccionado";
+
+  return (
+    <div
+      aria-labelledby="edit-availability-title"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-ink/70 px-4 py-6"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+      role="dialog"
+    >
+      <form
+        className="w-full max-w-2xl rounded-lg bg-white p-5 shadow-2xl"
+        onSubmit={onSubmit}
+        ref={modalRef}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-ocean-700">Equipo</p>
+            <h2
+              className="mt-1 text-xl font-bold text-ink"
+              id="edit-availability-title"
+            >
+              Editar horarios
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">{displayName}</p>
+          </div>
+          <button
+            aria-label="Cerrar"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-ocean-50 hover:text-ocean-800"
+            onClick={onClose}
+            ref={closeButtonRef}
+            type="button"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {loading ? (
+          <p className="mt-5 rounded-lg border border-ocean-100 bg-ocean-50 p-4 text-sm font-semibold text-ocean-800">
+            Cargando horarios...
+          </p>
+        ) : (
+          <div className="mt-5">
+            <AvailabilityRowsEditor
+              availability={availability}
+              onChange={onChange}
+            />
+          </div>
+        )}
+
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <Button
+            disabled={saving}
+            onClick={onClose}
+            type="button"
+            variant="secondary"
+          >
+            Cancelar
+          </Button>
+          <Button disabled={saving || loading} type="submit">
+            {saving ? "Guardando..." : "Guardar cambios"}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function ClinicKinesiologistsPage() {
   const { authError, loading, redirecting } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
@@ -56,15 +311,23 @@ export default function ClinicKinesiologistsPage() {
     error,
     findByEmail,
     kinesiologists,
+    loadAvailability,
     loaded,
     refreshKinesiologists,
     saveAvailability,
+    updateAvailability,
     unlinkKinesiologist,
   } = useClinicKinesiologists();
   const [email, setEmail] = useState("");
   const [availability, setAvailability] = useState<
     KinesiologistAvailabilityInput[]
   >([]);
+  const [editingKinesiologist, setEditingKinesiologist] =
+    useState<ClinicKinesiologist | null>(null);
+  const [editAvailability, setEditAvailability] = useState<
+    KinesiologistAvailabilityInput[]
+  >([]);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState("");
   const [actionError, setActionError] = useState("");
@@ -192,6 +455,69 @@ export default function ClinicKinesiologistsPage() {
         getFriendlyErrorMessage(
           resendError,
           "No pudimos reenviar la invitación.",
+        ),
+      );
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleEditAvailability(item: ClinicKinesiologist) {
+    setEditingKinesiologist(item);
+    setEditAvailability([]);
+    setLoadingAvailability(true);
+    setActionError("");
+    setMessage("");
+
+    try {
+      const currentAvailability = await loadAvailability(item.id);
+      setEditAvailability(currentAvailability);
+    } catch (loadError) {
+      setActionError(
+        getFriendlyErrorMessage(
+          loadError,
+          "No pudimos cargar los horarios del kinesiólogo.",
+        ),
+      );
+      setEditingKinesiologist(null);
+    } finally {
+      setLoadingAvailability(false);
+    }
+  }
+
+  function closeEditAvailabilityModal() {
+    if (saving === "availability") {
+      return;
+    }
+
+    setEditingKinesiologist(null);
+    setEditAvailability([]);
+    setLoadingAvailability(false);
+  }
+
+  async function handleUpdateAvailability(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    if (!editingKinesiologist) {
+      return;
+    }
+
+    setSaving("availability");
+    setActionError("");
+    setMessage("");
+
+    try {
+      await updateAvailability(editingKinesiologist.id, editAvailability);
+      setMessage("Horarios actualizados correctamente.");
+      setEditingKinesiologist(null);
+      setEditAvailability([]);
+    } catch (updateError) {
+      setActionError(
+        getFriendlyErrorMessage(
+          updateError,
+          "No pudimos actualizar los horarios.",
         ),
       );
     } finally {
@@ -343,6 +669,18 @@ export default function ClinicKinesiologistsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex justify-end gap-1">
+                            {item.status === "accepted" ? (
+                              <button
+                                aria-label="Editar horarios"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-ocean-700 transition hover:bg-ocean-50"
+                                disabled={saving === item.id}
+                                onClick={() => handleEditAvailability(item)}
+                                title="Editar horarios"
+                                type="button"
+                              >
+                                <Clock className="h-4 w-4" />
+                              </button>
+                            ) : null}
                             {item.status === "pending" ? (
                               <button
                                 aria-label="Reenviar invitación"
@@ -559,6 +897,18 @@ export default function ClinicKinesiologistsPage() {
             </form>
           </section>
         </div>
+      ) : null}
+
+      {editingKinesiologist ? (
+        <EditAvailabilityModal
+          availability={editAvailability}
+          kinesiologist={editingKinesiologist}
+          loading={loadingAvailability}
+          onChange={setEditAvailability}
+          onClose={closeEditAvailabilityModal}
+          onSubmit={handleUpdateAvailability}
+          saving={saving === "availability"}
+        />
       ) : null}
     </main>
   );
