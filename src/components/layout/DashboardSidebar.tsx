@@ -139,7 +139,6 @@ export function DashboardSidebar() {
         (item) =>
           ![
             "/dashboard/mis-consultorios",
-            "/dashboard/consultorios",
             "/dashboard/kinesiologos",
           ].includes(item.href),
       );

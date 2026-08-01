@@ -1,14 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Mail, MailPlus, RefreshCw, Search, Trash2, UsersRound, X } from "lucide-react";
+import {
+  Mail,
+  MailPlus,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+  UsersRound,
+  X,
+} from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { weekdayLabels } from "@/hooks/useClinicLinks";
 import {
+  type KinesiologistAvailabilityInput,
   getKinesiologistRoleLabel,
   getKinesiologistStatusLabel,
   useClinicKinesiologists,
@@ -30,6 +41,12 @@ function getStatusClasses(status: string) {
   return "bg-slate-100 text-slate-700";
 }
 
+const emptyAvailability: KinesiologistAvailabilityInput = {
+  weekday: 1,
+  startsAt: "09:00",
+  endsAt: "13:00",
+};
+
 export default function ClinicKinesiologistsPage() {
   const { authError, loading, redirecting } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
@@ -41,9 +58,13 @@ export default function ClinicKinesiologistsPage() {
     kinesiologists,
     loaded,
     refreshKinesiologists,
+    saveAvailability,
     unlinkKinesiologist,
   } = useClinicKinesiologists();
   const [email, setEmail] = useState("");
+  const [availability, setAvailability] = useState<
+    KinesiologistAvailabilityInput[]
+  >([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState("");
   const [actionError, setActionError] = useState("");
@@ -109,6 +130,16 @@ export default function ClinicKinesiologistsPage() {
     return Boolean(result.skipped);
   }
 
+  function closeModal() {
+    if (saving === "add") {
+      return;
+    }
+
+    setModalOpen(false);
+    setEmail("");
+    setAvailability([]);
+  }
+
   async function handleAddKinesiologist(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving("add");
@@ -118,6 +149,7 @@ export default function ClinicKinesiologistsPage() {
     try {
       const lookup = await findByEmail(email);
       const linkId = await createOrReactivateInvitation(lookup);
+      await saveAvailability(linkId, availability);
 
       if (lookup.exists) {
         setMessage("Kinesiólogo vinculado como activo.");
@@ -131,6 +163,7 @@ export default function ClinicKinesiologistsPage() {
       }
 
       setEmail("");
+      setAvailability([]);
       setModalOpen(false);
       await refreshKinesiologists();
     } catch (addError) {
@@ -363,11 +396,11 @@ export default function ClinicKinesiologistsPage() {
       </PageContainer>
 
       {modalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-4 py-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-ink/70 px-4 py-6">
           <section
             aria-labelledby="add-kinesiologist-title"
             aria-modal="true"
-            className="w-full max-w-md rounded-lg bg-white p-5 shadow-2xl"
+            className="w-full max-w-2xl rounded-lg bg-white p-5 shadow-2xl"
             role="dialog"
           >
             <div className="flex items-start justify-between gap-4">
@@ -383,7 +416,7 @@ export default function ClinicKinesiologistsPage() {
               <button
                 aria-label="Cerrar"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-ocean-50 hover:text-ocean-800"
-                onClick={() => setModalOpen(false)}
+                onClick={closeModal}
                 type="button"
               >
                 <X className="h-5 w-5" />
@@ -408,10 +441,112 @@ export default function ClinicKinesiologistsPage() {
                 </span>
               </label>
 
+              <div className="mt-5 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-bold text-ink">Días y horarios</h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Opcional para dejar la invitación sin disponibilidad.
+                    </p>
+                  </div>
+                  <button
+                    className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                    onClick={() =>
+                      setAvailability((current) => [
+                        ...current,
+                        { ...emptyAvailability },
+                      ])
+                    }
+                    type="button"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Agregar
+                  </button>
+                </div>
+
+                {availability.map((item, index) => (
+                  <div
+                    className="grid gap-3 rounded-lg border border-ocean-100 p-3 sm:grid-cols-[1fr_7rem_7rem_auto]"
+                    key={`${item.weekday}-${index}`}
+                  >
+                    <select
+                      className="min-h-11 rounded-lg border border-ocean-100 bg-white px-3 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        setAvailability((current) =>
+                          current.map((availabilityItem, itemIndex) =>
+                            itemIndex === index
+                              ? {
+                                  ...availabilityItem,
+                                  weekday: Number(event.target.value),
+                                }
+                              : availabilityItem,
+                          ),
+                        )
+                      }
+                      value={item.weekday}
+                    >
+                      {weekdayLabels.map((label, weekday) => (
+                        <option key={label} value={weekday}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        setAvailability((current) =>
+                          current.map((availabilityItem, itemIndex) =>
+                            itemIndex === index
+                              ? {
+                                  ...availabilityItem,
+                                  startsAt: event.target.value,
+                                }
+                              : availabilityItem,
+                          ),
+                        )
+                      }
+                      required
+                      type="time"
+                      value={item.startsAt}
+                    />
+                    <input
+                      className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        setAvailability((current) =>
+                          current.map((availabilityItem, itemIndex) =>
+                            itemIndex === index
+                              ? {
+                                  ...availabilityItem,
+                                  endsAt: event.target.value,
+                                }
+                              : availabilityItem,
+                          ),
+                        )
+                      }
+                      required
+                      type="time"
+                      value={item.endsAt}
+                    />
+                    <button
+                      aria-label="Eliminar horario"
+                      className="inline-flex min-h-11 items-center justify-center rounded-lg border border-rose-100 px-3 text-rose-700 transition hover:bg-rose-50"
+                      onClick={() =>
+                        setAvailability((current) =>
+                          current.filter((_, itemIndex) => itemIndex !== index),
+                        )
+                      }
+                      type="button"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
               <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <Button
                   disabled={saving === "add"}
-                  onClick={() => setModalOpen(false)}
+                  onClick={closeModal}
                   type="button"
                   variant="secondary"
                 >

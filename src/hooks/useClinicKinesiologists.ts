@@ -39,6 +39,12 @@ export type KinesiologistLookup = {
   name: string;
 };
 
+export type KinesiologistAvailabilityInput = {
+  weekday: number;
+  startsAt: string;
+  endsAt: string;
+};
+
 type ProfileValue = {
   email: string | null;
   full_name: string | null;
@@ -377,6 +383,39 @@ export function useClinicKinesiologists() {
     return (data as { id: string }).id;
   }
 
+  async function saveAvailability(
+    clinicProfessionalId: string,
+    availability: KinesiologistAvailabilityInput[],
+  ) {
+    if (availability.length === 0) {
+      return;
+    }
+
+    const invalidAvailability = availability.some(
+      (item) => !item.startsAt || !item.endsAt || item.startsAt >= item.endsAt,
+    );
+
+    if (invalidAvailability) {
+      throw new Error("Revisá que cada franja tenga un horario válido.");
+    }
+
+    const supabase = getSupabaseClient();
+    const availabilityRows = availability.map((item) => ({
+      clinic_professional_id: clinicProfessionalId,
+      weekday: item.weekday,
+      starts_at: item.startsAt,
+      ends_at: item.endsAt,
+      active: true,
+    }));
+    const { error: availabilityError } = await supabase
+      .from("clinic_professional_availability")
+      .insert(availabilityRows);
+
+    if (availabilityError) {
+      throw new Error(mapSupabaseError(availabilityError));
+    }
+  }
+
   async function unlinkKinesiologist(id: string) {
     const supabase = getSupabaseClient();
     const { error: updateError } = await supabase
@@ -403,6 +442,7 @@ export function useClinicKinesiologists() {
     kinesiologists,
     loaded,
     refreshKinesiologists: loadKinesiologists,
+    saveAvailability,
     unlinkKinesiologist,
   };
 }
