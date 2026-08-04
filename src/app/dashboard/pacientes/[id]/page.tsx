@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
+import { TreatmentDocumentation } from "@/components/treatments/TreatmentDocumentation";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { type Appointment, useAppointments } from "@/hooks/useAppointments";
 import { useEvolutions, type NewEvolutionInput } from "@/hooks/useEvolutions";
@@ -870,6 +871,10 @@ export default function PatientDetailPage() {
                             style={{ width: `${activeTreatmentProgress}%` }}
                           />
                         </div>
+                        <TreatmentDocumentation
+                          patientId={patientId}
+                          treatmentId={activeTreatment.id}
+                        />
                       </div>
                     ) : null}
                     <div className="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
@@ -975,6 +980,10 @@ export default function PatientDetailPage() {
                                     );
                                   })
                                 )}
+                                <TreatmentDocumentation
+                                  patientId={patientId}
+                                  treatmentId={item.id}
+                                />
                               </div>
                             ) : null}
                             </article>
