@@ -6,33 +6,26 @@ import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { formatDate } from "@/lib/format";
 import { getSupabaseClient } from "@/lib/supabase";
+import {
+  formatTreatmentFileSize,
+  getTreatmentFileMimeLabel,
+  isTreatmentFileMimeType,
+  treatmentFilesBucketName,
+  treatmentFileSignedUrlSeconds,
+  type SelectedTreatmentAttachment,
+  type TreatmentFileCategory,
+  type TreatmentFileMimeType,
+  validateTreatmentFile,
+} from "@/lib/treatment-files";
 
-const bucketName = "tratamiento-archivos";
-const maxFileSizeBytes = 10 * 1024 * 1024;
-const signedUrlSeconds = 60;
-
-const allowedMimeTypes = [
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-] as const;
-
-export type TreatmentFileCategory =
-  | "orden_medica"
-  | "estudio"
-  | "imagen"
-  | "consentimiento"
-  | "otro";
+export type { TreatmentFileCategory } from "@/lib/treatment-files";
 
 export type TreatmentFile = {
   category: TreatmentFileCategory | null;
   createdAt: string;
   createdAtLabel: string;
-  description: string;
-  documentDate: string | null;
   id: string;
-  mimeType: (typeof allowedMimeTypes)[number];
+  mimeType: TreatmentFileMimeType;
   originalName: string;
   sizeBytes: number;
   sizeLabel: string;
@@ -41,20 +34,29 @@ export type TreatmentFile = {
   uploaderLabel: string;
 };
 
-export type UploadTreatmentFileInput = {
+export type UploadTreatmentFilesInput = {
   category: TreatmentFileCategory | "";
-  description: string;
-  documentDate: string;
-  file: File;
+  files: SelectedTreatmentAttachment[];
+  patientId: string;
+  treatmentId: string;
+};
+
+export type TreatmentFileUploadFailure = {
+  fileName: string;
+  key: string;
+  message: string;
+};
+
+export type TreatmentFileUploadResult = {
+  failed: TreatmentFileUploadFailure[];
+  uploaded: string[];
 };
 
 type TreatmentFileRow = {
   categoria: TreatmentFileCategory | null;
   created_at: string;
-  descripcion: string | null;
-  fecha_documento: string | null;
   id: string;
-  mime_type: (typeof allowedMimeTypes)[number];
+  mime_type: TreatmentFileMimeType;
   nombre_original: string;
   storage_path: string;
   subido_por: string;
@@ -76,10 +78,6 @@ type TreatmentContextRow = {
       }>
     | null;
 };
-
-function isAllowedMimeType(value: string): value is (typeof allowedMimeTypes)[number] {
-  return allowedMimeTypes.includes(value as (typeof allowedMimeTypes)[number]);
-}
 
 function getExtension(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase();
@@ -103,68 +101,150 @@ function getExtension(file: File) {
   return "jpg";
 }
 
-function formatFileSize(bytes: number) {
-  if (bytes >= 1024 * 1024) {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-
-  if (bytes >= 1024) {
-    return `${Math.round(bytes / 1024)} KB`;
-  }
-
-  return `${bytes} B`;
-}
-
-function getMimeLabel(mimeType: string) {
-  if (mimeType === "application/pdf") {
-    return "PDF";
-  }
-
-  if (mimeType === "image/jpeg") {
-    return "JPEG";
-  }
-
-  if (mimeType === "image/png") {
-    return "PNG";
-  }
-
-  return "WEBP";
-}
-
-function mapTreatmentFile(row: TreatmentFileRow, currentUserId: string): TreatmentFile {
-  return {
-    category: row.categoria,
-    createdAt: row.created_at,
-    createdAtLabel: formatDate(row.created_at),
-    description: row.descripcion ?? "",
-    documentDate: row.fecha_documento ? formatDate(row.fecha_documento) : null,
-    id: row.id,
-    mimeType: row.mime_type,
-    originalName: row.nombre_original,
-    sizeBytes: row.tamanio_bytes,
-    sizeLabel: formatFileSize(row.tamanio_bytes),
-    storagePath: row.storage_path,
-    uploadedBy: row.subido_por,
-    uploaderLabel: row.subido_por === currentUserId ? "Vos" : "Profesional autorizado",
-  };
-}
-
 function firstJoinedPatient(row: TreatmentContextRow) {
   return Array.isArray(row.patients) ? row.patients[0] : row.patients;
 }
 
-function assertUploadFile(file: File) {
-  if (!isAllowedMimeType(file.type)) {
-    throw new Error("Solo podés adjuntar PDF o imágenes JPG, PNG o WEBP.");
+function mapTreatmentFile(
+  row: TreatmentFileRow,
+  currentUserId: string,
+): TreatmentFile {
+  return {
+    category: row.categoria,
+    createdAt: row.created_at,
+    createdAtLabel: formatDate(row.created_at),
+    id: row.id,
+    mimeType: row.mime_type,
+    originalName: row.nombre_original,
+    sizeBytes: row.tamanio_bytes,
+    sizeLabel: formatTreatmentFileSize(row.tamanio_bytes),
+    storagePath: row.storage_path,
+    uploadedBy: row.subido_por,
+    uploaderLabel:
+      row.subido_por === currentUserId ? "Vos" : "Profesional autorizado",
+  };
+}
+
+async function getTreatmentContext(treatmentId: string, patientId: string) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("treatments")
+    .select("id, patient_id, owner_id, patients!inner(owner_id, clinic_id)")
+    .eq("id", treatmentId)
+    .eq("patient_id", patientId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(mapSupabaseError(error));
   }
 
-  if (file.size <= 0) {
-    throw new Error("El archivo está vacío.");
+  const context = data as TreatmentContextRow | null;
+  const patient = context ? firstJoinedPatient(context) : null;
+
+  if (!context || !patient) {
+    throw new Error(
+      "No pudimos validar el tratamiento para adjuntar documentacion.",
+    );
   }
 
-  if (file.size > maxFileSizeBytes) {
-    throw new Error("El archivo no puede superar los 10 MB.");
+  return { context, patient };
+}
+
+export async function uploadTreatmentFiles({
+  category,
+  files,
+  patientId,
+  treatmentId,
+}: UploadTreatmentFilesInput): Promise<TreatmentFileUploadResult> {
+  const supabase = getSupabaseClient();
+  const { data: sessionData, error: sessionError } =
+    await supabase.auth.getUser();
+
+  if (sessionError || !sessionData.user) {
+    throw new Error("No pudimos identificar al usuario.");
   }
+
+  if (files.length === 0) {
+    return { failed: [], uploaded: [] };
+  }
+
+  const { patient } = await getTreatmentContext(treatmentId, patientId);
+  const clinicId = patient.clinic_id;
+  const result: TreatmentFileUploadResult = { failed: [], uploaded: [] };
+
+  for (const item of files) {
+    const fileError = item.error || validateTreatmentFile(item.file);
+
+    if (fileError) {
+      result.failed.push({
+        fileName: item.file.name,
+        key: item.key,
+        message: fileError,
+      });
+      continue;
+    }
+
+    if (!isTreatmentFileMimeType(item.file.type)) {
+      result.failed.push({
+        fileName: item.file.name,
+        key: item.key,
+        message: "Solo podes adjuntar PDF o imagenes JPG, PNG o WEBP.",
+      });
+      continue;
+    }
+
+    const internalId = crypto.randomUUID();
+    const extension = getExtension(item.file);
+    const storagePath = clinicId
+      ? `clinicas/${clinicId}/pacientes/${patientId}/tratamientos/${treatmentId}/${internalId}.${extension}`
+      : `profesionales/${sessionData.user.id}/pacientes/${patientId}/tratamientos/${treatmentId}/${internalId}.${extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(treatmentFilesBucketName)
+      .upload(storagePath, item.file, {
+        contentType: item.file.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      result.failed.push({
+        fileName: item.file.name,
+        key: item.key,
+        message: mapSupabaseError(uploadError),
+      });
+      continue;
+    }
+
+    const { error: insertError } = await supabase
+      .from("tratamiento_archivos")
+      .insert({
+        categoria: category || null,
+        clinica_id: clinicId,
+        descripcion: null,
+        fecha_documento: null,
+        mime_type: item.file.type,
+        nombre_original: item.file.name,
+        paciente_id: patientId,
+        storage_path: storagePath,
+        subido_por: sessionData.user.id,
+        tamanio_bytes: item.file.size,
+        tratamiento_id: treatmentId,
+      });
+
+    if (insertError) {
+      await supabase.storage.from(treatmentFilesBucketName).remove([storagePath]);
+      result.failed.push({
+        fileName: item.file.name,
+        key: item.key,
+        message: mapSupabaseError(insertError),
+      });
+      continue;
+    }
+
+    result.uploaded.push(item.file.name);
+  }
+
+  return result;
 }
 
 export function useTreatmentFiles(treatmentId: string, patientId: string) {
@@ -178,7 +258,8 @@ export function useTreatmentFiles(treatmentId: string, patientId: string) {
   const [deletingId, setDeletingId] = useState("");
   const [openingId, setOpeningId] = useState("");
 
-  const canDeleteByWorkspace = activeWorkspace?.type === "CLINICA" && activeWorkspace.role === "ADMIN";
+  const canDeleteByWorkspace =
+    activeWorkspace?.type === "CLINICA" && activeWorkspace.role === "ADMIN";
 
   const loadFiles = useCallback(async () => {
     setLoaded(false);
@@ -194,7 +275,7 @@ export function useTreatmentFiles(treatmentId: string, patientId: string) {
       const { data, error: queryError } = await supabase
         .from("tratamiento_archivos")
         .select(
-          "id, tratamiento_id, paciente_id, subido_por, nombre_original, storage_path, mime_type, tamanio_bytes, categoria, descripcion, fecha_documento, created_at",
+          "id, subido_por, nombre_original, storage_path, mime_type, tamanio_bytes, categoria, created_at",
         )
         .eq("tratamiento_id", treatmentId)
         .eq("paciente_id", patientId)
@@ -204,9 +285,18 @@ export function useTreatmentFiles(treatmentId: string, patientId: string) {
         throw new Error(mapSupabaseError(queryError));
       }
 
-      setFiles(((data ?? []) as TreatmentFileRow[]).map((row) => mapTreatmentFile(row, user.id)));
+      setFiles(
+        ((data ?? []) as TreatmentFileRow[]).map((row) =>
+          mapTreatmentFile(row, user.id),
+        ),
+      );
     } catch (loadError) {
-      setError(getFriendlyErrorMessage(loadError, "No pudimos cargar la documentación."));
+      setError(
+        getFriendlyErrorMessage(
+          loadError,
+          "No pudimos cargar la documentacion.",
+        ),
+      );
       setFiles([]);
     } finally {
       setLoaded(true);
@@ -226,95 +316,51 @@ export function useTreatmentFiles(treatmentId: string, patientId: string) {
     [canDeleteByWorkspace, files, user?.id],
   );
 
-  async function getTreatmentContext() {
-    const supabase = getSupabaseClient();
-    const { data, error: contextError } = await supabase
-      .from("treatments")
-      .select("id, patient_id, owner_id, patients!inner(owner_id, clinic_id)")
-      .eq("id", treatmentId)
-      .eq("patient_id", patientId)
-      .maybeSingle();
-
-    if (contextError) {
-      throw new Error(mapSupabaseError(contextError));
-    }
-
-    const context = data as TreatmentContextRow | null;
-    const patient = context ? firstJoinedPatient(context) : null;
-
-    if (!context || !patient) {
-      throw new Error("No pudimos validar el tratamiento para adjuntar documentación.");
-    }
-
-    return { context, patient };
-  }
-
-  async function uploadFile(input: UploadTreatmentFileInput) {
+  async function uploadFiles(
+    input: Omit<UploadTreatmentFilesInput, "patientId" | "treatmentId">,
+  ) {
     if (uploading) {
-      return;
+      return { failed: [], uploaded: [] };
     }
 
     setUploading(true);
     setError("");
     setSuccessMessage("");
 
-    let uploadedPath = "";
-
     try {
-      const supabase = getSupabaseClient();
-      const { data: sessionData, error: sessionError } = await supabase.auth.getUser();
-
-      if (sessionError || !sessionData.user) {
-        throw new Error("No pudimos identificar al usuario.");
-      }
-
-      assertUploadFile(input.file);
-
-      const { patient } = await getTreatmentContext();
-      const internalId = crypto.randomUUID();
-      const extension = getExtension(input.file);
-      const clinicId = patient.clinic_id;
-      const storagePath = clinicId
-        ? `clinicas/${clinicId}/pacientes/${patientId}/tratamientos/${treatmentId}/${internalId}.${extension}`
-        : `profesionales/${sessionData.user.id}/pacientes/${patientId}/tratamientos/${treatmentId}/${internalId}.${extension}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from(bucketName)
-        .upload(storagePath, input.file, {
-          contentType: input.file.type,
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw new Error(mapSupabaseError(uploadError));
-      }
-
-      uploadedPath = storagePath;
-
-      const { error: insertError } = await supabase.from("tratamiento_archivos").insert({
-        categoria: input.category || null,
-        clinica_id: clinicId,
-        descripcion: input.description.trim() || null,
-        fecha_documento: input.documentDate || null,
-        mime_type: input.file.type,
-        nombre_original: input.file.name,
-        paciente_id: patientId,
-        storage_path: storagePath,
-        subido_por: sessionData.user.id,
-        tamanio_bytes: input.file.size,
-        tratamiento_id: treatmentId,
+      const result = await uploadTreatmentFiles({
+        ...input,
+        patientId,
+        treatmentId,
       });
 
-      if (insertError) {
-        await supabase.storage.from(bucketName).remove([uploadedPath]);
-        uploadedPath = "";
-        throw new Error(mapSupabaseError(insertError));
+      if (result.failed.length > 0 && result.uploaded.length > 0) {
+        setSuccessMessage("Algunos archivos se adjuntaron correctamente.");
+        setError(
+          `No pudimos adjuntar: ${result.failed
+            .map((failure) => failure.fileName)
+            .join(", ")}.`,
+        );
+      } else if (result.failed.length > 0) {
+        setError(
+          `No pudimos adjuntar: ${result.failed
+            .map((failure) => failure.fileName)
+            .join(", ")}.`,
+        );
+      } else if (result.uploaded.length > 0) {
+        setSuccessMessage(
+          result.uploaded.length === 1
+            ? "Archivo adjuntado correctamente."
+            : "Archivos adjuntados correctamente.",
+        );
       }
 
-      setSuccessMessage("Archivo adjuntado correctamente.");
       await loadFiles();
+      return result;
     } catch (uploadError) {
-      setError(getFriendlyErrorMessage(uploadError, "No pudimos adjuntar el archivo."));
+      setError(
+        getFriendlyErrorMessage(uploadError, "No pudimos adjuntar archivos."),
+      );
       throw uploadError;
     } finally {
       setUploading(false);
@@ -329,8 +375,12 @@ export function useTreatmentFiles(treatmentId: string, patientId: string) {
     try {
       const supabase = getSupabaseClient();
       const { data, error: signedUrlError } = await supabase.storage
-        .from(bucketName)
-        .createSignedUrl(file.storagePath, signedUrlSeconds, download ? { download: file.originalName } : undefined);
+        .from(treatmentFilesBucketName)
+        .createSignedUrl(
+          file.storagePath,
+          treatmentFileSignedUrlSeconds,
+          download ? { download: file.originalName } : undefined,
+        );
 
       if (signedUrlError || !data?.signedUrl) {
         throw new Error(mapSupabaseError(signedUrlError));
@@ -341,7 +391,9 @@ export function useTreatmentFiles(treatmentId: string, patientId: string) {
       setError(
         getFriendlyErrorMessage(
           openError,
-          download ? "No pudimos preparar la descarga." : "No pudimos abrir el archivo.",
+          download
+            ? "No pudimos preparar la descarga."
+            : "No pudimos abrir el archivo.",
         ),
       );
     } finally {
@@ -357,7 +409,7 @@ export function useTreatmentFiles(treatmentId: string, patientId: string) {
     try {
       const supabase = getSupabaseClient();
       const { error: storageError } = await supabase.storage
-        .from(bucketName)
+        .from(treatmentFilesBucketName)
         .remove([file.storagePath]);
 
       if (storageError) {
@@ -377,7 +429,9 @@ export function useTreatmentFiles(treatmentId: string, patientId: string) {
       setSuccessMessage("Archivo eliminado correctamente.");
       await loadFiles();
     } catch (deleteError) {
-      setError(getFriendlyErrorMessage(deleteError, "No pudimos eliminar el archivo."));
+      setError(
+        getFriendlyErrorMessage(deleteError, "No pudimos eliminar el archivo."),
+      );
     } finally {
       setDeletingId("");
     }
@@ -388,13 +442,13 @@ export function useTreatmentFiles(treatmentId: string, patientId: string) {
     deletingId,
     error,
     files: filesWithPermissions,
-    getMimeLabel,
+    getMimeLabel: getTreatmentFileMimeLabel,
     loaded,
     openFile,
     openingId,
     refreshFiles: loadFiles,
     successMessage,
-    uploadFile,
+    uploadFiles,
     uploading,
   };
 }

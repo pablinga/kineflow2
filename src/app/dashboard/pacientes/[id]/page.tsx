@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
+import { TreatmentAttachmentsInput } from "@/components/treatments/TreatmentAttachmentsInput";
 import { TreatmentDocumentation } from "@/components/treatments/TreatmentDocumentation";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { type Appointment, useAppointments } from "@/hooks/useAppointments";
@@ -39,6 +40,11 @@ import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
+import {
+  type SelectedTreatmentAttachment,
+  type TreatmentFileCategory,
+} from "@/lib/treatment-files";
+import { uploadTreatmentFiles } from "@/hooks/useTreatmentFiles";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -126,7 +132,11 @@ export default function PatientDetailPage() {
     createEmptyEvolution(patientId),
   );
   const [saving, setSaving] = useState(false);
+  const [treatmentSavingStep, setTreatmentSavingStep] = useState<
+    "idle" | "creating" | "uploading"
+  >("idle");
   const [actionError, setActionError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
   const [assignmentActionError, setAssignmentActionError] = useState("");
   const [assignmentUpdatingId, setAssignmentUpdatingId] = useState("");
   const [evolutionModalOpen, setEvolutionModalOpen] = useState(false);
@@ -134,6 +144,11 @@ export default function PatientDetailPage() {
   const [treatment, setTreatment] = useState<NewTreatmentInput>(() =>
     createEmptyTreatment(patientId),
   );
+  const [treatmentAttachmentCategory, setTreatmentAttachmentCategory] =
+    useState<TreatmentFileCategory | "">("");
+  const [treatmentAttachments, setTreatmentAttachments] = useState<
+    SelectedTreatmentAttachment[]
+  >([]);
   const [treatmentModalOpen, setTreatmentModalOpen] = useState(false);
   const [updatingId, setUpdatingId] = useState("");
   const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
@@ -291,10 +306,22 @@ export default function PatientDetailPage() {
     setTreatment((current) => ({ ...current, [field]: value }));
   }
 
+  function closeTreatmentModal() {
+    if (saving) {
+      return;
+    }
+
+    setTreatmentModalOpen(false);
+    setTreatment(createEmptyTreatment(patientId));
+    setTreatmentAttachmentCategory("");
+    setTreatmentAttachments([]);
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setActionError("");
+    setActionSuccess("");
 
     try {
       if (patientLimitBlock) {
@@ -320,11 +347,46 @@ export default function PatientDetailPage() {
   async function handleTreatmentSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
+    setTreatmentSavingStep("creating");
     setActionError("");
+    setActionSuccess("");
 
     try {
-      await addTreatment({ ...treatment, patientId });
+      const invalidAttachment = treatmentAttachments.find((item) => item.error);
+
+      if (invalidAttachment) {
+        setActionError("Revisa los archivos marcados antes de continuar.");
+        return;
+      }
+
+      const createdTreatmentId = await addTreatment({ ...treatment, patientId });
+      const attachmentsToUpload = treatmentAttachments;
+
+      if (attachmentsToUpload.length > 0) {
+        setTreatmentSavingStep("uploading");
+        const uploadResult = await uploadTreatmentFiles({
+          category: treatmentAttachmentCategory,
+          files: attachmentsToUpload,
+          patientId,
+          treatmentId: createdTreatmentId,
+        });
+
+        if (uploadResult.failed.length > 0) {
+          setActionError(
+            `El tratamiento fue creado, pero no pudimos adjuntar: ${uploadResult.failed
+              .map((failure) => failure.fileName)
+              .join(", ")}.`,
+          );
+        } else {
+          setActionSuccess("Tratamiento creado con documentacion adjunta.");
+        }
+      } else {
+        setActionSuccess("Tratamiento creado correctamente.");
+      }
+
       setTreatment(createEmptyTreatment(patientId));
+      setTreatmentAttachmentCategory("");
+      setTreatmentAttachments([]);
       setTreatmentModalOpen(false);
     } catch (treatmentError) {
       setActionError(
@@ -335,11 +397,13 @@ export default function PatientDetailPage() {
       );
     } finally {
       setSaving(false);
+      setTreatmentSavingStep("idle");
     }
   }
 
   async function handleTreatmentStatus(id: string, status: TreatmentStatus) {
     setActionError("");
+    setActionSuccess("");
 
     try {
       await updateTreatmentStatus(id, status);
@@ -360,6 +424,7 @@ export default function PatientDetailPage() {
     }
 
     setActionError("");
+    setActionSuccess("");
     setEvolution(createEmptyEvolution(patientId));
     setEvolution((current) => ({
       ...current,
@@ -703,6 +768,12 @@ export default function PatientDetailPage() {
                   </Link>
                 </div>
               </section>
+
+              {actionSuccess ? (
+                <p className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 sm:mt-6">
+                  {actionSuccess}
+                </p>
+              ) : null}
 
               {(patientsError || appointmentsError || evolutionsError || actionError) ? (
                 <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 sm:mt-6">
@@ -1090,7 +1161,8 @@ export default function PatientDetailPage() {
                   </div>
                   <button
                     className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50"
-                    onClick={() => setTreatmentModalOpen(false)}
+                    disabled={saving}
+                    onClick={closeTreatmentModal}
                     type="button"
                   >
                     <X className="h-4 w-4" />
@@ -1164,12 +1236,22 @@ export default function PatientDetailPage() {
                       value={treatment.notes}
                     />
                   </label>
+                  <div className="md:col-span-2">
+                    <TreatmentAttachmentsInput
+                      category={treatmentAttachmentCategory}
+                      disabled={saving}
+                      onCategoryChange={setTreatmentAttachmentCategory}
+                      onFilesChange={setTreatmentAttachments}
+                      selectedFiles={treatmentAttachments}
+                    />
+                  </div>
                 </div>
 
                 <div className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:justify-end">
                   <button
                     className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-                    onClick={() => setTreatmentModalOpen(false)}
+                    disabled={saving}
+                    onClick={closeTreatmentModal}
                     type="button"
                   >
                     Cancelar
@@ -1180,7 +1262,11 @@ export default function PatientDetailPage() {
                     type="submit"
                   >
                     <Save className="h-4 w-4" />
-                    {saving ? "Guardando..." : "Guardar tratamiento"}
+                    {treatmentSavingStep === "uploading"
+                      ? "Adjuntando archivos..."
+                      : treatmentSavingStep === "creating"
+                        ? "Creando tratamiento..."
+                        : "Guardar tratamiento"}
                   </button>
                 </div>
               </form>

@@ -184,24 +184,29 @@ export function useTreatments(
       throw new Error("No encontramos un espacio de trabajo activo.");
     }
 
-    const { error: insertError } = await supabase.from("treatments").insert({
-      body_region: input.bodyRegion.trim() || null,
-      diagnosis: input.diagnosis.trim(),
-      notes: input.notes.trim() || null,
-      owner_id: sessionData.user.id,
-      workspace_id: activeWorkspace.id,
-      patient_id: input.patientId,
-      started_at: input.startedAt,
-      status: "EN_CURSO",
-      total_sessions: input.totalSessions || 10,
-      used_sessions: 0,
-    });
+    const { data: insertedTreatment, error: insertError } = await supabase
+      .from("treatments")
+      .insert({
+        body_region: input.bodyRegion.trim() || null,
+        diagnosis: input.diagnosis.trim(),
+        notes: input.notes.trim() || null,
+        owner_id: sessionData.user.id,
+        workspace_id: activeWorkspace.id,
+        patient_id: input.patientId,
+        started_at: input.startedAt,
+        status: "EN_CURSO",
+        total_sessions: input.totalSessions || 10,
+        used_sessions: 0,
+      })
+      .select("id")
+      .single();
 
     if (insertError) {
       throw new Error(mapSupabaseError(insertError));
     }
 
     await loadTreatments();
+    return (insertedTreatment as { id: string }).id;
   }
 
   async function updateTreatmentStatus(id: string, status: TreatmentStatus) {
