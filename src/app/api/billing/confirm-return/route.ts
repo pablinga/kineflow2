@@ -8,9 +8,7 @@ import {
 } from "@/lib/supabase-server";
 
 type ConfirmReturnBody = {
-  planId?: string | null;
   preapprovalId?: string;
-  workspaceId?: string | null;
 };
 
 const MERCADOPAGO_PLAN_EXTERNAL_REFERENCES = new Set([
@@ -99,8 +97,6 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as ConfirmReturnBody;
   const preapprovalId = body.preapprovalId?.trim();
-  const planIdFromBody = body.planId?.trim() || null;
-  const workspaceIdFromBody = body.workspaceId?.trim() || null;
 
   if (preapprovalId) {
     try {
@@ -127,13 +123,24 @@ export async function POST(request: Request) {
       });
 
       if (admin && belongsToUser && providerSubscription.status === "authorized") {
-        const planCode = planIdFromBody
-          ? normalizePlan(planIdFromBody)
+        const { data: pendingSubscription } = await admin
+          .from("subscriptions")
+          .select("id, workspace_id, plans(code)")
+          .eq("account_id", user.id)
+          .eq("status", "PENDING_PAYMENT")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const planCode = pendingSubscription
+          ? getJoinedPlanCode(pendingSubscription)
           : parsed
             ? normalizePlan(parsed.planCode)
-            : "INDEPENDIENTE";
+            : "FREE";
         const resolvedWorkspaceId =
-          workspaceIdFromBody ?? parsed?.workspaceId ?? null;
+          (pendingSubscription as { workspace_id?: string | null } | null)
+            ?.workspace_id ??
+          parsed?.workspaceId ??
+          null;
 
         await applyMercadoPagoSubscriptionToAccount({
           accountId: user.id,

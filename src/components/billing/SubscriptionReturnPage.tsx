@@ -132,11 +132,9 @@ export function SubscriptionReturnPage({
   async function confirmReturnSubscriptionStatus(
     accessToken: string,
     preapprovalId: string | null,
-    planId: string | null,
-    workspaceId: string | null,
   ) {
     const response = await fetch("/api/billing/confirm-return", {
-      body: JSON.stringify({ planId, preapprovalId, workspaceId }),
+      body: JSON.stringify({ preapprovalId }),
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
@@ -193,10 +191,9 @@ export function SubscriptionReturnPage({
           throw new Error("Necesitás iniciar sesión para ver tu suscripción.");
         }
 
-        const searchParams = new URLSearchParams(window.location.search);
-        const preapprovalId = searchParams.get("preapproval_id");
-        const planIdFromUrl = searchParams.get("planId");
-        const workspaceIdFromUrl = searchParams.get("workspaceId");
+        const preapprovalId = new URLSearchParams(window.location.search).get(
+          "preapproval_id",
+        );
         const currentStatus = await fetchCurrentSubscriptionStatus(accessToken);
 
         if (mounted) {
@@ -219,12 +216,7 @@ export function SubscriptionReturnPage({
         }
 
         const confirmedStatus = shouldConfirmReturn
-          ? await confirmReturnSubscriptionStatus(
-              accessToken,
-              preapprovalId,
-              planIdFromUrl,
-              workspaceIdFromUrl,
-            )
+          ? await confirmReturnSubscriptionStatus(accessToken, preapprovalId)
           : currentStatus;
 
         if (shouldConfirmReturn) {

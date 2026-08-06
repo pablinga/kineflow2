@@ -265,8 +265,7 @@ test("Retorno de Mercado Pago activa solo si preapproval pertenece al usuario", 
   assert.match(source, /applyMercadoPagoSubscriptionToAccount/);
   assert.match(source, /parsed\?\.accountId === user\.id/);
   assert.match(source, /parts\.length >= 4/);
-  assert.match(source, /planIdFromBody/);
-  assert.match(source, /workspaceIdFromBody/);
+  assert.match(source, /\.eq\("status", "PENDING_PAYMENT"\)/);
   assert.match(source, /resolvedWorkspaceId/);
   assert.match(source, /workspaceId: resolvedWorkspaceId/);
   assert.match(source, /MERCADOPAGO_PLAN_EXTERNAL_REFERENCES/);
@@ -303,9 +302,11 @@ test("Checkout de Mercado Pago usa NEXT_PUBLIC_APP_URL y rutas QA reales", () =>
   assert.match(createSubscription, /workspace\.type !== expectedWorkspaceType/);
   assert.match(createSubscription, /workspace\.owner_id !== user\.id/);
   assert.match(createSubscription, /\$\{workspaceId \?\? "account"\}/);
-  assert.match(createSubscription, /successUrl\.searchParams\.set\("planId", planId\)/);
-  assert.match(createSubscription, /successUrl\.searchParams\.set\("workspaceId", workspaceId\)/);
-  assert.match(createSubscription, /backUrl: successUrl\.toString\(\)/);
+  assert.match(createSubscription, /\.eq\("code", planId\)/);
+  assert.match(createSubscription, /status: "PENDING_PAYMENT"/);
+  assert.match(createSubscription, /workspace_id: workspaceId/);
+  assert.match(createSubscription, /onConflict: "account_id,workspace_id"/);
+  assert.match(createSubscription, /backUrl: returnUrls\.success/);
   assert.doesNotMatch(createSubscription, /createMercadoPagoSubscriptionPreapproval/);
   assert.doesNotMatch(createSubscription, /card_token_id/);
   assert.match(envExample, /NEXT_PUBLIC_APP_URL=https:\/\/qa\.kineflow\.ar/);
@@ -321,10 +322,8 @@ test("Post pago consulta Supabase antes de mostrar Plan activo", () => {
 
   assert.match(page, /fetch\("\/api\/billing\/confirm-return"/);
   assert.match(page, /fetch\("\/api\/billing\/current"/);
-  assert.match(page, /searchParams\.get\("preapproval_id"\)/);
-  assert.match(page, /searchParams\.get\("planId"\)/);
-  assert.match(page, /searchParams\.get\("workspaceId"\)/);
-  assert.match(page, /JSON\.stringify\(\{ planId, preapprovalId, workspaceId \}\)/);
+  assert.match(page, /new URLSearchParams\(window\.location\.search\)\.get\(\s*"preapproval_id"/);
+  assert.match(page, /JSON\.stringify\(\{ preapprovalId \}\)/);
   assert.match(page, /confirmedPreapprovalRef/);
   assert.match(page, /POLLING_INTERVAL_MS = 3000/);
   assert.match(page, /MAX_POLLING_ATTEMPTS = 5/);

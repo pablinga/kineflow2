@@ -57,16 +57,16 @@ export async function POST(request: Request) {
     );
   }
 
+  const admin = getSupabaseAdminClient();
+
+  if (!admin) {
+    return NextResponse.json(
+      { error: "No pudimos preparar la suscripcion para iniciar el checkout." },
+      { status: 500 },
+    );
+  }
+
   if (workspaceId) {
-    const admin = getSupabaseAdminClient();
-
-    if (!admin) {
-      return NextResponse.json(
-        { error: "No pudimos validar el espacio de trabajo para iniciar el checkout." },
-        { status: 500 },
-      );
-    }
-
     const { data: workspace } = await admin
       .from("workspaces")
       .select("id, owner_id, type")
@@ -93,17 +93,53 @@ export async function POST(request: Request) {
     }
   }
 
-  const returnUrls = getSubscriptionReturnUrls();
-  const successUrl = new URL(returnUrls.success);
-  successUrl.searchParams.set("planId", planId);
+  const { data: planRow } = await admin
+    .from("plans")
+    .select("id")
+    .eq("code", planId)
+    .maybeSingle();
 
-  if (workspaceId) {
-    successUrl.searchParams.set("workspaceId", workspaceId);
+  if (!planRow?.id) {
+    return NextResponse.json(
+      { error: "No encontramos el plan interno." },
+      { status: 500 },
+    );
   }
 
+  const pendingSubscriptionUpdatedAt = new Date().toISOString();
+  const { error: pendingSubscriptionError } = await admin
+    .from("subscriptions")
+    .upsert(
+      {
+        account_id: user.id,
+        account_type:
+          planId === "CONSULTORIO" ? "CONSULTORIO" : "KINESIOLOGO",
+        plan_id: planRow.id,
+        provider: "mercadopago",
+        status: "PENDING_PAYMENT",
+        updated_at: pendingSubscriptionUpdatedAt,
+        workspace_id: workspaceId,
+      },
+      { onConflict: "account_id,workspace_id" },
+    );
+
+  if (pendingSubscriptionError) {
+    console.error("[billing:create-subscription] Pending subscription upsert failed", {
+      accountId: user.id,
+      planId,
+      workspaceId,
+    });
+
+    return NextResponse.json(
+      { error: "No pudimos preparar la suscripcion para iniciar el checkout." },
+      { status: 500 },
+    );
+  }
+
+  const returnUrls = getSubscriptionReturnUrls();
   const externalReference = `${user.id}:${planId}:${workspaceId ?? "account"}:${crypto.randomUUID()}`;
   const checkoutUrl = getMercadoPagoSubscriptionCheckoutUrl(planId, {
-    backUrl: successUrl.toString(),
+    backUrl: returnUrls.success,
     externalReference,
     payerEmail: user.email,
   });
@@ -121,7 +157,7 @@ export async function POST(request: Request) {
     externalReference,
     initPoint,
     planId,
-    returnUrlSent: successUrl.toString(),
+    returnUrlSent: returnUrls.success,
     returnUrls,
     userEmail: user.email,
   });
