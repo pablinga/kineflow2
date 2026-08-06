@@ -94,9 +94,16 @@ export async function POST(request: Request) {
   }
 
   const returnUrls = getSubscriptionReturnUrls();
+  const successUrl = new URL(returnUrls.success);
+  successUrl.searchParams.set("planId", planId);
+
+  if (workspaceId) {
+    successUrl.searchParams.set("workspaceId", workspaceId);
+  }
+
   const externalReference = `${user.id}:${planId}:${workspaceId ?? "account"}:${crypto.randomUUID()}`;
   const checkoutUrl = getMercadoPagoSubscriptionCheckoutUrl(planId, {
-    backUrl: returnUrls.success,
+    backUrl: successUrl.toString(),
     externalReference,
     payerEmail: user.email,
   });
@@ -114,7 +121,7 @@ export async function POST(request: Request) {
     externalReference,
     initPoint,
     planId,
-    returnUrlSent: returnUrls.success,
+    returnUrlSent: successUrl.toString(),
     returnUrls,
     userEmail: user.email,
   });

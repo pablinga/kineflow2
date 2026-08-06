@@ -8,10 +8,16 @@ import {
 } from "@/lib/supabase-server";
 
 type ConfirmReturnBody = {
+  planId?: string | null;
   preapprovalId?: string;
+  workspaceId?: string | null;
 };
 
-const MERCADOPAGO_PLAN_EXTERNAL_REFERENCES = new Set(["KINEPART", "KINEINDEP"]);
+const MERCADOPAGO_PLAN_EXTERNAL_REFERENCES = new Set([
+  "KINEPART",
+  "KINEINDEP",
+  "KINECONSU",
+]);
 
 function parseExternalReference(reference: unknown) {
   if (typeof reference !== "string") {
@@ -93,6 +99,8 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as ConfirmReturnBody;
   const preapprovalId = body.preapprovalId?.trim();
+  const planIdFromBody = body.planId?.trim() || null;
+  const workspaceIdFromBody = body.workspaceId?.trim() || null;
 
   if (preapprovalId) {
     try {
@@ -119,7 +127,13 @@ export async function POST(request: Request) {
       });
 
       if (admin && belongsToUser && providerSubscription.status === "authorized") {
-        const planCode = parsed ? normalizePlan(parsed.planCode) : "INDEPENDIENTE";
+        const planCode = planIdFromBody
+          ? normalizePlan(planIdFromBody)
+          : parsed
+            ? normalizePlan(parsed.planCode)
+            : "INDEPENDIENTE";
+        const resolvedWorkspaceId =
+          workspaceIdFromBody ?? parsed?.workspaceId ?? null;
 
         await applyMercadoPagoSubscriptionToAccount({
           accountId: user.id,
@@ -128,7 +142,7 @@ export async function POST(request: Request) {
           admin,
           planCode,
           providerSubscription,
-          workspaceId: parsed?.workspaceId ?? undefined,
+          workspaceId: resolvedWorkspaceId,
         });
       } else if (!belongsToUser) {
         console.warn("[billing:confirm-return] Preapproval does not belong to user", {
