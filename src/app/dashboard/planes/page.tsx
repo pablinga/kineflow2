@@ -64,8 +64,16 @@ export default function PlansPage() {
       : `${activePatients.length} de ${plan.limitePacientes} pacientes`;
   const subscriptionStatus = plan.estadoPlan ?? "SIN SUSCRIPCIÓN";
   const isFreePlan = plan.plan === "FREE";
+  const planHeaderDescription = isFreePlan ? (
+    <>
+      Actualmente estás usando {currentPlanName}. Para gestionar tu práctica
+      profesional sin límites de pacientes, activá KineFlow - Particular.
+    </>
+  ) : (
+    "Gestioná tu suscripción y método de pago desde acá."
+  );
   const canCancelSubscription =
-    plan.plan === "INDEPENDIENTE" &&
+    (plan.plan === "INDEPENDIENTE" || plan.plan === "CONSULTORIO") &&
     plan.estadoPlan === "ACTIVO" &&
     !cancelReference;
 
@@ -178,13 +186,7 @@ export default function PlansPage() {
       <DashboardSidebar />
       <PageContainer>
           <PageHeader
-            description={
-              <>
-                Actualmente estás usando {currentPlanName}. Para gestionar tu
-                práctica profesional sin límites de pacientes, activá KineFlow -
-                Particular.
-              </>
-            }
+            description={planHeaderDescription}
             eyebrow="Plan"
             title="Plan / Suscripción"
           />
@@ -395,7 +397,7 @@ export default function PlansPage() {
           <section className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-2xl sm:rounded-lg sm:p-6">
             <h2 className="text-xl font-bold text-ink">Cancelar suscripción</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              Vamos a solicitar la baja de KineFlow - Particular en Mercado Pago y
+              Vamos a solicitar la baja de {currentPlanName} en Mercado Pago y
               registrar la gestion en KineFlow. Vas a recibir una referencia de
               baja al finalizar.
             </p>
