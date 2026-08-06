@@ -333,7 +333,8 @@ test("Post pago consulta Supabase antes de mostrar Plan activo", () => {
   assert.match(page, /subscriptionStatus\?\.plan === "INDEPENDIENTE"/);
   assert.match(page, /subscriptionStatus\?\.plan === "CONSULTORIO"/);
   assert.match(page, /subscriptionStatus\.status === "ACTIVO"/);
-  assert.match(page, /kind === "success" && !isActive[\s\S]*"KineFlow - Particular"/);
+  assert.match(page, /const planName = subscriptionStatus[\s\S]*getPlanDisplayName/);
+  assert.doesNotMatch(page, /kind === "success" && !isActive[\s\S]*"KineFlow - Particular"/);
   assert.match(page, /Suscripción recibida/);
   assert.match(page, /Plan activo/);
   assert.match(page, /Tu plan est(?:a|á) activo/);

@@ -88,12 +88,9 @@ export function SubscriptionReturnPage({
     (subscriptionStatus?.plan === "INDEPENDIENTE" ||
       subscriptionStatus?.plan === "CONSULTORIO") &&
     subscriptionStatus.status === "ACTIVO";
-  const planName =
-    kind === "success" && !isActive
-      ? "KineFlow - Particular"
-      : subscriptionStatus
-        ? getPlanDisplayName(subscriptionStatus.plan as CommercialPlan)
-        : "KineFlow - Particular";
+  const planName = subscriptionStatus
+    ? getPlanDisplayName(subscriptionStatus.plan as CommercialPlan)
+    : "Cargando...";
 
   function normalizeSubscriptionStatus(
     response: BillingCurrentResponse | SubscriptionStatusResponse,

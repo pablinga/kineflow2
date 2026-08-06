@@ -186,8 +186,7 @@ export async function POST(request: Request) {
     .limit(1)
     .maybeSingle();
   const subscriptionStatus = subscription?.status ?? "FREE";
-  const plan =
-    subscriptionStatus === "ACTIVE" ? getJoinedPlanCode(subscription) : "FREE";
+  const plan = subscription ? getJoinedPlanCode(subscription) : "FREE";
   const profileStatus = mapSubscriptionStatusToPlanStatus(subscriptionStatus);
 
   const isActive =

@@ -90,7 +90,7 @@ export async function GET(request: Request) {
     .maybeSingle();
   const accountType = (profile?.account_type ?? "KINESIOLOGO") as AccountType;
   const subscriptionStatus = normalizeStatus(subscription?.status);
-  const plan = subscriptionStatus === "ACTIVE" ? getJoinedPlanCode(subscription) : "FREE";
+  const plan = subscription ? getJoinedPlanCode(subscription) : "FREE";
   const planDefinition = getPlanDefinition(plan);
   const estadoPlan = mapStatusToPlanStatus(subscriptionStatus);
 
