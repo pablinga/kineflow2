@@ -343,7 +343,7 @@ test("Webhook aplica planes pagos y mail posterior a activacion", () => {
   assert.match(webhook, /workspaceId: parsed\.workspaceId \?\? undefined/);
   assert.match(webhook, /payment_events/);
   assert.match(billingServer, /internalStatus === "ACTIVE"/);
-  assert.match(billingServer, /subscriptionPayload\.workspace_id = workspaceId/);
+  assert.match(billingServer, /workspace_id: workspaceId \?\? null/);
   assert.match(billingServer, /sendSubscriptionActivatedEmail/);
 });
 
@@ -454,7 +454,8 @@ test("Webhook sincroniza altas, pausas y cancelaciones desde Mercado Pago", () =
   assert.match(mercadoPago, /status === "paused"/);
   assert.match(mercadoPago, /status === "canceled" \|\| status === "cancelled"/);
   assert.match(billingServer, /effectivePlanCode = internalStatus === "ACTIVE" \? planCode : "FREE"/);
-  assert.match(billingServer, /upsert\(subscriptionPayload, \{ onConflict: "account_id" \}\)/);
+  assert.match(billingServer, /\.eq\("workspace_id", workspaceId \?\? null\)/);
+  assert.match(billingServer, /upsert\(subscriptionPayload, \{ onConflict: "account_id,workspace_id" \}\)/);
   assert.match(billingServer, /status: storedStatus/);
   assert.doesNotMatch(billingServer, /estado_plan|limite_pacientes|mercado_pago_status|plan_status|subscription_current_period_end/);
 });

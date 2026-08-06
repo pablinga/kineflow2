@@ -90,11 +90,8 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
     provider_subscription_id: providerSubscription.id,
     status: storedStatus,
     updated_at: now,
+    workspace_id: workspaceId ?? null,
   };
-
-  if (workspaceId !== undefined) {
-    subscriptionPayload.workspace_id = workspaceId;
-  }
 
   console.info("[billing:apply-subscription] Applying Mercado Pago status", {
     accountId,
@@ -111,11 +108,12 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
     .from("subscriptions")
     .select("id, status")
     .eq("account_id", accountId)
+    .eq("workspace_id", workspaceId ?? null)
     .maybeSingle();
 
   const { error: subscriptionUpsertError } = await admin
     .from("subscriptions")
-    .upsert(subscriptionPayload, { onConflict: "account_id" });
+    .upsert(subscriptionPayload, { onConflict: "account_id,workspace_id" });
 
   if (subscriptionUpsertError) {
     console.error("[billing:apply-subscription] Supabase subscription upsert failed", {
