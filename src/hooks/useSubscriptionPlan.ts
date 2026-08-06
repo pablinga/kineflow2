@@ -127,6 +127,7 @@ export function useSubscriptionPlan() {
             .select("status, plans(code)")
             .eq("workspace_id", activeWorkspace.id)
             .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle();
 
           data = workspaceResult.data;
@@ -139,6 +140,7 @@ export function useSubscriptionPlan() {
             .select("status, plans(code)")
             .eq("account_id", userData.user.id)
             .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle();
 
           data = accountResult.data;

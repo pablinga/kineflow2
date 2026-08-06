@@ -481,6 +481,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           .select("status, plans(code)")
           .eq("workspace_id", nextActiveWorkspace.id)
           .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         subscriptionData = workspaceSubscription.data;
@@ -494,6 +495,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           .select("status, plans(code)")
           .eq("account_id", currentUser.id)
           .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         subscriptionData = accountSubscription.data;
