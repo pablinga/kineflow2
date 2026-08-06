@@ -92,7 +92,8 @@ export async function GET(request: Request) {
   const subscriptionStatus = normalizeStatus(subscription?.status);
   const plan = subscription ? getJoinedPlanCode(subscription) : "FREE";
   const planDefinition = getPlanDefinition(plan);
-  const estadoPlan = mapStatusToPlanStatus(subscriptionStatus);
+  const estadoPlan =
+    plan === "FREE" ? "ACTIVO" : mapStatusToPlanStatus(subscriptionStatus);
 
   return NextResponse.json({
     accountType,
