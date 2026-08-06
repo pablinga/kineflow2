@@ -6,6 +6,13 @@ import {
   getSupabaseServerClient,
 } from "@/lib/supabase-server";
 
+function isAlreadyCancelledPreapprovalError(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    error.message.toLowerCase().includes("cancelled preapproval")
+  );
+}
+
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.replace("Bearer ", "");
@@ -73,19 +80,32 @@ export async function POST(request: Request) {
   try {
     providerSubscription = await cancelMercadoPagoSubscription(preapprovalId);
   } catch (error) {
-    console.error("[billing:cancel-subscription] Mercado Pago cancellation failed", {
-      error: error instanceof Error ? error.message : error,
-      preapproval_id: preapprovalId,
-      user_id: user.id,
-    });
+    if (isAlreadyCancelledPreapprovalError(error)) {
+      console.info("[billing:cancel-subscription] Mercado Pago already cancelled", {
+        error: error.message,
+        preapproval_id: preapprovalId,
+        user_id: user.id,
+      });
 
-    return NextResponse.json(
-      {
-        error:
+      providerSubscription = {
+        id: preapprovalId,
+        status: "cancelled",
+      };
+    } else {
+      console.error("[billing:cancel-subscription] Mercado Pago cancellation failed", {
+        error: error instanceof Error ? error.message : error,
+        preapproval_id: preapprovalId,
+        user_id: user.id,
+      });
+
+      return NextResponse.json(
+        {
+          error:
           "No pudimos cancelar la suscripción en este momento. Intentá nuevamente.",
-      },
-      { status: 502 },
-    );
+        },
+        { status: 502 },
+      );
+    }
   }
 
   const canceledAt = new Date().toISOString();
