@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseServerClient(token);
   const admin = getSupabaseAdminClient();
 
   if (!admin) {

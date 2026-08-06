@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const supabase = getSupabaseServerClient();
+  const supabase = getSupabaseServerClient(token);
   const {
     data: { user },
     error,
