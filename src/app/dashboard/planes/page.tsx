@@ -72,7 +72,9 @@ export default function PlansPage() {
   async function handleCheckout(planId: CommercialPlan) {
     setSelectedPlan(planId);
     setCheckoutError("");
-    setCheckoutMessage("Te estamos llevando a Mercado Pago para activar KineFlow - Particular.");
+    setCheckoutMessage(
+      `Te estamos llevando a Mercado Pago para activar ${getPlanDisplayName(planId)}.`,
+    );
 
     if (planId === plan.plan) {
       setCheckoutMessage("");
