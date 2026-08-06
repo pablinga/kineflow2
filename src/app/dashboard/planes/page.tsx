@@ -87,7 +87,7 @@ export default function PlansPage() {
     setCheckoutLoading(planId);
 
     try {
-      if (planId !== "INDEPENDIENTE") {
+      if (planId !== "INDEPENDIENTE" && planId !== "CONSULTORIO") {
         throw new Error("Este plan todavia no tiene checkout configurado.");
       }
 
