@@ -19,16 +19,20 @@ export type UserPlan = {
   cantidadKinesiologos: number;
 };
 
+const PLAN_SNAPSHOT_MAX_AGE_MS = 15000;
+
 const planSnapshot: {
   loaded: boolean;
   plan: UserPlan;
   userId: string | null;
   workspaceId: string | null;
+  fetchedAt: number;
 } = {
   loaded: false,
   plan: defaultPlan,
   userId: null,
   workspaceId: null,
+  fetchedAt: 0,
 };
 
 export function resetSubscriptionPlanSnapshot() {
@@ -36,6 +40,7 @@ export function resetSubscriptionPlanSnapshot() {
   planSnapshot.plan = defaultPlan;
   planSnapshot.userId = null;
   planSnapshot.workspaceId = null;
+  planSnapshot.fetchedAt = 0;
 }
 
 function normalizePlan(value: unknown): CommercialPlan {
@@ -72,9 +77,13 @@ function getJoinedPlanCode(subscription: unknown) {
 export function useSubscriptionPlan() {
   const sessionContext = useAuthSessionContext();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
+  const snapshotFresh =
+    Date.now() - planSnapshot.fetchedAt < PLAN_SNAPSHOT_MAX_AGE_MS;
   const [plan, setPlan] = useState<UserPlan>(planSnapshot.plan);
   const [loaded, setLoaded] = useState(
-    planSnapshot.loaded && planSnapshot.workspaceId === activeWorkspace?.id,
+    planSnapshot.loaded &&
+      planSnapshot.workspaceId === activeWorkspace?.id &&
+      snapshotFresh,
   );
 
   useEffect(() => {
@@ -100,7 +109,8 @@ export function useSubscriptionPlan() {
         if (
           planSnapshot.loaded &&
           planSnapshot.userId === userData.user.id &&
-          planSnapshot.workspaceId === (activeWorkspace?.id ?? null)
+          planSnapshot.workspaceId === (activeWorkspace?.id ?? null) &&
+          Date.now() - planSnapshot.fetchedAt < PLAN_SNAPSHOT_MAX_AGE_MS
         ) {
           if (mounted) {
             setPlan(planSnapshot.plan);
@@ -177,6 +187,7 @@ export function useSubscriptionPlan() {
         planSnapshot.plan = nextPlan;
         planSnapshot.userId = userData.user.id;
         planSnapshot.workspaceId = activeWorkspace?.id ?? null;
+        planSnapshot.fetchedAt = Date.now();
 
         if (mounted) {
           setPlan(nextPlan);

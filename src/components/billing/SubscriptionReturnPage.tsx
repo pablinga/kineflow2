@@ -21,6 +21,7 @@ import { getFriendlyErrorMessage, logFriendlyError } from "@/lib/error-messages"
 import { getPlanDisplayName, type CommercialPlan } from "@/lib/plans";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { resetSubscriptionPlanSnapshot } from "@/hooks/useSubscriptionPlan";
 
 type SubscriptionReturnKind = "success" | "pending" | "error";
 
@@ -171,6 +172,7 @@ export function SubscriptionReturnPage({
         }
 
         if (currentStatus.status === "ACTIVO") {
+          resetSubscriptionPlanSnapshot();
           return;
         }
       }
@@ -199,6 +201,7 @@ export function SubscriptionReturnPage({
         }
 
         if (currentStatus.status === "ACTIVO") {
+          resetSubscriptionPlanSnapshot();
           return;
         }
 
@@ -215,6 +218,10 @@ export function SubscriptionReturnPage({
         const confirmedStatus = shouldConfirmReturn
           ? await confirmReturnSubscriptionStatus(accessToken, preapprovalId)
           : currentStatus;
+
+        if (shouldConfirmReturn) {
+          resetSubscriptionPlanSnapshot();
+        }
 
         if (mounted) {
           setSubscriptionStatus(confirmedStatus);
