@@ -84,7 +84,8 @@ export function SubscriptionReturnPage({
   const copy = copyByKind[kind];
   const Icon = copy.icon;
   const isActive =
-    subscriptionStatus?.plan === "INDEPENDIENTE" &&
+    (subscriptionStatus?.plan === "INDEPENDIENTE" ||
+      subscriptionStatus?.plan === "CONSULTORIO") &&
     subscriptionStatus.status === "ACTIVO";
   const planName =
     kind === "success" && !isActive

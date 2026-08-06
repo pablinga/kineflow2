@@ -731,7 +731,7 @@ export default function AppointmentsPage() {
     ((effectiveAccountType === "CONSULTORIO" &&
       (plan.plan === "FREE" ||
         (plan.estadoPlan === "ACTIVO" &&
-          plan.plan.startsWith("CONSULTORIO_")))) ||
+          plan.plan === "CONSULTORIO"))) ||
       effectiveAccountType === "KINESIOLOGO") &&
     canUseClinicSchedule;
   const patientLimitBlock =

@@ -86,17 +86,13 @@ test("KineFlow Particular habilita pacientes propios sin limite", () => {
 test("Un usuario individual no ve planes de consultorio como flujo principal", () => {
   assert.equal(isPlanVisibleForAccount("FREE", "KINESIOLOGO"), true);
   assert.equal(isPlanVisibleForAccount("INDEPENDIENTE", "KINESIOLOGO"), true);
-  assert.equal(isPlanVisibleForAccount("CONSULTORIO_2", "KINESIOLOGO"), false);
-  assert.equal(isPlanVisibleForAccount("CONSULTORIO_5", "KINESIOLOGO"), false);
-  assert.equal(isPlanVisibleForAccount("CONSULTORIO_10", "KINESIOLOGO"), false);
+  assert.equal(isPlanVisibleForAccount("CONSULTORIO", "KINESIOLOGO"), false);
 });
 
-test("Con el feature flag apagado no se muestran planes de consultorio", () => {
+test("Una cuenta consultorio ve solo el plan de consultorio", () => {
   assert.equal(isPlanVisibleForAccount("FREE", "CONSULTORIO"), false);
   assert.equal(isPlanVisibleForAccount("INDEPENDIENTE", "CONSULTORIO"), false);
-  assert.equal(isPlanVisibleForAccount("CONSULTORIO_2", "CONSULTORIO"), false);
-  assert.equal(isPlanVisibleForAccount("CONSULTORIO_5", "CONSULTORIO"), false);
-  assert.equal(isPlanVisibleForAccount("CONSULTORIO_10", "CONSULTORIO"), false);
+  assert.equal(isPlanVisibleForAccount("CONSULTORIO", "CONSULTORIO"), true);
 });
 
 test("Los montos se muestran con separador de miles argentino", () => {
@@ -297,7 +293,10 @@ test("Checkout de Mercado Pago usa NEXT_PUBLIC_APP_URL y rutas QA reales", () =>
   assert.match(createSubscription, /getMercadoPagoSubscriptionCheckoutUrl/);
   assert.match(createSubscription, /getMercadoPagoCheckoutInitPoint/);
   assert.match(createSubscription, /workspaceId\?: string \| null/);
-  assert.match(createSubscription, /workspace\.type !== "PERSONAL"/);
+  assert.match(createSubscription, /planId !== "INDEPENDIENTE" && planId !== "CONSULTORIO"/);
+  assert.match(createSubscription, /planId === "CONSULTORIO" && !workspaceId/);
+  assert.match(createSubscription, /planId === "CONSULTORIO" \? "CLINICA" : "PERSONAL"/);
+  assert.match(createSubscription, /workspace\.type !== expectedWorkspaceType/);
   assert.match(createSubscription, /workspace\.owner_id !== user\.id/);
   assert.match(createSubscription, /\$\{workspaceId \?\? "account"\}/);
   assert.doesNotMatch(createSubscription, /createMercadoPagoSubscriptionPreapproval/);
@@ -324,6 +323,7 @@ test("Post pago consulta Supabase antes de mostrar Plan activo", () => {
   assert.match(page, /normalizeSubscriptionStatus/);
   assert.match(page, /subscriptionProviderStatus === "ACTIVE"/);
   assert.match(page, /subscriptionStatus\?\.plan === "INDEPENDIENTE"/);
+  assert.match(page, /subscriptionStatus\?\.plan === "CONSULTORIO"/);
   assert.match(page, /subscriptionStatus\.status === "ACTIVO"/);
   assert.match(page, /kind === "success" && !isActive[\s\S]*"KineFlow - Particular"/);
   assert.match(page, /Suscripción recibida/);
@@ -333,11 +333,12 @@ test("Post pago consulta Supabase antes de mostrar Plan activo", () => {
   assert.match(rootSuccess, /SubscriptionReturnPage kind="success"/);
 });
 
-test("Webhook valida KineFlow Particular y mail posterior a activacion", () => {
+test("Webhook aplica planes pagos y mail posterior a activacion", () => {
   const webhook = fs.readFileSync("src/app/api/webhooks/mercadopago/route.ts", "utf8");
   const billingServer = fs.readFileSync("src/lib/billing-server.ts", "utf8");
 
-  assert.match(webhook, /parsed\.planCode !== "INDEPENDIENTE"/);
+  assert.doesNotMatch(webhook, /parsed\.planCode !== "INDEPENDIENTE"/);
+  assert.match(webhook, /parsed\.planCode === "CONSULTORIO" \? "CONSULTORIO" : "KINESIOLOGO"/);
   assert.match(webhook, /parts\.length >= 4/);
   assert.match(webhook, /workspaceId: parsed\.workspaceId \?\? undefined/);
   assert.match(webhook, /payment_events/);

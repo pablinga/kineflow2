@@ -39,9 +39,7 @@ function parseExternalReference(reference: unknown) {
 function normalizePlan(value: unknown): CommercialPlan {
   if (
     value === "INDEPENDIENTE" ||
-    value === "CONSULTORIO_2" ||
-    value === "CONSULTORIO_5" ||
-    value === "CONSULTORIO_10"
+    value === "CONSULTORIO"
   ) {
     return value;
   }
@@ -121,11 +119,14 @@ export async function POST(request: Request) {
       });
 
       if (admin && belongsToUser && providerSubscription.status === "authorized") {
+        const planCode = parsed ? normalizePlan(parsed.planCode) : "INDEPENDIENTE";
+
         await applyMercadoPagoSubscriptionToAccount({
           accountId: user.id,
-          accountType: "KINESIOLOGO",
+          accountType:
+            planCode === "CONSULTORIO" ? "CONSULTORIO" : "KINESIOLOGO",
           admin,
-          planCode: parsed?.planCode === "INDEPENDIENTE" ? parsed.planCode : "INDEPENDIENTE",
+          planCode,
           providerSubscription,
           workspaceId: parsed?.workspaceId ?? undefined,
         });
@@ -168,7 +169,9 @@ export async function POST(request: Request) {
     subscriptionStatus === "ACTIVE" ? getJoinedPlanCode(subscription) : "FREE";
   const profileStatus = mapSubscriptionStatusToPlanStatus(subscriptionStatus);
 
-  const isActive = plan === "INDEPENDIENTE" && subscriptionStatus === "ACTIVE";
+  const isActive =
+    (plan === "INDEPENDIENTE" || plan === "CONSULTORIO") &&
+    subscriptionStatus === "ACTIVE";
 
   return NextResponse.json({
     plan,

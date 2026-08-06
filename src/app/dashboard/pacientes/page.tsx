@@ -229,7 +229,7 @@ export default function PatientsPage() {
   const clinicPracticeBlocked =
     effectiveAccountType === "CONSULTORIO" &&
     plan.plan !== "FREE" &&
-    !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));
+    !(plan.estadoPlan === "ACTIVO" && plan.plan === "CONSULTORIO");
   const canCreateCurrentPatient = canCreatePatient({
     accountType: effectiveAccountType,
     activePatientCount,

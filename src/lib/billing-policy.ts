@@ -3,9 +3,7 @@ export type BillingAccountType = "KINESIOLOGO" | "CONSULTORIO";
 export type BillingPlan =
   | "FREE"
   | "INDEPENDIENTE"
-  | "CONSULTORIO_2"
-  | "CONSULTORIO_5"
-  | "CONSULTORIO_10";
+  | "CONSULTORIO";
 
 export type BillingPlanStatus =
   | "ACTIVO"
@@ -20,13 +18,7 @@ export const PLAN_LIMITS = {
   INDEPENDIENTE: {
     maxPatients: null,
   },
-  CONSULTORIO_2: {
-    maxPatients: null,
-  },
-  CONSULTORIO_5: {
-    maxPatients: null,
-  },
-  CONSULTORIO_10: {
+  CONSULTORIO: {
     maxPatients: null,
   },
 } as const;
@@ -50,7 +42,7 @@ export function canCreatePatientByPolicy(params: {
 
   if (params.accountType === "CONSULTORIO") {
     return (
-      params.planStatus === "ACTIVO" && params.plan.startsWith("CONSULTORIO_")
+      params.planStatus === "ACTIVO" && params.plan === "CONSULTORIO"
     );
   }
 
@@ -62,7 +54,8 @@ export function isPlanVisibleForAccount(
   accountType: BillingAccountType,
 ) {
   return (
-    accountType === "KINESIOLOGO" &&
-    (plan === "FREE" || plan === "INDEPENDIENTE")
+    (accountType === "KINESIOLOGO" &&
+      (plan === "FREE" || plan === "INDEPENDIENTE")) ||
+    (accountType === "CONSULTORIO" && plan === "CONSULTORIO")
   );
 }

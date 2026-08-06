@@ -81,12 +81,19 @@ export function isPaidPlan(plan: CommercialPlan) {
 }
 
 export function isConsultorioPlan(plan: CommercialPlan) {
-  return plan.startsWith("CONSULTORIO_");
+  return plan === "CONSULTORIO";
 }
 
 export function getMercadoPagoPreapprovalPlanId(planId: CommercialPlan) {
   if (planId === "INDEPENDIENTE") {
     return process.env.NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID?.trim() || null;
+  }
+
+  if (planId === "CONSULTORIO") {
+    return (
+      process.env.NEXT_PUBLIC_MP_PREAPPROVAL_PLAN_ID_CONSULTORIO?.trim() ||
+      null
+    );
   }
 
   return null;

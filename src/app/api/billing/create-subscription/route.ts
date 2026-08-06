@@ -30,9 +30,16 @@ export async function POST(request: Request) {
   const planId = body.planId;
   const workspaceId = body.workspaceId?.trim() || null;
 
-  if (planId !== "INDEPENDIENTE") {
+  if (planId !== "INDEPENDIENTE" && planId !== "CONSULTORIO") {
     return NextResponse.json(
-      { error: "El MVP1 solo permite activar KineFlow - Particular." },
+      { error: "El plan solicitado no esta disponible para checkout." },
+      { status: 400 },
+    );
+  }
+
+  if (planId === "CONSULTORIO" && !workspaceId) {
+    return NextResponse.json(
+      { error: "Necesitamos el workspace de la clinica para activar este plan." },
       { status: 400 },
     );
   }
@@ -66,13 +73,21 @@ export async function POST(request: Request) {
       .eq("id", workspaceId)
       .maybeSingle();
 
+    const expectedWorkspaceType =
+      planId === "CONSULTORIO" ? "CLINICA" : "PERSONAL";
+
     if (
       !workspace ||
-      workspace.type !== "PERSONAL" ||
+      workspace.type !== expectedWorkspaceType ||
       workspace.owner_id !== user.id
     ) {
       return NextResponse.json(
-        { error: "Este plan solo puede activarse en tu workspace personal." },
+        {
+          error:
+            planId === "CONSULTORIO"
+              ? "Este plan solo puede activarse en el workspace de la clinica."
+              : "Este plan solo puede activarse en tu workspace personal.",
+        },
         { status: 403 },
       );
     }

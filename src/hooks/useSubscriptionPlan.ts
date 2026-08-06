@@ -41,14 +41,12 @@ export function resetSubscriptionPlanSnapshot() {
 function normalizePlan(value: unknown): CommercialPlan {
   if (
     value === "INDEPENDIENTE" ||
-    value === "CONSULTORIO_2" ||
-    value === "CONSULTORIO_5" ||
-    value === "CONSULTORIO_10"
+    value === "CONSULTORIO"
   ) {
     return value;
   }
 
-  return value === "CLINICA" ? "CONSULTORIO_2" : "FREE";
+  return value === "CLINICA" ? "CONSULTORIO" : "FREE";
 }
 
 function normalizeStatus(value: unknown): PlanStatus {

@@ -128,7 +128,7 @@ export default function IncomePage() {
     !canViewIncome ||
     (effectiveAccountType === "CONSULTORIO" &&
       plan.plan !== "FREE" &&
-      !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_")))
+      !(plan.estadoPlan === "ACTIVO" && plan.plan === "CONSULTORIO"))
   ) {
     return (
       <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">

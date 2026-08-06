@@ -511,25 +511,10 @@ export async function processMercadoPagoSubscriptionForWebhook(params: {
     };
   }
 
-  if (parsed.planCode !== "INDEPENDIENTE") {
-    console.info("[mercadopago:webhook] Ignored non-MVP plan", {
-      accountId: parsed.accountId,
-      planCode: parsed.planCode,
-      providerSubscriptionId: providerSubscription.id,
-    });
-
-    return {
-      accountId: parsed.accountId,
-      applied: false,
-      planCode: parsed.planCode,
-      reason: "non_mvp_plan",
-      providerSubscriptionId: providerSubscription.id,
-    };
-  }
-
   const updateResult = await applyMercadoPagoSubscriptionToAccount({
     accountId: parsed.accountId,
-    accountType: "KINESIOLOGO",
+    accountType:
+      parsed.planCode === "CONSULTORIO" ? "CONSULTORIO" : "KINESIOLOGO",
     admin,
     planCode: parsed.planCode,
     providerSubscription,

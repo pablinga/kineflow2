@@ -13,9 +13,7 @@ import type { InternalSubscriptionStatus } from "@/lib/billing";
 function normalizePlan(value: unknown): CommercialPlan {
   if (
     value === "INDEPENDIENTE" ||
-    value === "CONSULTORIO_2" ||
-    value === "CONSULTORIO_5" ||
-    value === "CONSULTORIO_10"
+    value === "CONSULTORIO"
   ) {
     return value;
   }

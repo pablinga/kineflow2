@@ -285,7 +285,7 @@ export default function NewAppointmentPage() {
   const clinicPlanBlocked =
     effectiveAccountType === "CONSULTORIO" &&
     plan.plan !== "FREE" &&
-    !(plan.estadoPlan === "ACTIVO" && plan.plan.startsWith("CONSULTORIO_"));
+    !(plan.estadoPlan === "ACTIVO" && plan.plan === "CONSULTORIO");
   const patientLimitBlock =
     activeWorkspace?.type === "CLINICA"
       ? null

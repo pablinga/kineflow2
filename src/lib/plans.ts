@@ -2,12 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { Building2, UserRound, UsersRound } from "lucide-react";
 import { formatMonto } from "@/lib/format";
 
-export type CommercialPlan =
-  | "FREE"
-  | "INDEPENDIENTE"
-  | "CONSULTORIO_2"
-  | "CONSULTORIO_5"
-  | "CONSULTORIO_10";
+export type CommercialPlan = "FREE" | "INDEPENDIENTE" | "CONSULTORIO";
 export type PlanStatus = "ACTIVO" | "PENDIENTE" | "VENCIDO" | "CANCELADO";
 
 export type PlanDefinition = {
@@ -28,9 +23,7 @@ export type PlanDefinition = {
 
 export const FREE_PATIENT_LIMIT = 5;
 export const INDEPENDENT_PLAN_PRICE = 15000;
-export const CONSULTORIO_2_PRICE = 29900;
-export const CONSULTORIO_5_PRICE = 49900;
-export const CONSULTORIO_10_PRICE = 79900;
+export const CONSULTORIO_PRICE = 30000;
 
 export const plans: PlanDefinition[] = [
   {
@@ -60,14 +53,14 @@ export const plans: PlanDefinition[] = [
     priceAmount: INDEPENDENT_PLAN_PRICE,
     limit: "Pacientes ilimitados",
     audience:
-      "Para kinesiólogos que trabajan de forma independiente y quieren organizar su agenda, pacientes, sesiones y cobros desde un solo lugar.",
+      "Para kinesiologos que trabajan de forma independiente y quieren organizar su agenda, pacientes, sesiones y cobros desde un solo lugar.",
     features: [
       "Pacientes ilimitados",
       "Agenda simple para organizar turnos",
       "Registro de sesiones",
-      "Evolución de cada tratamiento",
+      "Evolucion de cada tratamiento",
       "Control de cobros y pagos pendientes",
-      "Información ordenada y fácil de consultar",
+      "Informacion ordenada y facil de consultar",
       "Pensado para usar desde el celular",
     ],
     cta: "Activar plan",
@@ -78,64 +71,26 @@ export const plans: PlanDefinition[] = [
     icon: UsersRound,
   },
   {
-    id: "CONSULTORIO_2",
-    name: "Plan Consultorio 2",
-    price: `${formatMonto(CONSULTORIO_2_PRICE)}/mes`,
-    priceAmount: CONSULTORIO_2_PRICE,
-    limit: "Hasta 2 kinesiólogos activos",
+    id: "CONSULTORIO",
+    name: "Plan Consultorio",
+    price: `${formatMonto(CONSULTORIO_PRICE)}/mes`,
+    priceAmount: CONSULTORIO_PRICE,
+    limit: "Sin limite de kinesiologos",
     audience:
       "Para consultorios y centros de rehabilitacion que necesitan administrar pacientes, agenda multi-profesional e ingresos por profesional.",
     features: [
       "Gestion de pacientes del consultorio",
       "Agenda multi-profesional",
-      "Búsqueda de kinesiólogos por matrícula",
-      "Invitación de kinesiólogos registrados",
-      "Reportes e ingresos del consultorio",
-    ],
-    cta: "Consultar / Contratar",
-    href: "/registro?plan=CONSULTORIO_2",
-    patientLimit: null,
-    kinesiologistCount: 2,
-    icon: Building2,
-  },
-  {
-    id: "CONSULTORIO_5",
-    name: "Plan Consultorio 5",
-    price: `${formatMonto(CONSULTORIO_5_PRICE)}/mes`,
-    priceAmount: CONSULTORIO_5_PRICE,
-    limit: "Hasta 5 kinesiólogos activos",
-    audience:
-      "Para consultorios que necesitan ampliar su equipo sin perder control de agenda, pacientes e ingresos.",
-    features: [
-      "Todo lo del Plan Consultorio 2",
-      "Hasta 5 kinesiólogos activos",
-      "Agenda multi-profesional ampliada",
-      "Reportes e ingresos por profesional",
-    ],
-    cta: "Contratar plan",
-    href: "/registro?plan=CONSULTORIO_5",
-    patientLimit: null,
-    kinesiologistCount: 5,
-    icon: Building2,
-  },
-  {
-    id: "CONSULTORIO_10",
-    name: "Plan Consultorio 10",
-    price: `${formatMonto(CONSULTORIO_10_PRICE)}/mes`,
-    priceAmount: CONSULTORIO_10_PRICE,
-    limit: "Hasta 10 kinesiólogos activos",
-    audience:
-      "Para centros con equipos grandes que necesitan operar agenda, pacientes e ingresos en una sola cuenta.",
-    features: [
-      "Todo lo del Plan Consultorio 5",
-      "Hasta 10 kinesiólogos activos",
+      "Busqueda de kinesiologos por matricula",
+      "Invitacion de kinesiologos registrados",
       "Control de sesiones por profesional",
-      "Escala para centros y clinicas",
+      "Reportes e ingresos del consultorio",
+      "Escala para equipos y clinicas",
     ],
     cta: "Contratar plan",
-    href: "/registro?plan=CONSULTORIO_10",
+    href: "/registro?plan=CONSULTORIO",
     patientLimit: null,
-    kinesiologistCount: 10,
+    kinesiologistCount: -1,
     icon: Building2,
   },
 ];
