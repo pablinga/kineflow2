@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { AuthSessionProvider } from "@/contexts/AuthSessionContext";
+import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 import { PwaServiceWorkerRegistration } from "@/components/PwaServiceWorkerRegistration";
 import "./globals.css";
 
@@ -41,6 +42,7 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <AuthSessionProvider>{children}</AuthSessionProvider>
         <PwaServiceWorkerRegistration />
+        <PwaInstallPrompt />
         <Analytics />
       </body>
     </html>
