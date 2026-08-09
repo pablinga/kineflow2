@@ -300,7 +300,7 @@ async function getBookedAppointments(
   const toExclusiveIso = new Date(`${to}T00:00:00${TIME_ZONE_OFFSET}`);
   toExclusiveIso.setUTCDate(toExclusiveIso.getUTCDate() + 1);
 
-  let query = admin
+  const query = admin
     .from("appointments")
     .select("scheduled_at, duration_minutes")
     .eq("owner_id", context.ownerId)
