@@ -70,13 +70,6 @@ const navigation = {
   Array<{ href: string; label: string; icon: typeof Home }>
 >;
 
-const mobileNavigationOrder = [
-  "/dashboard",
-  "/dashboard/turnos",
-  "/dashboard/pacientes",
-  "/dashboard/planes",
-];
-
 function clearSupabaseLocalSession() {
   if (typeof window === "undefined") {
     return;
@@ -123,6 +116,20 @@ export function DashboardSidebar() {
   } = useActiveWorkspace();
   const effectiveAccountType =
     activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
+  const mobileNavigationOrder =
+    effectiveAccountType === "CONSULTORIO"
+      ? [
+          "/dashboard",
+          "/dashboard/turnos",
+          "/dashboard/pacientes",
+          "/dashboard/equipo",
+        ]
+      : [
+          "/dashboard",
+          "/dashboard/turnos",
+          "/dashboard/pacientes",
+          "/dashboard/planes",
+        ];
   const isClinicAdmin =
     activeWorkspace?.type === "CLINICA" && activeWorkspace.role === "ADMIN";
   const baseNavigation =
@@ -293,20 +300,6 @@ export function DashboardSidebar() {
             );
           })}
         </nav>
-        <div className="space-y-2 lg:hidden">
-          <p className="px-1 text-xs font-bold uppercase tracking-wide text-slate-400">
-            Cuenta
-          </p>
-          <Link
-            className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-slate-600 transition hover:bg-ocean-50 hover:text-ocean-800"
-            href="/dashboard/planes"
-            onClick={() => setOpen(false)}
-            prefetch={false}
-          >
-            <CreditCard className="h-5 w-5" />
-            Mi plan
-          </Link>
-        </div>
         <button
           className={`mt-5 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-80 lg:mt-8 ${
             loggingOut
