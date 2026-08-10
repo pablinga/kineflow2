@@ -1,7 +1,14 @@
 "use client";
 
 import { use, useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, CheckCircle, Clock, UserRound } from "lucide-react";
+import {
+  CalendarDays,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  UserRound,
+} from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
@@ -57,6 +64,13 @@ function formatSlotDate(dateValue: string) {
     day: "2-digit",
     month: "long",
     weekday: "long",
+  });
+}
+
+function formatRangeDate(dateValue: string) {
+  return new Date(`${dateValue}T12:00:00`).toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "long",
   });
 }
 
@@ -124,10 +138,18 @@ export default function PublicBookingPage({ params }: PageProps) {
     loadProfessionals();
   }, [workspaceId]);
 
+  const todayDate = toDateValue(new Date());
   const toDate = useMemo(
-    () => toDateValue(addDays(new Date(`${fromDate}T12:00:00`), 13)),
+    () => toDateValue(addDays(new Date(`${fromDate}T12:00:00`), 6)),
     [fromDate],
   );
+  const previousWeekEnd = toDateValue(
+    addDays(new Date(`${fromDate}T12:00:00`), -1),
+  );
+  const canGoToPreviousWeek = previousWeekEnd >= todayDate;
+  const weekRangeLabel = `Semana del ${formatRangeDate(
+    fromDate,
+  )} al ${formatRangeDate(toDate)}`;
 
   const loadAvailability = useCallback(async () => {
     if (!workspaceId || !professionalId) {
@@ -185,6 +207,22 @@ export default function PublicBookingPage({ params }: PageProps) {
     : workspace?.type === "PERSONAL" && professionals[0]?.name
       ? `Reservá un turno con ${professionals[0].name}`
       : workspace?.name ?? "KineFlow";
+
+  function goToPreviousWeek() {
+    if (!canGoToPreviousWeek) {
+      return;
+    }
+
+    setFromDate((current) =>
+      toDateValue(addDays(new Date(`${current}T12:00:00`), -7)),
+    );
+  }
+
+  function goToNextWeek() {
+    setFromDate((current) =>
+      toDateValue(addDays(new Date(`${current}T12:00:00`), 7)),
+    );
+  }
 
   async function submitBooking(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -321,13 +359,30 @@ export default function PublicBookingPage({ params }: PageProps) {
                         Mostramos únicamente franjas libres.
                       </p>
                     </div>
-                    <input
-                      className="min-h-11 rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                      min={toDateValue(new Date())}
-                      onChange={(event) => setFromDate(event.target.value)}
-                      type="date"
-                      value={fromDate}
-                    />
+                    <div className="flex flex-col gap-2 sm:items-end">
+                      <p className="text-sm font-bold text-ink">
+                        {weekRangeLabel}
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-100 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={!canGoToPreviousWeek}
+                          onClick={goToPreviousWeek}
+                          type="button"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Semana anterior
+                        </button>
+                        <button
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-100 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                          onClick={goToNextWeek}
+                          type="button"
+                        >
+                          Semana siguiente
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   {loadingSlots ? (

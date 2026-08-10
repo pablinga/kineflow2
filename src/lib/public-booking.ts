@@ -62,6 +62,50 @@ const VALID_DURATIONS = new Set([30, 45, 60, 90]);
 const TIME_ZONE_OFFSET = "-03:00";
 const ACTIVE_APPOINTMENT_STATUSES = ["pending", "confirmed", "rescheduled"];
 
+// TODO(enero de cada año): actualizar esta lista contra el calendario oficial
+// argentino. Los feriados móviles, turísticos y traslados por decreto cambian
+// cada año y deben revisarse manualmente antes de usar en producción.
+const ARGENTINA_HOLIDAYS = new Set<string>([
+  // 2026 - feriados nacionales inamovibles y móviles.
+  "2026-01-01",
+  "2026-02-16",
+  "2026-02-17",
+  "2026-03-24",
+  "2026-04-02",
+  "2026-04-03",
+  "2026-05-01",
+  "2026-05-25",
+  "2026-06-15",
+  "2026-06-20",
+  "2026-07-09",
+  "2026-08-17",
+  "2026-10-12",
+  "2026-11-23",
+  "2026-12-08",
+  "2026-12-25",
+  // 2026 - días puente/turísticos confirmados por Resolución 164/2025.
+  "2026-03-23",
+  "2026-07-10",
+  "2026-12-07",
+  // 2027 - feriados calculables; revisar traslados/puentes cuando se publique el calendario oficial.
+  "2027-01-01",
+  "2027-02-08",
+  "2027-02-09",
+  "2027-03-24",
+  "2027-03-26",
+  "2027-04-02",
+  "2027-05-01",
+  "2027-05-25",
+  "2027-06-20",
+  "2027-06-21",
+  "2027-07-09",
+  "2027-08-16",
+  "2027-10-11",
+  "2027-11-20",
+  "2027-12-08",
+  "2027-12-25",
+]);
+
 function normalizeTime(value: string) {
   return value.slice(0, 5);
 }
@@ -341,6 +385,10 @@ export async function getFreeSlots(params: {
     currentDate = addDays(currentDate, 1)
   ) {
     const date = formatDateValue(currentDate);
+    if (ARGENTINA_HOLIDAYS.has(date)) {
+      continue;
+    }
+
     const weekday = getWeekday(date);
     const dayAvailability = availability.filter((item) => {
       if (item.weekday !== weekday) {
