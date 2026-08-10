@@ -3,9 +3,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type WorkspaceType = "PERSONAL" | "CLINICA";
 
 export type PublicBookingWorkspace = {
+  address: string | null;
+  email: string | null;
   id: string;
   name: string;
   owner_id: string | null;
+  phone: string | null;
   source_clinic_id: string | null;
   type: WorkspaceType;
 };
@@ -175,7 +178,7 @@ export async function getWorkspace(
 ) {
   const { data, error } = await admin
     .from("workspaces")
-    .select("id, name, owner_id, source_clinic_id, type")
+    .select("id, name, address, phone, email, owner_id, source_clinic_id, type")
     .eq("id", workspaceId)
     .maybeSingle();
 

@@ -18,8 +18,11 @@ type PageProps = {
 };
 
 type Workspace = {
+  address: string | null;
+  email: string | null;
   id: string;
   name: string;
+  phone: string | null;
   type: "PERSONAL" | "CLINICA";
 };
 
@@ -83,6 +86,10 @@ function getMondayOfWeek(dateValue: string) {
   const diffToMonday = day === 0 ? -6 : 1 - day;
 
   return toDateValue(addDays(date, diffToMonday));
+}
+
+function capitalizeFirst(text: string) {
+  return text.length > 0 ? text[0].toUpperCase() + text.slice(1) : text;
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -221,6 +228,8 @@ export default function PublicBookingPage({ params }: PageProps) {
       ? `Reservá un turno con ${professionals[0].name}`
       : workspace?.name ?? "KineFlow";
 
+  const rescheduleContact = workspace?.phone || workspace?.email || "";
+
   function goToPreviousWeek() {
     if (!canGoToPreviousWeek) {
       return;
@@ -299,11 +308,22 @@ export default function PublicBookingPage({ params }: PageProps) {
             Tu reserva quedó registrada. No hace falta que hagas nada más.
           </p>
           <div className="mt-6 rounded-lg border border-ocean-100 bg-ocean-50 p-4 text-sm text-ocean-900">
-            <p className="font-bold">{confirmation.professionalName}</p>
-            <p className="mt-2 capitalize">{confirmation.date}</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Profesional
+            </p>
+            <p className="mt-1 font-bold">{confirmation.professionalName}</p>
+            <p className="mt-2">{capitalizeFirst(confirmation.date)}</p>
             <p className="mt-1">
               {confirmation.time} · {confirmation.durationMinutes} minutos
             </p>
+            {workspace?.address ? (
+              <p className="mt-2">📍 {workspace.address}</p>
+            ) : null}
+            {rescheduleContact ? (
+              <p className="mt-4 text-slate-700">
+                Para reprogramar o cancelar, comunicate al {rescheduleContact}.
+              </p>
+            ) : null}
           </div>
         </section>
       </main>

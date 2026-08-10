@@ -32,8 +32,11 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({
       professionals,
       workspace: {
+        address: workspace.address,
+        email: workspace.email,
         id: workspace.id,
         name: workspace.name,
+        phone: workspace.phone,
         type: workspace.type,
       },
     });
