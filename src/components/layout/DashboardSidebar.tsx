@@ -270,7 +270,7 @@ export function DashboardSidebar() {
             )}
           </div>
         ) : null}
-        <nav className="hidden space-y-1 lg:block">
+        <nav className="space-y-1">
           {visibleNavigation.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
