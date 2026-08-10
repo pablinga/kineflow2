@@ -177,6 +177,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
         .single();
 
       if (insertPatientError) {
+        const isPlanLimitError = insertPatientError.message?.includes(
+          "El Plan Free permite hasta",
+        );
+
+        if (isPlanLimitError) {
+          return NextResponse.json(
+            {
+              error:
+                "Este profesional no puede recibir nuevas reservas en este momento. Contactalo directamente para coordinar tu turno.",
+            },
+            { status: 409 },
+          );
+        }
+
         throw new Error("No pudimos crear el paciente.");
       }
 
