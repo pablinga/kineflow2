@@ -9,6 +9,7 @@ import {
   CalendarDays,
   CreditCard,
   ChevronsUpDown,
+  DollarSign,
   Home,
   Loader2,
   LogOut,
@@ -16,7 +17,6 @@ import {
   PanelLeftClose,
   Users,
   UsersRound,
-  WalletCards,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -54,7 +54,7 @@ const navigation = {
       label: "Mis consultorios",
       icon: Building2,
     },
-    { href: "/dashboard/ingresos", label: "Ingresos", icon: WalletCards },
+    { href: "/dashboard/ingresos", label: "Ingresos", icon: DollarSign },
     { href: "/dashboard/planes", label: "Plan", icon: CreditCard },
   ],
   CONSULTORIO: [
@@ -62,7 +62,7 @@ const navigation = {
     { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
     { href: "/dashboard/equipo", label: "Equipo", icon: UsersRound },
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
-    { href: "/dashboard/ingresos", label: "Ingresos", icon: WalletCards },
+    { href: "/dashboard/ingresos", label: "Ingresos", icon: DollarSign },
     { href: "/dashboard/planes", label: "Plan", icon: CreditCard },
   ],
 } satisfies Record<
@@ -128,7 +128,7 @@ export function DashboardSidebar() {
           "/dashboard",
           "/dashboard/turnos",
           "/dashboard/pacientes",
-          "/dashboard/planes",
+          "/dashboard/ingresos",
         ];
   const isClinicAdmin =
     activeWorkspace?.type === "CLINICA" && activeWorkspace.role === "ADMIN";
