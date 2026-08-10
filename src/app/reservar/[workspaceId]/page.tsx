@@ -180,6 +180,11 @@ export default function PublicBookingPage({ params }: PageProps) {
   const selectedProfessional = professionals.find(
     (professional) => professional.id === professionalId,
   );
+  const bookingTitle = loadingProfessionals
+    ? "Cargando..."
+    : workspace?.type === "PERSONAL" && professionals[0]?.name
+      ? `Reservá un turno con ${professionals[0].name}`
+      : workspace?.name ?? "KineFlow";
 
   async function submitBooking(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -260,7 +265,7 @@ export default function PublicBookingPage({ params }: PageProps) {
               Reserva de turno
             </p>
             <h1 className="mt-1 text-3xl font-bold text-ink">
-              {workspace?.name ?? "KineFlow"}
+              {bookingTitle}
             </h1>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Elegí un horario disponible y completá tus datos para confirmar.
@@ -297,6 +302,11 @@ export default function PublicBookingPage({ params }: PageProps) {
                         </option>
                       ))}
                     </select>
+                    {selectedProfessional ? (
+                      <p className="mt-2 text-sm font-semibold text-ocean-800">
+                        Profesional seleccionado: {selectedProfessional.name}
+                      </p>
+                    ) : null}
                   </section>
                 ) : null}
 
