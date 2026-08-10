@@ -68,10 +68,21 @@ function formatSlotDate(dateValue: string) {
 }
 
 function formatRangeDate(dateValue: string) {
-  return new Date(`${dateValue}T12:00:00`).toLocaleDateString("es-AR", {
+  const date = new Date(`${dateValue}T12:00:00`);
+
+  return date.toLocaleDateString("es-AR", {
     day: "2-digit",
-    month: "long",
+    month: "2-digit",
+    year: "numeric",
   });
+}
+
+function getMondayOfWeek(dateValue: string) {
+  const date = new Date(`${dateValue}T12:00:00`);
+  const day = date.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+
+  return toDateValue(addDays(date, diffToMonday));
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -87,7 +98,9 @@ export default function PublicBookingPage({ params }: PageProps) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [professionalId, setProfessionalId] = useState("");
-  const [fromDate, setFromDate] = useState(() => toDateValue(new Date()));
+  const [fromDate, setFromDate] = useState(() =>
+    getMondayOfWeek(toDateValue(new Date())),
+  );
   const [slots, setSlots] = useState<FreeSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<FreeSlot | null>(null);
   const [form, setForm] = useState({
@@ -140,7 +153,7 @@ export default function PublicBookingPage({ params }: PageProps) {
 
   const todayDate = toDateValue(new Date());
   const toDate = useMemo(
-    () => toDateValue(addDays(new Date(`${fromDate}T12:00:00`), 6)),
+    () => toDateValue(addDays(new Date(`${fromDate}T12:00:00`), 4)),
     [fromDate],
   );
   const previousWeekEnd = toDateValue(
@@ -214,13 +227,17 @@ export default function PublicBookingPage({ params }: PageProps) {
     }
 
     setFromDate((current) =>
-      toDateValue(addDays(new Date(`${current}T12:00:00`), -7)),
+      getMondayOfWeek(
+        toDateValue(addDays(new Date(`${current}T12:00:00`), -7)),
+      ),
     );
   }
 
   function goToNextWeek() {
     setFromDate((current) =>
-      toDateValue(addDays(new Date(`${current}T12:00:00`), 7)),
+      getMondayOfWeek(
+        toDateValue(addDays(new Date(`${current}T12:00:00`), 7)),
+      ),
     );
   }
 
