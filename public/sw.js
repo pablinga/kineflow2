@@ -12,7 +12,11 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL_ASSETS))
+      .then((cache) =>
+        Promise.allSettled(
+          APP_SHELL_ASSETS.map((asset) => cache.add(asset).catch(() => null)),
+        ),
+      )
       .then(() => self.skipWaiting()),
   );
 });
@@ -34,22 +38,22 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
+
+  if (request.method !== "GET") {
+    return;
+  }
+
   const url = new URL(request.url);
 
-  if (
-    request.method !== "GET" ||
-    url.origin !== self.location.origin ||
-    url.pathname.startsWith("/api/")
-  ) {
+  if (url.origin !== self.location.origin) {
     return;
   }
 
-  if (APP_SHELL_ASSETS.includes(url.pathname)) {
-    event.respondWith(
-      caches.match(request).then((cachedResponse) => cachedResponse || fetch(request)),
-    );
+  if (!APP_SHELL_ASSETS.includes(url.pathname)) {
     return;
   }
 
-  event.respondWith(fetch(request));
+  event.respondWith(
+    caches.match(request).then((cachedResponse) => cachedResponse || fetch(request)),
+  );
 });
