@@ -6,10 +6,10 @@ import {
   CalendarPlus,
   ClipboardPlus,
   CreditCard,
+  DollarSign,
   UserRound,
   Search,
   UsersRound,
-  WalletCards,
 } from "lucide-react";
 import { PendingClinicInvitationsBanner } from "@/components/dashboard/PendingClinicInvitationsBanner";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
@@ -67,7 +67,8 @@ function getPaymentBadge(appointment: { amount: number; paymentStatus: string; p
 }
 
 export default function DashboardPage() {
-  const { authError, displayName, loading, redirecting, user } = useRequireAuth();
+  const { accountType, authError, displayName, loading, redirecting, user } =
+    useRequireAuth();
   const {
     activeWorkspace,
     loaded: workspaceLoaded,
@@ -116,6 +117,7 @@ export default function DashboardPage() {
 
   const currentPlanName = getPlanDisplayName(plan.plan);
   const isClinicWorkspace = activeWorkspace?.type === "CLINICA";
+  const effectiveAccountType = isClinicWorkspace ? "CONSULTORIO" : accountType;
   const patientLimitBlock = isClinicWorkspace
     ? null
     : getPatientPlanLimitBlock({
@@ -132,6 +134,32 @@ export default function DashboardPage() {
   const actionRequired = summary.actionRequired;
   const paymentActionRequired = summary.paymentActionRequired;
   const nextAppointment = upcomingAppointments[0];
+  const quickAccessItems = [
+    {
+      label: "Nuevo paciente",
+      href: "/dashboard/pacientes?nuevo=1",
+      icon: UsersRound,
+    },
+    {
+      label: "Nuevo turno",
+      href: "/dashboard/turnos/nuevo",
+      icon: CalendarPlus,
+    },
+    {
+      label: "Registrar evolución",
+      href: "/dashboard/pacientes",
+      icon: ClipboardPlus,
+    },
+    ...(effectiveAccountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE"
+      ? []
+      : [
+          {
+            label: "Ver ingresos",
+            href: "/dashboard/ingresos",
+            icon: DollarSign,
+          },
+        ]),
+  ];
 
   const summaryCards = [
     {
@@ -415,28 +443,7 @@ export default function DashboardPage() {
               <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card">
                 <h2 className="text-lg font-bold text-ink">Accesos rápidos</h2>
                 <div className="mt-4 grid gap-2">
-                  {[
-                    {
-                      label: "Nuevo paciente",
-                      href: "/dashboard/pacientes?nuevo=1",
-                      icon: UsersRound,
-                    },
-                    {
-                      label: "Nuevo turno",
-                      href: "/dashboard/turnos/nuevo",
-                      icon: CalendarPlus,
-                    },
-                    {
-                      label: "Registrar evolución",
-                      href: "/dashboard/pacientes",
-                      icon: ClipboardPlus,
-                    },
-                    {
-                      label: "Ver ingresos",
-                      href: "/dashboard/ingresos",
-                      icon: WalletCards,
-                    },
-                  ].map((item) => {
+                  {quickAccessItems.map((item) => {
                     const Icon = item.icon;
                     const blockedByPatientLimit =
                       Boolean(patientLimitBlock) &&
