@@ -6,7 +6,6 @@ export type PublicBookingWorkspace = {
   address: string | null;
   email: string | null;
   id: string;
-  min_booking_notice_hours: number | null;
   name: string;
   owner_id: string | null;
   phone: string | null;
@@ -168,6 +167,18 @@ function getProfileName(profile: ProfileRow | ProfileRow[] | null) {
   return row?.full_name?.trim() || null;
 }
 
+function formatArgentinaDateValue(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+  }).formatToParts(date);
+  const values = new Map(parts.map((part) => [part.type, part.value]));
+
+  return `${values.get("year")}-${values.get("month")}-${values.get("day")}`;
+}
+
 export function normalizeDocumentNumber(value: string) {
   return value.replace(/\D/g, "");
 }
@@ -184,7 +195,7 @@ export async function getWorkspace(
   const { data, error } = await admin
     .from("workspaces")
     .select(
-      "id, name, address, phone, email, owner_id, source_clinic_id, type, min_booking_notice_hours",
+      "id, name, address, phone, email, owner_id, source_clinic_id, type",
     )
     .eq("id", workspaceId)
     .maybeSingle();
@@ -417,11 +428,7 @@ export async function getFreeSlots(params: {
   ]);
   const fromDate = new Date(`${params.from}T00:00:00.000Z`);
   const toDate = new Date(`${params.to}T00:00:00.000Z`);
-  const minBookingNoticeHours = Math.max(
-    0,
-    params.context.workspace.min_booking_notice_hours ?? 0,
-  );
-  const minStartTime = Date.now() + minBookingNoticeHours * 60 * 60 * 1000;
+  const todayDate = formatArgentinaDateValue(new Date());
   const slots: FreeSlot[] = [];
 
   for (
@@ -430,7 +437,11 @@ export async function getFreeSlots(params: {
     currentDate = addDays(currentDate, 1)
   ) {
     const date = formatDateValue(currentDate);
-    if (ARGENTINA_HOLIDAYS.has(date) || blockedDates.has(date)) {
+    if (
+      date <= todayDate ||
+      ARGENTINA_HOLIDAYS.has(date) ||
+      blockedDates.has(date)
+    ) {
       continue;
     }
 
@@ -474,7 +485,7 @@ export async function getFreeSlots(params: {
           ),
         );
 
-        if (!isBooked && startTime >= minStartTime) {
+        if (!isBooked) {
           slots.push({
             date,
             end,
