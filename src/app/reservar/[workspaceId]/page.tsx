@@ -70,13 +70,10 @@ function formatSlotDate(dateValue: string) {
   });
 }
 
-function formatRangeDate(dateValue: string) {
-  const date = new Date(`${dateValue}T12:00:00`);
-
-  return date.toLocaleDateString("es-AR", {
+function formatShortDate(dateValue: string) {
+  return new Date(`${dateValue}T12:00:00`).toLocaleDateString("es-AR", {
     day: "2-digit",
     month: "2-digit",
-    year: "numeric",
   });
 }
 
@@ -167,9 +164,7 @@ export default function PublicBookingPage({ params }: PageProps) {
     addDays(new Date(`${fromDate}T12:00:00`), -1),
   );
   const canGoToPreviousWeek = previousWeekEnd >= todayDate;
-  const weekRangeLabel = `Semana del ${formatRangeDate(
-    fromDate,
-  )} al ${formatRangeDate(toDate)}`;
+  const weekRangeLabel = `${formatShortDate(fromDate)} al ${formatShortDate(toDate)}`;
 
   const loadAvailability = useCallback(async () => {
     if (!workspaceId || !professionalId) {
@@ -408,14 +403,14 @@ export default function PublicBookingPage({ params }: PageProps) {
                           type="button"
                         >
                           <ChevronLeft className="h-4 w-4" />
-                          Semana anterior
+                          Anterior
                         </button>
                         <button
                           className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-100 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
                           onClick={goToNextWeek}
                           type="button"
                         >
-                          Semana siguiente
+                          Siguiente
                           <ChevronRight className="h-4 w-4" />
                         </button>
                       </div>
