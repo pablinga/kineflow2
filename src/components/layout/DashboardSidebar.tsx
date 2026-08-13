@@ -15,6 +15,7 @@ import {
   LogOut,
   Menu,
   PanelLeftClose,
+  Settings,
   Users,
   UsersRound,
 } from "lucide-react";
@@ -55,6 +56,7 @@ const navigation = {
       icon: Building2,
     },
     { href: "/dashboard/ingresos", label: "Ingresos", icon: DollarSign },
+    { href: "/dashboard/configuracion", label: "Configuracion", icon: Settings },
     { href: "/dashboard/planes", label: "Plan", icon: CreditCard },
   ],
   CONSULTORIO: [
@@ -63,6 +65,7 @@ const navigation = {
     { href: "/dashboard/equipo", label: "Equipo", icon: UsersRound },
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
     { href: "/dashboard/ingresos", label: "Ingresos", icon: DollarSign },
+    { href: "/dashboard/configuracion", label: "Configuracion", icon: Settings },
     { href: "/dashboard/planes", label: "Plan", icon: CreditCard },
   ],
 } satisfies Record<

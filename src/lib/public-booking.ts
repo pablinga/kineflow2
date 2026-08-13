@@ -6,6 +6,7 @@ export type PublicBookingWorkspace = {
   address: string | null;
   email: string | null;
   id: string;
+  min_booking_notice_hours: number | null;
   name: string;
   owner_id: string | null;
   phone: string | null;
@@ -50,6 +51,10 @@ type AvailabilityRow = {
 type AppointmentSlotRow = {
   duration_minutes: number;
   scheduled_at: string;
+};
+
+type WorkspaceBlockedDateRow = {
+  blocked_date: string;
 };
 
 export type FreeSlot = {
@@ -178,7 +183,9 @@ export async function getWorkspace(
 ) {
   const { data, error } = await admin
     .from("workspaces")
-    .select("id, name, address, phone, email, owner_id, source_clinic_id, type")
+    .select(
+      "id, name, address, phone, email, owner_id, source_clinic_id, type, min_booking_notice_hours",
+    )
     .eq("id", workspaceId)
     .maybeSingle();
 
@@ -364,6 +371,28 @@ async function getBookedAppointments(
   return (data ?? []) as AppointmentSlotRow[];
 }
 
+async function getWorkspaceBlockedDates(
+  admin: SupabaseClient,
+  workspaceId: string,
+  from: string,
+  to: string,
+) {
+  const { data, error } = await admin
+    .from("workspace_blocked_dates")
+    .select("blocked_date")
+    .eq("workspace_id", workspaceId)
+    .gte("blocked_date", from)
+    .lte("blocked_date", to);
+
+  if (error) {
+    throw new Error("No pudimos revisar los dias bloqueados.");
+  }
+
+  return new Set(
+    ((data ?? []) as WorkspaceBlockedDateRow[]).map((row) => row.blocked_date),
+  );
+}
+
 export async function getFreeSlots(params: {
   admin: SupabaseClient;
   context: BookingContext;
@@ -372,14 +401,27 @@ export async function getFreeSlots(params: {
   to: string;
 }) {
   const availability = await getAvailabilityRows(params.admin, params.context);
-  const bookedAppointments = await getBookedAppointments(
-    params.admin,
-    params.context,
-    params.from,
-    params.to,
-  );
+  const [bookedAppointments, blockedDates] = await Promise.all([
+    getBookedAppointments(
+      params.admin,
+      params.context,
+      params.from,
+      params.to,
+    ),
+    getWorkspaceBlockedDates(
+      params.admin,
+      params.context.workspace.id,
+      params.from,
+      params.to,
+    ),
+  ]);
   const fromDate = new Date(`${params.from}T00:00:00.000Z`);
   const toDate = new Date(`${params.to}T00:00:00.000Z`);
+  const minBookingNoticeHours = Math.max(
+    0,
+    params.context.workspace.min_booking_notice_hours ?? 0,
+  );
+  const minStartTime = Date.now() + minBookingNoticeHours * 60 * 60 * 1000;
   const slots: FreeSlot[] = [];
 
   for (
@@ -388,7 +430,7 @@ export async function getFreeSlots(params: {
     currentDate = addDays(currentDate, 1)
   ) {
     const date = formatDateValue(currentDate);
-    if (ARGENTINA_HOLIDAYS.has(date)) {
+    if (ARGENTINA_HOLIDAYS.has(date) || blockedDates.has(date)) {
       continue;
     }
 
@@ -432,7 +474,7 @@ export async function getFreeSlots(params: {
           ),
         );
 
-        if (!isBooked && startTime > Date.now()) {
+        if (!isBooked && startTime >= minStartTime) {
           slots.push({
             date,
             end,
