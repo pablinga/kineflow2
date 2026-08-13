@@ -92,7 +92,6 @@ export type DashboardSummary = {
   pendingPaymentAmount: number;
   pendingPaymentCount: number;
   recentPatients: DashboardPatient[];
-  totalPatientCount: number;
   upcomingAppointments: DashboardAppointment[];
 };
 
@@ -105,7 +104,6 @@ const emptySummary: DashboardSummary = {
   pendingPaymentAmount: 0,
   pendingPaymentCount: 0,
   recentPatients: [],
-  totalPatientCount: 0,
   upcomingAppointments: [],
 };
 
@@ -331,13 +329,6 @@ export function useDashboardSummary() {
         return scopedQuery as T;
       }
 
-      const patientCountQuery = canViewPatients
-        ? applyPatientScope(
-            supabase
-              .from("patients")
-              .select("id", { count: "exact", head: true }),
-          )
-        : null;
       const activePatientCountQuery = canViewPatients
         ? applyPatientScope(
             supabase
@@ -414,9 +405,8 @@ export function useDashboardSummary() {
           ),
       );
 
-      queryCount += canViewPatients ? 9 : 6;
+      queryCount += canViewPatients ? 8 : 6;
       const [
-        patientCountResult,
         activePatientCountResult,
         recentPatientsResult,
         appointmentsTodayResult,
@@ -426,7 +416,6 @@ export function useDashboardSummary() {
         pendingPaymentAmountResult,
         monthIncomeResult,
       ] = await Promise.all([
-        patientCountQuery,
         activePatientCountQuery,
         recentPatientsQuery,
         appointmentsTodayQuery,
@@ -438,7 +427,6 @@ export function useDashboardSummary() {
       ]);
 
       const possibleErrors = [
-        patientCountResult?.error,
         activePatientCountResult?.error,
         recentPatientsResult?.error,
         appointmentsTodayResult.error,
@@ -472,7 +460,6 @@ export function useDashboardSummary() {
         recentPatients: (
           (recentPatientsResult?.data ?? []) as DashboardPatientRow[]
         ).map(mapPatient),
-        totalPatientCount: patientCountResult?.count ?? 0,
         upcomingAppointments: (
           (upcomingAppointmentsResult.data ?? []) as unknown as DashboardAppointmentRow[]
         ).map(mapAppointment),

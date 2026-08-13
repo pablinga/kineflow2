@@ -174,7 +174,7 @@ export default function DashboardPage() {
       label: "Pacientes activos",
       value: String(summary.activePatientCount),
       detail:
-        summary.totalPatientCount === 0 ? "Sin pacientes cargados" : "En seguimiento",
+        summary.activePatientCount === 0 ? "Sin pacientes cargados" : "En seguimiento",
     },
     {
       label: "Próximo turno",
