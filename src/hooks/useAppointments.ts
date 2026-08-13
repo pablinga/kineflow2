@@ -108,6 +108,10 @@ type AppointmentRow = {
     | { color: string }
     | Array<{ color: string }>
     | null;
+  workspaces:
+    | { color: string }
+    | Array<{ color: string }>
+    | null;
 };
 
 type AvailabilityRow = {
@@ -156,6 +160,9 @@ function mapAppointment(row: AppointmentRow): Appointment {
   const clinicProfessional = Array.isArray(row.clinic_professionals)
     ? row.clinic_professionals[0]
     : row.clinic_professionals;
+  const workspace = Array.isArray(row.workspaces)
+    ? row.workspaces[0]
+    : row.workspaces;
   const origin = row.appointment_origin ?? "independent";
 
   return {
@@ -184,7 +191,7 @@ function mapAppointment(row: AppointmentRow): Appointment {
     originColor:
       origin === "clinic"
         ? clinicProfessional?.color ?? clinic?.color ?? "#14b8a6"
-        : "#0b97dc",
+        : workspace?.color ?? "#0b97dc",
     sessionNumber: row.session_number,
     treatmentId: row.treatment_id,
     amount: Number(row.session_amount ?? 0),
@@ -347,7 +354,7 @@ export function useAppointments(
       let query = supabase
         .from("appointments")
         .select(
-          "id, workspace_id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, payment_status, payment_method, paid_at, payment_notes, patients(full_name), clinics(name, color), clinic_professionals(color)",
+          "id, workspace_id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, payment_status, payment_method, paid_at, payment_notes, patients(full_name), clinics(name, color), clinic_professionals(color), workspaces(color)",
         )
         .order("scheduled_at", { ascending: true });
 

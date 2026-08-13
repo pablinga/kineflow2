@@ -5,6 +5,7 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Building2,
+  CalendarClock,
   CalendarDays,
   CreditCard,
   ChevronsUpDown,
@@ -44,6 +45,11 @@ const navigation = {
     { href: "/dashboard", label: "Inicio", icon: Home },
     { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
+    {
+      href: "/dashboard/disponibilidad",
+      label: "Reservas online",
+      icon: CalendarClock,
+    },
     {
       href: "/dashboard/mis-consultorios",
       label: "Mis consultorios",
