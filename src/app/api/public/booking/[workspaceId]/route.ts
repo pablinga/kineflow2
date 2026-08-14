@@ -6,6 +6,7 @@ import {
   resolveBookingContext,
 } from "@/lib/public-booking";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
+import { formatPhoneToE164, sendWhatsAppMessage } from "@/lib/whatsapp";
 
 type RouteContext = {
   params: Promise<{ workspaceId: string }>;
@@ -22,6 +23,13 @@ type BookingRequestBody = {
   phone?: string;
   professionalId?: string;
   scheduledAt?: string;
+  whatsappConsent?: boolean;
+};
+
+type BookingPatient = {
+  id: string;
+  phone_e164: string | null;
+  whatsapp_consent: boolean | null;
 };
 
 const attempts = new Map<string, { count: number; resetAt: number }>();
@@ -62,6 +70,50 @@ function getFullName(body: BookingRequestBody) {
   );
 }
 
+function formatAppointmentDateTime(scheduledAt: string) {
+  const start = new Date(scheduledAt);
+
+  return {
+    date: start.toLocaleDateString("es-AR", {
+      day: "2-digit",
+      month: "long",
+      timeZone: "America/Argentina/Buenos_Aires",
+      weekday: "long",
+      year: "numeric",
+    }),
+    time: start.toLocaleTimeString("es-AR", {
+      hour: "2-digit",
+      hour12: false,
+      minute: "2-digit",
+      timeZone: "America/Argentina/Buenos_Aires",
+    }),
+  };
+}
+
+async function trackAppointmentNotification(params: {
+  admin: NonNullable<ReturnType<typeof getSupabaseAdminClient>>;
+  appointmentId: string;
+  errorMessage?: string;
+  patientId: string;
+  providerMessageId?: string;
+  status: "sent" | "failed";
+}) {
+  const { error } = await params.admin.from("appointment_notifications").insert({
+    appointment_id: params.appointmentId,
+    error_message: params.errorMessage,
+    notification_type: "confirmation",
+    patient_id: params.patientId,
+    provider: "twilio",
+    provider_message_id: params.providerMessageId,
+    sent_at: params.status === "sent" ? new Date().toISOString() : null,
+    status: params.status,
+  });
+
+  if (error) {
+    console.error("appointment notification tracking failed", error);
+  }
+}
+
 export async function POST(request: NextRequest, context: RouteContext) {
   const { workspaceId } = await context.params;
   const ip = getClientIp(request);
@@ -94,8 +146,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const fullName = getFullName(body);
   const email = normalizeText(body.email).toLowerCase();
   const phone = normalizeText(body.phone);
+  const phoneE164 = formatPhoneToE164(phone);
   const scheduledAt = normalizeText(body.scheduledAt);
   const durationMinutes = normalizeDuration(body.durationMinutes);
+  const whatsappConsent = body.whatsappConsent === true;
 
   if (
     !professionalId ||
@@ -141,7 +195,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const patientQuery = admin
       .from("patients")
-      .select("id")
+      .select("id, phone_e164, whatsapp_consent")
       .eq("workspace_id", bookingContext.workspace.id)
       .eq("document_number", documentNumber)
       .limit(1);
@@ -152,9 +206,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       throw new Error("No pudimos revisar el DNI del paciente.");
     }
 
-    let patientId = (existingPatient as { id: string } | null)?.id ?? null;
+    let patient = (existingPatient as BookingPatient | null) ?? null;
 
-    if (!patientId) {
+    if (!patient) {
       const { data: insertedPatient, error: insertPatientError } = await admin
         .from("patients")
         .insert({
@@ -170,10 +224,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
               ? bookingContext.workspace.owner_id
               : bookingContext.ownerId,
           phone,
+          phone_e164: phoneE164,
           status: "active",
           workspace_id: bookingContext.workspace.id,
+          whatsapp_consent: whatsappConsent,
+          whatsapp_consent_at: whatsappConsent ? new Date().toISOString() : null,
         })
-        .select("id")
+        .select("id, phone_e164, whatsapp_consent")
         .single();
 
       if (insertPatientError) {
@@ -194,7 +251,24 @@ export async function POST(request: NextRequest, context: RouteContext) {
         throw new Error("No pudimos crear el paciente.");
       }
 
-      patientId = (insertedPatient as { id: string }).id;
+      patient = insertedPatient as BookingPatient;
+    } else if (whatsappConsent) {
+      const { data: updatedPatient, error: updatePatientError } = await admin
+        .from("patients")
+        .update({
+          phone_e164: phoneE164,
+          whatsapp_consent: true,
+          whatsapp_consent_at: new Date().toISOString(),
+        })
+        .eq("id", patient.id)
+        .select("id, phone_e164, whatsapp_consent")
+        .single();
+
+      if (updatePatientError) {
+        throw new Error("No pudimos actualizar el consentimiento de WhatsApp.");
+      }
+
+      patient = updatedPatient as BookingPatient;
     }
 
     const stillAvailable = await isSlotAvailable({
@@ -211,7 +285,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const { error: appointmentError } = await admin.from("appointments").insert({
+    const { data: appointment, error: appointmentError } = await admin.from("appointments").insert({
       appointment_origin: bookingContext.origin,
       clinic_id: bookingContext.clinicId,
       clinic_professional_id: bookingContext.clinicProfessionalId,
@@ -219,12 +293,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
       modality: "presencial",
       notes: "Reserva creada desde enlace público.",
       owner_id: bookingContext.ownerId,
-      patient_id: patientId,
+      patient_id: patient.id,
       reason: "Sesion",
       scheduled_at: new Date(scheduledAt).toISOString(),
       status: "pending",
       workspace_id: bookingContext.workspace.id,
-    });
+    }).select("id")
+      .single();
 
     if (appointmentError) {
       return NextResponse.json(
@@ -233,25 +308,43 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const start = new Date(scheduledAt);
+    const appointmentId = (appointment as { id: string }).id;
+    const appointmentDateTime = formatAppointmentDateTime(scheduledAt);
+
+    if (patient.whatsapp_consent && patient.phone_e164) {
+      try {
+        const message = await sendWhatsAppMessage({
+          body: `Hola ${fullName}, tu turno con ${bookingContext.professional.name} quedo confirmado para el ${appointmentDateTime.date} a las ${appointmentDateTime.time}.`,
+          to: patient.phone_e164,
+        });
+
+        await trackAppointmentNotification({
+          admin,
+          appointmentId,
+          patientId: patient.id,
+          providerMessageId: message.sid,
+          status: "sent",
+        });
+      } catch (whatsappError) {
+        await trackAppointmentNotification({
+          admin,
+          appointmentId,
+          errorMessage:
+            whatsappError instanceof Error
+              ? whatsappError.message
+              : "No pudimos enviar el WhatsApp.",
+          patientId: patient.id,
+          status: "failed",
+        });
+      }
+    }
 
     return NextResponse.json({
       appointment: {
-        date: start.toLocaleDateString("es-AR", {
-          day: "2-digit",
-          month: "long",
-          timeZone: "America/Argentina/Buenos_Aires",
-          weekday: "long",
-          year: "numeric",
-        }),
+        date: appointmentDateTime.date,
         durationMinutes,
         professionalName: bookingContext.professional.name,
-        time: start.toLocaleTimeString("es-AR", {
-          hour: "2-digit",
-          hour12: false,
-          minute: "2-digit",
-          timeZone: "America/Argentina/Buenos_Aires",
-        }),
+        time: appointmentDateTime.time,
       },
     });
   } catch (error) {

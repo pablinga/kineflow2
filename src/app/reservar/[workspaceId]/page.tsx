@@ -114,6 +114,7 @@ export default function PublicBookingPage({ params }: PageProps) {
     firstName: "",
     lastName: "",
     phone: "",
+    whatsappConsent: false,
   });
   const [loadingProfessionals, setLoadingProfessionals] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -270,6 +271,7 @@ export default function PublicBookingPage({ params }: PageProps) {
             phone: form.phone,
             professionalId,
             scheduledAt: selectedSlot.start,
+            whatsappConsent: form.whatsappConsent,
           }),
           headers: { "Content-Type": "application/json" },
           method: "POST",
@@ -553,6 +555,23 @@ export default function PublicBookingPage({ params }: PageProps) {
                     required
                     value={form.phone}
                   />
+                  <label className="flex items-start gap-3 rounded-lg border border-ocean-100 bg-white p-3 text-sm font-semibold leading-5 text-slate-700">
+                    <input
+                      checked={form.whatsappConsent}
+                      className="mt-1 h-4 w-4 rounded border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          whatsappConsent: event.target.checked,
+                        }))
+                      }
+                      type="checkbox"
+                    />
+                    <span>
+                      Quiero recibir la confirmacion y recordatorios de mi turno
+                      por WhatsApp
+                    </span>
+                  </label>
                 </div>
 
                 <Button
