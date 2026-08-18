@@ -24,14 +24,14 @@ function formatArgentinePhoneToE164(digits: string) {
     ) === "15";
 
     if (hasMobilePrefix && nationalNumber.length - 2 === 10) {
-      return `+549${nationalNumber.slice(0, areaCodeLength)}${nationalNumber.slice(
+      return `+54${nationalNumber.slice(0, areaCodeLength)}${nationalNumber.slice(
         areaCodeLength + 2,
       )}`;
     }
   }
 
   if (nationalNumber.length === 10) {
-    return `+549${nationalNumber}`;
+    return `+54${nationalNumber}`;
   }
 
   return `+54${nationalNumber}`;
