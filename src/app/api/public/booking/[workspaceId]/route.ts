@@ -322,9 +322,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     if (patient.whatsapp_consent && patient.phone_e164) {
       try {
+        // TODO: Esto usa "hello_world" solo para la prueba inicial de conectividad
+        // con Meta WhatsApp Cloud API. Reemplazar por una plantilla propia
+        // ("confirmacion_turno", en espanol) cuando este creada y aprobada en
+        // Meta, volviendo a enviar appointmentDateTime, fullName y
+        // bookingContext.professional.name como templateParams en el orden que
+        // coincida con las variables {{1}}, {{2}}, etc. de esa plantilla.
         const message = await sendWhatsAppMessage({
-          body: `Hola ${fullName}, tu turno con ${bookingContext.professional.name} quedo confirmado para el ${appointmentDateTime.date} a las ${appointmentDateTime.time}.`,
           to: patient.phone_e164,
+          templateName: "hello_world",
+          templateLanguageCode: "en_US",
         });
 
         await trackAppointmentNotification({

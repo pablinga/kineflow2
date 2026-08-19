@@ -1,11 +1,13 @@
 type SendWhatsAppMessageParams = {
   to: string;
-  contentSid?: string;
+  templateName?: string;
+  templateLanguageCode?: string;
+  templateParams?: string[];
   body?: string;
 };
 
-type TwilioMessageResponse = {
-  sid: string;
+type WhatsAppMessageResponse = {
+  sid: string | null;
   status: string;
 };
 
@@ -78,53 +80,67 @@ export function formatPhoneToE164(phone: string, defaultCountryCode = "+54") {
 
 export async function sendWhatsAppMessage(
   params: SendWhatsAppMessageParams,
-): Promise<TwilioMessageResponse> {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_WHATSAPP_FROM;
+): Promise<WhatsAppMessageResponse> {
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
-  if (!accountSid || !authToken || !fromNumber) {
-    throw new Error("Twilio no esta configurado.");
+  if (!accessToken || !phoneNumberId) {
+    throw new Error("WhatsApp (Meta) no esta configurado.");
   }
 
-  if (!params.contentSid && !params.body) {
+  const toDigitsOnly = params.to.replace(/^\+/, "");
+
+  const payload: Record<string, unknown> = {
+    messaging_product: "whatsapp",
+    to: toDigitsOnly,
+  };
+
+  if (params.templateName) {
+    payload.type = "template";
+    payload.template = {
+      name: params.templateName,
+      language: { code: params.templateLanguageCode ?? "es" },
+      ...(params.templateParams && params.templateParams.length > 0
+        ? {
+            components: [
+              {
+                type: "body",
+                parameters: params.templateParams.map((text) => ({
+                  type: "text",
+                  text,
+                })),
+              },
+            ],
+          }
+        : {}),
+    };
+  } else if (params.body) {
+    payload.type = "text";
+    payload.text = { body: params.body };
+  } else {
     throw new Error("El mensaje de WhatsApp no tiene contenido.");
   }
 
-  const requestBody = new URLSearchParams({
-    From: fromNumber,
-    To: `whatsapp:${params.to}`,
-  });
-
-  if (params.contentSid) {
-    requestBody.set("ContentSid", params.contentSid);
-  }
-
-  // En el sandbox de Twilio se pueden enviar textos libres si el destinatario
-  // ya se unio al sandbox. En produccion, los mensajes iniciados por el negocio
-  // requieren una plantilla aprobada por Meta.
-  if (params.body) {
-    requestBody.set("Body", params.body);
-  }
-
-  const auth = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
   const response = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
     {
-      body: requestBody,
-      headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
       method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     },
   );
 
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data?.message ?? "No pudimos enviar el WhatsApp.");
+    throw new Error(data?.error?.message ?? "No pudimos enviar el WhatsApp.");
   }
 
-  return data as TwilioMessageResponse;
+  return {
+    sid: data?.messages?.[0]?.id ?? null,
+    status: "sent",
+  };
 }
