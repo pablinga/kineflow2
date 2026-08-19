@@ -4,12 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
-import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { appointmentStatusLabels } from "@/lib/appointment-ui";
 import { useActiveClinic } from "@/hooks/useActiveClinic";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 export type Appointment = {
   id: string;
@@ -326,7 +324,6 @@ export function useAppointments(
     loaded: activeWorkspaceLoaded,
     workspaces,
   } = useActiveWorkspace();
-  const { plan } = useSubscriptionPlan();
   const { clinic: activeClinic } = useActiveClinic(
     accountType === "CONSULTORIO",
   );
@@ -535,39 +532,6 @@ export function useAppointments(
 
     if (!activeWorkspace?.id) {
       throw new Error("No encontramos un espacio de trabajo activo.");
-    }
-
-    let activePatientCount = 0;
-
-    if (plan.limitePacientes !== null) {
-      let activePatientsQuery = supabase
-        .from("patients")
-        .select("id", { count: "exact", head: true })
-        .eq("workspace_id", activeWorkspace.id)
-        .eq("status", "active");
-
-      if (activeWorkspace.type === "PERSONAL") {
-        activePatientsQuery = activePatientsQuery
-          .eq("owner_id", sessionData.user.id)
-          .is("clinic_id", null);
-      }
-
-      const { count, error: countError } = await activePatientsQuery;
-
-      if (countError) {
-        throw new Error(mapSupabaseError(countError));
-      }
-
-      activePatientCount = count ?? 0;
-    }
-
-    const patientLimitBlock = getPatientPlanLimitBlock({
-      activePatientCount,
-      patientLimit: plan.limitePacientes,
-    });
-
-    if (patientLimitBlock) {
-      throw new Error(patientLimitBlock);
     }
 
     const scheduledAt = new Date(`${input.date}T${input.time}`).toISOString();

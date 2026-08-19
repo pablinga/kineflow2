@@ -26,33 +26,13 @@ function test(name, fn) {
   console.log(`ok - ${name}`);
 }
 
-test("Plan Free permite crear pacientes hasta el limite configurado", () => {
-  assert.equal(PLAN_LIMITS.FREE.maxPatients, 5);
+test("Prueba gratuita permite crear pacientes sin limite propio de Free", () => {
+  assert.equal(PLAN_LIMITS.FREE.maxPatients, null);
   assert.equal(
     canCreatePatientByPolicy({
       accountType: "KINESIOLOGO",
-      activePatientCount: 4,
-      patientLimit: 5,
-      plan: "FREE",
-      planStatus: "ACTIVO",
-    }),
-    true,
-  );
-  assert.equal(
-    canCreatePatientByPolicy({
-      accountType: "KINESIOLOGO",
-      activePatientCount: 5,
-      patientLimit: 5,
-      plan: "FREE",
-      planStatus: "ACTIVO",
-    }),
-    false,
-  );
-  assert.equal(
-    canCreatePatientByPolicy({
-      accountType: "CONSULTORIO",
-      activePatientCount: 4,
-      patientLimit: 5,
+      activePatientCount: 100,
+      patientLimit: null,
       plan: "FREE",
       planStatus: "ACTIVO",
     }),
@@ -61,12 +41,12 @@ test("Plan Free permite crear pacientes hasta el limite configurado", () => {
   assert.equal(
     canCreatePatientByPolicy({
       accountType: "CONSULTORIO",
-      activePatientCount: 5,
-      patientLimit: 5,
+      activePatientCount: 100,
+      patientLimit: null,
       plan: "FREE",
       planStatus: "ACTIVO",
     }),
-    false,
+    true,
   );
 });
 
@@ -126,7 +106,8 @@ test("Planes comerciales muestran nombre, precio y copy actualizado", () => {
   assert.match(plans, /price: `\$\{formatMonto\(INDEPENDENT_PLAN_PRICE\)\}\/mes`/);
   assert.match(plans, /Pacientes ilimitados/);
   assert.match(plans, /Pensado para usar desde el celular/);
-  assert.match(plans, /Ideal para probar la herramienta/);
+  assert.match(plans, /Probá KineFlow gratis durante 3 meses/);
+  assert.match(plans, /Pacientes ilimitados durante la prueba/);
   assert.match(planesPage, /getPlanDisplayName/);
   assert.match(migrations, /KineFlow - Particular/);
   assert.match(migrations, /15000/);
@@ -554,10 +535,17 @@ test("Invitaciones workspace permiten email sin duplicar usuarios", () => {
     "supabase/migrations/202606300003_allow_email_workspace_invitations.sql",
     "utf8",
   );
-  const clinicAdminHook = fs.readFileSync("src/hooks/useClinicAdmin.ts", "utf8");
+  const clinicKinesiologistsHook = fs.readFileSync(
+    "src/hooks/useClinicKinesiologists.ts",
+    "utf8",
+  );
+  const clinicMembershipPolicy = fs.readFileSync(
+    "src/lib/clinic-professional-membership.ts",
+    "utf8",
+  );
   const clinicLinksHook = fs.readFileSync("src/hooks/useClinicLinks.ts", "utf8");
   const clinicsPage = fs.readFileSync(
-    "src/app/dashboard/consultorios/page.tsx",
+    "src/app/dashboard/equipo/page.tsx",
     "utf8",
   );
 
@@ -565,11 +553,11 @@ test("Invitaciones workspace permiten email sin duplicar usuarios", () => {
   assert.match(migration, /professional_email = public\.current_user_email\(\)/);
   assert.match(migration, /public\.is_workspace_admin\(public\.get_clinic_workspace_id\(clinic_id\)\)/);
   assert.match(migration, /Clinics can search kinesiologists/);
-  assert.match(clinicAdminHook, /professional_id: input\.professional\.id/);
+  assert.match(clinicKinesiologistsHook, /decideClinicProfessionalMembership/);
+  assert.match(clinicMembershipPolicy, /professional_id: lookup\.id/);
   assert.match(clinicLinksHook, /professional_id\.is\.null/);
   assert.match(clinicLinksHook, /professional_email\.eq/);
-  assert.match(clinicsPage, /Invitar por email/);
-  assert.match(clinicsPage, /inviteEmail/);
+  assert.match(clinicsPage, /\.\.\/kinesiologos\/page/);
 });
 
 test("Equipo de clinica permite invitar profesionales por email", () => {
@@ -638,7 +626,9 @@ test("Navegacion principal muestra agenda y pacientes en desktop y mobile", () =
   assert.match(sidebar, /\{ href: "\/dashboard\/pacientes", label: "Pacientes", icon: Users \}/);
   assert.match(sidebar, /\{ href: "\/dashboard\/turnos", label: "Agenda", icon: CalendarDays \}/);
   assert.doesNotMatch(sidebar, /label: "Turnos"/);
-  assert.match(sidebar, /const mobileNavigationOrder = \[\s*"\/dashboard",\s*"\/dashboard\/turnos",\s*"\/dashboard\/pacientes",\s*"\/dashboard\/planes",\s*\]/);
+  assert.match(sidebar, /const mobileNavigationOrder =[\s\S]*"\/dashboard\/turnos"[\s\S]*"\/dashboard\/pacientes"/);
+  assert.match(sidebar, /effectiveAccountType === "CONSULTORIO"[\s\S]*"\/dashboard\/equipo"/);
+  assert.match(sidebar, /"\/dashboard\/ingresos"/);
   assert.match(sidebar, /grid-cols-4/);
   assert.match(sidebar, /item\.href !== "\/dashboard\/ingresos"/);
   assert.doesNotMatch(sidebar, /\["\/dashboard\/pacientes", "\/dashboard\/ingresos"\]/);
@@ -917,7 +907,7 @@ test("Ficha del paciente separa historial y carga de evolucion en modal", () => 
   assert.match(source, /Nueva evoluci/);
   assert.match(source, /setEvolutionModalOpen\(false\)/);
   assert.match(source, /Ver detalle cl/);
-  assert.match(source, /Editar cobro/);
+  assert.match(source, /Registrar cobro/);
   assert.match(source, /Reprogramar/);
   assert.match(source, /Cancelar/);
 });
@@ -940,8 +930,8 @@ test("Dashboard y cobros distinguen asistencia, deuda y pago registrado", () => 
   assert.match(appointmentsHook, /paid_at: new Date\(\)\.toISOString\(\)/);
 });
 
-test("Usuarios sobre el limite Free no pueden crear actividad nueva", () => {
-  const helper = fs.readFileSync("src/lib/patient-plan-limit.ts", "utf8");
+test("Cuentas read-only no pueden crear ni editar actividad nueva", () => {
+  const accessHook = fs.readFileSync("src/hooks/useAccessLevel.ts", "utf8");
   const patientsPage = fs.readFileSync("src/app/dashboard/pacientes/page.tsx", "utf8");
   const appointmentsPage = fs.readFileSync("src/app/dashboard/turnos/page.tsx", "utf8");
   const newAppointmentPage = fs.readFileSync(
@@ -952,38 +942,39 @@ test("Usuarios sobre el limite Free no pueden crear actividad nueva", () => {
     "src/app/dashboard/pacientes/[id]/page.tsx",
     "utf8",
   );
-  const appointmentsHook = fs.readFileSync("src/hooks/useAppointments.ts", "utf8");
-  const evolutionsHook = fs.readFileSync("src/hooks/useEvolutions.ts", "utf8");
-  const migration = fs.readFileSync(
-    "supabase/migrations/202606050003_enforce_patient_limit_on_activity.sql",
+  const phaseOneMigration = fs.readFileSync(
+    "supabase/migrations/202608190001_add_profile_trial_access_level.sql",
+    "utf8",
+  );
+  const guardMigration = fs.readFileSync(
+    "supabase/migrations/202608190003_enforce_read_only_access.sql",
     "utf8",
   );
 
-  [helper, migration].forEach((source) => {
-    assert.match(source, /Tu plan Free permite hasta/);
-    assert.match(source, /Archiv(?:a|á) pacientes o reactiv(?:a|á) tu plan/);
-  });
+  assert.match(accessHook, /AccessLevel = "PAID_ACTIVE" \| "TRIAL_ACTIVE" \| "READ_ONLY"/);
+  assert.match(accessHook, /trialDaysRemaining/);
+  assert.match(phaseOneMigration, /trial_started_at timestamptz/);
+  assert.match(phaseOneMigration, /trial_ends_at timestamptz/);
+  assert.match(phaseOneMigration, /get_account_access_level/);
+  assert.match(phaseOneMigration, /now\(\) \+ interval '3 months'/);
 
   [patientsPage, appointmentsPage, patientDetailPage].forEach((source) => {
-    assert.match(source, /Reactivar plan/);
-    assert.match(source, /patientLimitBlock/);
-    assert.match(source, /title=\{patientLimitBlock/);
+    assert.match(source, /useAccessLevel/);
+    assert.match(source, /readOnlyMessage/);
+    assert.match(source, /Tu período de prueba gratuita venció/);
   });
-  assert.match(newAppointmentPage, /Plan Free: hasta 5 pacientes/);
-  assert.match(newAppointmentPage, /patientLimitBlock/);
-  assert.match(newAppointmentPage, /title=\{patientLimitBlock/);
-
-  assert.match(appointmentsHook, /getPatientPlanLimitBlock/);
-  assert.match(appointmentsHook, /throw new Error\(patientLimitBlock\)/);
-  assert.match(evolutionsHook, /getPatientPlanLimitBlock/);
-  assert.match(evolutionsHook, /throw new Error\(patientLimitBlock\)/);
-  assert.match(migration, /join public\.plans on plans\.id = subscriptions\.plan_id/);
-  assert.match(migration, /plans\.max_patients/);
-  assert.match(migration, /where plans\.code = 'FREE'/);
-  assert.match(migration, /create trigger enforce_appointment_patient_limit/);
-  assert.match(migration, /create trigger enforce_evolution_patient_limit/);
-  assert.match(migration, /before insert on public\.appointments/);
-  assert.match(migration, /before insert on public\.evolutions/);
+  assert.match(newAppointmentPage, /useAccessLevel/);
+  assert.match(newAppointmentPage, /writeBlockMessage/);
+  assert.match(guardMigration, /raise_if_account_read_only/);
+  assert.match(guardMigration, /create trigger enforce_appointment_patient_limit/);
+  assert.match(guardMigration, /create trigger enforce_evolution_patient_limit/);
+  assert.match(guardMigration, /before insert or update on public\.appointments/);
+  assert.match(guardMigration, /before insert or update on public\.evolutions/);
+  assert.match(guardMigration, /before insert or update on public\.treatments/);
+  assert.match(guardMigration, /before insert or update on public\.independent_availability/);
+  assert.match(guardMigration, /before insert or update on public\.clinic_professional_availability/);
+  assert.match(guardMigration, /before insert or update on public\.insurance_providers/);
+  assert.match(guardMigration, /before insert or update on public\.workspace_blocked_dates/);
 });
 
 test("Links legales existen", () => {

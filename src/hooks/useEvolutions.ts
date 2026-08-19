@@ -4,9 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
-import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
-import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
 export type Evolution = {
   id: string;
@@ -69,7 +67,6 @@ export function useEvolutions(patientId?: string) {
     error: activeWorkspaceError,
     loaded: activeWorkspaceLoaded,
   } = useActiveWorkspace();
-  const { plan } = useSubscriptionPlan();
   const [evolutions, setEvolutions] = useState<Evolution[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -147,39 +144,6 @@ export function useEvolutions(patientId?: string) {
 
     if (!activeWorkspace?.id) {
       throw new Error("No encontramos un espacio de trabajo activo.");
-    }
-
-    let activePatientCount = 0;
-
-    if (plan.limitePacientes !== null) {
-      let activePatientsQuery = supabase
-        .from("patients")
-        .select("id", { count: "exact", head: true })
-        .eq("workspace_id", activeWorkspace.id)
-        .eq("status", "active");
-
-      if (activeWorkspace.type === "PERSONAL") {
-        activePatientsQuery = activePatientsQuery
-          .eq("owner_id", sessionData.user.id)
-          .is("clinic_id", null);
-      }
-
-      const { count, error: countError } = await activePatientsQuery;
-
-      if (countError) {
-        throw new Error(mapSupabaseError(countError));
-      }
-
-      activePatientCount = count ?? 0;
-    }
-
-    const patientLimitBlock = getPatientPlanLimitBlock({
-      activePatientCount,
-      patientLimit: plan.limitePacientes,
-    });
-
-    if (patientLimitBlock) {
-      throw new Error(patientLimitBlock);
     }
 
     const { error: insertError } = await supabase.from("evolutions").insert({

@@ -28,21 +28,21 @@ export const CONSULTORIO_PRICE = 30000;
 export const plans: PlanDefinition[] = [
   {
     id: "FREE",
-    name: "Plan Free",
+    name: "Prueba gratuita",
     price: "Gratis",
     priceAmount: 0,
-    limit: `Hasta ${FREE_PATIENT_LIMIT} pacientes`,
+    limit: "3 meses completos",
     audience:
-      "Proba KineFlow con una cantidad limitada de pacientes y empeza a ordenar tu practica profesional.",
+      "Probá KineFlow gratis durante 3 meses, sin tarjeta y sin compromiso.",
     features: [
-      "Hasta 5 pacientes",
-      "Agenda basica",
-      "Registro basico de evoluciones",
-      "Ideal para probar la herramienta",
+      "Pacientes ilimitados durante la prueba",
+      "Agenda y reservas online",
+      "Registro de evoluciones y tratamientos",
+      "Cobros e ingresos incluidos",
     ],
-    cta: "Comenzar gratis",
+    cta: "Probar 3 meses gratis",
     href: "/registro?plan=FREE",
-    patientLimit: FREE_PATIENT_LIMIT,
+    patientLimit: null,
     kinesiologistCount: 1,
     icon: UserRound,
   },
@@ -98,7 +98,7 @@ export const plans: PlanDefinition[] = [
 export const defaultPlan = {
   plan: "FREE" as CommercialPlan,
   estadoPlan: "ACTIVO" as PlanStatus,
-  limitePacientes: FREE_PATIENT_LIMIT,
+  limitePacientes: null,
   cantidadKinesiologos: 1,
 };
 

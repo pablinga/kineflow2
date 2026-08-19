@@ -20,6 +20,7 @@ import { FieldLabel } from "@/components/ui/FieldLabel";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { weekdayLabels } from "@/hooks/useClinicLinks";
+import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
@@ -73,6 +74,7 @@ function formatAvailabilitySummary(availability: AvailabilityInput[]) {
 export default function IndependentAvailabilityPage() {
   const { accountType, authError, loading, redirecting, user } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
+  const { isReadOnly, loaded: accessLoaded } = useAccessLevel();
   const [availability, setAvailability] = useState<AvailabilityInput[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -161,7 +163,12 @@ export default function IndependentAvailabilityPage() {
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!user || !canManage) {
+    if (!user || !canManage || isReadOnly) {
+      if (isReadOnly) {
+        setError(
+          "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes.",
+        );
+      }
       return;
     }
 
@@ -248,7 +255,7 @@ export default function IndependentAvailabilityPage() {
     );
   }
 
-  if (loading || !workspaceLoaded || !loaded) {
+  if (loading || !accessLoaded || !workspaceLoaded || !loaded) {
     return <DashboardLoading />;
   }
 
@@ -288,6 +295,13 @@ export default function IndependentAvailabilityPage() {
         />
 
         <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          {isReadOnly ? (
+            <Alert className="lg:col-span-2" tone="warning" title="Solo lectura">
+              Tu período de prueba gratuita venció. Activá un plan para editar
+              tus horarios de reserva online.
+            </Alert>
+          ) : null}
+
           <form
             className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6"
             onSubmit={handleSave}
@@ -304,6 +318,7 @@ export default function IndependentAvailabilityPage() {
               </div>
               <button
                 className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                disabled={isReadOnly}
                 onClick={() =>
                   setAvailability((current) => [
                     ...current,
@@ -336,6 +351,7 @@ export default function IndependentAvailabilityPage() {
                     </FieldLabel>
                     <select
                       className="mt-1 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-3 text-sm outline-none focus:border-ocean-400"
+                      disabled={isReadOnly}
                       onChange={(event) =>
                         updateAvailabilityRow(
                           index,
@@ -361,6 +377,7 @@ export default function IndependentAvailabilityPage() {
                     </FieldLabel>
                     <input
                       className="mt-1 min-h-11 w-full rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
+                      disabled={isReadOnly}
                       onChange={(event) =>
                         updateAvailabilityRow(
                           index,
@@ -382,6 +399,7 @@ export default function IndependentAvailabilityPage() {
                     </FieldLabel>
                     <input
                       className="mt-1 min-h-11 w-full rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
+                      disabled={isReadOnly}
                       onChange={(event) =>
                         updateAvailabilityRow(
                           index,
@@ -397,6 +415,7 @@ export default function IndependentAvailabilityPage() {
                   <button
                     aria-label="Eliminar horario"
                     className="inline-flex min-h-11 items-center justify-center self-end rounded-lg border border-rose-100 px-3 text-rose-700 transition hover:bg-rose-50"
+                    disabled={isReadOnly}
                     onClick={() =>
                       setAvailability((current) =>
                         current.filter((_, itemIndex) => itemIndex !== index),
@@ -412,7 +431,7 @@ export default function IndependentAvailabilityPage() {
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
               <Button
-                disabled={saving}
+                disabled={saving || isReadOnly}
                 onClick={loadAvailability}
                 type="button"
                 variant="secondary"
@@ -420,7 +439,7 @@ export default function IndependentAvailabilityPage() {
                 <RefreshCw className="h-4 w-4" />
                 Recargar
               </Button>
-              <Button disabled={saving} type="submit">
+              <Button disabled={saving || isReadOnly} type="submit">
                 <Save className="h-4 w-4" />
                 {saving ? "Guardando..." : "Guardar horarios"}
               </Button>

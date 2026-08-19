@@ -39,6 +39,7 @@ import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { usePatients } from "@/hooks/usePatients";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 
 type PendingAction = {
@@ -467,6 +468,11 @@ export default function AppointmentsPage() {
     loaded: workspaceLoaded,
   } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
+  const {
+    accessLevel,
+    isReadOnly,
+    loaded: accessLoaded,
+  } = useAccessLevel();
   const { activePatients, loaded: patientsLoaded } = usePatients();
   const {
     appointments,
@@ -625,6 +631,14 @@ export default function AppointmentsPage() {
     appointment: Appointment,
     status: AppointmentStatus,
   ) {
+    if (isReadOnly) {
+      setActionsAppointment(null);
+      setActionError(
+        "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes.",
+      );
+      return;
+    }
+
     const actionByStatus: Record<
       "attended" | "cancelled" | "no_show",
       Omit<PendingAction, "appointment" | "status">
@@ -665,6 +679,14 @@ export default function AppointmentsPage() {
   }
 
   function openReschedule(appointment: Appointment) {
+    if (isReadOnly) {
+      setActionsAppointment(null);
+      setActionError(
+        "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes.",
+      );
+      return;
+    }
+
     const scheduledAt = new Date(appointment.scheduledAt);
     setActionsAppointment(null);
     setRescheduling(appointment);
@@ -679,6 +701,14 @@ export default function AppointmentsPage() {
   }
 
   function openPaymentModal(appointment: Appointment) {
+    if (isReadOnly) {
+      setActionsAppointment(null);
+      setActionError(
+        "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes.",
+      );
+      return;
+    }
+
     setActionsAppointment(null);
     setEditingPayment(appointment);
     setPaymentForm({
@@ -717,7 +747,14 @@ export default function AppointmentsPage() {
     );
   }
 
-  if (loading || !loaded || !planLoaded || !patientsLoaded || !workspaceLoaded) {
+  if (
+    loading ||
+    !loaded ||
+    !accessLoaded ||
+    !planLoaded ||
+    !patientsLoaded ||
+    !workspaceLoaded
+  ) {
     return <DashboardLoading />;
   }
 
@@ -737,10 +774,15 @@ export default function AppointmentsPage() {
   const patientLimitBlock =
     activeWorkspace?.type === "CLINICA"
       ? null
-      : getPatientPlanLimitBlock({
+      : accessLevel === "TRIAL_ACTIVE"
+        ? null
+        : getPatientPlanLimitBlock({
           activePatientCount: activePatients.length,
           patientLimit: plan.limitePacientes,
         });
+  const readOnlyMessage =
+    "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes.";
+  const writeBlockMessage = isReadOnly ? readOnlyMessage : patientLimitBlock;
 
   async function confirmStatusChange() {
     if (!pendingAction) {
@@ -752,6 +794,11 @@ export default function AppointmentsPage() {
     setUpdatingId(pendingAction.appointment.id);
 
     try {
+      if (isReadOnly) {
+        setActionError(readOnlyMessage);
+        return;
+      }
+
       await updateAppointmentStatus(
         pendingAction.appointment.id,
         pendingAction.status,
@@ -786,6 +833,11 @@ export default function AppointmentsPage() {
     setUpdatingId(rescheduling.id);
 
     try {
+      if (isReadOnly) {
+        setActionError(readOnlyMessage);
+        return;
+      }
+
       await rescheduleAppointment(
         rescheduling.id,
         rescheduleDate,
@@ -817,6 +869,11 @@ export default function AppointmentsPage() {
     setUpdatingId(editingPayment.id);
 
     try {
+      if (isReadOnly) {
+        setActionError(readOnlyMessage);
+        return;
+      }
+
       await updateAppointmentPayment(editingPayment.id, paymentForm);
       setEditingPayment(null);
       setActionNotice(
@@ -835,18 +892,21 @@ export default function AppointmentsPage() {
 
   function renderActionItems(appointment: Appointment) {
     const disabled = updatingId === appointment.id;
+    const writeDisabled = disabled || isReadOnly;
     const futureAttendanceDisabled = isFutureAppointment(appointment);
 
     return (
       <>
         <button
           className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
-          disabled={disabled || futureAttendanceDisabled}
+          disabled={writeDisabled || futureAttendanceDisabled}
           onClick={() => openStatusModal(appointment, "attended")}
           title={
-            futureAttendanceDisabled
-              ? "Disponible cuando llegue el horario del turno"
-              : undefined
+            isReadOnly
+              ? readOnlyMessage
+              : futureAttendanceDisabled
+                ? "Disponible cuando llegue el horario del turno"
+                : undefined
           }
           type="button"
         >
@@ -855,12 +915,14 @@ export default function AppointmentsPage() {
         </button>
         <button
           className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
-          disabled={disabled || futureAttendanceDisabled}
+          disabled={writeDisabled || futureAttendanceDisabled}
           onClick={() => openStatusModal(appointment, "no_show")}
           title={
-            futureAttendanceDisabled
-              ? "Disponible cuando llegue el horario del turno"
-              : undefined
+            isReadOnly
+              ? readOnlyMessage
+              : futureAttendanceDisabled
+                ? "Disponible cuando llegue el horario del turno"
+                : undefined
           }
           type="button"
         >
@@ -869,7 +931,7 @@ export default function AppointmentsPage() {
         </button>
         <button
           className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50 disabled:opacity-60"
-          disabled={disabled}
+          disabled={writeDisabled}
           onClick={() => openPaymentModal(appointment)}
           type="button"
         >
@@ -878,7 +940,7 @@ export default function AppointmentsPage() {
         </button>
         <button
           className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50 disabled:opacity-60"
-          disabled={disabled}
+          disabled={writeDisabled}
           onClick={() => openReschedule(appointment)}
           type="button"
         >
@@ -887,7 +949,7 @@ export default function AppointmentsPage() {
         </button>
         <button
           className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
-          disabled={disabled}
+          disabled={writeDisabled}
           onClick={() => openStatusModal(appointment, "cancelled")}
           type="button"
         >
@@ -1222,11 +1284,11 @@ export default function AppointmentsPage() {
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
-              {patientLimitBlock ? (
+              {writeBlockMessage ? (
                 <button
                   className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-500"
                   disabled
-                  title={patientLimitBlock}
+                  title={writeBlockMessage}
                   type="button"
                 >
                   <CalendarPlus className="h-4 w-4" />
@@ -1267,23 +1329,23 @@ export default function AppointmentsPage() {
             </span>
           </div>
 
-          {patientLimitBlock ? (
+          {writeBlockMessage ? (
             <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
-              <p>{patientLimitBlock}</p>
+              <p>{writeBlockMessage}</p>
               <Link
                 className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
                 href="/dashboard/planes"
               >
-                Reactivar plan
+                Ver planes
               </Link>
             </section>
           ) : null}
 
-          {!patientLimitBlock && effectiveAccountType === "KINESIOLOGO" && !canCreateAppointment ? (
+          {!writeBlockMessage && effectiveAccountType === "KINESIOLOGO" && !canCreateAppointment ? (
             <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm sm:mt-6">
-              Con el Plan Free podés probar KineFlow con hasta 5 pacientes.
-              Para programar turnos propios y gestionar pacientes ilimitados,
-              activá KineFlow - Particular.
+              Probá KineFlow gratis durante 3 meses, sin tarjeta y sin
+              compromiso. Para seguir después de la prueba, activá KineFlow -
+              Particular.
             </section>
           ) : null}
 

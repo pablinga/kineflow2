@@ -13,6 +13,7 @@ import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useTreatments } from "@/hooks/useTreatments";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
@@ -94,6 +95,7 @@ export default function NewAppointmentPage() {
   const { accountType, authError, loading, redirecting, user } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
+  const { accessLevel, isReadOnly, loaded: accessLoaded } = useAccessLevel();
   const { addAppointment, addClinicAppointment, appointments } = useAppointments();
   const { activePatients, loaded } = usePatients();
   const [clinicProfessionals, setClinicProfessionals] = useState<
@@ -198,10 +200,10 @@ export default function NewAppointmentPage() {
   ]);
 
   const pageReady =
-    !loading && loaded && planLoaded && treatmentsLoaded && workspaceLoaded;
+    !loading && loaded && accessLoaded && planLoaded && treatmentsLoaded && workspaceLoaded;
   const isInitialLoading =
     !hasLoadedOnceRef.current &&
-    (loading || !loaded || !planLoaded || !treatmentsLoaded || !workspaceLoaded);
+    (loading || !loaded || !accessLoaded || !planLoaded || !treatmentsLoaded || !workspaceLoaded);
   const isRefreshingTreatments =
     hasLoadedOnceRef.current &&
     Boolean(appointment.patientId) &&
@@ -289,10 +291,15 @@ export default function NewAppointmentPage() {
   const patientLimitBlock =
     activeWorkspace?.type === "CLINICA"
       ? null
-      : getPatientPlanLimitBlock({
+      : accessLevel === "TRIAL_ACTIVE"
+        ? null
+        : getPatientPlanLimitBlock({
           activePatientCount: activePatients.length,
           patientLimit: plan.limitePacientes,
         });
+  const readOnlyMessage =
+    "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes.";
+  const writeBlockMessage = isReadOnly ? readOnlyMessage : patientLimitBlock;
   const independentPlanMessage =
     "Esta funcionalidad está disponible en KineFlow - Particular. Podés activarlo para gestionar tus pacientes, turnos y cobros propios.";
 
@@ -351,6 +358,11 @@ export default function NewAppointmentPage() {
     setError("");
 
     try {
+      if (isReadOnly) {
+        setError(readOnlyMessage);
+        return;
+      }
+
       if (isClinicWorkspace) {
         if (!canCreateClinicSchedule) {
           setError("No tenés permisos para crear turnos de la clínica.");
@@ -418,8 +430,8 @@ export default function NewAppointmentPage() {
           professionalId: selectedProfessional.professional_id,
         });
       } else {
-        if (patientLimitBlock) {
-          setError(patientLimitBlock);
+        if (writeBlockMessage) {
+          setError(writeBlockMessage);
           return;
         }
 
@@ -503,10 +515,16 @@ export default function NewAppointmentPage() {
             </section>
           ) : null}
 
-          {patientLimitBlock ? (
-            <p className="mt-4 text-sm font-medium text-amber-600 sm:mt-6">
-              Plan Free: hasta 5 pacientes. Actualizá tu plan para agregar más.
-            </p>
+          {writeBlockMessage ? (
+            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
+              <p>{writeBlockMessage}</p>
+              <Link
+                className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
+                href="/dashboard/planes"
+              >
+                Ver planes
+              </Link>
+            </section>
           ) : null}
 
           <form
@@ -714,13 +732,13 @@ export default function NewAppointmentPage() {
                 disabled={
                   activePatients.length === 0 ||
                   saving ||
-                  Boolean(patientLimitBlock) ||
+                  Boolean(writeBlockMessage) ||
                   independentPracticeBlocked ||
                   clinicPlanBlocked ||
                   !canCreateClinicSchedule ||
                   (isClinicAdmin && clinicProfessionals.length === 0)
                 }
-                title={patientLimitBlock ?? undefined}
+                title={writeBlockMessage ?? undefined}
                 type="submit"
               >
                 <Save className="h-4 w-4" />

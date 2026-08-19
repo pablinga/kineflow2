@@ -23,6 +23,7 @@ import { paymentStatusStyles } from "@/lib/payment-ui";
 import { getPlanDisplayName } from "@/lib/plans";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
@@ -76,6 +77,12 @@ export default function DashboardPage() {
   } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const {
+    accessLevel,
+    isReadOnly,
+    loaded: accessLoaded,
+    trialDaysRemaining,
+  } = useAccessLevel();
+  const {
     error: dashboardError,
     loaded: dashboardLoaded,
     summary,
@@ -109,6 +116,7 @@ export default function DashboardPage() {
   if (
     loading ||
     !dashboardLoaded ||
+    !accessLoaded ||
     !planLoaded ||
     !workspaceLoaded
   ) {
@@ -120,10 +128,15 @@ export default function DashboardPage() {
   const effectiveAccountType = isClinicWorkspace ? "CONSULTORIO" : accountType;
   const patientLimitBlock = isClinicWorkspace
     ? null
-    : getPatientPlanLimitBlock({
+    : accessLevel === "TRIAL_ACTIVE"
+      ? null
+      : getPatientPlanLimitBlock({
         activePatientCount: summary.activePatientCount,
         patientLimit: plan.limitePacientes,
       });
+  const readOnlyMessage =
+    "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes.";
+  const writeBlockMessage = isReadOnly ? readOnlyMessage : patientLimitBlock;
   const dashboardTitle = isClinicWorkspace
     ? `Panel de ${activeWorkspace.name}`
     : `Hola, ${displayName}`;
@@ -198,11 +211,11 @@ export default function DashboardPage() {
                 <Search className="h-4 w-4" />
                 Buscar paciente
               </Link>
-              {patientLimitBlock ? (
+              {writeBlockMessage ? (
                 <button
                   className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-500"
                   disabled
-                  title={patientLimitBlock}
+                  title={writeBlockMessage}
                   type="button"
                 >
                   <CalendarPlus className="h-4 w-4" />
@@ -232,7 +245,40 @@ export default function DashboardPage() {
             onReject={rejectInvitation}
           />
 
-          {patientLimitBlock ? (
+          {accessLevel === "TRIAL_ACTIVE" ? (
+            <section
+              className={`mt-4 flex flex-col justify-between gap-3 rounded-lg border p-4 text-sm font-semibold sm:mt-6 sm:flex-row sm:items-center sm:p-5 ${
+                trialDaysRemaining !== null && trialDaysRemaining <= 7
+                  ? "border-amber-200 bg-amber-50 text-amber-900"
+                  : "border-ocean-200 bg-white text-ocean-900"
+              }`}
+            >
+              <p>
+                Prueba gratuita ·{" "}
+                {trialDaysRemaining === null
+                  ? "3 meses incluidos"
+                  : `${trialDaysRemaining} días restantes`}
+              </p>
+              <Link
+                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
+                href="/dashboard/planes"
+              >
+                Ver planes
+              </Link>
+            </section>
+          ) : null}
+
+          {isReadOnly ? (
+            <section className="mt-4 rounded-lg border border-rose-100 bg-rose-50 p-4 text-sm font-semibold text-rose-800 sm:mt-6 sm:p-5">
+              <p>{readOnlyMessage}</p>
+              <Link
+                className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
+                href="/dashboard/planes"
+              >
+                Activar plan
+              </Link>
+            </section>
+          ) : patientLimitBlock ? (
             <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
               <p>{patientLimitBlock}</p>
               <Link
@@ -258,11 +304,11 @@ export default function DashboardPage() {
                 </span>
                 <div>
                   <p className="font-bold text-ink">
-                    Actualmente estás usando el Plan Free.
+                    Tenés una prueba gratuita completa.
                   </p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Activá un plan pago para acceder a pacientes ilimitados y
-                    funciones avanzadas.
+                    Probá KineFlow gratis durante 3 meses, sin tarjeta y sin
+                    compromiso.
                   </p>
                 </div>
               </div>
@@ -445,19 +491,19 @@ export default function DashboardPage() {
                 <div className="mt-4 grid gap-2">
                   {quickAccessItems.map((item) => {
                     const Icon = item.icon;
-                    const blockedByPatientLimit =
-                      Boolean(patientLimitBlock) &&
+                    const blockedByWriteAccess =
+                      Boolean(writeBlockMessage) &&
                       (item.href === "/dashboard/pacientes?nuevo=1" ||
                         item.href === "/dashboard/turnos/nuevo" ||
                         item.href === "/dashboard/pacientes");
 
-                    if (blockedByPatientLimit) {
+                    if (blockedByWriteAccess) {
                       return (
                         <button
                           className="flex min-h-11 cursor-not-allowed items-center justify-between rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-400"
                           disabled
                           key={item.label}
-                          title={patientLimitBlock ?? undefined}
+                          title={writeBlockMessage ?? undefined}
                           type="button"
                         >
                           <span className="flex items-center gap-2">

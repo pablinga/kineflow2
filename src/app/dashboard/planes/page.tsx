@@ -11,6 +11,7 @@ import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { isPlanAllowedForAccount } from "@/lib/billing";
 import { getFriendlyErrorMessage, logFriendlyError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -20,6 +21,11 @@ export default function PlansPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
+  const {
+    accessLevel,
+    loaded: accessLoaded,
+    trialDaysRemaining,
+  } = useAccessLevel();
   const { loaded: patientsLoaded, patients } = usePatients();
   const [selectedPlan, setSelectedPlan] = useState<CommercialPlan | null>(null);
   const [checkoutMessage, setCheckoutMessage] = useState("");
@@ -42,32 +48,29 @@ export default function PlansPage() {
     );
   }
 
-  if (loading || !planLoaded || !patientsLoaded || !workspaceLoaded) {
+  if (loading || !accessLoaded || !planLoaded || !patientsLoaded || !workspaceLoaded) {
     return <DashboardLoading />;
   }
 
   const activePatients = patients.filter(
     (patient) => patient.status === "Activo",
   );
-  const reachedFreeLimit =
-    accountType === "KINESIOLOGO" &&
-    plan.plan === "FREE" &&
-    plan.limitePacientes !== null &&
-    activePatients.length >= plan.limitePacientes;
   const visiblePlans = plans.filter((item) =>
     isPlanAllowedForAccount(item.id, accountType),
   );
   const currentPlanName = getPlanDisplayName(plan.plan);
   const patientLimitLabel =
-    plan.limitePacientes === null || plan.limitePacientes < 0
-      ? "Ilimitado"
-      : `${activePatients.length} de ${plan.limitePacientes} pacientes`;
+    accessLevel === "TRIAL_ACTIVE"
+      ? "Ilimitado durante la prueba"
+      : plan.limitePacientes === null || plan.limitePacientes < 0
+        ? "Ilimitado"
+        : `${activePatients.length} de ${plan.limitePacientes} pacientes`;
   const subscriptionStatus = plan.estadoPlan ?? "SIN SUSCRIPCIÓN";
   const isFreePlan = plan.plan === "FREE";
   const planHeaderDescription = isFreePlan ? (
     <>
-      Actualmente estás usando {currentPlanName}. Para gestionar tu práctica
-      profesional sin límites de pacientes, activá KineFlow - Particular.
+      Probá KineFlow gratis durante 3 meses, sin tarjeta y sin compromiso.
+      Después podés activar un plan para seguir gestionando tu práctica.
     </>
   ) : (
     "Gestioná tu suscripción y método de pago desde acá."
@@ -216,7 +219,10 @@ export default function PlansPage() {
                 </p>
                 {isFreePlan ? (
                   <p className="mt-3 text-sm font-medium text-amber-700">
-                    Estás en Plan Free: podés trabajar con hasta 5 pacientes.
+                    Prueba gratuita
+                    {trialDaysRemaining === null
+                      ? ": 3 meses incluidos."
+                      : `: ${trialDaysRemaining} días restantes.`}
                   </p>
                 ) : null}
               </div>
@@ -229,7 +235,7 @@ export default function PlansPage() {
                 >
                   {checkoutLoading === "INDEPENDIENTE"
                     ? "Preparando..."
-                    : "Mejorar plan"}
+                    : "Activar plan"}
                 </button>
               ) : null}
             </div>
@@ -276,13 +282,6 @@ export default function PlansPage() {
               </article>
             ))}
           </section>
-
-          {reachedFreeLimit ? (
-            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6">
-              Llegaste al límite de 5 pacientes del Plan Free. Para cargar
-              nuevos pacientes, activá KineFlow - Particular.
-            </section>
-          ) : null}
 
           {cancelReference ? (
             <section className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 sm:mt-6">

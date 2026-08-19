@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  isWorkspaceReadOnlyForBooking,
   isSlotAvailable,
   normalizeDocumentNumber,
   normalizeDuration,
+  PUBLIC_BOOKING_UNAVAILABLE_MESSAGE,
   resolveBookingContext,
 } from "@/lib/public-booking";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
@@ -179,6 +181,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
+    if (await isWorkspaceReadOnlyForBooking(admin, bookingContext)) {
+      return NextResponse.json(
+        { error: PUBLIC_BOOKING_UNAVAILABLE_MESSAGE },
+        { status: 409 },
+      );
+    }
+
     const available = await isSlotAvailable({
       admin,
       context: bookingContext,
@@ -234,11 +243,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
         .single();
 
       if (insertPatientError) {
-        const isPlanLimitError = insertPatientError.message?.includes(
-          "El Plan Free permite hasta",
-        );
-
-        if (isPlanLimitError) {
+        if (
+          insertPatientError.message?.includes(
+            "período de prueba gratuita venció",
+          )
+        ) {
           return NextResponse.json(
             {
               error:

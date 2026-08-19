@@ -106,6 +106,7 @@ export default function PublicBookingPage({ params }: PageProps) {
     getMondayOfWeek(toDateValue(new Date())),
   );
   const [slots, setSlots] = useState<FreeSlot[]>([]);
+  const [availabilityMessage, setAvailabilityMessage] = useState("");
   const [selectedSlot, setSelectedSlot] = useState<FreeSlot | null>(null);
   const [form, setForm] = useState({
     company: "",
@@ -169,11 +170,13 @@ export default function PublicBookingPage({ params }: PageProps) {
 
   const loadAvailability = useCallback(async () => {
     if (!workspaceId || !professionalId) {
+      setAvailabilityMessage("");
       setSlots([]);
       return;
     }
 
     setLoadingSlots(true);
+    setAvailabilityMessage("");
     setSelectedSlot(null);
     setError("");
 
@@ -196,8 +199,12 @@ export default function PublicBookingPage({ params }: PageProps) {
       }
 
       setSlots((result.slots ?? []) as FreeSlot[]);
+      setAvailabilityMessage(
+        typeof result.message === "string" ? result.message : "",
+      );
     } catch (loadError) {
       setError(getErrorMessage(loadError, "No pudimos cargar los horarios."));
+      setAvailabilityMessage("");
       setSlots([]);
     } finally {
       setLoadingSlots(false);
@@ -425,7 +432,7 @@ export default function PublicBookingPage({ params }: PageProps) {
                     </div>
                   ) : slots.length === 0 ? (
                     <div className="mt-4 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-5 text-sm font-semibold text-ocean-800">
-                      No hay horarios disponibles en este rango.
+                      {availabilityMessage || "No hay horarios disponibles en este rango."}
                     </div>
                   ) : (
                     <div className="mt-4 grid gap-4">

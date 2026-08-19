@@ -64,6 +64,9 @@ export type FreeSlot = {
   startTime: string;
 };
 
+export const PUBLIC_BOOKING_UNAVAILABLE_MESSAGE =
+  "Este profesional no está aceptando reservas en este momento.";
+
 const DEFAULT_DURATION_MINUTES = 45;
 const VALID_DURATIONS = new Set([30, 45, 60, 90]);
 const TIME_ZONE_OFFSET = "-03:00";
@@ -380,6 +383,27 @@ async function getBookedAppointments(
   }
 
   return (data ?? []) as AppointmentSlotRow[];
+}
+
+export async function isWorkspaceReadOnlyForBooking(
+  admin: SupabaseClient,
+  context: BookingContext,
+) {
+  const accountId = context.workspace.owner_id ?? context.ownerId;
+
+  if (!accountId) {
+    return true;
+  }
+
+  const { data, error } = await admin.rpc("get_account_access_level", {
+    target_account_id: accountId,
+  });
+
+  if (error) {
+    throw new Error("No pudimos revisar la disponibilidad de reservas.");
+  }
+
+  return data === "READ_ONLY";
 }
 
 async function getWorkspaceBlockedDates(

@@ -13,7 +13,7 @@ export type BillingPlanStatus =
 
 export const PLAN_LIMITS = {
   FREE: {
-    maxPatients: 5,
+    maxPatients: null,
   },
   INDEPENDIENTE: {
     maxPatients: null,
@@ -35,9 +35,7 @@ export function canCreatePatientByPolicy(params: {
   }
 
   if (params.plan === "FREE") {
-    const limit = params.patientLimit ?? PLAN_LIMITS.FREE.maxPatients;
-
-    return limit < 0 || params.activePatientCount < limit;
+    return true;
   }
 
   if (params.accountType === "CONSULTORIO") {

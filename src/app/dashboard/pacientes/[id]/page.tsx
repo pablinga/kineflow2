@@ -38,6 +38,7 @@ import { formatCurrency } from "@/lib/payment-ui";
 import { formatSessionAmount } from "@/lib/format";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import {
@@ -93,6 +94,7 @@ export default function PatientDetailPage() {
   const patientId = params.id;
   const { authError, displayName, loading, redirecting } = useRequireAuth();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
+  const { accessLevel, isReadOnly, loaded: accessLoaded } = useAccessLevel();
   const {
     appointments,
     error: appointmentsError,
@@ -249,15 +251,22 @@ export default function PatientDetailPage() {
     !evolutionsLoaded ||
     !treatmentsLoaded ||
     !assignmentsLoaded ||
+    !accessLoaded ||
     !planLoaded
   ) {
     return <DashboardLoading />;
   }
 
-  const patientLimitBlock = getPatientPlanLimitBlock({
-    activePatientCount: activePatients.length,
-    patientLimit: plan.limitePacientes,
-  });
+  const patientLimitBlock =
+    accessLevel === "TRIAL_ACTIVE"
+      ? null
+      : getPatientPlanLimitBlock({
+          activePatientCount: activePatients.length,
+          patientLimit: plan.limitePacientes,
+        });
+  const readOnlyMessage =
+    "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes.";
+  const writeBlockMessage = isReadOnly ? readOnlyMessage : patientLimitBlock;
   const activeTreatment =
     treatments.find((item) => item.id === expandedTreatmentId) ??
     treatments.find((item) => item.status === "EN_CURSO") ??
@@ -324,8 +333,8 @@ export default function PatientDetailPage() {
     setActionSuccess("");
 
     try {
-      if (patientLimitBlock) {
-        setActionError(patientLimitBlock);
+      if (writeBlockMessage) {
+        setActionError(writeBlockMessage);
         return;
       }
 
@@ -352,6 +361,11 @@ export default function PatientDetailPage() {
     setActionSuccess("");
 
     try {
+      if (isReadOnly) {
+        setActionError(readOnlyMessage);
+        return;
+      }
+
       const invalidAttachment = treatmentAttachments.find((item) => item.error);
 
       if (invalidAttachment) {
@@ -406,6 +420,11 @@ export default function PatientDetailPage() {
     setActionSuccess("");
 
     try {
+      if (isReadOnly) {
+        setActionError(readOnlyMessage);
+        return;
+      }
+
       await updateTreatmentStatus(id, status);
     } catch (statusError) {
       setActionError(
@@ -418,8 +437,8 @@ export default function PatientDetailPage() {
   }
 
   function openNewEvolutionModal() {
-    if (patientLimitBlock) {
-      setActionError(patientLimitBlock);
+    if (writeBlockMessage) {
+      setActionError(writeBlockMessage);
       return;
     }
 
@@ -444,6 +463,11 @@ export default function PatientDetailPage() {
     setUpdatingId(rescheduling.id);
 
     try {
+      if (isReadOnly) {
+        setActionError(readOnlyMessage);
+        return;
+      }
+
       await rescheduleAppointment(
         rescheduling.id,
         rescheduleDate,
@@ -471,6 +495,11 @@ export default function PatientDetailPage() {
     setUpdatingId(canceling.id);
 
     try {
+      if (isReadOnly) {
+        setActionError(readOnlyMessage);
+        return;
+      }
+
       await updateAppointmentStatus(canceling.id, "cancelled");
       setCanceling(null);
     } catch (cancelError) {
@@ -487,6 +516,11 @@ export default function PatientDetailPage() {
     setAssignmentUpdatingId(professionalId);
 
     try {
+      if (isReadOnly) {
+        setAssignmentActionError(readOnlyMessage);
+        return;
+      }
+
       await assignProfessional(professionalId);
     } catch (assignError) {
       setAssignmentActionError(
@@ -505,6 +539,11 @@ export default function PatientDetailPage() {
     setAssignmentUpdatingId(professionalId);
 
     try {
+      if (isReadOnly) {
+        setAssignmentActionError(readOnlyMessage);
+        return;
+      }
+
       await unassignProfessional(assignmentId);
     } catch (unassignError) {
       setAssignmentActionError(
@@ -726,11 +765,11 @@ export default function PatientDetailPage() {
                   </div>
                 </div>
                 <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                  {patientLimitBlock ? (
+                  {writeBlockMessage ? (
                     <button
                       className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-400"
                       disabled
-                      title={patientLimitBlock}
+                      title={writeBlockMessage}
                       type="button"
                     >
                       <CalendarPlus className="h-4 w-4" />
@@ -747,25 +786,37 @@ export default function PatientDetailPage() {
                   )}
                   <button
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                    disabled={Boolean(patientLimitBlock)}
+                    disabled={Boolean(writeBlockMessage)}
                     onClick={openNewEvolutionModal}
-                    title={patientLimitBlock ?? undefined}
+                    title={writeBlockMessage ?? undefined}
                     type="button"
                   >
                     <ClipboardPlus className="h-4 w-4" />
                     Nueva evolución
                   </button>
-                  <Link
-                    className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
+                  {isReadOnly ? (
+                    <button
+                      className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-400"
+                      disabled
+                      title={readOnlyMessage}
+                      type="button"
+                    >
+                      <WalletCards className="h-4 w-4" />
+                      Registrar cobro
+                    </button>
+                  ) : (
+                    <Link
+                      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
                       totalPending > 0
                         ? "border-amber-200 text-amber-800 hover:bg-amber-50"
                         : "border-ocean-200 text-ocean-800 hover:bg-ocean-50"
                     }`}
-                    href="/dashboard/ingresos"
-                  >
-                    <WalletCards className="h-4 w-4" />
-                    Registrar cobro
-                  </Link>
+                      href="/dashboard/ingresos"
+                    >
+                      <WalletCards className="h-4 w-4" />
+                      Registrar cobro
+                    </Link>
+                  )}
                 </div>
               </section>
 
@@ -781,14 +832,14 @@ export default function PatientDetailPage() {
                 </p>
               ) : null}
 
-              {patientLimitBlock ? (
+              {writeBlockMessage ? (
                 <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
-                  <p>{patientLimitBlock}</p>
+                  <p>{writeBlockMessage}</p>
                   <Link
                     className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
                     href="/dashboard/planes"
                   >
-                    Reactivar plan
+                    Ver planes
                   </Link>
                 </section>
               ) : null}
@@ -837,9 +888,17 @@ export default function PatientDetailPage() {
                         Tratamientos
                       </h2>
                       <button
-                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:px-4"
-                        onClick={() => setTreatmentModalOpen(true)}
-                        title="Nuevo tratamiento"
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 sm:px-4"
+                        disabled={isReadOnly}
+                        onClick={() => {
+                          if (isReadOnly) {
+                            setActionError(readOnlyMessage);
+                            return;
+                          }
+
+                          setTreatmentModalOpen(true);
+                        }}
+                        title={isReadOnly ? readOnlyMessage : "Nuevo tratamiento"}
                         type="button"
                       >
                         <Plus className="h-4 w-4" />
@@ -1079,9 +1138,9 @@ export default function PatientDetailPage() {
                       </h2>
                     <button
                       className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                      disabled={Boolean(patientLimitBlock)}
+                      disabled={Boolean(writeBlockMessage)}
                       onClick={openNewEvolutionModal}
-                      title={patientLimitBlock ?? undefined}
+                      title={writeBlockMessage ?? undefined}
                       type="button"
                     >
                       <Plus className="h-4 w-4" />

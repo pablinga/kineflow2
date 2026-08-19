@@ -30,6 +30,7 @@ import {
   resetSubscriptionPlanSnapshot,
   useSubscriptionPlan,
 } from "@/hooks/useSubscriptionPlan";
+import { resetAccessLevelSnapshot } from "@/hooks/useAccessLevel";
 import {
   resetWorkspaceSnapshot,
   useActiveWorkspace,
@@ -185,6 +186,7 @@ export function DashboardSidebar() {
 
       console.info("[logout] Supabase signOut completed");
       resetAuthSnapshot();
+      resetAccessLevelSnapshot();
       resetSubscriptionPlanSnapshot();
       resetWorkspaceSnapshot();
       clearSupabaseLocalSession();
@@ -200,6 +202,7 @@ export function DashboardSidebar() {
           "[logout] Supabase signOut timed out; redirecting with local cleanup",
         );
         resetAuthSnapshot();
+        resetAccessLevelSnapshot();
         resetSubscriptionPlanSnapshot();
         resetWorkspaceSnapshot();
         clearSupabaseLocalSession();

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import {
   getFreeSlots,
+  isWorkspaceReadOnlyForBooking,
   normalizeDuration,
+  PUBLIC_BOOKING_UNAVAILABLE_MESSAGE,
   resolveBookingContext,
 } from "@/lib/public-booking";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
@@ -61,6 +63,14 @@ export async function GET(request: Request, context: RouteContext) {
         { error: "No encontramos el profesional para este enlace." },
         { status: 404 },
       );
+    }
+
+    if (await isWorkspaceReadOnlyForBooking(admin, bookingContext)) {
+      return NextResponse.json({
+        durationMinutes,
+        message: PUBLIC_BOOKING_UNAVAILABLE_MESSAGE,
+        slots: [],
+      });
     }
 
     const slots = await getFreeSlots({

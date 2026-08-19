@@ -356,7 +356,7 @@ export default function RegisterPage() {
             <h1 className="text-3xl font-bold text-ink">Creá tu cuenta</h1>
             <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">
               {signupsEnabled
-                ? "Completá tus datos profesionales para empezar a gestionar tus pacientes."
+                ? "Probá KineFlow gratis durante 3 meses · Sin tarjeta · Sin compromiso."
                 : SIGNUPS_CLOSED_MESSAGE}
             </p>
             {signupsEnabled ? null : (

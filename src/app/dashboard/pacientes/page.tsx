@@ -26,6 +26,7 @@ import { usePatients, type NewPatientInput, type Patient } from "@/hooks/usePati
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
+import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useTreatments, type NewTreatmentInput } from "@/hooks/useTreatments";
 import { canCreatePatient } from "@/lib/billing";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
@@ -110,6 +111,11 @@ export default function PatientsPage() {
     search: query,
   });
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
+  const {
+    accessLevel,
+    isReadOnly,
+    loaded: accessLoaded,
+  } = useAccessLevel();
   const { addTreatment } = useTreatments(undefined, { enabled: false });
   const [viewMode, setViewMode] = useState<PatientViewMode>("cards");
   const [showForm, setShowForm] = useState(false);
@@ -218,7 +224,7 @@ export default function PatientsPage() {
     );
   }
 
-  if (loading || !loaded || !planLoaded || !workspaceLoaded) {
+  if (loading || !loaded || !accessLoaded || !planLoaded || !workspaceLoaded) {
     return <DashboardLoading />;
   }
 
@@ -236,8 +242,9 @@ export default function PatientsPage() {
     patientLimit: plan.limitePacientes,
     plan: plan.plan,
     planStatus: plan.estadoPlan,
-  });
+  }) || accessLevel === "TRIAL_ACTIVE";
   const freeLimitReached =
+    accessLevel !== "TRIAL_ACTIVE" &&
     activeWorkspace?.type !== "CLINICA" &&
     plan.plan === "FREE" &&
     plan.limitePacientes !== null &&
@@ -246,10 +253,15 @@ export default function PatientsPage() {
   const patientLimitBlock =
     activeWorkspace?.type === "CLINICA"
       ? null
-      : getPatientPlanLimitBlock({
+      : accessLevel === "TRIAL_ACTIVE"
+        ? null
+        : getPatientPlanLimitBlock({
           activePatientCount,
           patientLimit: plan.limitePacientes,
         });
+  const readOnlyMessage =
+    "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes.";
+  const writeBlockMessage = isReadOnly ? readOnlyMessage : patientLimitBlock;
   const independentPlanMessage =
     "Esta funcionalidad está disponible en KineFlow - Particular. Podés activarlo para gestionar tus pacientes, turnos y cobros propios.";
 
@@ -312,8 +324,13 @@ export default function PatientsPage() {
         return;
       }
 
-      if (patientLimitBlock) {
-        setActionError(patientLimitBlock);
+      if (writeBlockMessage) {
+        setActionError(writeBlockMessage);
+        return;
+      }
+
+      if (isReadOnly) {
+        setActionError(readOnlyMessage);
         return;
       }
 
@@ -336,7 +353,7 @@ export default function PatientsPage() {
       if (!canCreateCurrentPatient) {
         setActionError(
           freeLimitReached
-            ? "Alcanzaste el límite del plan Free. El plan Free permite cargar hasta 5 pacientes. Para seguir agregando pacientes, activá KineFlow - Particular."
+            ? "Activá un plan para seguir agregando pacientes."
             : clinicPracticeBlocked
               ? "Para gestionar pacientes necesitás una suscripción activa."
               : independentPlanMessage,
@@ -393,6 +410,11 @@ export default function PatientsPage() {
         return;
       }
 
+      if (isReadOnly) {
+        setActionError(readOnlyMessage);
+        return;
+      }
+
       await updatePatient(editingPatient.id, editPatient);
       setEditingPatient(null);
       setActionNotice("Paciente actualizado correctamente");
@@ -414,6 +436,11 @@ export default function PatientsPage() {
     setActionNotice("");
 
     try {
+      if (isReadOnly) {
+        setActionError(readOnlyMessage);
+        return;
+      }
+
       await disablePatient(id);
     } catch (disableError) {
       setActionError(
@@ -430,6 +457,11 @@ export default function PatientsPage() {
     setActionNotice("");
 
     try {
+      if (isReadOnly) {
+        setActionError(readOnlyMessage);
+        return;
+      }
+
       await reactivatePatient(id);
       setActionNotice("Paciente reactivado correctamente");
     } catch (reactivateError) {
@@ -504,7 +536,7 @@ export default function PatientsPage() {
         >
           <FileText className="h-5 w-5" />
         </Link>
-        {patientLimitBlock || patient.status === "Inactivo" ? (
+        {writeBlockMessage || patient.status === "Inactivo" ? (
           <button
             aria-label="Nuevo turno"
             className="inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-lg text-slate-300"
@@ -512,7 +544,7 @@ export default function PatientsPage() {
             title={
               patient.status === "Inactivo"
                 ? "Reactiv? el paciente para crear turnos."
-                : patientLimitBlock ?? undefined
+                : writeBlockMessage ?? undefined
             }
             type="button"
           >
@@ -528,7 +560,7 @@ export default function PatientsPage() {
             <CalendarPlus className="h-5 w-5" />
           </Link>
         )}
-        {canManagePatients ? (
+        {canManagePatients && !isReadOnly ? (
           <button
             aria-label="Editar paciente"
             className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
@@ -539,7 +571,7 @@ export default function PatientsPage() {
             <Pencil className="h-5 w-5" />
           </button>
         ) : null}
-        {canManagePatients && patient.status === "Activo" ? (
+        {canManagePatients && !isReadOnly && patient.status === "Activo" ? (
           <button
             aria-label="Deshabilitar"
             className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50 hover:text-red-700"
@@ -549,7 +581,7 @@ export default function PatientsPage() {
           >
             <UserX className="h-5 w-5" />
           </button>
-        ) : canManagePatients ? (
+        ) : canManagePatients && !isReadOnly ? (
           <button
             aria-label="Reactivar"
             className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700"
@@ -578,15 +610,20 @@ export default function PatientsPage() {
                   return;
                 }
 
-                if (patientLimitBlock) {
-                  setActionError(patientLimitBlock);
+                if (writeBlockMessage) {
+                  setActionError(writeBlockMessage);
+                  return;
+                }
+
+                if (isReadOnly) {
+                  setActionError(readOnlyMessage);
                   return;
                 }
 
                 if (!canCreateCurrentPatient) {
                   setActionError(
                     freeLimitReached
-                      ? "Alcanzaste el límite del plan Free. El plan Free permite cargar hasta 5 pacientes. Para seguir agregando pacientes, activá KineFlow - Particular."
+                      ? "Activá un plan para seguir agregando pacientes."
                       : clinicPracticeBlocked
                         ? "Para gestionar pacientes necesitás una suscripción activa."
                         : independentPlanMessage,
@@ -597,8 +634,8 @@ export default function PatientsPage() {
                 setActionError("");
                 setShowForm(true);
               }}
-              disabled={Boolean(patientLimitBlock) || !canManagePatients}
-              title={patientLimitBlock ?? undefined}
+              disabled={Boolean(writeBlockMessage) || !canManagePatients}
+              title={writeBlockMessage ?? undefined}
               type="button"
             >
               <Plus className="h-4 w-4" />
@@ -630,12 +667,11 @@ export default function PatientsPage() {
               <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div>
                   <p className="font-bold text-ink">
-                    Plan Free: {activePatientCount}
-                    /{plan.limitePacientes} pacientes activos
+                    Prueba gratuita: {activePatientCount} pacientes activos
                   </p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Actualmente estás usando el Plan Free. Activá un plan pago
-                    para acceder a pacientes ilimitados y funciones avanzadas.
+                    Probá KineFlow gratis durante 3 meses, sin tarjeta y sin
+                    compromiso.
                   </p>
                 </div>
                 <Link
@@ -670,18 +706,18 @@ export default function PatientsPage() {
             <div className="mt-4 rounded-lg border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700 sm:mt-6 sm:p-5">
               <p className="font-bold">
                 {freeLimitReached && actionError
-                  ? "Alcanzaste el límite del plan Free"
+                  ? "Activá un plan"
                   : "No pudimos completar la acción"}
               </p>
               <p className="mt-1">{(!showForm && actionError) || error}</p>
-              {actionError === patientLimitBlock ? (
+              {actionError === patientLimitBlock || actionError === readOnlyMessage ? (
                 <Link
                   className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
                   href="/dashboard/planes"
                 >
                   Reactivar plan
                 </Link>
-              ) : ((!showForm && actionError) || error).includes("Plan Free") ? (
+              ) : ((!showForm && actionError) || error).includes("Activá un plan") ? (
                 <Link
                   className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
                   href="/dashboard/planes"
