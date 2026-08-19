@@ -97,7 +97,7 @@ async function trackAppointmentNotification(params: {
   appointmentId: string;
   errorMessage?: string;
   patientId: string;
-  providerMessageId?: string;
+  providerMessageId?: string | null;
   status: "sent" | "failed";
 }) {
   const { error } = await params.admin.from("appointment_notifications").insert({
