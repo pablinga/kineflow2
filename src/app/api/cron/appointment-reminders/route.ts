@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { isWhatsAppNotificationsEnabled, sendWhatsAppMessage } from "@/lib/whatsapp";
 
 type ProfileRow = {
   full_name: string | null;
@@ -108,6 +108,10 @@ export async function GET(request: NextRequest) {
 
   if (!cronSecret || authorization !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  }
+
+  if (!isWhatsAppNotificationsEnabled()) {
+    return NextResponse.json({ skipped: "whatsapp_disabled" });
   }
 
   const admin = getSupabaseAdminClient();

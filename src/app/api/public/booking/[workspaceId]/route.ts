@@ -8,7 +8,11 @@ import {
   resolveBookingContext,
 } from "@/lib/public-booking";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
-import { formatPhoneToE164, sendWhatsAppMessage } from "@/lib/whatsapp";
+import {
+  formatPhoneToE164,
+  isWhatsAppNotificationsEnabled,
+  sendWhatsAppMessage,
+} from "@/lib/whatsapp";
 
 type RouteContext = {
   params: Promise<{ workspaceId: string }>;
@@ -151,7 +155,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const phoneE164 = formatPhoneToE164(phone);
   const scheduledAt = normalizeText(body.scheduledAt);
   const durationMinutes = normalizeDuration(body.durationMinutes);
-  const whatsappConsent = body.whatsappConsent === true;
+  const whatsappConsent =
+    isWhatsAppNotificationsEnabled() && body.whatsappConsent === true;
 
   if (
     !professionalId ||
@@ -320,7 +325,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const appointmentId = (appointment as { id: string }).id;
     const appointmentDateTime = formatAppointmentDateTime(scheduledAt);
 
-    if (patient.whatsapp_consent && patient.phone_e164) {
+    if (
+      isWhatsAppNotificationsEnabled() &&
+      patient.whatsapp_consent &&
+      patient.phone_e164
+    ) {
       try {
         // TODO: Esto usa "hello_world" solo para la prueba inicial de conectividad
         // con Meta WhatsApp Cloud API. Reemplazar por una plantilla propia

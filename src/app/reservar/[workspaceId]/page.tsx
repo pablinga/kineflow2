@@ -12,6 +12,7 @@ import {
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
+import { isWhatsAppNotificationsEnabled } from "@/lib/whatsapp";
 
 type PageProps = {
   params: Promise<{ workspaceId: string }>;
@@ -562,23 +563,25 @@ export default function PublicBookingPage({ params }: PageProps) {
                     required
                     value={form.phone}
                   />
-                  <label className="flex items-start gap-3 rounded-lg border border-ocean-100 bg-white p-3 text-sm font-semibold leading-5 text-slate-700">
-                    <input
-                      checked={form.whatsappConsent}
-                      className="mt-1 h-4 w-4 rounded border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          whatsappConsent: event.target.checked,
-                        }))
-                      }
-                      type="checkbox"
-                    />
-                    <span>
-                      Quiero recibir la confirmacion y recordatorios de mi turno
-                      por WhatsApp
-                    </span>
-                  </label>
+                  {isWhatsAppNotificationsEnabled() ? (
+                    <label className="flex items-start gap-3 rounded-lg border border-ocean-100 bg-white p-3 text-sm font-semibold leading-5 text-slate-700">
+                      <input
+                        checked={form.whatsappConsent}
+                        className="mt-1 h-4 w-4 rounded border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            whatsappConsent: event.target.checked,
+                          }))
+                        }
+                        type="checkbox"
+                      />
+                      <span>
+                        Quiero recibir la confirmacion y recordatorios de mi turno
+                        por WhatsApp
+                      </span>
+                    </label>
+                  ) : null}
                 </div>
 
                 <Button

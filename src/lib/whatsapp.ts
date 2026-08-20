@@ -78,6 +78,10 @@ export function formatPhoneToE164(phone: string, defaultCountryCode = "+54") {
   return `+${countryDigits}${digits.replace(/^0+/, "")}`;
 }
 
+export function isWhatsAppNotificationsEnabled() {
+  return process.env.NEXT_PUBLIC_WHATSAPP_ENABLED === "true";
+}
+
 export async function sendWhatsAppMessage(
   params: SendWhatsAppMessageParams,
 ): Promise<WhatsAppMessageResponse> {
