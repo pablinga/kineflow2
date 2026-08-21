@@ -68,3 +68,4 @@ npm run dev
 
 La app queda disponible en la URL configurada en `NEXT_PUBLIC_APP_URL`.
  
+ 
