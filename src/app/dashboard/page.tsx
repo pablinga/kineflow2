@@ -20,7 +20,7 @@ import {
   appointmentStatusStyles,
 } from "@/lib/appointment-ui";
 import { paymentStatusStyles } from "@/lib/payment-ui";
-import { getPlanDisplayName } from "@/lib/plans";
+import { getPlanDisplayName, getTrialCountdownLabel } from "@/lib/plans";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
@@ -163,7 +163,9 @@ export default function DashboardPage() {
       href: "/dashboard/pacientes",
       icon: ClipboardPlus,
     },
-    ...(effectiveAccountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE"
+    ...(effectiveAccountType === "KINESIOLOGO" &&
+    plan.plan !== "INDEPENDIENTE" &&
+    accessLevel !== "TRIAL_ACTIVE"
       ? []
       : [
           {
@@ -255,9 +257,8 @@ export default function DashboardPage() {
             >
               <p>
                 Prueba gratuita ·{" "}
-                {trialDaysRemaining === null
-                  ? "3 meses incluidos"
-                  : `${trialDaysRemaining} días restantes`}
+                {getTrialCountdownLabel(trialDaysRemaining) ??
+                  "3 meses incluidos"}
               </p>
               <Link
                 className="inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
