@@ -5,10 +5,12 @@ import {
   Clock,
   Mail,
   MailPlus,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
   Trash2,
+  UserX,
   UsersRound,
   X,
 } from "lucide-react";
@@ -318,6 +320,186 @@ function EditAvailabilityModal({
   );
 }
 
+type KinesiologistSettingsForm = {
+  color: string;
+  canRegisterEvolutions: boolean;
+  canViewAssignedPatients: boolean;
+};
+
+type EditKinesiologistSettingsModalProps = {
+  form: KinesiologistSettingsForm;
+  kinesiologist: ClinicKinesiologist;
+  onChange: (form: KinesiologistSettingsForm) => void;
+  onClose: () => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  saving: boolean;
+};
+
+function EditKinesiologistSettingsModal({
+  form,
+  kinesiologist,
+  onChange,
+  onClose,
+  onSubmit,
+  saving,
+}: EditKinesiologistSettingsModalProps) {
+  const modalRef = useRef<HTMLFormElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== "Tab" || !modalRef.current) {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        modalRef.current.querySelectorAll<HTMLElement>(focusableSelector),
+      ).filter((element) => element.offsetParent !== null);
+
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      }
+
+      if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  const displayName =
+    kinesiologist.name || kinesiologist.email || "kinesiólogo seleccionado";
+
+  return (
+    <div
+      aria-labelledby="edit-settings-title"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-ink/70 px-4 py-6"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+      role="dialog"
+    >
+      <form
+        className="w-full max-w-md rounded-lg bg-white p-5 shadow-2xl"
+        onSubmit={onSubmit}
+        ref={modalRef}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-ocean-700">Equipo</p>
+            <h2 className="mt-1 text-xl font-bold text-ink" id="edit-settings-title">
+              Editar kinesiólogo
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">{displayName}</p>
+          </div>
+          <button
+            aria-label="Cerrar"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-ocean-50 hover:text-ocean-800"
+            onClick={onClose}
+            ref={closeButtonRef}
+            type="button"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          <label className="flex items-center justify-between gap-3">
+            <FieldLabel>Color</FieldLabel>
+            <input
+              className="h-10 w-16 cursor-pointer rounded-lg border border-ocean-100"
+              onChange={(event) =>
+                onChange({ ...form, color: event.target.value })
+              }
+              type="color"
+              value={form.color}
+            />
+          </label>
+
+          <label className="flex items-center gap-3">
+            <input
+              checked={form.canRegisterEvolutions}
+              className="h-5 w-5 rounded border-ocean-200"
+              onChange={(event) =>
+                onChange({ ...form, canRegisterEvolutions: event.target.checked })
+              }
+              type="checkbox"
+            />
+            <span className="text-sm text-slate-700">
+              Puede registrar evoluciones
+            </span>
+          </label>
+
+          <label className="flex items-center gap-3">
+            <input
+              checked={form.canViewAssignedPatients}
+              className="h-5 w-5 rounded border-ocean-200"
+              onChange={(event) =>
+                onChange({
+                  ...form,
+                  canViewAssignedPatients: event.target.checked,
+                })
+              }
+              type="checkbox"
+            />
+            <span className="text-sm text-slate-700">
+              Puede ver pacientes asignados
+            </span>
+          </label>
+        </div>
+
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <Button
+            disabled={saving}
+            onClick={onClose}
+            type="button"
+            variant="secondary"
+          >
+            Cancelar
+          </Button>
+          <Button disabled={saving} type="submit">
+            {saving ? "Guardando..." : "Guardar cambios"}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function ClinicKinesiologistsPage() {
   const { authError, loading, redirecting } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
@@ -330,9 +512,11 @@ export default function ClinicKinesiologistsPage() {
     loadAvailability,
     loaded,
     refreshKinesiologists,
+    removeKinesiologist,
     saveAvailability,
-    updateAvailability,
     unlinkKinesiologist,
+    updateAvailability,
+    updateKinesiologist,
   } = useClinicKinesiologists();
   const [email, setEmail] = useState("");
   const [availability, setAvailability] = useState<
@@ -344,6 +528,13 @@ export default function ClinicKinesiologistsPage() {
     KinesiologistAvailabilityInput[]
   >([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [editingSettingsKinesiologist, setEditingSettingsKinesiologist] =
+    useState<ClinicKinesiologist | null>(null);
+  const [settingsForm, setSettingsForm] = useState<KinesiologistSettingsForm>({
+    canRegisterEvolutions: true,
+    canViewAssignedPatients: true,
+    color: "#14b8a6",
+  });
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState("");
   const [actionError, setActionError] = useState("");
@@ -569,6 +760,82 @@ export default function ClinicKinesiologistsPage() {
     }
   }
 
+  function handleOpenEditSettings(item: ClinicKinesiologist) {
+    setEditingSettingsKinesiologist(item);
+    setSettingsForm({
+      canRegisterEvolutions: item.canRegisterEvolutions,
+      canViewAssignedPatients: item.canViewAssignedPatients,
+      color: item.color,
+    });
+    setActionError("");
+    setMessage("");
+  }
+
+  function closeEditSettingsModal() {
+    if (saving === "settings") {
+      return;
+    }
+
+    setEditingSettingsKinesiologist(null);
+  }
+
+  async function handleUpdateSettings(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    if (!editingSettingsKinesiologist) {
+      return;
+    }
+
+    setSaving("settings");
+    setActionError("");
+    setMessage("");
+
+    try {
+      await updateKinesiologist(editingSettingsKinesiologist.id, settingsForm);
+      setMessage("Kinesiólogo actualizado correctamente.");
+      setEditingSettingsKinesiologist(null);
+    } catch (updateError) {
+      setActionError(
+        getFriendlyErrorMessage(
+          updateError,
+          "No pudimos actualizar al kinesiólogo.",
+        ),
+      );
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleRemoveKinesiologist(item: ClinicKinesiologist) {
+    const displayName = item.name || item.email;
+
+    if (
+      !window.confirm(`¿Seguro que queres quitar a ${displayName} del equipo?`)
+    ) {
+      return;
+    }
+
+    setSaving(item.id);
+    setActionError("");
+    setMessage("");
+
+    try {
+      await removeKinesiologist(item.id);
+      setMessage("Kinesiólogo quitado del equipo.");
+    } catch (removeError) {
+      setActionError(
+        getFriendlyErrorMessage(
+          removeError,
+          "No pudimos quitar al kinesiólogo del equipo.",
+        ),
+      );
+    } finally {
+      setSaving("");
+    }
+  }
+
   if (authError) {
     return <DashboardLoading error={authError} />;
   }
@@ -707,6 +974,30 @@ export default function ClinicKinesiologistsPage() {
                                 type="button"
                               >
                                 <RefreshCw className="h-4 w-4" />
+                              </button>
+                            ) : null}
+                            {canManage && item.status === "accepted" ? (
+                              <button
+                                aria-label="Editar"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                                disabled={saving === item.id}
+                                onClick={() => handleOpenEditSettings(item)}
+                                title="Editar"
+                                type="button"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                            ) : null}
+                            {canManage && item.status === "accepted" ? (
+                              <button
+                                aria-label="Quitar del equipo"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50"
+                                disabled={saving === item.id}
+                                onClick={() => handleRemoveKinesiologist(item)}
+                                title="Quitar del equipo"
+                                type="button"
+                              >
+                                <UserX className="h-4 w-4" />
                               </button>
                             ) : null}
                             <button
@@ -943,6 +1234,17 @@ export default function ClinicKinesiologistsPage() {
           onClose={closeEditAvailabilityModal}
           onSubmit={handleUpdateAvailability}
           saving={saving === "availability"}
+        />
+      ) : null}
+
+      {editingSettingsKinesiologist ? (
+        <EditKinesiologistSettingsModal
+          form={settingsForm}
+          kinesiologist={editingSettingsKinesiologist}
+          onChange={setSettingsForm}
+          onClose={closeEditSettingsModal}
+          onSubmit={handleUpdateSettings}
+          saving={saving === "settings"}
         />
       ) : null}
     </main>
