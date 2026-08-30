@@ -24,3 +24,5 @@ pnpm-debug.log*
 .codex-temp-index
 git-acl.txt
 .DS_Store
+.env*
+supabase/.temp/
