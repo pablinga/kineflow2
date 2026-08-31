@@ -22,7 +22,7 @@ export async function GET(request: Request, context: RouteContext) {
   const professionalId = searchParams.get("professionalId") ?? "";
   const from = searchParams.get("from");
   const to = searchParams.get("to");
-  const durationMinutes = normalizeDuration(searchParams.get("durationMinutes"));
+  const rawDurationMinutes = searchParams.get("durationMinutes");
   const admin = getSupabaseAdminClient();
 
   if (!admin) {
@@ -64,6 +64,11 @@ export async function GET(request: Request, context: RouteContext) {
         { status: 404 },
       );
     }
+
+    const durationMinutes = normalizeDuration(
+      rawDurationMinutes,
+      bookingContext.workspace.default_session_duration_minutes,
+    );
 
     if (await isWorkspaceReadOnlyForBooking(admin, bookingContext)) {
       return NextResponse.json({

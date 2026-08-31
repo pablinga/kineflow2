@@ -25,6 +25,8 @@ type BookingRequestBody = {
   email?: string;
   firstName?: string;
   fullName?: string;
+  insuranceMemberNumber?: string;
+  insuranceProviderId?: string;
   lastName?: string;
   phone?: string;
   professionalId?: string;
@@ -154,7 +156,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const phone = normalizeText(body.phone);
   const phoneE164 = formatPhoneToE164(phone);
   const scheduledAt = normalizeText(body.scheduledAt);
-  const durationMinutes = normalizeDuration(body.durationMinutes);
   const whatsappConsent =
     isWhatsAppNotificationsEnabled() && body.whatsappConsent === true;
 
@@ -162,7 +163,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     !professionalId ||
     !documentNumber ||
     !fullName ||
-    !email ||
     !phone ||
     !scheduledAt
   ) {
@@ -185,6 +185,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
         { status: 404 },
       );
     }
+
+    const durationMinutes = normalizeDuration(
+      body.durationMinutes,
+      bookingContext.workspace.default_session_duration_minutes,
+    );
 
     if (await isWorkspaceReadOnlyForBooking(admin, bookingContext)) {
       return NextResponse.json(
@@ -299,17 +304,43 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
+    let insuranceProviderId: string | null = null;
+    const rawInsuranceProviderId = normalizeText(body.insuranceProviderId);
+
+    if (rawInsuranceProviderId) {
+      const { data: insuranceProvider } = await admin
+        .from("insurance_providers")
+        .select("id")
+        .eq("id", rawInsuranceProviderId)
+        .eq("workspace_id", bookingContext.workspace.id)
+        .eq("active", true)
+        .maybeSingle();
+
+      insuranceProviderId =
+        (insuranceProvider as { id: string } | null)?.id ?? null;
+    }
+
+    const insuranceMemberNumber = insuranceProviderId
+      ? normalizeText(body.insuranceMemberNumber) || null
+      : null;
+    const sessionAmount = insuranceProviderId
+      ? 0
+      : Number(bookingContext.workspace.default_session_price ?? 0);
+
     const { data: appointment, error: appointmentError } = await admin.from("appointments").insert({
       appointment_origin: bookingContext.origin,
       clinic_id: bookingContext.clinicId,
       clinic_professional_id: bookingContext.clinicProfessionalId,
       duration_minutes: durationMinutes,
+      insurance_member_number: insuranceMemberNumber,
+      insurance_provider_id: insuranceProviderId,
       modality: "presencial",
       notes: "Reserva creada desde enlace público.",
       owner_id: bookingContext.ownerId,
       patient_id: patient.id,
       reason: "Sesion",
       scheduled_at: new Date(scheduledAt).toISOString(),
+      session_amount: sessionAmount,
       status: "pending",
       workspace_id: bookingContext.workspace.id,
     }).select("id")

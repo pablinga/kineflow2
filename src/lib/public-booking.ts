@@ -4,6 +4,8 @@ export type WorkspaceType = "PERSONAL" | "CLINICA";
 
 export type PublicBookingWorkspace = {
   address: string | null;
+  default_session_duration_minutes: number | null;
+  default_session_price: number | null;
   email: string | null;
   id: string;
   name: string;
@@ -11,6 +13,11 @@ export type PublicBookingWorkspace = {
   phone: string | null;
   source_clinic_id: string | null;
   type: WorkspaceType;
+};
+
+export type PublicInsuranceProvider = {
+  id: string;
+  name: string;
 };
 
 export type PublicBookingProfessional = {
@@ -186,9 +193,26 @@ export function normalizeDocumentNumber(value: string) {
   return value.replace(/\D/g, "");
 }
 
-export function normalizeDuration(value: unknown) {
+export function normalizeDuration(
+  value: unknown,
+  workspaceDefault?: number | null,
+) {
   const duration = Number(value);
-  return VALID_DURATIONS.has(duration) ? duration : DEFAULT_DURATION_MINUTES;
+
+  if (VALID_DURATIONS.has(duration)) {
+    return duration;
+  }
+
+  if (
+    typeof workspaceDefault === "number" &&
+    Number.isInteger(workspaceDefault) &&
+    workspaceDefault > 0 &&
+    duration === workspaceDefault
+  ) {
+    return duration;
+  }
+
+  return DEFAULT_DURATION_MINUTES;
 }
 
 export async function getWorkspace(
@@ -198,7 +222,7 @@ export async function getWorkspace(
   const { data, error } = await admin
     .from("workspaces")
     .select(
-      "id, name, address, phone, email, owner_id, source_clinic_id, type",
+      "id, name, address, phone, email, owner_id, source_clinic_id, type, default_session_price, default_session_duration_minutes",
     )
     .eq("id", workspaceId)
     .maybeSingle();
@@ -208,6 +232,24 @@ export async function getWorkspace(
   }
 
   return data as PublicBookingWorkspace | null;
+}
+
+export async function getActiveInsuranceProviders(
+  admin: SupabaseClient,
+  workspaceId: string,
+): Promise<PublicInsuranceProvider[]> {
+  const { data, error } = await admin
+    .from("insurance_providers")
+    .select("id, name")
+    .eq("workspace_id", workspaceId)
+    .eq("active", true)
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new Error("No pudimos cargar las obras sociales.");
+  }
+
+  return (data ?? []) as PublicInsuranceProvider[];
 }
 
 export async function getPublicProfessionals(
