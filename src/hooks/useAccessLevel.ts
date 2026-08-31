@@ -11,6 +11,7 @@ type AccessSnapshot = {
   fetchedAt: number;
   loaded: boolean;
   trialDaysRemaining: number | null;
+  trialEndsAt: string | null;
   userId: string | null;
   workspaceId: string | null;
 };
@@ -21,6 +22,7 @@ const defaultSnapshot: AccessSnapshot = {
   fetchedAt: 0,
   loaded: false,
   trialDaysRemaining: null,
+  trialEndsAt: null,
   userId: null,
   workspaceId: null,
 };
@@ -67,6 +69,9 @@ export function useAccessLevel() {
   const [trialDaysRemaining, setTrialDaysRemaining] = useState<number | null>(
     accessSnapshot.trialDaysRemaining,
   );
+  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(
+    accessSnapshot.trialEndsAt,
+  );
   const [loaded, setLoaded] = useState(
     accessSnapshot.loaded &&
       accessSnapshot.workspaceId === activeWorkspace?.id &&
@@ -101,6 +106,7 @@ export function useAccessLevel() {
           if (mounted) {
             setAccessLevel(accessSnapshot.accessLevel);
             setTrialDaysRemaining(accessSnapshot.trialDaysRemaining);
+            setTrialEndsAt(accessSnapshot.trialEndsAt);
           }
           return;
         }
@@ -130,24 +136,29 @@ export function useAccessLevel() {
             .maybeSingle(),
         ]);
         const nextAccessLevel = normalizeAccessLevel(rpcData);
+        const rawTrialEndsAt =
+          (profileData as { trial_ends_at?: unknown } | null)?.trial_ends_at;
         const nextTrialDaysRemaining =
           nextAccessLevel === "TRIAL_ACTIVE"
-            ? getTrialDaysRemaining(
-                (profileData as { trial_ends_at?: unknown } | null)
-                  ?.trial_ends_at,
-              )
+            ? getTrialDaysRemaining(rawTrialEndsAt)
+            : null;
+        const nextTrialEndsAt =
+          nextAccessLevel === "TRIAL_ACTIVE" && typeof rawTrialEndsAt === "string"
+            ? rawTrialEndsAt
             : null;
 
         accessSnapshot.accessLevel = nextAccessLevel;
         accessSnapshot.fetchedAt = Date.now();
         accessSnapshot.loaded = true;
         accessSnapshot.trialDaysRemaining = nextTrialDaysRemaining;
+        accessSnapshot.trialEndsAt = nextTrialEndsAt;
         accessSnapshot.userId = userId;
         accessSnapshot.workspaceId = activeWorkspace?.id ?? null;
 
         if (mounted) {
           setAccessLevel(nextAccessLevel);
           setTrialDaysRemaining(nextTrialDaysRemaining);
+          setTrialEndsAt(nextTrialEndsAt);
         }
       } finally {
         if (mounted) {
@@ -168,5 +179,6 @@ export function useAccessLevel() {
     isReadOnly: accessLevel === "READ_ONLY",
     loaded,
     trialDaysRemaining,
+    trialEndsAt,
   };
 }

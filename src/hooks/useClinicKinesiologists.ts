@@ -17,6 +17,9 @@ import {
 export type ClinicKinesiologistStatus = ClinicProfessionalStatus;
 
 export type ClinicKinesiologist = {
+  canRegisterEvolutions: boolean;
+  canViewAssignedPatients: boolean;
+  color: string;
   email: string;
   firstName: string;
   id: string;
@@ -52,6 +55,9 @@ type ProfileValue = {
 };
 
 type ClinicKinesiologistRow = {
+  can_register_evolutions: boolean | null;
+  can_view_assigned_patients: boolean | null;
+  color: string | null;
   id: string;
   invited_at: string;
   professional_email: string;
@@ -105,6 +111,9 @@ function mapKinesiologist(row: ClinicKinesiologistRow): ClinicKinesiologist {
   const { firstName, lastName } = splitName(name);
 
   return {
+    canRegisterEvolutions: row.can_register_evolutions ?? true,
+    canViewAssignedPatients: row.can_view_assigned_patients ?? true,
+    color: row.color ?? "#14b8a6",
     email,
     firstName,
     id: row.id,
@@ -217,7 +226,7 @@ export function useClinicKinesiologists() {
       const { data, error: queryError } = await supabase
         .from("clinic_professionals")
         .select(
-          "id, professional_email, professional_id, role, status, invited_at, profiles(full_name, email, license_number)",
+          "id, professional_email, professional_id, role, status, invited_at, color, can_register_evolutions, can_view_assigned_patients, profiles(full_name, email, license_number)",
         )
         .eq("clinic_id", clinicId)
         .in("status", [
@@ -503,6 +512,64 @@ export function useClinicKinesiologists() {
     await loadKinesiologists();
   }
 
+  async function updateKinesiologist(
+    id: string,
+    changes: {
+      color?: string;
+      canRegisterEvolutions?: boolean;
+      canViewAssignedPatients?: boolean;
+    },
+  ) {
+    const payload: {
+      color?: string;
+      can_register_evolutions?: boolean;
+      can_view_assigned_patients?: boolean;
+    } = {};
+
+    if (changes.color !== undefined) {
+      payload.color = changes.color;
+    }
+
+    if (changes.canRegisterEvolutions !== undefined) {
+      payload.can_register_evolutions = changes.canRegisterEvolutions;
+    }
+
+    if (changes.canViewAssignedPatients !== undefined) {
+      payload.can_view_assigned_patients = changes.canViewAssignedPatients;
+    }
+
+    const supabase = getSupabaseClient();
+    const { error: updateError } = await supabase
+      .from("clinic_professionals")
+      .update(payload)
+      .eq("clinic_id", clinicId)
+      .eq("id", id);
+
+    if (updateError) {
+      throw new Error(mapSupabaseError(updateError));
+    }
+
+    await loadKinesiologists();
+  }
+
+  async function removeKinesiologist(id: string) {
+    const supabase = getSupabaseClient();
+    const { error: updateError } = await supabase
+      .from("clinic_professionals")
+      .update({
+        responded_at: new Date().toISOString(),
+        status: CLINIC_PROFESSIONAL_STATUS.inactive,
+      })
+      .eq("clinic_id", clinicId)
+      .eq("id", id);
+
+    if (updateError) {
+      throw new Error(mapSupabaseError(updateError));
+    }
+
+    await loadKinesiologists();
+  }
+
   return {
     canManage,
     clinicId,
@@ -513,9 +580,11 @@ export function useClinicKinesiologists() {
     loadAvailability,
     loaded,
     refreshKinesiologists: loadKinesiologists,
+    removeKinesiologist,
     saveAvailability,
-    updateAvailability,
     unlinkKinesiologist,
+    updateAvailability,
+    updateKinesiologist,
   };
 }
 

@@ -31,6 +31,8 @@ export type Appointment = {
   originColor: string;
   sessionNumber: number | null;
   treatmentId: string | null;
+  insuranceProviderId: string | null;
+  insuranceMemberNumber: string | null;
   amount: number;
   paymentStatus: PaymentStatus;
   paymentStatusLabel: string;
@@ -67,6 +69,9 @@ export type NewAppointmentInput = {
   notes: string;
   sessionNumber?: number | null;
   treatmentId?: string;
+  sessionAmount?: number | null;
+  insuranceProviderId?: string | null;
+  insuranceMemberNumber?: string | null;
 };
 
 export type NewClinicAppointmentInput = NewAppointmentInput & {
@@ -100,6 +105,8 @@ type AppointmentRow = {
   payment_notes: string | null;
   session_number: number | null;
   treatment_id: string | null;
+  insurance_provider_id: string | null;
+  insurance_member_number: string | null;
   patients: { full_name: string } | Array<{ full_name: string }> | null;
   clinics: { name: string; color: string } | Array<{ name: string; color: string }> | null;
   clinic_professionals:
@@ -192,6 +199,8 @@ function mapAppointment(row: AppointmentRow): Appointment {
         : workspace?.color ?? "#0b97dc",
     sessionNumber: row.session_number,
     treatmentId: row.treatment_id,
+    insuranceProviderId: row.insurance_provider_id,
+    insuranceMemberNumber: row.insurance_member_number,
     amount: Number(row.session_amount ?? 0),
     paymentStatus: row.payment_status ?? "pending",
     paymentStatusLabel: paymentStatusLabels[row.payment_status ?? "pending"],
@@ -351,7 +360,7 @@ export function useAppointments(
       let query = supabase
         .from("appointments")
         .select(
-          "id, workspace_id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, payment_status, payment_method, paid_at, payment_notes, patients(full_name), clinics(name, color), clinic_professionals(color), workspaces(color)",
+          "id, workspace_id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, insurance_provider_id, insurance_member_number, payment_status, payment_method, paid_at, payment_notes, patients(full_name), clinics(name, color), clinic_professionals(color), workspaces(color)",
         )
         .order("scheduled_at", { ascending: true });
 
@@ -552,6 +561,9 @@ export function useAppointments(
       appointment_origin: "independent",
       treatment_id: input.treatmentId || null,
       session_number: input.sessionNumber ?? null,
+      session_amount: input.sessionAmount ?? 0,
+      insurance_provider_id: input.insuranceProviderId ?? null,
+      insurance_member_number: input.insuranceMemberNumber ?? null,
       status: "pending",
     });
 
@@ -577,6 +589,9 @@ export function useAppointments(
       appointment_origin: "clinic",
       clinic_id: input.clinicId,
       clinic_professional_id: input.clinicProfessionalId,
+      session_amount: input.sessionAmount ?? 0,
+      insurance_provider_id: input.insuranceProviderId ?? null,
+      insurance_member_number: input.insuranceMemberNumber ?? null,
       status: "pending",
     });
 

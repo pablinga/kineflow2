@@ -110,7 +110,7 @@ export async function GET(request: Request) {
     permissions: getPermissionsFromPlan({
       accountType,
       plan,
-      subscriptionStatus,
+      subscriptionStatus: estadoPlan === "ACTIVO" ? "ACTIVE" : subscriptionStatus,
     }),
   });
 }

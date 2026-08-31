@@ -84,8 +84,11 @@ export default function IndependentAvailabilityPage() {
 
   const canManage =
     accountType === "KINESIOLOGO" && activeWorkspace?.type === "PERSONAL";
+  const appBaseUrl = (
+    process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://kineflow.ar"
+  ).replace(/\/$/, "");
   const publicBookingLink = activeWorkspace
-    ? `https://kineflow.ar/reservar/${activeWorkspace.id}`
+    ? `${appBaseUrl}/reservar/${activeWorkspace.id}`
     : "";
   const sortedAvailability = useMemo(
     () =>

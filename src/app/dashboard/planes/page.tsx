@@ -15,7 +15,12 @@ import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { isPlanAllowedForAccount } from "@/lib/billing";
 import { getFriendlyErrorMessage, logFriendlyError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
-import { getPlanDisplayName, plans, type CommercialPlan } from "@/lib/plans";
+import {
+  getPlanDisplayName,
+  getTrialCountdownLabel,
+  plans,
+  type CommercialPlan,
+} from "@/lib/plans";
 
 export default function PlansPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
@@ -25,6 +30,7 @@ export default function PlansPage() {
     accessLevel,
     loaded: accessLoaded,
     trialDaysRemaining,
+    trialEndsAt,
   } = useAccessLevel();
   const { loaded: patientsLoaded, patients } = usePatients();
   const [selectedPlan, setSelectedPlan] = useState<CommercialPlan | null>(null);
@@ -67,6 +73,15 @@ export default function PlansPage() {
         : `${activePatients.length} de ${plan.limitePacientes} pacientes`;
   const subscriptionStatus = plan.estadoPlan ?? "SIN SUSCRIPCIÓN";
   const isFreePlan = plan.plan === "FREE";
+  const isTrialActive = accessLevel === "TRIAL_ACTIVE";
+  const trialCountdownLabel = getTrialCountdownLabel(trialDaysRemaining);
+  const trialEndDateLabel = trialEndsAt
+    ? new Date(trialEndsAt).toLocaleDateString("es-AR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
   const planHeaderDescription = isFreePlan ? (
     <>
       Probá KineFlow gratis durante 3 meses, sin tarjeta y sin compromiso.
@@ -194,52 +209,81 @@ export default function PlansPage() {
             title="Plan / Suscripción"
           />
 
-          <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:mt-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-2xl font-bold text-ink">
-                    {currentPlanName}
-                  </h2>
-                  <span className="rounded-full bg-ocean-50 px-3 py-1 text-xs font-bold uppercase text-ocean-800">
-                    {subscriptionStatus}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm text-slate-600">
-                  Límite de pacientes:{" "}
-                  <span className="font-semibold text-ink">
-                    {patientLimitLabel}
-                  </span>
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  Estado de suscripción:{" "}
-                  <span className="font-semibold text-ink">
-                    {subscriptionStatus}
-                  </span>
-                </p>
-                {isFreePlan ? (
-                  <p className="mt-3 text-sm font-medium text-amber-700">
-                    Prueba gratuita
-                    {trialDaysRemaining === null
-                      ? ": 3 meses incluidos."
-                      : `: ${trialDaysRemaining} días restantes.`}
+          {isTrialActive ? (
+            <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:mt-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-ink">Prueba gratuita</h2>
+                  <p className="mt-1 text-sm font-semibold text-slate-700">
+                    3 meses de prueba
                   </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Tenés acceso completo a todas las funcionalidades de
+                    KineFlow.
+                  </p>
+                  {trialCountdownLabel ? (
+                    <p className="mt-3 text-sm font-semibold text-amber-700">
+                      {trialCountdownLabel}
+                      {trialEndDateLabel ? ` · Finaliza el ${trialEndDateLabel}` : ""}
+                    </p>
+                  ) : null}
+                </div>
+                <a
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+                  href="#planes-disponibles"
+                >
+                  Ver planes
+                </a>
+              </div>
+            </section>
+          ) : (
+            <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:mt-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-2xl font-bold text-ink">
+                      {currentPlanName}
+                    </h2>
+                    <span className="rounded-full bg-ocean-50 px-3 py-1 text-xs font-bold uppercase text-ocean-800">
+                      {subscriptionStatus}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Límite de pacientes:{" "}
+                    <span className="font-semibold text-ink">
+                      {patientLimitLabel}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Estado de suscripción:{" "}
+                    <span className="font-semibold text-ink">
+                      {subscriptionStatus}
+                    </span>
+                  </p>
+                  {isFreePlan ? (
+                    <p className="mt-3 text-sm font-medium text-amber-700">
+                      Prueba gratuita
+                      {trialDaysRemaining === null
+                        ? ": 3 meses incluidos."
+                        : `: ${trialDaysRemaining} días restantes.`}
+                    </p>
+                  ) : null}
+                </div>
+                {isFreePlan ? (
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 disabled:opacity-60"
+                    disabled={checkoutLoading === "INDEPENDIENTE"}
+                    onClick={() => handleCheckout("INDEPENDIENTE")}
+                    type="button"
+                  >
+                    {checkoutLoading === "INDEPENDIENTE"
+                      ? "Preparando..."
+                      : "Activar plan"}
+                  </button>
                 ) : null}
               </div>
-              {isFreePlan ? (
-                <button
-                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 disabled:opacity-60"
-                  disabled={checkoutLoading === "INDEPENDIENTE"}
-                  onClick={() => handleCheckout("INDEPENDIENTE")}
-                  type="button"
-                >
-                  {checkoutLoading === "INDEPENDIENTE"
-                    ? "Preparando..."
-                    : "Activar plan"}
-                </button>
-              ) : null}
-            </div>
-          </section>
+            </section>
+          )}
 
           {canCancelSubscription ? (
             <section className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 p-4 sm:mt-6">
@@ -263,25 +307,27 @@ export default function PlansPage() {
             </section>
           ) : null}
 
-          <section className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              ["Plan actual", currentPlanName],
-              ["Estado", plan.estadoPlan],
-              [
-                "Límite de pacientes",
-                patientLimitLabel,
-              ],
-              ["Pacientes usados", `${activePatients.length} activos`],
-            ].map(([label, value]) => (
-              <article
-                className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card"
-                key={label}
-              >
-                <p className="text-sm font-medium text-slate-500">{label}</p>
-                <p className="mt-1 text-xl font-bold text-ink">{value}</p>
-              </article>
-            ))}
-          </section>
+          {isTrialActive ? null : (
+            <section className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                ["Plan actual", currentPlanName],
+                ["Estado", plan.estadoPlan],
+                [
+                  "Límite de pacientes",
+                  patientLimitLabel,
+                ],
+                ["Pacientes usados", `${activePatients.length} activos`],
+              ].map(([label, value]) => (
+                <article
+                  className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card"
+                  key={label}
+                >
+                  <p className="text-sm font-medium text-slate-500">{label}</p>
+                  <p className="mt-1 text-xl font-bold text-ink">{value}</p>
+                </article>
+              ))}
+            </section>
+          )}
 
           {cancelReference ? (
             <section className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 sm:mt-6">
@@ -289,7 +335,10 @@ export default function PlansPage() {
             </section>
           ) : null}
 
-          <section className="mt-4 grid gap-4 sm:mt-6 lg:grid-cols-2">
+          <section
+            className="mt-4 grid gap-4 sm:mt-6 lg:grid-cols-2"
+            id="planes-disponibles"
+          >
             {visiblePlans.map((item) => {
               const Icon = item.icon;
               const isCurrent = item.id === plan.plan;

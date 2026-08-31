@@ -12,6 +12,7 @@ import {
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
+import { formatCurrency } from "@/lib/format";
 import { isWhatsAppNotificationsEnabled } from "@/lib/whatsapp";
 
 type PageProps = {
@@ -20,6 +21,8 @@ type PageProps = {
 
 type Workspace = {
   address: string | null;
+  defaultSessionDurationMinutes: number | null;
+  defaultSessionPrice: number | null;
   email: string | null;
   id: string;
   name: string;
@@ -28,6 +31,11 @@ type Workspace = {
 };
 
 type Professional = {
+  id: string;
+  name: string;
+};
+
+type InsuranceProvider = {
   id: string;
   name: string;
 };
@@ -47,7 +55,7 @@ type Confirmation = {
   time: string;
 };
 
-const durationMinutes = 45;
+const DEFAULT_DURATION_MINUTES = 45;
 
 function toDateValue(date: Date) {
   const year = date.getFullYear();
@@ -102,6 +110,9 @@ export default function PublicBookingPage({ params }: PageProps) {
   const { workspaceId } = use(params);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [insuranceProviders, setInsuranceProviders] = useState<
+    InsuranceProvider[]
+  >([]);
   const [professionalId, setProfessionalId] = useState("");
   const [fromDate, setFromDate] = useState(() =>
     getMondayOfWeek(toDateValue(new Date())),
@@ -114,10 +125,13 @@ export default function PublicBookingPage({ params }: PageProps) {
     documentNumber: "",
     email: "",
     firstName: "",
+    insuranceMemberNumber: "",
+    insuranceProviderId: "",
     lastName: "",
     phone: "",
     whatsappConsent: false,
   });
+  const [hasInsurance, setHasInsurance] = useState(false);
   const [loadingProfessionals, setLoadingProfessionals] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -147,6 +161,9 @@ export default function PublicBookingPage({ params }: PageProps) {
 
         setWorkspace(result.workspace as Workspace);
         setProfessionals(nextProfessionals);
+        setInsuranceProviders(
+          (result.insuranceProviders ?? []) as InsuranceProvider[],
+        );
         setProfessionalId((current) => current || nextProfessionals[0]?.id || "");
       } catch (loadError) {
         setError(getErrorMessage(loadError, "No pudimos cargar la agenda."));
@@ -158,6 +175,8 @@ export default function PublicBookingPage({ params }: PageProps) {
     loadProfessionals();
   }, [workspaceId]);
 
+  const durationMinutes =
+    workspace?.defaultSessionDurationMinutes ?? DEFAULT_DURATION_MINUTES;
   const todayDate = toDateValue(new Date());
   const toDate = useMemo(
     () => toDateValue(addDays(new Date(`${fromDate}T12:00:00`), 4)),
@@ -210,7 +229,7 @@ export default function PublicBookingPage({ params }: PageProps) {
     } finally {
       setLoadingSlots(false);
     }
-  }, [fromDate, professionalId, toDate, workspaceId]);
+  }, [durationMinutes, fromDate, professionalId, toDate, workspaceId]);
 
   useEffect(() => {
     loadAvailability();
@@ -275,6 +294,10 @@ export default function PublicBookingPage({ params }: PageProps) {
             durationMinutes,
             email: form.email,
             firstName: form.firstName,
+            insuranceMemberNumber: hasInsurance
+              ? form.insuranceMemberNumber
+              : "",
+            insuranceProviderId: hasInsurance ? form.insuranceProviderId : "",
             lastName: form.lastName,
             phone: form.phone,
             professionalId,
@@ -547,7 +570,6 @@ export default function PublicBookingPage({ params }: PageProps) {
                       }))
                     }
                     placeholder="Email"
-                    required
                     type="email"
                     value={form.email}
                   />
@@ -563,6 +585,75 @@ export default function PublicBookingPage({ params }: PageProps) {
                     required
                     value={form.phone}
                   />
+                  <div className="rounded-lg border border-ocean-100 bg-white p-3">
+                    <span className="text-sm font-semibold text-slate-700">
+                      ¿Venís por obra social?
+                    </span>
+                    <div className="mt-2 flex gap-4">
+                      <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <input
+                          checked={!hasInsurance}
+                          className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                          name="hasInsurance"
+                          onChange={() => setHasInsurance(false)}
+                          type="radio"
+                        />
+                        No
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <input
+                          checked={hasInsurance}
+                          className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                          name="hasInsurance"
+                          onChange={() => setHasInsurance(true)}
+                          type="radio"
+                        />
+                        Sí
+                      </label>
+                    </div>
+
+                    {hasInsurance ? (
+                      <div className="mt-3 grid gap-3">
+                        <select
+                          className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              insuranceProviderId: event.target.value,
+                            }))
+                          }
+                          value={form.insuranceProviderId}
+                        >
+                          <option value="">Seleccioná tu obra social</option>
+                          {insuranceProviders.map((provider) => (
+                            <option key={provider.id} value={provider.id}>
+                              {provider.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              insuranceMemberNumber: event.target.value,
+                            }))
+                          }
+                          placeholder="Número de afiliado"
+                          required={Boolean(form.insuranceProviderId)}
+                          value={form.insuranceMemberNumber}
+                        />
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-slate-600">
+                        Costo de la sesión:{" "}
+                        <span className="font-semibold text-ink">
+                          {formatCurrency(workspace?.defaultSessionPrice ?? 0)}
+                        </span>{" "}
+                        · {durationMinutes} minutos
+                      </p>
+                    )}
+                  </div>
                   {isWhatsAppNotificationsEnabled() ? (
                     <label className="flex items-start gap-3 rounded-lg border border-ocean-100 bg-white p-3 text-sm font-semibold leading-5 text-slate-700">
                       <input

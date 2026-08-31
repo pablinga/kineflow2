@@ -10,6 +10,7 @@ import { PatientSearchSelect } from "@/components/patients/PatientSearchSelect";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { useAppointments, type NewAppointmentInput } from "@/hooks/useAppointments";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
+import { useInsuranceProviders } from "@/hooks/useInsuranceProviders";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
@@ -110,12 +111,38 @@ export default function NewAppointmentPage() {
     activeTreatments,
     loaded: treatmentsLoaded,
   } = useTreatments(appointment.patientId || undefined);
+  const { providers: insuranceProviders } = useInsuranceProviders();
+  const activeInsuranceProviders = insuranceProviders.filter(
+    (provider) => provider.active,
+  );
+  const [sessionAmount, setSessionAmount] = useState<number | null>(null);
+  const [wantsInsurance, setWantsInsurance] = useState(false);
+  const [insuranceProviderId, setInsuranceProviderId] = useState("");
+  const [insuranceMemberNumber, setInsuranceMemberNumber] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [professionalAvailabilityNotice, setProfessionalAvailabilityNotice] =
     useState("");
   const hasLoadedOnceRef = useRef(false);
   const hasManuallySelectedProfessionalRef = useRef(false);
+  const hasInitializedWorkspaceDefaultsRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      !workspaceLoaded ||
+      !activeWorkspace ||
+      hasInitializedWorkspaceDefaultsRef.current
+    ) {
+      return;
+    }
+
+    hasInitializedWorkspaceDefaultsRef.current = true;
+    setAppointment((current) => ({
+      ...current,
+      durationMinutes: activeWorkspace.defaultSessionDurationMinutes ?? 45,
+    }));
+    setSessionAmount(activeWorkspace.defaultSessionPrice ?? 0);
+  }, [activeWorkspace, workspaceLoaded]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -428,6 +455,11 @@ export default function NewAppointmentPage() {
           clinicId: selectedProfessional.clinic_id,
           clinicProfessionalId,
           professionalId: selectedProfessional.professional_id,
+          sessionAmount,
+          insuranceProviderId: wantsInsurance ? insuranceProviderId || null : null,
+          insuranceMemberNumber: wantsInsurance
+            ? insuranceMemberNumber || null
+            : null,
         });
       } else {
         if (writeBlockMessage) {
@@ -440,7 +472,14 @@ export default function NewAppointmentPage() {
           return;
         }
 
-        await addAppointment(appointment);
+        await addAppointment({
+          ...appointment,
+          sessionAmount,
+          insuranceProviderId: wantsInsurance ? insuranceProviderId || null : null,
+          insuranceMemberNumber: wantsInsurance
+            ? insuranceMemberNumber || null
+            : null,
+        });
       }
       router.push(
         preselectedPatient
@@ -693,7 +732,93 @@ export default function NewAppointmentPage() {
                   <option value="virtual">Virtual</option>
                 </select>
               </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Costo de la sesión
+                </span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  inputMode="decimal"
+                  min={0}
+                  onChange={(event) =>
+                    setSessionAmount(
+                      event.target.value === ""
+                        ? null
+                        : Number(event.target.value),
+                    )
+                  }
+                  placeholder="0"
+                  type="number"
+                  value={sessionAmount ?? ""}
+                />
+              </label>
             </div>
+
+            <div className="mt-4 rounded-lg border border-ocean-100 p-4">
+              <span className="text-sm font-semibold text-slate-700">
+                ¿Paciente viene por obra social?
+              </span>
+              <div className="mt-2 flex gap-4">
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <input
+                    checked={!wantsInsurance}
+                    className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                    name="wantsInsurance"
+                    onChange={() => setWantsInsurance(false)}
+                    type="radio"
+                  />
+                  No
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <input
+                    checked={wantsInsurance}
+                    className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                    name="wantsInsurance"
+                    onChange={() => setWantsInsurance(true)}
+                    type="radio"
+                  />
+                  Sí
+                </label>
+              </div>
+
+              {wantsInsurance ? (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Obra social
+                    </span>
+                    <select
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        setInsuranceProviderId(event.target.value)
+                      }
+                      value={insuranceProviderId}
+                    >
+                      <option value="">Seleccionar obra social</option>
+                      {activeInsuranceProviders.map((provider) => (
+                        <option key={provider.id} value={provider.id}>
+                          {provider.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Número de afiliado
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        setInsuranceMemberNumber(event.target.value)
+                      }
+                      required={Boolean(insuranceProviderId)}
+                      value={insuranceMemberNumber}
+                    />
+                  </label>
+                </div>
+              ) : null}
+            </div>
+
             <label className="mt-4 block">
               <span className="text-sm font-semibold text-slate-700">
                 Observaciones

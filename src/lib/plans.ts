@@ -117,3 +117,16 @@ export function getPatientLimit(plan: CommercialPlan) {
 export function getVisiblePlansForMvp() {
   return plans.filter((plan) => plan.id === "FREE" || plan.id === "INDEPENDIENTE");
 }
+
+export const TRIAL_COUNTDOWN_THRESHOLD_DAYS = 30;
+
+export function getTrialCountdownLabel(trialDaysRemaining: number | null) {
+  if (
+    trialDaysRemaining === null ||
+    trialDaysRemaining > TRIAL_COUNTDOWN_THRESHOLD_DAYS
+  ) {
+    return null;
+  }
+
+  return `${trialDaysRemaining} días restantes`;
+}

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getPublicProfessionals, getWorkspace } from "@/lib/public-booking";
+import {
+  getActiveInsuranceProviders,
+  getPublicProfessionals,
+  getWorkspace,
+} from "@/lib/public-booking";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
 
 type RouteContext = {
@@ -27,12 +31,18 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
-    const professionals = await getPublicProfessionals(admin, workspace);
+    const [professionals, insuranceProviders] = await Promise.all([
+      getPublicProfessionals(admin, workspace),
+      getActiveInsuranceProviders(admin, workspace.id),
+    ]);
 
     return NextResponse.json({
+      insuranceProviders,
       professionals,
       workspace: {
         address: workspace.address,
+        defaultSessionDurationMinutes: workspace.default_session_duration_minutes,
+        defaultSessionPrice: workspace.default_session_price,
         email: workspace.email,
         id: workspace.id,
         name: workspace.name,

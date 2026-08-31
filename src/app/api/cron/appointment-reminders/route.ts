@@ -29,7 +29,7 @@ type AppointmentRow = {
 };
 
 const ARGENTINA_TIME_ZONE = "America/Argentina/Buenos_Aires";
-const REMINDER_TEMPLATE_LANGUAGE_CODE = "es";
+const REMINDER_TEMPLATE_LANGUAGE_CODE = "es_AR";
 
 function getProfileName(profile: ProfileRow | ProfileRow[] | null) {
   const row = Array.isArray(profile) ? profile[0] : profile;

@@ -30,7 +30,7 @@ import {
   resetSubscriptionPlanSnapshot,
   useSubscriptionPlan,
 } from "@/hooks/useSubscriptionPlan";
-import { resetAccessLevelSnapshot } from "@/hooks/useAccessLevel";
+import { resetAccessLevelSnapshot, useAccessLevel } from "@/hooks/useAccessLevel";
 import {
   resetWorkspaceSnapshot,
   useActiveWorkspace,
@@ -112,6 +112,7 @@ export function DashboardSidebar() {
   const router = useRouter();
   const { accountType, loading } = useRequireAuth();
   const { plan } = useSubscriptionPlan();
+  const { accessLevel } = useAccessLevel();
   const {
     activeWorkspace,
     loaded: workspaceLoaded,
@@ -137,7 +138,9 @@ export function DashboardSidebar() {
   const isClinicAdmin =
     activeWorkspace?.type === "CLINICA" && activeWorkspace.role === "ADMIN";
   const baseNavigation =
-    effectiveAccountType === "KINESIOLOGO" && plan.plan !== "INDEPENDIENTE"
+    effectiveAccountType === "KINESIOLOGO" &&
+    plan.plan !== "INDEPENDIENTE" &&
+    accessLevel !== "TRIAL_ACTIVE"
       ? navigation.KINESIOLOGO.filter(
           (item) => item.href !== "/dashboard/ingresos",
         )
