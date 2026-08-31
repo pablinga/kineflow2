@@ -13,6 +13,10 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
 import { formatCurrency } from "@/lib/format";
+import {
+  DEFAULT_SESSION_DURATION_MINUTES,
+  DEFAULT_SESSION_PRICE,
+} from "@/lib/session-defaults";
 import { isWhatsAppNotificationsEnabled } from "@/lib/whatsapp";
 
 type PageProps = {
@@ -55,7 +59,7 @@ type Confirmation = {
   time: string;
 };
 
-const DEFAULT_DURATION_MINUTES = 45;
+const DEFAULT_DURATION_MINUTES = DEFAULT_SESSION_DURATION_MINUTES;
 
 function toDateValue(date: Date) {
   const year = date.getFullYear();
@@ -648,7 +652,9 @@ export default function PublicBookingPage({ params }: PageProps) {
                       <p className="mt-2 text-sm text-slate-600">
                         Costo de la sesión:{" "}
                         <span className="font-semibold text-ink">
-                          {formatCurrency(workspace?.defaultSessionPrice ?? 0)}
+                          {formatCurrency(
+                            workspace?.defaultSessionPrice ?? DEFAULT_SESSION_PRICE,
+                          )}
                         </span>{" "}
                         · {durationMinutes} minutos
                       </p>

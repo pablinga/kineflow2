@@ -7,6 +7,7 @@ import {
   PUBLIC_BOOKING_UNAVAILABLE_MESSAGE,
   resolveBookingContext,
 } from "@/lib/public-booking";
+import { DEFAULT_SESSION_PRICE } from "@/lib/session-defaults";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
 import {
   formatPhoneToE164,
@@ -325,7 +326,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       : null;
     const sessionAmount = insuranceProviderId
       ? 0
-      : Number(bookingContext.workspace.default_session_price ?? 0);
+      : Number(
+          bookingContext.workspace.default_session_price ?? DEFAULT_SESSION_PRICE,
+        );
 
     const { data: appointment, error: appointmentError } = await admin.from("appointments").insert({
       appointment_origin: bookingContext.origin,

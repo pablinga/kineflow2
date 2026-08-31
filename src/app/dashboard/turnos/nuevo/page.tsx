@@ -18,6 +18,10 @@ import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useTreatments } from "@/hooks/useTreatments";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
+import {
+  DEFAULT_SESSION_DURATION_MINUTES,
+  DEFAULT_SESSION_PRICE,
+} from "@/lib/session-defaults";
 
 type ClinicProfessionalOption = {
   id: string;
@@ -42,7 +46,7 @@ const emptyAppointment: NewAppointmentInput = {
   patientId: "",
   date: today,
   time: "",
-  durationMinutes: 45,
+  durationMinutes: DEFAULT_SESSION_DURATION_MINUTES,
   modality: "presencial",
   notes: "",
   sessionNumber: null,
@@ -139,9 +143,13 @@ export default function NewAppointmentPage() {
     hasInitializedWorkspaceDefaultsRef.current = true;
     setAppointment((current) => ({
       ...current,
-      durationMinutes: activeWorkspace.defaultSessionDurationMinutes ?? 45,
+      durationMinutes:
+        activeWorkspace.defaultSessionDurationMinutes ??
+        DEFAULT_SESSION_DURATION_MINUTES,
     }));
-    setSessionAmount(activeWorkspace.defaultSessionPrice ?? 0);
+    setSessionAmount(
+      activeWorkspace.defaultSessionPrice ?? DEFAULT_SESSION_PRICE,
+    );
   }, [activeWorkspace, workspaceLoaded]);
 
   useEffect(() => {

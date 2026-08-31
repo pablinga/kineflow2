@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { DEFAULT_SESSION_DURATION_MINUTES } from "@/lib/session-defaults";
 
 export type WorkspaceType = "PERSONAL" | "CLINICA";
 
@@ -74,7 +75,7 @@ export type FreeSlot = {
 export const PUBLIC_BOOKING_UNAVAILABLE_MESSAGE =
   "Este profesional no está aceptando reservas en este momento.";
 
-const DEFAULT_DURATION_MINUTES = 45;
+const DEFAULT_DURATION_MINUTES = DEFAULT_SESSION_DURATION_MINUTES;
 const VALID_DURATIONS = new Set([30, 45, 60, 90]);
 const TIME_ZONE_OFFSET = "-03:00";
 const ACTIVE_APPOINTMENT_STATUSES = ["pending", "confirmed", "rescheduled"];
