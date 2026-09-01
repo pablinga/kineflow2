@@ -41,31 +41,32 @@ type BookingPatient = {
   whatsapp_consent: boolean | null;
 };
 
-const attempts = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MINUTES = 10;
 const RATE_LIMIT_MAX_ATTEMPTS = 8;
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+
+const MAX_LENGTHS = {
+  documentNumber: 20,
+  email: 254,
+  fullName: 120,
+  insuranceMemberNumber: 50,
+  phone: 20,
+} as const;
 
 function getClientIp(request: NextRequest) {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
+  const xff = request.headers.get("x-forwarded-for");
 
-function rateLimit(ip: string) {
-  const now = Date.now();
-  const current = attempts.get(ip);
+  if (xff) {
+    const parts = xff
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
 
-  if (!current || current.resetAt <= now) {
-    attempts.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return false;
+    if (parts.length > 0) {
+      return parts[parts.length - 1];
+    }
   }
 
-  current.count += 1;
-  attempts.set(ip, current);
-
-  return current.count > RATE_LIMIT_MAX_ATTEMPTS;
+  return request.headers.get("x-real-ip") || "unknown";
 }
 
 function normalizeText(value: unknown) {
@@ -135,7 +136,19 @@ export async function POST(request: NextRequest, context: RouteContext) {
     );
   }
 
-  if (rateLimit(ip)) {
+  const { data: isRateLimited, error: rateLimitError } = await admin.rpc(
+    "check_booking_rate_limit",
+    {
+      p_ip: ip,
+      p_workspace_id: workspaceId,
+      p_window_minutes: RATE_LIMIT_WINDOW_MINUTES,
+      p_max_attempts: RATE_LIMIT_MAX_ATTEMPTS,
+    },
+  );
+
+  if (rateLimitError) {
+    console.error("rate limit check failed", rateLimitError);
+  } else if (isRateLimited) {
     return NextResponse.json(
       { error: "Demasiados intentos. Probá de nuevo en unos minutos." },
       { status: 429 },
@@ -169,6 +182,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
   ) {
     return NextResponse.json(
       { error: "Completá todos los datos para reservar." },
+      { status: 400 },
+    );
+  }
+
+  if (
+    fullName.length > MAX_LENGTHS.fullName ||
+    documentNumber.length > MAX_LENGTHS.documentNumber ||
+    phone.length > MAX_LENGTHS.phone ||
+    email.length > MAX_LENGTHS.email
+  ) {
+    return NextResponse.json(
+      { error: "Uno de los datos ingresados es demasiado largo." },
       { status: 400 },
     );
   }
@@ -324,6 +349,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const insuranceMemberNumber = insuranceProviderId
       ? normalizeText(body.insuranceMemberNumber) || null
       : null;
+
+    if (
+      insuranceMemberNumber &&
+      insuranceMemberNumber.length > MAX_LENGTHS.insuranceMemberNumber
+    ) {
+      return NextResponse.json(
+        { error: "Uno de los datos ingresados es demasiado largo." },
+        { status: 400 },
+      );
+    }
     const sessionAmount = insuranceProviderId
       ? 0
       : Number(
@@ -407,13 +442,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       },
     });
   } catch (error) {
+    console.error("public booking error", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "No pudimos crear la reserva.",
-      },
+      { error: "No pudimos crear la reserva. Probá de nuevo en unos minutos." },
       { status: 500 },
     );
   }
