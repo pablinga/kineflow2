@@ -76,7 +76,9 @@ export function usePatientAssignments(patientId?: string) {
       const [membersResult, assignmentsResult] = await Promise.all([
         supabase
           .from("workspace_members")
-          .select("user_id, email, color, profiles(full_name, email)")
+          .select(
+            "user_id, email, color, profiles!workspace_members_user_id_fkey(full_name, email)",
+          )
           .eq("workspace_id", activeWorkspace.id)
           .eq("role", "KINESIOLOGO")
           .eq("status", "accepted")
