@@ -22,8 +22,8 @@ export type PlanDefinition = {
 };
 
 export const FREE_PATIENT_LIMIT = 5;
-export const INDEPENDENT_PLAN_PRICE = 15000;
-export const CONSULTORIO_PRICE = 30000;
+export const INDEPENDENT_PLAN_PRICE = 20000;
+export const CONSULTORIO_PRICE = 40000;
 
 export const plans: PlanDefinition[] = [
   {
