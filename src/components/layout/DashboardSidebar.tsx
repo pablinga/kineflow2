@@ -7,6 +7,7 @@ import {
   Building2,
   CalendarClock,
   CalendarDays,
+  ClipboardList,
   CreditCard,
   ChevronsUpDown,
   DollarSign,
@@ -48,6 +49,11 @@ const navigation = {
     { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
     {
+      href: "/dashboard/turnos/hoy",
+      label: "Listado del día",
+      icon: ClipboardList,
+    },
+    {
       href: "/dashboard/disponibilidad",
       label: "Reservas online",
       icon: CalendarClock,
@@ -66,6 +72,11 @@ const navigation = {
     { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
     { href: "/dashboard/equipo", label: "Equipo", icon: UsersRound },
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
+    {
+      href: "/dashboard/turnos/hoy",
+      label: "Listado del día",
+      icon: ClipboardList,
+    },
     { href: "/dashboard/ingresos", label: "Ingresos", icon: DollarSign },
     { href: "/dashboard/configuracion", label: "Configuracion", icon: Settings },
     { href: "/dashboard/planes", label: "Plan", icon: CreditCard },
