@@ -497,6 +497,7 @@ export async function getFreeSlots(params: {
   const toDate = new Date(`${params.to}T00:00:00.000Z`);
   const todayDate = formatArgentinaDateValue(new Date());
   const slots: FreeSlot[] = [];
+  const seenSlotKeys = new Set<string>();
 
   for (
     let currentDate = fromDate;
@@ -538,6 +539,12 @@ export async function getFreeSlots(params: {
         startMinutes + params.durationMinutes <= blockEnd;
         startMinutes += params.durationMinutes
       ) {
+        const slotKey = `${date}-${startMinutes}`;
+
+        if (seenSlotKeys.has(slotKey)) {
+          continue;
+        }
+
         const start = buildLocalIso(date, startMinutes);
         const end = buildLocalIso(date, startMinutes + params.durationMinutes);
         const startTime = new Date(start).getTime();
@@ -553,6 +560,7 @@ export async function getFreeSlots(params: {
         );
 
         if (!isBooked) {
+          seenSlotKeys.add(slotKey);
           slots.push({
             date,
             end,

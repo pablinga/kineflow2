@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
+import { weekdayLabels } from "@/hooks/useClinicLinks";
+import { hasOverlappingAvailability } from "@/lib/availability-utils";
 import {
   CLINIC_PROFESSIONAL_STATUS,
   type ClinicProfessionalStatus,
@@ -166,6 +168,14 @@ function validateAvailability(availability: KinesiologistAvailabilityInput[]) {
 
   if (invalidAvailability) {
     throw new Error("Revisá que cada franja tenga un horario válido.");
+  }
+
+  const conflictingWeekday = hasOverlappingAvailability(availability);
+
+  if (conflictingWeekday !== null) {
+    throw new Error(
+      `Hay franjas superpuestas en ${weekdayLabels[conflictingWeekday]}. Ajustá los horarios para que no se crucen.`,
+    );
   }
 }
 
