@@ -77,6 +77,11 @@ const navigation = {
       label: "Listado del día",
       icon: ClipboardList,
     },
+    {
+      href: "/dashboard/disponibilidad",
+      label: "Reservas online",
+      icon: CalendarClock,
+    },
     { href: "/dashboard/ingresos", label: "Ingresos", icon: DollarSign },
     { href: "/dashboard/configuracion", label: "Configuracion", icon: Settings },
     { href: "/dashboard/planes", label: "Plan", icon: CreditCard },
