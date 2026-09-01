@@ -9,6 +9,7 @@ export type PublicBookingWorkspace = {
   default_session_price: number | null;
   email: string | null;
   id: string;
+  max_simultaneous_appointments: number | null;
   name: string;
   owner_id: string | null;
   phone: string | null;
@@ -223,7 +224,7 @@ export async function getWorkspace(
   const { data, error } = await admin
     .from("workspaces")
     .select(
-      "id, name, address, phone, email, owner_id, source_clinic_id, type, default_session_price, default_session_duration_minutes",
+      "id, name, address, phone, email, owner_id, source_clinic_id, type, default_session_price, default_session_duration_minutes, max_simultaneous_appointments",
     )
     .eq("id", workspaceId)
     .maybeSingle();
@@ -498,6 +499,10 @@ export async function getFreeSlots(params: {
   const todayDate = formatArgentinaDateValue(new Date());
   const slots: FreeSlot[] = [];
   const seenSlotKeys = new Set<string>();
+  const workspaceCapacity = Math.max(
+    1,
+    params.context.workspace.max_simultaneous_appointments ?? 1,
+  );
 
   for (
     let currentDate = fromDate;
@@ -549,7 +554,7 @@ export async function getFreeSlots(params: {
         const end = buildLocalIso(date, startMinutes + params.durationMinutes);
         const startTime = new Date(start).getTime();
         const endTime = new Date(end).getTime();
-        const isBooked = bookedAppointments.some((appointment) =>
+        const overlappingCount = bookedAppointments.filter((appointment) =>
           overlaps(
             startTime,
             endTime,
@@ -557,9 +562,9 @@ export async function getFreeSlots(params: {
             new Date(appointment.scheduled_at).getTime() +
               appointment.duration_minutes * 60 * 1000,
           ),
-        );
+        ).length;
 
-        if (!isBooked) {
+        if (overlappingCount < workspaceCapacity) {
           seenSlotKeys.add(slotKey);
           slots.push({
             date,
