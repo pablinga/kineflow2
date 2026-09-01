@@ -53,14 +53,14 @@ export const plans: PlanDefinition[] = [
     priceAmount: INDEPENDENT_PLAN_PRICE,
     limit: "Pacientes ilimitados",
     audience:
-      "Para kinesiologos que trabajan de forma independiente y quieren organizar su agenda, pacientes, sesiones y cobros desde un solo lugar.",
+      "Para kinesiólogos que trabajan de forma independiente y quieren organizar su agenda, pacientes, sesiones y cobros desde un solo lugar.",
     features: [
       "Pacientes ilimitados",
       "Agenda simple para organizar turnos",
       "Registro de sesiones",
-      "Evolucion de cada tratamiento",
+      "Evolución de cada tratamiento",
       "Control de cobros y pagos pendientes",
-      "Informacion ordenada y facil de consultar",
+      "Información ordenada y fácil de consultar",
       "Pensado para usar desde el celular",
     ],
     cta: "Activar plan",
@@ -75,17 +75,17 @@ export const plans: PlanDefinition[] = [
     name: "Plan Consultorio",
     price: `${formatMonto(CONSULTORIO_PRICE)}/mes`,
     priceAmount: CONSULTORIO_PRICE,
-    limit: "Sin limite de kinesiologos",
+    limit: "Sin límite de kinesiólogos",
     audience:
-      "Para consultorios y centros de rehabilitacion que necesitan administrar pacientes, agenda multi-profesional e ingresos por profesional.",
+      "Para consultorios y centros de rehabilitación que necesitan administrar pacientes, agenda multi-profesional e ingresos por profesional.",
     features: [
-      "Gestion de pacientes del consultorio",
+      "Gestión de pacientes del consultorio",
       "Agenda multi-profesional",
-      "Busqueda de kinesiologos por matricula",
-      "Invitacion de kinesiologos registrados",
+      "Búsqueda de kinesiólogos por matrícula",
+      "Invitación de kinesiólogos registrados",
       "Control de sesiones por profesional",
       "Reportes e ingresos del consultorio",
-      "Escala para equipos y clinicas",
+      "Escala para equipos y clínicas",
     ],
     cta: "Contratar plan",
     href: "/registro?plan=CONSULTORIO",
@@ -115,7 +115,7 @@ export function getPatientLimit(plan: CommercialPlan) {
 }
 
 export function getVisiblePlansForMvp() {
-  return plans.filter((plan) => plan.id === "FREE" || plan.id === "INDEPENDIENTE");
+  return plans;
 }
 
 export const TRIAL_COUNTDOWN_THRESHOLD_DAYS = 30;

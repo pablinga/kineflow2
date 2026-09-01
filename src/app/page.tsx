@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  CalendarClock,
   CalendarDays,
   CheckCircle2,
   ClipboardList,
@@ -7,6 +8,7 @@ import {
   HeartPulse,
   Instagram,
   Mail,
+  MessageCircle,
   Smartphone,
   UsersRound,
 } from "lucide-react";
@@ -52,6 +54,16 @@ const benefits = [
     icon: Smartphone,
     title: "Desde el celular",
     text: "Pensado para usar entre turnos, sin sobrecarga administrativa.",
+  },
+  {
+    icon: MessageCircle,
+    title: "Confirmación y recordatorio por WhatsApp",
+    text: "Tus pacientes reciben la confirmación del turno y un recordatorio automático antes de la sesión.",
+  },
+  {
+    icon: CalendarClock,
+    title: "Reservas online",
+    text: "Tus pacientes reservan turnos solos desde un link, sin que vos tengas que coordinar por mensajes.",
   },
 ];
 
@@ -239,12 +251,12 @@ export default async function Home({
       <section className="px-4 py-14 sm:px-6 lg:px-8" id="planes">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-2xl">
-            <p className="text-sm font-bold text-ocean-600">Plan</p>
+            <p className="text-sm font-bold text-ocean-600">Planes</p>
             <h2 className="mt-3 text-3xl font-extrabold text-ink">
-              Un plan para tu práctica independiente.
+              Un plan para cada forma de trabajar.
             </h2>
           </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
+          <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {featuredPlans.map((plan) => (
               <article
                 className={`rounded-lg border bg-white p-5 shadow-card ${
