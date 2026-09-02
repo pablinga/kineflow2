@@ -50,7 +50,7 @@ const navigation = {
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
     {
       href: "/dashboard/turnos/hoy",
-      label: "Listado del día",
+      label: "Sesiones diarias",
       icon: ClipboardList,
     },
     {
@@ -74,7 +74,7 @@ const navigation = {
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
     {
       href: "/dashboard/turnos/hoy",
-      label: "Listado del día",
+      label: "Sesiones diarias",
       icon: ClipboardList,
     },
     {
@@ -237,7 +237,22 @@ export function DashboardSidebar() {
   }
 
   function isActive(href: string) {
-    return href === "/dashboard" ? pathname === href : pathname.startsWith(href);
+    if (pathname === href) {
+      return true;
+    }
+
+    if (href === "/dashboard" || !pathname.startsWith(`${href}/`)) {
+      return false;
+    }
+
+    const hasMoreSpecificMatch = visibleNavigation.some(
+      (item) =>
+        item.href !== href &&
+        item.href.length > href.length &&
+        (pathname === item.href || pathname.startsWith(`${item.href}/`)),
+    );
+
+    return !hasMoreSpecificMatch;
   }
 
   return (
