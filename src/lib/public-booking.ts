@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { DEFAULT_SESSION_DURATION_MINUTES } from "@/lib/session-defaults";
 
 export type WorkspaceType = "PERSONAL" | "CLINICA";
 
@@ -8,6 +9,7 @@ export type PublicBookingWorkspace = {
   default_session_price: number | null;
   email: string | null;
   id: string;
+  max_simultaneous_appointments: number | null;
   name: string;
   owner_id: string | null;
   phone: string | null;
@@ -74,7 +76,9 @@ export type FreeSlot = {
 export const PUBLIC_BOOKING_UNAVAILABLE_MESSAGE =
   "Este profesional no está aceptando reservas en este momento.";
 
-const DEFAULT_DURATION_MINUTES = 45;
+export const ANY_PROFESSIONAL_ID = "any";
+
+const DEFAULT_DURATION_MINUTES = DEFAULT_SESSION_DURATION_MINUTES;
 const VALID_DURATIONS = new Set([30, 45, 60, 90]);
 const TIME_ZONE_OFFSET = "-03:00";
 const ACTIVE_APPOINTMENT_STATUSES = ["pending", "confirmed", "rescheduled"];
@@ -222,7 +226,7 @@ export async function getWorkspace(
   const { data, error } = await admin
     .from("workspaces")
     .select(
-      "id, name, address, phone, email, owner_id, source_clinic_id, type, default_session_price, default_session_duration_minutes",
+      "id, name, address, phone, email, owner_id, source_clinic_id, type, default_session_price, default_session_duration_minutes, max_simultaneous_appointments",
     )
     .eq("id", workspaceId)
     .maybeSingle();
@@ -372,6 +376,40 @@ export async function resolveBookingContext(
   };
 }
 
+export async function findAnyAvailableBookingContext(params: {
+  admin: SupabaseClient;
+  durationMinutes: number;
+  scheduledAt: string;
+  workspace: PublicBookingWorkspace;
+}): Promise<BookingContext | null> {
+  const professionals = await getPublicProfessionals(params.admin, params.workspace);
+
+  for (const professional of professionals) {
+    const context = await resolveBookingContext(
+      params.admin,
+      params.workspace.id,
+      professional.id,
+    );
+
+    if (!context) {
+      continue;
+    }
+
+    const available = await isSlotAvailable({
+      admin: params.admin,
+      context,
+      durationMinutes: params.durationMinutes,
+      scheduledAt: params.scheduledAt,
+    });
+
+    if (available) {
+      return context;
+    }
+  }
+
+  return null;
+}
+
 async function getAvailabilityRows(admin: SupabaseClient, context: BookingContext) {
   if (context.origin === "independent") {
     const { data, error } = await admin
@@ -496,6 +534,11 @@ export async function getFreeSlots(params: {
   const toDate = new Date(`${params.to}T00:00:00.000Z`);
   const todayDate = formatArgentinaDateValue(new Date());
   const slots: FreeSlot[] = [];
+  const seenSlotKeys = new Set<string>();
+  const workspaceCapacity = Math.max(
+    1,
+    params.context.workspace.max_simultaneous_appointments ?? 1,
+  );
 
   for (
     let currentDate = fromDate;
@@ -537,11 +580,17 @@ export async function getFreeSlots(params: {
         startMinutes + params.durationMinutes <= blockEnd;
         startMinutes += params.durationMinutes
       ) {
+        const slotKey = `${date}-${startMinutes}`;
+
+        if (seenSlotKeys.has(slotKey)) {
+          continue;
+        }
+
         const start = buildLocalIso(date, startMinutes);
         const end = buildLocalIso(date, startMinutes + params.durationMinutes);
         const startTime = new Date(start).getTime();
         const endTime = new Date(end).getTime();
-        const isBooked = bookedAppointments.some((appointment) =>
+        const overlappingCount = bookedAppointments.filter((appointment) =>
           overlaps(
             startTime,
             endTime,
@@ -549,9 +598,10 @@ export async function getFreeSlots(params: {
             new Date(appointment.scheduled_at).getTime() +
               appointment.duration_minutes * 60 * 1000,
           ),
-        );
+        ).length;
 
-        if (!isBooked) {
+        if (overlappingCount < workspaceCapacity) {
+          seenSlotKeys.add(slotKey);
           slots.push({
             date,
             end,

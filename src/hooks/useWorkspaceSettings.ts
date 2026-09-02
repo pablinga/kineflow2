@@ -11,6 +11,7 @@ export type WorkspaceSettings = {
   defaultSessionDurationMinutes: number | null;
   defaultSessionPrice: number | null;
   email: string;
+  maxSimultaneousAppointments: number;
   name: string;
   phone: string;
 };
@@ -21,6 +22,7 @@ type WorkspaceSettingsRow = {
   default_session_duration_minutes: number | null;
   default_session_price: number | null;
   email: string | null;
+  max_simultaneous_appointments: number;
   name: string;
   phone: string | null;
 };
@@ -43,6 +45,7 @@ function mapWorkspaceSettings(row: WorkspaceSettingsRow): WorkspaceSettings {
     defaultSessionDurationMinutes: row.default_session_duration_minutes,
     defaultSessionPrice: row.default_session_price,
     email: row.email ?? "",
+    maxSimultaneousAppointments: row.max_simultaneous_appointments ?? 1,
     name: row.name,
     phone: row.phone ?? "",
   };
@@ -76,7 +79,7 @@ export function useWorkspaceSettings() {
       const { data, error: queryError } = await supabase
         .from("workspaces")
         .select(
-          "name, address, phone, email, color, default_session_price, default_session_duration_minutes",
+          "name, address, phone, email, color, default_session_price, default_session_duration_minutes, max_simultaneous_appointments",
         )
         .eq("id", activeWorkspace.id)
         .maybeSingle();
@@ -119,6 +122,7 @@ export function useWorkspaceSettings() {
           input.defaultSessionDurationMinutes ?? null,
         default_session_price: input.defaultSessionPrice ?? null,
         email: input.email.trim().toLowerCase() || null,
+        max_simultaneous_appointments: input.maxSimultaneousAppointments,
         name: input.name.trim(),
         phone: input.phone.trim() || null,
       })

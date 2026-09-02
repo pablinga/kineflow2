@@ -73,9 +73,8 @@ type ClinicLinkRow = {
 
 const statusLabels: Record<ClinicLinkStatus, string> = {
   pending: "Pendiente",
-  accepted: "Activo",
+  active: "Activo",
   inactive: "Inactivo",
-  rejected: "Rechazado",
 };
 
 export const weekdayLabels = [
@@ -199,7 +198,7 @@ export function useClinicLinks() {
   async function answerInvitation(
     id: string,
     status:
-      | typeof CLINIC_PROFESSIONAL_STATUS.accepted
+      | typeof CLINIC_PROFESSIONAL_STATUS.active
       | typeof CLINIC_PROFESSIONAL_STATUS.inactive,
   ) {
     const supabase = getSupabaseClient();
@@ -228,7 +227,7 @@ export function useClinicLinks() {
 
   return {
     acceptInvitation: (id: string) =>
-      answerInvitation(id, CLINIC_PROFESSIONAL_STATUS.accepted),
+      answerInvitation(id, CLINIC_PROFESSIONAL_STATUS.active),
     error,
     links,
     loaded,

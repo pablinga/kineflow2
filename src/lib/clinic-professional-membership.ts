@@ -67,14 +67,14 @@ export function getTargetClinicProfessionalStatus(
   lookup: ClinicProfessionalLookup,
 ): ClinicProfessionalStatus {
   return lookup.exists
-    ? CLINIC_PROFESSIONAL_STATUS.accepted
+    ? CLINIC_PROFESSIONAL_STATUS.active
     : CLINIC_PROFESSIONAL_STATUS.pending;
 }
 
 export function getDuplicateClinicProfessionalMessage(
   status: ClinicProfessionalStatus,
 ) {
-  if (status === CLINIC_PROFESSIONAL_STATUS.accepted) {
+  if (status === CLINIC_PROFESSIONAL_STATUS.active) {
     return "Este kinesiologo ya pertenece a la clinica";
   }
 

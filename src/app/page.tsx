@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  CalendarClock,
   CalendarDays,
   CheckCircle2,
   ClipboardList,
@@ -7,6 +8,7 @@ import {
   HeartPulse,
   Instagram,
   Mail,
+  MessageCircle,
   Smartphone,
   UsersRound,
 } from "lucide-react";
@@ -53,6 +55,16 @@ const benefits = [
     title: "Desde el celular",
     text: "Pensado para usar entre turnos, sin sobrecarga administrativa.",
   },
+  {
+    icon: MessageCircle,
+    title: "Confirmación y recordatorio por WhatsApp",
+    text: "Tus pacientes reciben la confirmación del turno y un recordatorio automático antes de la sesión.",
+  },
+  {
+    icon: CalendarClock,
+    title: "Reservas online",
+    text: "Tus pacientes reservan turnos solos desde un link, sin que vos tengas que coordinar por mensajes.",
+  },
 ];
 
 const instagramUrl = "https://www.instagram.com/kineflow.ar/";
@@ -74,10 +86,10 @@ export default async function Home({
   const showAuthLinks = arePublicAuthLinksVisible();
 
   return (
-    <main className="min-h-screen bg-white text-ink">
+    <main className="min-h-screen bg-[#FAF6EF] text-ink">
       <PublicNavbar />
 
-      <section className="overflow-hidden border-b border-ocean-100 bg-gradient-to-b from-white to-[#F5F7FA] px-4 py-14 sm:px-6 lg:px-8">
+      <section className="overflow-hidden border-b border-ocean-100 bg-gradient-to-b from-[#FDFBF7] to-[#F2E9DA] px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
           <div>
             <div className="inline-flex items-center gap-3 rounded-full border border-ocean-100 bg-white px-3 py-2 text-sm font-bold text-ocean-600 shadow-card">
@@ -114,7 +126,7 @@ export default async function Home({
           </div>
 
           <div className="relative">
-            <div className="relative rounded-lg border border-ocean-100 bg-white p-4 shadow-card">
+            <div className="relative rounded-lg bg-white p-4 shadow-card">
               <div className="flex items-center justify-between border-b border-ocean-100 pb-4">
                 <div>
                   <p className="text-sm font-bold text-ocean-600">
@@ -135,7 +147,7 @@ export default async function Home({
                   ["12:00", "Diego Ramos", "Sesión de fuerza"],
                 ].map(([time, patient, reason]) => (
                   <div
-                    className="grid grid-cols-[4rem_1fr] gap-3 rounded-lg border border-ocean-100 bg-[#F5F7FA] p-3"
+                    className="grid grid-cols-[4rem_1fr] gap-3 rounded-lg bg-[#F2E9DA] p-3"
                     key={`${time}-${patient}`}
                   >
                     <p className="font-extrabold text-ocean-600">{time}</p>
@@ -171,20 +183,27 @@ export default async function Home({
         <div className="mx-auto max-w-7xl">
           <div className="max-w-2xl">
             <p className="text-sm font-bold text-ocean-600">Beneficios</p>
-            <h2 className="mt-3 text-3xl font-extrabold text-ink">
+            <h2 className="mt-3 text-3xl font-bold text-ink">
               Diseñado para lo que importa.
             </h2>
           </div>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {benefits.map((item) => {
+            {benefits.map((item, index) => {
               const Icon = item.icon;
+              const isEmerald = index % 2 === 1;
 
               return (
                 <article
-                  className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card"
+                  className="rounded-lg bg-white p-5 shadow-card"
                   key={item.title}
                 >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-ocean-50 text-ocean-600">
+                  <span
+                    className={`flex h-11 w-11 items-center justify-center rounded-lg ${
+                      isEmerald
+                        ? "bg-emerald-50 text-emerald-600"
+                        : "bg-ocean-50 text-ocean-600"
+                    }`}
+                  >
                     <Icon
                       aria-hidden="true"
                       className="h-5 w-5"
@@ -192,7 +211,7 @@ export default async function Home({
                       vectorEffect="non-scaling-stroke"
                     />
                   </span>
-                  <h3 className="mt-4 font-extrabold text-ink">
+                  <h3 className="mt-4 font-semibold text-ink">
                     {item.title}
                   </h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -205,11 +224,11 @@ export default async function Home({
         </div>
       </section>
 
-      <section className="border-y border-ocean-100 bg-[#F5F7FA] px-4 py-14 sm:px-6 lg:px-8">
+      <section className="border-y border-ocean-100 bg-white px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
           <div>
             <p className="text-sm font-bold text-ocean-600">Flujo simple</p>
-            <h2 className="mt-3 text-3xl font-extrabold text-ink">
+            <h2 className="mt-3 text-3xl font-bold text-ink">
               Abrir, registrar, seguir.
             </h2>
             <p className="mt-4 leading-7 text-slate-600">
@@ -225,7 +244,7 @@ export default async function Home({
               "Los cobros por sesión quedan conectados al trabajo diario.",
             ].map((text) => (
               <div
-                className="flex items-start gap-3 rounded-lg border border-ocean-100 bg-white p-4 shadow-card"
+                className="flex items-start gap-3 rounded-lg bg-white p-4 shadow-card"
                 key={text}
               >
                 <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
@@ -239,22 +258,22 @@ export default async function Home({
       <section className="px-4 py-14 sm:px-6 lg:px-8" id="planes">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-2xl">
-            <p className="text-sm font-bold text-ocean-600">Plan</p>
-            <h2 className="mt-3 text-3xl font-extrabold text-ink">
-              Un plan para tu práctica independiente.
+            <p className="text-sm font-bold text-ocean-600">Planes</p>
+            <h2 className="mt-3 text-3xl font-bold text-ink">
+              Un plan para cada forma de trabajar.
             </h2>
           </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
+          <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {featuredPlans.map((plan) => (
               <article
                 className={`rounded-lg border bg-white p-5 shadow-card ${
-                  plan.recommended ? "border-ocean-500" : "border-ocean-100"
+                  plan.recommended ? "border-emerald-500" : "border-ocean-100"
                 }`}
                 key={plan.id}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-lg font-extrabold text-ink">
+                    <h3 className="text-lg font-semibold text-ink">
                       {plan.name}
                     </h3>
                     <p className="mt-2 text-2xl font-extrabold text-ocean-700">
@@ -298,7 +317,7 @@ export default async function Home({
         <div className="mx-auto flex max-w-5xl flex-col justify-between gap-6 rounded-lg bg-ocean-900 p-6 text-white shadow-soft sm:p-8 md:flex-row md:items-center">
           <div>
             <KineFlowIcon className="h-12 w-12" />
-            <h2 className="mt-4 text-3xl font-extrabold">
+            <h2 className="mt-4 text-3xl font-bold">
               Probá KineFlow gratis
             </h2>
             <p className="mt-3 max-w-2xl text-ocean-100">

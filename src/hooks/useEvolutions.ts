@@ -17,6 +17,10 @@ export type Evolution = {
   mobility: string;
   strength: string;
   notes: string;
+  sessionDateRaw: string;
+  painScore: number | null;
+  mobilityScore: number | null;
+  strengthScore: number | null;
 };
 
 export type NewEvolutionInput = {
@@ -44,6 +48,15 @@ type EvolutionRow = {
   patients: { full_name: string } | Array<{ full_name: string }> | null;
 };
 
+function parseScore(value: string | null): number | null {
+  if (value === null) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 10 ? parsed : null;
+}
+
 function mapEvolution(row: EvolutionRow): Evolution {
   const patient = Array.isArray(row.patients) ? row.patients[0] : row.patients;
 
@@ -58,6 +71,10 @@ function mapEvolution(row: EvolutionRow): Evolution {
     mobility: row.mobility_notes ?? "Sin nota de movilidad",
     strength: row.strength_notes ?? "Sin nota de fuerza",
     notes: row.clinical_notes,
+    sessionDateRaw: row.session_date,
+    painScore: row.pain_level,
+    mobilityScore: parseScore(row.mobility_notes),
+    strengthScore: parseScore(row.strength_notes),
   };
 }
 

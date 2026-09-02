@@ -36,6 +36,7 @@ type FormState = {
   defaultSessionDurationMinutes: string;
   defaultSessionPrice: string;
   email: string;
+  maxSimultaneousAppointments: string;
   name: string;
   phone: string;
 };
@@ -46,6 +47,7 @@ const emptyForm: FormState = {
   defaultSessionDurationMinutes: "",
   defaultSessionPrice: "",
   email: "",
+  maxSimultaneousAppointments: "1",
   name: "",
   phone: "",
 };
@@ -62,6 +64,7 @@ function toFormState(settings: WorkspaceSettings | null): FormState {
       settings.defaultSessionDurationMinutes?.toString() ?? "",
     defaultSessionPrice: settings.defaultSessionPrice?.toString() ?? "",
     email: settings.email,
+    maxSimultaneousAppointments: settings.maxSimultaneousAppointments.toString(),
     name: settings.name,
     phone: settings.phone,
   };
@@ -175,12 +178,26 @@ export default function WorkspaceSettingsPage() {
         throw new Error("El precio sugerido no puede ser negativo.");
       }
 
+      const maxSimultaneousAppointments = Number(
+        form.maxSimultaneousAppointments,
+      );
+
+      if (
+        !Number.isInteger(maxSimultaneousAppointments) ||
+        maxSimultaneousAppointments < 1
+      ) {
+        throw new Error(
+          "Los turnos simultáneos deben ser un número entero mayor o igual a 1.",
+        );
+      }
+
       await updateSettings({
         address: form.address,
         color: form.color,
         defaultSessionDurationMinutes: duration,
         defaultSessionPrice: price,
         email: form.email,
+        maxSimultaneousAppointments,
         name: form.name,
         phone: form.phone,
       });
@@ -401,6 +418,31 @@ export default function WorkspaceSettingsPage() {
                   />
                 </label>
               </div>
+              {activeWorkspace?.type === "CLINICA" ? (
+                <label className="block">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Turnos simultáneos por profesional
+                  </span>
+                  <input
+                    className="mt-2 min-h-11 w-full max-w-xs rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
+                    disabled={!canEdit}
+                    min={1}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        maxSimultaneousAppointments: event.target.value,
+                      }))
+                    }
+                    type="number"
+                    value={form.maxSimultaneousAppointments}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Cuántos pacientes puede atender un mismo profesional en el
+                    mismo horario (ej: sala de rehabilitación). Dejalo en 1 si
+                    cada profesional atiende de a un paciente por vez.
+                  </p>
+                </label>
+              ) : null}
             </div>
           </section>
 

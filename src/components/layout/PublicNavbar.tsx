@@ -8,7 +8,7 @@ import { arePublicAuthLinksVisible } from "@/lib/signups";
 
 const links = [
   { href: "#beneficios", label: "Beneficios" },
-  { href: "#planes", label: "Plan" },
+  { href: "#planes", label: "Planes" },
   { href: "#como-funciona", label: "Como funciona" },
   { href: "#contacto", label: "Contacto" },
 ];

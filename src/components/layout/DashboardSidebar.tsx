@@ -7,6 +7,7 @@ import {
   Building2,
   CalendarClock,
   CalendarDays,
+  ClipboardList,
   CreditCard,
   ChevronsUpDown,
   DollarSign,
@@ -20,6 +21,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { SessionDefaultsNotificationBell } from "@/components/layout/SessionDefaultsNotificationBell";
 import { getSupabaseClient } from "@/lib/supabase";
 import {
   resetAuthSnapshot,
@@ -47,6 +49,11 @@ const navigation = {
     { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
     {
+      href: "/dashboard/turnos/hoy",
+      label: "Listado del día",
+      icon: ClipboardList,
+    },
+    {
       href: "/dashboard/disponibilidad",
       label: "Reservas online",
       icon: CalendarClock,
@@ -65,6 +72,16 @@ const navigation = {
     { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
     { href: "/dashboard/equipo", label: "Equipo", icon: UsersRound },
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
+    {
+      href: "/dashboard/turnos/hoy",
+      label: "Listado del día",
+      icon: ClipboardList,
+    },
+    {
+      href: "/dashboard/disponibilidad",
+      label: "Reservas online",
+      icon: CalendarClock,
+    },
     { href: "/dashboard/ingresos", label: "Ingresos", icon: DollarSign },
     { href: "/dashboard/configuracion", label: "Configuracion", icon: Settings },
     { href: "/dashboard/planes", label: "Plan", icon: CreditCard },
@@ -227,14 +244,17 @@ export function DashboardSidebar() {
     <>
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-ocean-100 bg-white px-4 py-3 lg:hidden">
         <Logo compact />
-        <button
-          aria-label="Abrir navegacion"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-ocean-100 text-slate-700"
-          onClick={() => setOpen(true)}
-          type="button"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <SessionDefaultsNotificationBell />
+          <button
+            aria-label="Abrir navegacion"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-ocean-100 text-slate-700"
+            onClick={() => setOpen(true)}
+            type="button"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </div>
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-ocean-100 bg-white p-5 shadow-soft transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:block lg:h-screen lg:translate-x-0 lg:shadow-none ${
@@ -243,14 +263,19 @@ export function DashboardSidebar() {
       >
         <div className="mb-8 flex items-center justify-between">
           <Logo showSlogan />
-          <button
-            aria-label="Cerrar navegacion"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-ocean-50 lg:hidden"
-            onClick={() => setOpen(false)}
-            type="button"
-          >
-            <PanelLeftClose className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <span className="hidden lg:block">
+              <SessionDefaultsNotificationBell />
+            </span>
+            <button
+              aria-label="Cerrar navegacion"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-ocean-50 lg:hidden"
+              onClick={() => setOpen(false)}
+              type="button"
+            >
+              <PanelLeftClose className="h-5 w-5" />
+            </button>
+          </div>
         </div>
         {!loading && workspaceLoaded && workspaces.length > 0 ? (
           <div className="mb-5">

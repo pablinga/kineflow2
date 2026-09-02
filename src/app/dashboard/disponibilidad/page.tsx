@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import Link from "next/link";
 import {
   CalendarClock,
   Check,
@@ -23,6 +24,7 @@ import { weekdayLabels } from "@/hooks/useClinicLinks";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { hasOverlappingAvailability } from "@/lib/availability-utils";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
 
@@ -56,6 +58,14 @@ function validateAvailability(availability: AvailabilityInput[]) {
   if (invalidAvailability) {
     throw new Error("Revisá que cada franja tenga un horario válido.");
   }
+
+  const conflictingWeekday = hasOverlappingAvailability(availability);
+
+  if (conflictingWeekday !== null) {
+    throw new Error(
+      `Hay franjas superpuestas en ${weekdayLabels[conflictingWeekday]}. Ajustá los horarios para que no se crucen.`,
+    );
+  }
 }
 
 function formatAvailabilitySummary(availability: AvailabilityInput[]) {
@@ -82,8 +92,9 @@ export default function IndependentAvailabilityPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  const canManage =
+  const canManageAvailability =
     accountType === "KINESIOLOGO" && activeWorkspace?.type === "PERSONAL";
+  const canViewClinicLink = activeWorkspace?.type === "CLINICA";
   const appBaseUrl = (
     process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://kineflow.ar"
   ).replace(/\/$/, "");
@@ -101,7 +112,7 @@ export default function IndependentAvailabilityPage() {
   );
 
   const loadAvailability = useCallback(async () => {
-    if (!workspaceLoaded || !user || !canManage) {
+    if (!workspaceLoaded || !user || !canManageAvailability) {
       setLoaded(workspaceLoaded);
       return;
     }
@@ -140,7 +151,7 @@ export default function IndependentAvailabilityPage() {
     } finally {
       setLoaded(true);
     }
-  }, [canManage, user, workspaceLoaded]);
+  }, [canManageAvailability, user, workspaceLoaded]);
 
   useEffect(() => {
     loadAvailability();
@@ -166,7 +177,7 @@ export default function IndependentAvailabilityPage() {
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!user || !canManage || isReadOnly) {
+    if (!user || !canManageAvailability || isReadOnly) {
       if (isReadOnly) {
         setError(
           "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes.",
@@ -262,15 +273,61 @@ export default function IndependentAvailabilityPage() {
     return <DashboardLoading />;
   }
 
-  if (!canManage) {
+  if (!canManageAvailability && !canViewClinicLink) {
     return (
       <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
         <DashboardSidebar />
         <PageContainer maxWidth="4xl">
           <Alert tone="warning" title="Reservas online no disponibles">
-            Esta pantalla está disponible solo para kinesiólogos en su espacio
-            personal.
+            Esta pantalla no está disponible para este tipo de cuenta.
           </Alert>
+        </PageContainer>
+      </main>
+    );
+  }
+
+  if (canViewClinicLink) {
+    return (
+      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+        <DashboardSidebar />
+        <PageContainer maxWidth="4xl">
+          <PageHeader
+            description="Este es el link público para que tus pacientes reserven turnos con cualquier profesional del consultorio."
+            eyebrow="Reservas online"
+            title="Link de reserva del consultorio"
+          />
+
+          <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6">
+            <p className="text-sm font-semibold text-slate-700">
+              Link público
+            </p>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+              <input
+                className="min-h-11 w-full rounded-lg border border-ocean-100 bg-slate-50 px-4 text-sm text-slate-700"
+                readOnly
+                value={publicBookingLink}
+              />
+              <a
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 text-sm font-semibold text-white transition hover:bg-ocean-700"
+                href={publicBookingLink}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Ver página
+              </a>
+            </div>
+            <p className="mt-3 text-sm text-slate-500">
+              La disponibilidad de cada profesional se administra desde{" "}
+              <Link
+                className="font-semibold text-ocean-700 underline-offset-4 hover:underline"
+                href="/dashboard/equipo"
+              >
+                Equipo
+              </Link>
+              .
+            </p>
+          </section>
         </PageContainer>
       </main>
     );

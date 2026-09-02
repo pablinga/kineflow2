@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
+import { weekdayLabels } from "@/hooks/useClinicLinks";
+import { hasOverlappingAvailability } from "@/lib/availability-utils";
 import {
   CLINIC_PROFESSIONAL_STATUS,
   type ClinicProfessionalStatus,
@@ -167,6 +169,14 @@ function validateAvailability(availability: KinesiologistAvailabilityInput[]) {
   if (invalidAvailability) {
     throw new Error("Revisá que cada franja tenga un horario válido.");
   }
+
+  const conflictingWeekday = hasOverlappingAvailability(availability);
+
+  if (conflictingWeekday !== null) {
+    throw new Error(
+      `Hay franjas superpuestas en ${weekdayLabels[conflictingWeekday]}. Ajustá los horarios para que no se crucen.`,
+    );
+  }
 }
 
 function mapAvailabilityRows(
@@ -184,10 +194,9 @@ function mapAvailabilityRows(
 
 export function getKinesiologistStatusLabel(status: ClinicKinesiologistStatus) {
   const labels: Record<ClinicKinesiologistStatus, string> = {
-    accepted: "Activo",
+    active: "Activo",
     inactive: "Desvinculado",
     pending: "Invitación pendiente",
-    rejected: "Rechazado",
   };
 
   return labels[status];
@@ -231,7 +240,7 @@ export function useClinicKinesiologists() {
         .eq("clinic_id", clinicId)
         .in("status", [
           CLINIC_PROFESSIONAL_STATUS.pending,
-          CLINIC_PROFESSIONAL_STATUS.accepted,
+          CLINIC_PROFESSIONAL_STATUS.active,
         ])
         .order("invited_at", { ascending: false });
 
@@ -295,7 +304,7 @@ export function useClinicKinesiologists() {
       .eq("professional_email", lookup.email)
       .in("status", [
         CLINIC_PROFESSIONAL_STATUS.pending,
-        CLINIC_PROFESSIONAL_STATUS.accepted,
+        CLINIC_PROFESSIONAL_STATUS.active,
       ])
       .order("created_at", { ascending: false })
       .limit(1);
@@ -318,7 +327,7 @@ export function useClinicKinesiologists() {
           .eq("professional_id", lookup.id)
           .in("status", [
             CLINIC_PROFESSIONAL_STATUS.pending,
-            CLINIC_PROFESSIONAL_STATUS.accepted,
+            CLINIC_PROFESSIONAL_STATUS.active,
           ])
           .order("created_at", { ascending: false })
           .limit(1);

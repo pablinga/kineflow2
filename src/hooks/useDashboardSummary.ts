@@ -279,7 +279,7 @@ export function useDashboardSummary() {
             .select("can_view_assigned_patients")
             .eq("clinic_id", activeWorkspace.sourceClinicId)
             .eq("professional_id", userId)
-            .eq("status", "accepted")
+            .eq("status", "active")
             .maybeSingle();
 
           if (accessError) {
