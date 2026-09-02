@@ -60,6 +60,7 @@ type Confirmation = {
 };
 
 const DEFAULT_DURATION_MINUTES = DEFAULT_SESSION_DURATION_MINUTES;
+const ANY_PROFESSIONAL_ID = "any";
 
 function toDateValue(date: Date) {
   const year = date.getFullYear();
@@ -168,7 +169,14 @@ export default function PublicBookingPage({ params }: PageProps) {
         setInsuranceProviders(
           (result.insuranceProviders ?? []) as InsuranceProvider[],
         );
-        setProfessionalId((current) => current || nextProfessionals[0]?.id || "");
+        const nextWorkspace = result.workspace as Workspace;
+        setProfessionalId(
+          (current) =>
+            current ||
+            (nextWorkspace.type === "CLINICA"
+              ? ANY_PROFESSIONAL_ID
+              : nextProfessionals[0]?.id || ""),
+        );
       } catch (loadError) {
         setError(getErrorMessage(loadError, "No pudimos cargar la agenda."));
       } finally {
@@ -403,13 +411,19 @@ export default function PublicBookingPage({ params }: PageProps) {
                       onChange={(event) => setProfessionalId(event.target.value)}
                       value={professionalId}
                     >
+                      <option value={ANY_PROFESSIONAL_ID}>Sin preferencia</option>
                       {professionals.map((professional) => (
                         <option key={professional.id} value={professional.id}>
                           {professional.name}
                         </option>
                       ))}
                     </select>
-                    {selectedProfessional ? (
+                    {professionalId === ANY_PROFESSIONAL_ID ? (
+                      <p className="mt-2 text-sm font-semibold text-ocean-800">
+                        Se asignará el primer profesional disponible en el
+                        horario que elijas.
+                      </p>
+                    ) : selectedProfessional ? (
                       <p className="mt-2 text-sm font-semibold text-ocean-800">
                         Profesional seleccionado: {selectedProfessional.name}
                       </p>
@@ -686,7 +700,8 @@ export default function PublicBookingPage({ params }: PageProps) {
                   disabled={
                     saving ||
                     !selectedSlot ||
-                    !selectedProfessional ||
+                    (!selectedProfessional &&
+                      professionalId !== ANY_PROFESSIONAL_ID) ||
                     professionals.length === 0
                   }
                   type="submit"

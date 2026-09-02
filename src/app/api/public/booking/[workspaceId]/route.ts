@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  ANY_PROFESSIONAL_ID,
+  findAnyAvailableBookingContext,
+  getWorkspace,
   isWorkspaceReadOnlyForBooking,
   isSlotAvailable,
   normalizeDocumentNumber,
@@ -199,23 +202,41 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
 
   try {
-    const bookingContext = await resolveBookingContext(
-      admin,
-      workspaceId,
-      professionalId,
-    );
+    const workspace = await getWorkspace(admin, workspaceId);
 
-    if (!bookingContext) {
+    if (!workspace) {
       return NextResponse.json(
-        { error: "No encontramos el profesional para este enlace." },
+        { error: "No encontramos este enlace de reserva." },
         { status: 404 },
       );
     }
 
     const durationMinutes = normalizeDuration(
       body.durationMinutes,
-      bookingContext.workspace.default_session_duration_minutes,
+      workspace.default_session_duration_minutes,
     );
+
+    const bookingContext =
+      professionalId === ANY_PROFESSIONAL_ID
+        ? await findAnyAvailableBookingContext({
+            admin,
+            durationMinutes,
+            scheduledAt,
+            workspace,
+          })
+        : await resolveBookingContext(admin, workspaceId, professionalId);
+
+    if (!bookingContext) {
+      return NextResponse.json(
+        {
+          error:
+            professionalId === ANY_PROFESSIONAL_ID
+              ? "No encontramos un profesional disponible en ese horario. Elegí otro horario."
+              : "No encontramos el profesional para este enlace.",
+        },
+        { status: professionalId === ANY_PROFESSIONAL_ID ? 409 : 404 },
+      );
+    }
 
     if (await isWorkspaceReadOnlyForBooking(admin, bookingContext)) {
       return NextResponse.json(

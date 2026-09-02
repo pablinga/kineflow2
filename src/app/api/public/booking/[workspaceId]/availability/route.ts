@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import {
+  ANY_PROFESSIONAL_ID,
   getFreeSlots,
+  getPublicProfessionals,
+  getWorkspace,
   isWorkspaceReadOnlyForBooking,
   normalizeDuration,
   PUBLIC_BOOKING_UNAVAILABLE_MESSAGE,
@@ -52,6 +55,73 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   try {
+    if (professionalId === ANY_PROFESSIONAL_ID) {
+      const workspace = await getWorkspace(admin, workspaceId);
+
+      if (!workspace || workspace.type !== "CLINICA") {
+        return NextResponse.json(
+          { error: "No encontramos el profesional para este enlace." },
+          { status: 404 },
+        );
+      }
+
+      const durationMinutes = normalizeDuration(
+        rawDurationMinutes,
+        workspace.default_session_duration_minutes,
+      );
+
+      const professionals = await getPublicProfessionals(admin, workspace);
+      const slotsByStart = new Map<
+        string,
+        Awaited<ReturnType<typeof getFreeSlots>>[number]
+      >();
+      let firstContext: Awaited<
+        ReturnType<typeof resolveBookingContext>
+      > = null;
+
+      for (const professional of professionals) {
+        const context = await resolveBookingContext(
+          admin,
+          workspaceId,
+          professional.id,
+        );
+
+        if (!context) {
+          continue;
+        }
+
+        firstContext ??= context;
+
+        if (await isWorkspaceReadOnlyForBooking(admin, context)) {
+          continue;
+        }
+
+        const professionalSlots = await getFreeSlots({
+          admin,
+          context,
+          durationMinutes,
+          from,
+          to,
+        });
+
+        for (const slot of professionalSlots) {
+          if (!slotsByStart.has(slot.start)) {
+            slotsByStart.set(slot.start, slot);
+          }
+        }
+      }
+
+      const slots = Array.from(slotsByStart.values()).sort(
+        (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
+      );
+
+      return NextResponse.json({
+        durationMinutes,
+        message: firstContext ? undefined : PUBLIC_BOOKING_UNAVAILABLE_MESSAGE,
+        slots,
+      });
+    }
+
     const bookingContext = await resolveBookingContext(
       admin,
       workspaceId,

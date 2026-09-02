@@ -76,6 +76,8 @@ export type FreeSlot = {
 export const PUBLIC_BOOKING_UNAVAILABLE_MESSAGE =
   "Este profesional no está aceptando reservas en este momento.";
 
+export const ANY_PROFESSIONAL_ID = "any";
+
 const DEFAULT_DURATION_MINUTES = DEFAULT_SESSION_DURATION_MINUTES;
 const VALID_DURATIONS = new Set([30, 45, 60, 90]);
 const TIME_ZONE_OFFSET = "-03:00";
@@ -372,6 +374,40 @@ export async function resolveBookingContext(
     },
     workspace,
   };
+}
+
+export async function findAnyAvailableBookingContext(params: {
+  admin: SupabaseClient;
+  durationMinutes: number;
+  scheduledAt: string;
+  workspace: PublicBookingWorkspace;
+}): Promise<BookingContext | null> {
+  const professionals = await getPublicProfessionals(params.admin, params.workspace);
+
+  for (const professional of professionals) {
+    const context = await resolveBookingContext(
+      params.admin,
+      params.workspace.id,
+      professional.id,
+    );
+
+    if (!context) {
+      continue;
+    }
+
+    const available = await isSlotAvailable({
+      admin: params.admin,
+      context,
+      durationMinutes: params.durationMinutes,
+      scheduledAt: params.scheduledAt,
+    });
+
+    if (available) {
+      return context;
+    }
+  }
+
+  return null;
 }
 
 async function getAvailabilityRows(admin: SupabaseClient, context: BookingContext) {
