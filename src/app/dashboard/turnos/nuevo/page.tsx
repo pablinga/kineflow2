@@ -177,7 +177,7 @@ export default function NewAppointmentPage() {
           "id, professional_email, professional_id, clinic_id, profiles(full_name, license_number), clinics(name), clinic_professional_availability(weekday, starts_at, ends_at, active)",
         )
         .eq("clinic_id", activeWorkspace.sourceClinicId)
-        .eq("status", "accepted")
+        .eq("status", "active")
         .not("professional_id", "is", null)
         .order("professional_email", { ascending: true });
 
@@ -451,7 +451,7 @@ export default function NewAppointmentPage() {
           .select("id")
           .eq("clinic_id", selectedProfessional.clinic_id)
           .eq("professional_id", selectedProfessional.professional_id)
-          .eq("status", "accepted")
+          .eq("status", "active")
           .maybeSingle();
 
         if ((clinicProfessionalLink as { id?: string } | null)?.id) {

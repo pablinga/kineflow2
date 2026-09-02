@@ -265,7 +265,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
           .select("can_view_assigned_patients")
           .eq("clinic_id", activeWorkspace.sourceClinicId)
           .eq("professional_id", user.id)
-          .eq("status", "accepted");
+          .eq("status", "active");
         const clinicProfessionalQuery = signal
           ? baseClinicProfessionalQuery.abortSignal(signal)
           : baseClinicProfessionalQuery;

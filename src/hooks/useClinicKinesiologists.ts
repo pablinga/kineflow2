@@ -194,10 +194,9 @@ function mapAvailabilityRows(
 
 export function getKinesiologistStatusLabel(status: ClinicKinesiologistStatus) {
   const labels: Record<ClinicKinesiologistStatus, string> = {
-    accepted: "Activo",
+    active: "Activo",
     inactive: "Desvinculado",
     pending: "Invitación pendiente",
-    rejected: "Rechazado",
   };
 
   return labels[status];
@@ -241,7 +240,7 @@ export function useClinicKinesiologists() {
         .eq("clinic_id", clinicId)
         .in("status", [
           CLINIC_PROFESSIONAL_STATUS.pending,
-          CLINIC_PROFESSIONAL_STATUS.accepted,
+          CLINIC_PROFESSIONAL_STATUS.active,
         ])
         .order("invited_at", { ascending: false });
 
@@ -305,7 +304,7 @@ export function useClinicKinesiologists() {
       .eq("professional_email", lookup.email)
       .in("status", [
         CLINIC_PROFESSIONAL_STATUS.pending,
-        CLINIC_PROFESSIONAL_STATUS.accepted,
+        CLINIC_PROFESSIONAL_STATUS.active,
       ])
       .order("created_at", { ascending: false })
       .limit(1);
@@ -328,7 +327,7 @@ export function useClinicKinesiologists() {
           .eq("professional_id", lookup.id)
           .in("status", [
             CLINIC_PROFESSIONAL_STATUS.pending,
-            CLINIC_PROFESSIONAL_STATUS.accepted,
+            CLINIC_PROFESSIONAL_STATUS.active,
           ])
           .order("created_at", { ascending: false })
           .limit(1);

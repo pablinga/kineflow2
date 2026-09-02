@@ -91,7 +91,7 @@ function InvitationContent() {
 
   async function answerInvitation(
     status:
-      | typeof CLINIC_PROFESSIONAL_STATUS.accepted
+      | typeof CLINIC_PROFESSIONAL_STATUS.active
       | typeof CLINIC_PROFESSIONAL_STATUS.inactive,
   ) {
     if (!invitation || !sessionUser?.email) {
@@ -120,7 +120,7 @@ function InvitationContent() {
       }
 
       setMessage(
-        status === CLINIC_PROFESSIONAL_STATUS.accepted
+        status === CLINIC_PROFESSIONAL_STATUS.active
           ? "Invitación aceptada. Ya podés entrar a KineFlow."
           : "Invitación rechazada.",
       );
@@ -185,7 +185,7 @@ function InvitationContent() {
                   <Button
                     disabled={saving}
                     onClick={() =>
-                      answerInvitation(CLINIC_PROFESSIONAL_STATUS.accepted)
+                      answerInvitation(CLINIC_PROFESSIONAL_STATUS.active)
                     }
                     type="button"
                   >

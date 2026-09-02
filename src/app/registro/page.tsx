@@ -207,7 +207,7 @@ export default function RegisterPage() {
             invitation_id: invitationToken,
             target_email: email.trim().toLowerCase(),
             target_professional_id: data.user.id,
-            target_status: CLINIC_PROFESSIONAL_STATUS.accepted,
+            target_status: CLINIC_PROFESSIONAL_STATUS.active,
           },
         );
 

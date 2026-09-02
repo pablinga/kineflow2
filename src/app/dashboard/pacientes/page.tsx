@@ -183,7 +183,7 @@ export default function PatientsPage() {
         .from("clinic_professionals")
         .select("id, professional_email, professional_id, profiles(full_name, email)")
         .eq("clinic_id", activeWorkspace.sourceClinicId)
-        .eq("status", "accepted")
+        .eq("status", "active")
         .not("professional_id", "is", null)
         .order("professional_email", { ascending: true });
 

@@ -512,7 +512,7 @@ export function useAppointments(
           ? availability.clinic_professionals[0]
           : availability.clinic_professionals;
 
-        if (link?.status !== "accepted") {
+        if (link?.status !== "active") {
           return false;
         }
 
