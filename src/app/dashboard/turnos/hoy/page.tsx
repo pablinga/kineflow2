@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, ClipboardSignature, Clock3, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardSignature,
+  Clock3,
+  XCircle,
+} from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { SignaturePad } from "@/components/turnos/SignaturePad";
@@ -34,6 +41,7 @@ export default function ListadoDelDiaPage() {
   const [updatingId, setUpdatingId] = useState("");
   const [signingAppointment, setSigningAppointment] =
     useState<Appointment | null>(null);
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
 
   const insuranceNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -41,18 +49,39 @@ export default function ListadoDelDiaPage() {
     return map;
   }, [providers]);
 
-  const todaysAppointments = useMemo(() => {
-    const today = new Date();
+  const dayAppointments = useMemo(() => {
     return [...appointments]
-      .filter((appointment) => sameDay(new Date(appointment.scheduledAt), today))
+      .filter((appointment) =>
+        sameDay(new Date(appointment.scheduledAt), selectedDate),
+      )
       .filter((appointment) => appointment.status !== "Cancelado")
       .sort(
         (a, b) =>
           new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
       );
-  }, [appointments]);
+  }, [appointments, selectedDate]);
 
   const showProfessionalColumn = activeWorkspace?.type === "CLINICA";
+
+  function goToPreviousDay() {
+    setSelectedDate((current) => {
+      const next = new Date(current);
+      next.setDate(next.getDate() - 1);
+      return next;
+    });
+  }
+
+  function goToNextDay() {
+    setSelectedDate((current) => {
+      const next = new Date(current);
+      next.setDate(next.getDate() + 1);
+      return next;
+    });
+  }
+
+  function goToToday() {
+    setSelectedDate(new Date());
+  }
 
   async function handleStatusChange(id: string, status: "attended" | "no_show") {
     setActionError("");
@@ -92,16 +121,43 @@ export default function ListadoDelDiaPage() {
       <section className="px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <h1 className="text-2xl font-bold text-ink sm:text-3xl">
-            Listado del día
+            Sesiones diarias
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {new Date().toLocaleDateString("es-AR", {
-              day: "2-digit",
-              month: "long",
-              weekday: "long",
-              year: "numeric",
-            })}
-          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              aria-label="Día anterior"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-ocean-100 text-ocean-700 transition hover:bg-ocean-50"
+              onClick={goToPreviousDay}
+              type="button"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <p className="min-w-[14rem] text-sm font-semibold text-slate-600">
+              {selectedDate.toLocaleDateString("es-AR", {
+                day: "2-digit",
+                month: "long",
+                weekday: "long",
+                year: "numeric",
+              })}
+            </p>
+            <button
+              aria-label="Día siguiente"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-ocean-100 text-ocean-700 transition hover:bg-ocean-50"
+              onClick={goToNextDay}
+              type="button"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            {!sameDay(selectedDate, new Date()) ? (
+              <button
+                className="ml-1 text-xs font-semibold text-ocean-700 underline-offset-2 hover:underline"
+                onClick={goToToday}
+                type="button"
+              >
+                Volver a hoy
+              </button>
+            ) : null}
+          </div>
 
           {appointmentsError ? (
             <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
@@ -115,13 +171,15 @@ export default function ListadoDelDiaPage() {
             </p>
           ) : null}
 
-          {todaysAppointments.length === 0 ? (
+          {dayAppointments.length === 0 ? (
             <div className="mt-6 rounded-lg border border-dashed border-ocean-200 bg-white p-8 text-center">
-              <p className="font-semibold text-ink">No hay turnos para hoy.</p>
+              <p className="font-semibold text-ink">
+                No hay turnos para {sameDay(selectedDate, new Date()) ? "hoy" : "este día"}.
+              </p>
             </div>
           ) : (
             <div className="mt-6 space-y-3">
-              {todaysAppointments.map((appointment) => {
+              {dayAppointments.map((appointment) => {
                 const isUpdating = updatingId === appointment.id;
 
                 return (
