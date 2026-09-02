@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { CheckCircle2, ClipboardSignature, Clock3, XCircle } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
-import { useAppointments } from "@/hooks/useAppointments";
+import { SignaturePad } from "@/components/turnos/SignaturePad";
+import { useAppointments, type Appointment } from "@/hooks/useAppointments";
 import { useInsuranceProviders } from "@/hooks/useInsuranceProviders";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -25,11 +26,14 @@ export default function ListadoDelDiaPage() {
     appointments,
     error: appointmentsError,
     loaded: appointmentsLoaded,
+    saveAppointmentSignature,
     updateAppointmentStatus,
   } = useAppointments();
   const { providers } = useInsuranceProviders();
   const [actionError, setActionError] = useState("");
   const [updatingId, setUpdatingId] = useState("");
+  const [signingAppointment, setSigningAppointment] =
+    useState<Appointment | null>(null);
 
   const insuranceNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -175,16 +179,21 @@ export default function ListadoDelDiaPage() {
                           <XCircle className="h-3.5 w-3.5" />
                           No asistió
                         </button>
-                        {/* Firma del paciente: se suma en un paso siguiente. */}
-                        <button
-                          className="inline-flex min-h-9 cursor-not-allowed items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-400"
-                          disabled
-                          title="Próximamente"
-                          type="button"
-                        >
-                          <ClipboardSignature className="h-3.5 w-3.5" />
-                          Firmar
-                        </button>
+                        {appointment.signaturePath ? (
+                          <span className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700">
+                            <ClipboardSignature className="h-3.5 w-3.5" />
+                            Firmado
+                          </span>
+                        ) : (
+                          <button
+                            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-ocean-200 px-3 text-xs font-semibold text-ocean-700 transition hover:bg-ocean-50"
+                            onClick={() => setSigningAppointment(appointment)}
+                            type="button"
+                          >
+                            <ClipboardSignature className="h-3.5 w-3.5" />
+                            Firmar
+                          </button>
+                        )}
                       </div>
                     </div>
                   </article>
@@ -194,6 +203,17 @@ export default function ListadoDelDiaPage() {
           )}
         </div>
       </section>
+
+      {signingAppointment ? (
+        <SignaturePad
+          onCancel={() => setSigningAppointment(null)}
+          onSave={async (blob) => {
+            await saveAppointmentSignature(signingAppointment, blob);
+            setSigningAppointment(null);
+          }}
+          patientName={signingAppointment.patient}
+        />
+      ) : null}
     </main>
   );
 }

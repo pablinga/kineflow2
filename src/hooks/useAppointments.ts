@@ -4,6 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
+import {
+  appointmentSignatureBucketName,
+  getAppointmentSignaturePath,
+} from "@/lib/appointment-signatures";
 import { appointmentStatusLabels } from "@/lib/appointment-ui";
 import { useActiveClinic } from "@/hooks/useActiveClinic";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
@@ -41,6 +45,8 @@ export type Appointment = {
   paymentMethodLabel: string;
   paidAt: string | null;
   paymentNotes: string;
+  signaturePath: string | null;
+  signedAt: string | null;
 };
 
 export type AppointmentStatus =
@@ -104,6 +110,8 @@ type AppointmentRow = {
   payment_method: PaymentMethod | null;
   paid_at: string | null;
   payment_notes: string | null;
+  signature_path: string | null;
+  signed_at: string | null;
   session_number: number | null;
   treatment_id: string | null;
   insurance_provider_id: string | null;
@@ -223,6 +231,8 @@ function mapAppointment(row: AppointmentRow): Appointment {
       : "Sin medio",
     paidAt: row.paid_at,
     paymentNotes: row.payment_notes ?? "",
+    signaturePath: row.signature_path ?? null,
+    signedAt: row.signed_at ?? null,
   };
 }
 
@@ -373,7 +383,7 @@ export function useAppointments(
       let query = supabase
         .from("appointments")
         .select(
-          "id, workspace_id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, insurance_provider_id, insurance_member_number, payment_status, payment_method, paid_at, payment_notes, patients(full_name), clinics(name, color), clinic_professionals(color, profiles(full_name)), workspaces(color)",
+          "id, workspace_id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, insurance_provider_id, insurance_member_number, payment_status, payment_method, paid_at, payment_notes, signature_path, signed_at, patients(full_name), clinics(name, color), clinic_professionals(color, profiles(full_name)), workspaces(color)",
         )
         .order("scheduled_at", { ascending: true });
 
@@ -739,6 +749,50 @@ export function useAppointments(
     await loadAppointments();
   }
 
+  async function saveAppointmentSignature(
+    appointment: Appointment,
+    signatureBlob: Blob,
+  ) {
+    const supabase = getSupabaseClient();
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getUser();
+
+    if (sessionError || !sessionData.user) {
+      throw new Error("No pudimos identificar al usuario.");
+    }
+
+    const storagePath = getAppointmentSignaturePath({
+      appointmentId: appointment.id,
+      clinicId: appointment.clinicId,
+      ownerId: sessionData.user.id,
+      patientId: appointment.patientId,
+    });
+
+    const { error: uploadError } = await supabase.storage
+      .from(appointmentSignatureBucketName)
+      .upload(storagePath, signatureBlob, {
+        contentType: "image/png",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      throw new Error(mapSupabaseError(uploadError));
+    }
+
+    const signedAt = new Date().toISOString();
+
+    const { error: updateError } = await supabase
+      .from("appointments")
+      .update({ signature_path: storagePath, signed_at: signedAt })
+      .eq("id", appointment.id);
+
+    if (updateError) {
+      throw new Error(mapSupabaseError(updateError));
+    }
+
+    await loadAppointments();
+  }
+
   return {
     addAppointment,
     addClinicAppointment,
@@ -747,6 +801,7 @@ export function useAppointments(
     loaded,
     rescheduleAppointment,
     refreshAppointments: loadAppointments,
+    saveAppointmentSignature,
     updateAppointmentStatus,
     updateAppointmentPayment,
   };
