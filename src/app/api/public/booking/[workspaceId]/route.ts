@@ -12,6 +12,7 @@ import {
 } from "@/lib/public-booking";
 import { DEFAULT_SESSION_PRICE } from "@/lib/session-defaults";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 import {
   formatPhoneToE164,
   isWhatsAppNotificationsEnabled,
@@ -35,6 +36,7 @@ type BookingRequestBody = {
   phone?: string;
   professionalId?: string;
   scheduledAt?: string;
+  turnstileToken?: string;
   whatsappConsent?: boolean;
 };
 
@@ -46,6 +48,10 @@ type BookingPatient = {
 
 const RATE_LIMIT_WINDOW_MINUTES = 10;
 const RATE_LIMIT_MAX_ATTEMPTS = 8;
+const PHONE_RATE_LIMIT_WINDOW_MINUTES = 60;
+const PHONE_RATE_LIMIT_MAX_ATTEMPTS = 5;
+const WHATSAPP_SEND_WINDOW_MINUTES = 1440;
+const WHATSAPP_SEND_MAX = 2;
 
 const MAX_LENGTHS = {
   documentNumber: 20,
@@ -164,6 +170,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ ok: true });
   }
 
+  if (process.env.TURNSTILE_SECRET_KEY) {
+    const turnstileToken = normalizeText(body.turnstileToken);
+    const isHuman = await verifyTurnstileToken(turnstileToken, ip);
+
+    if (!isHuman) {
+      return NextResponse.json(
+        {
+          error:
+            "No pudimos verificar que sos una persona. Recargá la página e intentá de nuevo.",
+        },
+        { status: 400 },
+      );
+    }
+  }
+
   const professionalId = normalizeText(body.professionalId);
   const documentNumber = normalizeDocumentNumber(
     normalizeText(body.documentNumber),
@@ -175,6 +196,25 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const scheduledAt = normalizeText(body.scheduledAt);
   const whatsappConsent =
     isWhatsAppNotificationsEnabled() && body.whatsappConsent === true;
+
+  const { data: isPhoneRateLimited, error: phoneRateLimitError } = await admin.rpc(
+    "check_booking_rate_limit",
+    {
+      p_ip: phoneE164 || phone,
+      p_workspace_id: workspaceId,
+      p_window_minutes: PHONE_RATE_LIMIT_WINDOW_MINUTES,
+      p_max_attempts: PHONE_RATE_LIMIT_MAX_ATTEMPTS,
+    },
+  );
+
+  if (phoneRateLimitError) {
+    console.error("phone rate limit check failed", phoneRateLimitError);
+  } else if (isPhoneRateLimited) {
+    return NextResponse.json(
+      { error: "Demasiados intentos de reserva con este teléfono. Probá de nuevo más tarde." },
+      { status: 429 },
+    );
+  }
 
   if (
     !professionalId ||
@@ -415,10 +455,31 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const appointmentId = (appointment as { id: string }).id;
     const appointmentDateTime = formatAppointmentDateTime(scheduledAt);
 
+    let isSendThrottled = false;
+
+    if (patient.phone_e164) {
+      const { data: sendThrottled, error: sendThrottleError } = await admin.rpc(
+        "check_whatsapp_send_throttle",
+        {
+          p_phone_e164: patient.phone_e164,
+          p_workspace_id: bookingContext.workspace.id,
+          p_window_minutes: WHATSAPP_SEND_WINDOW_MINUTES,
+          p_max_sends: WHATSAPP_SEND_MAX,
+        },
+      );
+
+      if (sendThrottleError) {
+        console.error("whatsapp send throttle check failed", sendThrottleError);
+      } else {
+        isSendThrottled = Boolean(sendThrottled);
+      }
+    }
+
     if (
       isWhatsAppNotificationsEnabled() &&
       patient.whatsapp_consent &&
-      patient.phone_e164
+      patient.phone_e164 &&
+      !isSendThrottled
     ) {
       try {
         const message = await sendWhatsAppMessage({
@@ -452,6 +513,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
           status: "failed",
         });
       }
+    } else if (isSendThrottled) {
+      await trackAppointmentNotification({
+        admin,
+        appointmentId,
+        errorMessage: "Envío omitido: límite de notificaciones por teléfono alcanzado.",
+        patientId: patient.id,
+        status: "failed",
+      });
     }
 
     return NextResponse.json({

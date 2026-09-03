@@ -12,6 +12,7 @@ import {
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { formatCurrency } from "@/lib/format";
 import {
   DEFAULT_SESSION_DURATION_MINUTES,
@@ -142,6 +143,7 @@ export default function PublicBookingPage({ params }: PageProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   useEffect(() => {
     async function loadProfessionals() {
@@ -314,6 +316,7 @@ export default function PublicBookingPage({ params }: PageProps) {
             phone: form.phone,
             professionalId,
             scheduledAt: selectedSlot.start,
+            turnstileToken,
             whatsappConsent: form.whatsappConsent,
           }),
           headers: { "Content-Type": "application/json" },
@@ -329,6 +332,7 @@ export default function PublicBookingPage({ params }: PageProps) {
       setConfirmation(result.appointment as Confirmation);
     } catch (saveError) {
       setError(getErrorMessage(saveError, "No pudimos reservar el turno."));
+      setTurnstileToken("");
       await loadAvailability();
     } finally {
       setSaving(false);
@@ -695,6 +699,16 @@ export default function PublicBookingPage({ params }: PageProps) {
                   ) : null}
                 </div>
 
+                {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? (
+                  <div className="mt-4 flex justify-center">
+                    <TurnstileWidget
+                      onExpire={() => setTurnstileToken("")}
+                      onVerify={setTurnstileToken}
+                      siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                    />
+                  </div>
+                ) : null}
+
                 <Button
                   className="mt-5 w-full"
                   disabled={
@@ -702,7 +716,9 @@ export default function PublicBookingPage({ params }: PageProps) {
                     !selectedSlot ||
                     (!selectedProfessional &&
                       professionalId !== ANY_PROFESSIONAL_ID) ||
-                    professionals.length === 0
+                    professionals.length === 0 ||
+                    (Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) &&
+                      !turnstileToken)
                   }
                   type="submit"
                 >
