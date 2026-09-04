@@ -49,7 +49,7 @@ export async function sendSubscriptionActivatedEmail(
     "",
     "Gracias por confiar en KineFlow.",
     "",
-    "KineFlow - Plataforma de gestión para kinesiólogos.",
+    "KineFlow - Software para profesionales y clínicas de rehabilitación.",
     "Este correo fue enviado porque activaste una suscripción en KineFlow.",
     "Términos y Condiciones | Política de Privacidad | Suscripciones, Cancelaciones y Reembolsos | Derecho de Arrepentimiento | Contacto: contacto@kineflow.ar",
   ].join("\n");
@@ -79,7 +79,7 @@ export async function sendSubscriptionCancelledEmail(
       `Referencia de gestion: ${subscription.cancellationReference ?? "-"}`,
       `Fecha de baja: ${formatDate(subscription.canceledAt) ?? "-"}`,
       "",
-      "KineFlow - Plataforma de gestión para kinesiólogos.",
+      "KineFlow - Software para profesionales y clínicas de rehabilitación.",
       "Términos y Condiciones | Política de Privacidad | Suscripciones, Cancelaciones y Reembolsos | Derecho de Arrepentimiento | Contacto: contacto@kineflow.ar",
     ].join("\n"),
     subject: "Confirmacion de baja de KineFlow",

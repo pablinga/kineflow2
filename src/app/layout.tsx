@@ -13,9 +13,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "KineFlow | Gestión simple para kinesiólogos",
+  title: "KineFlow | Software para profesionales y clínicas de rehabilitación",
   description:
-    "App para kinesiólogos independientes: pacientes, turnos, sesiones, evolución y cobros en un solo lugar.",
+    "App para profesionales y clínicas de rehabilitación: pacientes, turnos, sesiones, evolución y cobros en un solo lugar.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

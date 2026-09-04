@@ -203,7 +203,7 @@ export function getKinesiologistStatusLabel(status: ClinicKinesiologistStatus) {
 }
 
 export function getKinesiologistRoleLabel(role: string) {
-  return role.toUpperCase() === "ADMIN" ? "Admin" : "Kinesiólogo";
+  return role.toUpperCase() === "ADMIN" ? "Admin" : "Profesional";
 }
 
 export function useClinicKinesiologists() {
@@ -257,7 +257,7 @@ export function useClinicKinesiologists() {
       setError(
         getFriendlyErrorMessage(
           loadError,
-          "No pudimos cargar los kinesiólogos.",
+          "No pudimos cargar los profesionales.",
         ),
       );
     } finally {

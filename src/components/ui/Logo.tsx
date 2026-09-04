@@ -51,7 +51,7 @@ export function Logo({ compact = false, showSlogan = false }: LogoProps) {
           </span>
           {showSlogan ? (
             <span className="mt-1 block text-[0.62rem] font-bold uppercase tracking-[0.18em] text-ocean-500">
-              {"Gesti\u00f3n simple para kinesi\u00f3logos"}
+              {"Software para profesionales y cl\u00ednicas de rehabilitaci\u00f3n"}
             </span>
           ) : null}
         </span>
@@ -74,7 +74,7 @@ export function BrandMark({
         <p className="text-3xl font-extrabold leading-none text-ink">KineFlow</p>
         {showSlogan ? (
           <p className="mt-2 text-xs font-bold uppercase tracking-[0.22em] text-ocean-500">
-            {"Gesti\u00f3n simple para kinesi\u00f3logos"}
+            {"Software para profesionales y cl\u00ednicas de rehabilitaci\u00f3n"}
           </p>
         ) : null}
       </div>

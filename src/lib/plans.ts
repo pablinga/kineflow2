@@ -53,7 +53,7 @@ export const plans: PlanDefinition[] = [
     priceAmount: INDEPENDENT_PLAN_PRICE,
     limit: "Pacientes ilimitados",
     audience:
-      "Para kinesiólogos que trabajan de forma independiente y quieren organizar su agenda, pacientes, sesiones y cobros desde un solo lugar.",
+      "Para profesionales de la rehabilitación que trabajan de forma independiente y quieren organizar su agenda, pacientes, sesiones y cobros desde un solo lugar.",
     features: [
       "Pacientes ilimitados",
       "Agenda simple para organizar turnos",
@@ -75,14 +75,14 @@ export const plans: PlanDefinition[] = [
     name: "Plan Consultorio",
     price: `${formatMonto(CONSULTORIO_PRICE)}/mes`,
     priceAmount: CONSULTORIO_PRICE,
-    limit: "Sin límite de kinesiólogos",
+    limit: "Sin límite de profesionales",
     audience:
       "Para consultorios y centros de rehabilitación que necesitan administrar pacientes, agenda multi-profesional e ingresos por profesional.",
     features: [
       "Gestión de pacientes del consultorio",
       "Agenda multi-profesional",
-      "Búsqueda de kinesiólogos por matrícula",
-      "Invitación de kinesiólogos registrados",
+      "Búsqueda de profesionales por matrícula",
+      "Invitación de profesionales registrados",
       "Control de sesiones por profesional",
       "Reportes e ingresos del consultorio",
       "Escala para equipos y clínicas",

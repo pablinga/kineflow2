@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "KineFlow",
     short_name: "KineFlow",
-    description: "Gestión simple para kinesiólogos y clínicas",
+    description: "Software para profesionales y clínicas de rehabilitación",
     start_url: "/dashboard",
     display: "standalone",
     background_color: "#ffffff",

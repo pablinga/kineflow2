@@ -72,7 +72,7 @@ export default function MyClinicsPage() {
           <div className="mx-auto max-w-3xl rounded-lg border border-ocean-100 bg-white p-6 shadow-card">
             <h1 className="text-2xl font-bold text-ink">Acceso no disponible</h1>
             <p className="mt-2 text-slate-600">
-              Esta seccion es solo para kinesiólogos independientes.
+              Esta sección es solo para profesionales independientes.
             </p>
           </div>
         </section>

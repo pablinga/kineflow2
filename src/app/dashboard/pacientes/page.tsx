@@ -345,7 +345,7 @@ export default function PatientsPage() {
         clinicProfessionals.length === 0
       ) {
         setActionError(
-          "Primero agregá un kinesiólogo a la clínica para poder asignarle el paciente.",
+          "Primero agregá un profesional a la clínica para poder asignarle el paciente.",
         );
         return;
       }
@@ -485,16 +485,16 @@ export default function PatientsPage() {
     if (clinicProfessionals.length === 0) {
       return (
         <div className="md:col-span-2 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-4">
-          <p className="text-sm font-bold text-ink">Kinesiólogo asignado</p>
+          <p className="text-sm font-bold text-ink">Profesional asignado</p>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Todavía no hay kinesiólogos activos en esta clínica. Agregá el
+            Todavía no hay profesionales activos en esta clínica. Agregá el
             equipo antes de crear pacientes y turnos.
           </p>
           <Link
             className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white transition hover:bg-ocean-700"
             href="/dashboard/equipo"
           >
-            Agregar kinesiólogo
+            Agregar profesional
           </Link>
         </div>
       );
@@ -503,7 +503,7 @@ export default function PatientsPage() {
     return (
       <label className="block md:col-span-2">
         <span className="text-sm font-semibold text-slate-700">
-          Kinesiólogo asignado
+          Profesional asignado
         </span>
         <select
           className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"

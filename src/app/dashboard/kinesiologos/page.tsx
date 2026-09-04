@@ -248,7 +248,7 @@ function EditAvailabilityModal({
   }, []);
 
   const displayName =
-    kinesiologist.name || kinesiologist.email || "kinesiólogo seleccionado";
+    kinesiologist.name || kinesiologist.email || "profesional seleccionado";
 
   return (
     <div
@@ -399,7 +399,7 @@ function EditKinesiologistSettingsModal({
   }, []);
 
   const displayName =
-    kinesiologist.name || kinesiologist.email || "kinesiólogo seleccionado";
+    kinesiologist.name || kinesiologist.email || "profesional seleccionado";
 
   return (
     <div
@@ -422,7 +422,7 @@ function EditKinesiologistSettingsModal({
           <div>
             <p className="text-sm font-semibold text-ocean-700">Equipo</p>
             <h2 className="mt-1 text-xl font-bold text-ink" id="edit-settings-title">
-              Editar kinesiólogo
+              Editar profesional
             </h2>
             <p className="mt-1 text-sm text-slate-500">{displayName}</p>
           </div>
@@ -622,7 +622,7 @@ export default function ClinicKinesiologistsPage() {
       await saveAvailability(linkId, availability);
 
       if (lookup.exists) {
-        setMessage("Kinesiólogo vinculado como activo.");
+        setMessage("Profesional vinculado como activo.");
       } else {
         const skipped = await sendInvitation(linkId, lookup.email);
         setMessage(
@@ -638,7 +638,7 @@ export default function ClinicKinesiologistsPage() {
       await refreshKinesiologists();
     } catch (addError) {
       setActionError(
-        getFriendlyErrorMessage(addError, "No pudimos agregar el kinesiólogo."),
+        getFriendlyErrorMessage(addError, "No pudimos agregar el profesional."),
       );
     } finally {
       setSaving("");
@@ -683,7 +683,7 @@ export default function ClinicKinesiologistsPage() {
       setActionError(
         getFriendlyErrorMessage(
           loadError,
-          "No pudimos cargar los horarios del kinesiólogo.",
+          "No pudimos cargar los horarios del profesional.",
         ),
       );
       setEditingKinesiologist(null);
@@ -735,7 +735,7 @@ export default function ClinicKinesiologistsPage() {
   async function handleUnlink(id: string) {
     if (
       !window.confirm(
-        "¿Querés desvincular este kinesiólogo de la clínica? No se borrará su usuario ni la información histórica.",
+        "¿Querés desvincular este profesional de la clínica? No se borrará su usuario ni la información histórica.",
       )
     ) {
       return;
@@ -747,12 +747,12 @@ export default function ClinicKinesiologistsPage() {
 
     try {
       await unlinkKinesiologist(id);
-      setMessage("Kinesiólogo desvinculado de la clínica.");
+      setMessage("Profesional desvinculado de la clínica.");
     } catch (unlinkError) {
       setActionError(
         getFriendlyErrorMessage(
           unlinkError,
-          "No pudimos desvincular al kinesiólogo.",
+          "No pudimos desvincular al profesional.",
         ),
       );
     } finally {
@@ -794,13 +794,13 @@ export default function ClinicKinesiologistsPage() {
 
     try {
       await updateKinesiologist(editingSettingsKinesiologist.id, settingsForm);
-      setMessage("Kinesiólogo actualizado correctamente.");
+      setMessage("Profesional actualizado correctamente.");
       setEditingSettingsKinesiologist(null);
     } catch (updateError) {
       setActionError(
         getFriendlyErrorMessage(
           updateError,
-          "No pudimos actualizar al kinesiólogo.",
+          "No pudimos actualizar al profesional.",
         ),
       );
     } finally {
@@ -823,12 +823,12 @@ export default function ClinicKinesiologistsPage() {
 
     try {
       await removeKinesiologist(item.id);
-      setMessage("Kinesiólogo quitado del equipo.");
+      setMessage("Profesional quitado del equipo.");
     } catch (removeError) {
       setActionError(
         getFriendlyErrorMessage(
           removeError,
-          "No pudimos quitar al kinesiólogo del equipo.",
+          "No pudimos quitar al profesional del equipo.",
         ),
       );
     } finally {
@@ -877,10 +877,10 @@ export default function ClinicKinesiologistsPage() {
           actions={
             <Button onClick={() => setModalOpen(true)} type="button">
               <MailPlus className="h-4 w-4" />
-              Agregar kinesiólogo
+              Agregar profesional
             </Button>
           }
-          description="Gestioná los kinesiólogos que trabajan en la clínica."
+          description="Gestioná los profesionales que trabajan en la clínica."
           eyebrow="Clínica"
           title="Equipo"
         />
@@ -1021,10 +1021,10 @@ export default function ClinicKinesiologistsPage() {
               <div className="p-8 text-center">
                 <UsersRound className="mx-auto h-10 w-10 text-ocean-500" />
                 <p className="mt-3 font-bold text-ink">
-                  Todavía no agregaste kinesiólogos a la clínica.
+                  Todavía no agregaste profesionales a la clínica.
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
-                  Agregá el primer kinesiólogo por email.
+                  Agregá el primer profesional por email.
                 </p>
                 <Button
                   className="mt-4"
@@ -1032,7 +1032,7 @@ export default function ClinicKinesiologistsPage() {
                   type="button"
                 >
                   <MailPlus className="h-4 w-4" />
-                  Agregar primer kinesiólogo
+                  Agregar primer profesional
                 </Button>
               </div>
             )}
@@ -1055,7 +1055,7 @@ export default function ClinicKinesiologistsPage() {
                   className="mt-1 text-xl font-bold text-ink"
                   id="add-kinesiologist-title"
                 >
-                  Agregar kinesiólogo
+                  Agregar profesional
                 </h2>
               </div>
               <button
