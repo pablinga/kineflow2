@@ -24,7 +24,20 @@ import {
   arePublicAuthLinksVisible,
 } from "@/lib/signups";
 
-const benefits = [
+const spotlightBenefits = [
+  {
+    icon: CalendarClock,
+    title: "Reservas online",
+    text: "Tus pacientes reservan turnos solos desde un link, sin que vos tengas que coordinar por mensajes.",
+  },
+  {
+    icon: MessageCircle,
+    title: "Confirmación y recordatorio por WhatsApp",
+    text: "Tus pacientes reciben la confirmación del turno y un recordatorio automático antes de la sesión.",
+  },
+];
+
+const listedBenefits = [
   {
     icon: CalendarDays,
     title: "Agenda simple",
@@ -54,16 +67,6 @@ const benefits = [
     icon: Smartphone,
     title: "Desde el celular",
     text: "Pensado para usar entre turnos, sin sobrecarga administrativa.",
-  },
-  {
-    icon: MessageCircle,
-    title: "Confirmación y recordatorio por WhatsApp",
-    text: "Tus pacientes reciben la confirmación del turno y un recordatorio automático antes de la sesión.",
-  },
-  {
-    icon: CalendarClock,
-    title: "Reservas online",
-    text: "Tus pacientes reservan turnos solos desde un link, sin que vos tengas que coordinar por mensajes.",
   },
 ];
 
@@ -185,43 +188,62 @@ export default async function Home({
 
       <section className="px-4 py-14 sm:px-6 lg:px-8" id="beneficios">
         <div className="mx-auto max-w-7xl">
-          <div className="max-w-2xl">
-            <p className="text-sm font-bold text-ocean-600">Beneficios</p>
-            <h2 className="mt-3 text-3xl font-bold text-ink">
-              Diseñado para lo que importa.
-            </h2>
-          </div>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {benefits.map((item, index) => {
+          <h2 className="max-w-2xl text-3xl font-bold text-ink">
+            Diseñado para lo que importa.
+          </h2>
+
+          <div className="mt-8 grid gap-4 lg:grid-cols-2">
+            {spotlightBenefits.map((item, index) => {
               const Icon = item.icon;
-              const isEmerald = index % 2 === 1;
+              const isEmerald = index === 1;
 
               return (
                 <article
-                  className="rounded-lg bg-white p-5 shadow-card"
+                  className={`flex items-start gap-4 rounded-lg p-6 shadow-card lg:p-7 ${
+                    isEmerald ? "bg-emerald-50/60" : "bg-ocean-50/60"
+                  }`}
                   key={item.title}
                 >
                   <span
-                    className={`flex h-11 w-11 items-center justify-center rounded-lg ${
-                      isEmerald
-                        ? "bg-emerald-50 text-emerald-600"
-                        : "bg-ocean-50 text-ocean-600"
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white ${
+                      isEmerald ? "text-emerald-600" : "text-ocean-600"
                     }`}
                   >
-                    <Icon
-                      aria-hidden="true"
-                      className="h-5 w-5"
-                      strokeWidth={2.25}
-                      vectorEffect="non-scaling-stroke"
-                    />
+                    <Icon aria-hidden="true" className="h-6 w-6" strokeWidth={2.25} />
                   </span>
-                  <h3 className="mt-4 font-semibold text-ink">
-                    {item.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {item.text}
-                  </p>
+                  <div>
+                    <h3 className="text-lg font-semibold text-ink">
+                      {item.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      {item.text}
+                    </p>
+                  </div>
                 </article>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 grid gap-x-8 gap-y-6 rounded-lg border border-ocean-100 bg-white p-6 sm:grid-cols-2 lg:p-8">
+            {listedBenefits.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <div className="flex items-start gap-3" key={item.title}>
+                  <Icon
+                    aria-hidden="true"
+                    className="mt-0.5 h-5 w-5 shrink-0 text-ocean-600"
+                    strokeWidth={2.25}
+                  />
+                  <div>
+                    <h3 className="text-sm font-semibold text-ink">
+                      {item.title}
+                    </h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      {item.text}
+                    </p>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -231,8 +253,7 @@ export default async function Home({
       <section className="border-y border-ocean-100 bg-white px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
           <div>
-            <p className="text-sm font-bold text-ocean-600">Flujo simple</p>
-            <h2 className="mt-3 text-3xl font-bold text-ink">
+            <h2 className="text-3xl font-bold text-ink">
               Abrir, registrar, seguir.
             </h2>
             <p className="mt-4 leading-7 text-slate-600">
@@ -261,12 +282,9 @@ export default async function Home({
 
       <section className="px-4 py-14 sm:px-6 lg:px-8" id="planes">
         <div className="mx-auto max-w-7xl">
-          <div className="max-w-2xl">
-            <p className="text-sm font-bold text-ocean-600">Planes</p>
-            <h2 className="mt-3 text-3xl font-bold text-ink">
-              Un plan para cada forma de trabajar.
-            </h2>
-          </div>
+          <h2 className="max-w-2xl text-3xl font-bold text-ink">
+            Un plan para cada forma de trabajar.
+          </h2>
           <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {featuredPlans.map((plan) => (
               <article
