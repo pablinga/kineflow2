@@ -40,6 +40,9 @@ const config: Config = {
         soft: "0 18px 50px rgba(13, 27, 42, 0.09)",
         card: "0 10px 30px rgba(13, 27, 42, 0.06)",
       },
+      transitionTimingFunction: {
+        "out-strong": "cubic-bezier(0.23, 1, 0.32, 1)",
+      },
     },
   },
   plugins: [],

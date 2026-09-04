@@ -403,7 +403,7 @@ function DayDetailPanel({
 
                     return (
                       <button
-                        className="absolute overflow-hidden rounded-lg border-l-4 bg-white px-2.5 py-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-card focus:outline-none focus:ring-2 focus:ring-ocean-300"
+                        className="absolute overflow-hidden rounded-lg border-l-4 bg-white px-2.5 py-2 text-left shadow-sm transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ocean-300"
                         key={appointment.id}
                         onClick={() => {
                           onClose();
