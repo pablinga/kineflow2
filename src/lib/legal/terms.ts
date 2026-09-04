@@ -14,7 +14,7 @@ export const termsSections = [
   {
     title: "2. Descripción del servicio",
     body: [
-      "KineFlow es una plataforma digital de gestión profesional destinada principalmente a kinesiólogos, fisioterapeutas y profesionales afines.",
+      "KineFlow es una plataforma digital de gestión profesional destinada principalmente a profesionales y clínicas de rehabilitación.",
       "La plataforma permite administrar pacientes, turnos, sesiones, evoluciones, cobros e información operativa relacionada con la actividad profesional.",
       "KineFlow no presta servicios médicos, sanitarios ni asistenciales.",
     ],

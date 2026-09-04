@@ -418,7 +418,7 @@ export default function NewAppointmentPage() {
 
         if (isClinicAdmin && clinicProfessionals.length === 0) {
           setError(
-            "Todavía no tenés kinesiólogos activos. Cuando el profesional acepte la invitación, vas a poder asignarle turnos.",
+            "Todavía no tenés profesionales activos. Cuando el profesional acepte la invitación, vas a poder asignarle turnos.",
           );
           return;
         }
@@ -432,13 +432,13 @@ export default function NewAppointmentPage() {
             );
 
         if (!selectedProfessional?.professional_id) {
-          setError("Seleccioná un kinesiólogo vinculado al consultorio.");
+          setError("Seleccioná un profesional vinculado al consultorio.");
           return;
         }
 
         if (!professionalMatchesAvailability(selectedProfessional, appointment)) {
           setError(
-            "El kinesiólogo seleccionado no atiende en este día/horario según su disponibilidad configurada.",
+            "El profesional seleccionado no atiende en este día/horario según su disponibilidad configurada.",
           );
           return;
         }
@@ -535,7 +535,7 @@ export default function NewAppointmentPage() {
           {isClinicAdmin && clinicProfessionals.length === 0 ? (
             <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
               <p>
-                Para crear un turno, primero tenés que agregar un kinesiólogo al
+                Para crear un turno, primero tenés que agregar un profesional al
                 consultorio y esperar que acepte la invitación.
               </p>
               {activeWorkspace?.role === "ADMIN" ? (
@@ -543,7 +543,7 @@ export default function NewAppointmentPage() {
                   className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white transition hover:bg-ocean-700"
                   href="/dashboard/equipo"
                 >
-                  Agregar kinesiólogo
+                  Agregar profesional
                 </Link>
               ) : null}
             </section>
@@ -601,7 +601,7 @@ export default function NewAppointmentPage() {
               </label>
               {isClinicAdmin ? (
                 <label className="block md:col-span-2">
-                  <FieldLabel required>Kinesiólogo</FieldLabel>
+                  <FieldLabel required>Profesional</FieldLabel>
                   <select
                     className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
                     disabled={!canChangeClinicProfessional}
@@ -623,7 +623,7 @@ export default function NewAppointmentPage() {
 
                       return (
                         <option key={professional.id} value={professional.id}>
-                          {profile?.full_name ?? "Kinesiólogo"} ·{" "}
+                          {profile?.full_name ?? "Profesional"} ·{" "}
                           {clinic?.name ?? "Consultorio"}
                         </option>
                       );

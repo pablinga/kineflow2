@@ -94,20 +94,24 @@ export default async function Home({
           <div>
             <div className="inline-flex items-center gap-3 rounded-full border border-ocean-100 bg-white px-3 py-2 text-sm font-bold text-ocean-600 shadow-card">
               <KineFlowIcon className="h-7 w-7" />
-              {"Gesti\u00f3n simple para kinesi\u00f3logos"}
+              {"Software para profesionales y cl\u00ednicas de rehabilitaci\u00f3n"}
             </div>
             <h1 className="mt-6 max-w-3xl text-4xl font-extrabold leading-tight text-ink sm:text-5xl">
               Gestiona tus pacientes, turnos y sesiones en un solo lugar
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-              KineFlow está pensado para kinesiólogos independientes que
-              necesitan ordenar su día a día de forma simple, rápida y desde
-              cualquier dispositivo.
+              KineFlow está pensado para profesionales y clínicas de
+              rehabilitación que necesitan ordenar su día a día de forma
+              simple, rápida y desde cualquier dispositivo.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               {showAuthLinks ? (
-                <LinkButton href="/registro" prefetch={false}>
-                  Comenzar ahora
+                <LinkButton
+                  className="px-8 py-4 text-base sm:text-lg"
+                  href="/registro"
+                  prefetch={false}
+                >
+                  Registrate gratis
                   <ArrowRight className="h-4 w-4" />
                 </LinkButton>
               ) : (
@@ -364,7 +368,7 @@ export default async function Home({
           <div>
             <p className="font-extrabold text-ink">KineFlow</p>
             <p className="mt-2 text-slate-500">
-              Gestión simple para kinesiólogos.
+              Software para profesionales y clínicas de rehabilitación.
             </p>
             <p className="mt-4 text-xs text-slate-500">
               © 2026 KineFlow. Todos los derechos reservados.
