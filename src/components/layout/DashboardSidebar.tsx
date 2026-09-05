@@ -263,7 +263,7 @@ export function DashboardSidebar() {
           <SessionDefaultsNotificationBell />
           <button
             aria-label="Abrir navegacion"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-ocean-100 text-slate-700"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-ocean-100 text-slate-700 transition-colors duration-150 ease-out hover:bg-ocean-50 active:scale-95"
             onClick={() => setOpen(true)}
             type="button"
           >
@@ -284,7 +284,7 @@ export function DashboardSidebar() {
             </span>
             <button
               aria-label="Cerrar navegacion"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-ocean-50 lg:hidden"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 transition-colors duration-150 ease-out hover:bg-ocean-50 active:scale-95 lg:hidden"
               onClick={() => setOpen(false)}
               type="button"
             >
@@ -333,7 +333,7 @@ export function DashboardSidebar() {
 
             return (
               <Link
-                className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition ${
+                className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition-colors duration-150 ease-out ${
                   active
                     ? "bg-ocean-500 text-white shadow-soft"
                     : "text-slate-600 hover:bg-ocean-50 hover:text-ocean-800"
@@ -381,7 +381,7 @@ export function DashboardSidebar() {
 
               return (
                 <Link
-                  className={`flex min-h-[3.25rem] flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-semibold transition ${
+                  className={`flex min-h-[3.25rem] flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-semibold transition-colors duration-150 ease-out ${
                     active
                       ? "bg-ocean-50 text-ocean-700"
                       : "text-slate-500 hover:bg-ocean-50 hover:text-ocean-700"

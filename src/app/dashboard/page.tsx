@@ -16,6 +16,7 @@ import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Card } from "@/components/ui/Card";
 import {
   appointmentStatusStyles,
 } from "@/lib/appointment-ui";
@@ -248,11 +249,17 @@ export default function DashboardPage() {
           />
 
           {accessLevel === "TRIAL_ACTIVE" ? (
-            <section
-              className={`mt-4 flex flex-col justify-between gap-3 rounded-lg border p-4 text-sm font-semibold sm:mt-6 sm:flex-row sm:items-center sm:p-5 ${
+            <Card
+              as="section"
+              variant={
                 trialDaysRemaining !== null && trialDaysRemaining <= 7
-                  ? "border-amber-200 bg-amber-50 text-amber-900"
-                  : "border-ocean-200 bg-white text-ocean-900"
+                  ? "warning"
+                  : "default"
+              }
+              className={`mt-4 flex flex-col justify-between gap-3 text-sm font-semibold sm:mt-6 sm:flex-row sm:items-center ${
+                trialDaysRemaining !== null && trialDaysRemaining <= 7
+                  ? "text-amber-900"
+                  : "text-ocean-900"
               }`}
             >
               <p>
@@ -266,11 +273,15 @@ export default function DashboardPage() {
               >
                 Ver planes
               </Link>
-            </section>
+            </Card>
           ) : null}
 
           {isReadOnly ? (
-            <section className="mt-4 rounded-lg border border-rose-100 bg-rose-50 p-4 text-sm font-semibold text-rose-800 sm:mt-6 sm:p-5">
+            <Card
+              as="section"
+              variant="danger"
+              className="mt-4 text-sm font-semibold text-rose-800 sm:mt-6"
+            >
               <p>{readOnlyMessage}</p>
               <Link
                 className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
@@ -278,9 +289,13 @@ export default function DashboardPage() {
               >
                 Activar plan
               </Link>
-            </section>
+            </Card>
           ) : patientLimitBlock ? (
-            <section className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm font-semibold text-amber-800 sm:mt-6 sm:p-5">
+            <Card
+              as="section"
+              variant="warning"
+              className="mt-4 text-sm font-semibold text-amber-800 sm:mt-6"
+            >
               <p>{patientLimitBlock}</p>
               <Link
                 className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
@@ -288,17 +303,25 @@ export default function DashboardPage() {
               >
                 Reactivar plan
               </Link>
-            </section>
+            </Card>
           ) : null}
 
           {dashboardError ? (
-            <section className="mt-4 rounded-lg border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700 sm:mt-6 sm:p-5">
+            <Card
+              as="section"
+              variant="danger"
+              className="mt-4 text-sm font-semibold text-rose-700 sm:mt-6"
+            >
               <p>{dashboardError}</p>
-            </section>
+            </Card>
           ) : null}
 
           {plan.plan === "FREE" ? (
-            <section className="mt-4 flex flex-col justify-between gap-4 rounded-lg border border-ocean-200 bg-white p-4 shadow-card sm:mt-6 sm:p-5 md:flex-row md:items-center">
+            <Card
+              variant="default"
+              padding="md"
+              className="mt-4 flex flex-col justify-between gap-4 sm:mt-6 md:flex-row md:items-center"
+            >
               <div className="flex gap-4">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
                   <CreditCard className="h-5 w-5" />
@@ -319,9 +342,13 @@ export default function DashboardPage() {
               >
                 Activár plan
               </Link>
-            </section>
+            </Card>
           ) : (
-            <section className="mt-4 flex flex-col justify-between gap-4 rounded-lg border border-emerald-100 bg-emerald-50 p-4 shadow-card sm:mt-6 sm:p-5 md:flex-row md:items-center">
+            <Card
+              variant="success"
+              padding="md"
+              className="mt-4 flex flex-col justify-between gap-4 sm:mt-6 md:flex-row md:items-center"
+            >
               <div className="flex gap-4">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700">
                   <CreditCard className="h-5 w-5" />
@@ -345,15 +372,12 @@ export default function DashboardPage() {
               >
                 Ver mi plan
               </Link>
-            </section>
+            </Card>
           )}
 
           <section className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-3">
             {summaryCards.map((card) => (
-              <article
-                className="rounded-lg border border-ocean-100 bg-white p-3 shadow-card sm:p-4"
-                key={card.label}
-              >
+              <Card as="article" variant="default" padding="sm" key={card.label}>
                 <p className="text-sm font-medium text-slate-500">
                   {card.label}
                 </p>
@@ -363,12 +387,12 @@ export default function DashboardPage() {
                 <p className="mt-3 text-sm font-medium text-ocean-700">
                   {card.detail}
                 </p>
-              </article>
+              </Card>
             ))}
           </section>
 
           <section className="mt-4 grid gap-4 xl:grid-cols-[1.6fr_0.8fr] sm:mt-6 sm:gap-6">
-            <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:p-5">
+            <Card variant="default" padding="md">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-bold text-ink">Próximos turnos</h2>
@@ -435,16 +459,16 @@ export default function DashboardPage() {
                 })}
               </div>
               {upcomingAppointments.length === 0 ? (
-                <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
+                <Card variant="dashed" padding="lg" className="mt-5 text-center">
                   <p className="font-semibold text-ink">
                     No hay próximos turnos registrados.
                   </p>
-                </div>
+                </Card>
               ) : null}
-            </div>
+            </Card>
 
             <div className="space-y-6">
-              <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card">
+              <Card variant="default" padding="md">
                 <h2 className="text-lg font-bold text-ink">Requieren acción</h2>
                 <div className="mt-4 space-y-3">
                   {actionRequired.length > 0 ? (
@@ -485,9 +509,9 @@ export default function DashboardPage() {
                     No hay alertas pendientes.
                   </p>
                 ) : null}
-              </div>
+              </Card>
 
-              <div className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card">
+              <Card variant="default" padding="md">
                 <h2 className="text-lg font-bold text-ink">Accesos rápidos</h2>
                 <div className="mt-4 grid gap-2">
                   {quickAccessItems.map((item) => {
@@ -531,7 +555,7 @@ export default function DashboardPage() {
                     );
                   })}
                 </div>
-              </div>
+              </Card>
             </div>
           </section>
 
