@@ -378,7 +378,7 @@ export default function DashboardPage() {
             ))}
           </section>
 
-          <section className="mt-4 grid gap-4 xl:grid-cols-[1.6fr_0.8fr] sm:mt-6 sm:gap-6">
+          <section className="mt-4 grid items-start gap-4 xl:grid-cols-[1.6fr_0.8fr] sm:mt-6 sm:gap-6">
             <Card variant="default" padding="md">
               <div className="flex items-center justify-between gap-4">
                 <div>
@@ -544,52 +544,6 @@ export default function DashboardPage() {
                 </div>
               </Card>
             </div>
-          </section>
-
-          <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-bold text-ink">Pacientes recientes</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Acceso rápido para retomar tratamientos.
-                </p>
-              </div>
-              <Link
-                className="text-sm font-semibold text-ocean-700"
-                href="/dashboard/pacientes"
-              >
-                Ver pacientes
-              </Link>
-            </div>
-            <div className="mt-5 divide-y divide-ocean-100">
-              {summary.recentPatients.map((patient) => (
-                <div
-                  className="grid gap-3 py-4 md:grid-cols-[1fr_auto] md:items-center"
-                  key={patient.id}
-                >
-                  <div>
-                    <p className="font-semibold text-ink">{patient.name}</p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {patient.condition}
-                    </p>
-                  </div>
-                  <Link
-                    className="inline-flex min-h-9 items-center justify-center rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-                    href={`/dashboard/pacientes/${patient.id}`}
-                    prefetch={false}
-                  >
-                    Ver paciente
-                  </Link>
-                </div>
-              ))}
-            </div>
-            {summary.recentPatients.length === 0 ? (
-              <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
-                <p className="font-semibold text-ink">
-                  Todavía no hay pacientes cargados.
-                </p>
-              </div>
-            ) : null}
           </section>
       </PageContainer>
     </main>
