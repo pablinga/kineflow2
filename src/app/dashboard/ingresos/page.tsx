@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowUpRight, WalletCards } from "lucide-react";
@@ -59,7 +59,7 @@ function getAppointmentDisplayStatus(appointment: {
     : appointment.status;
 }
 
-export default function IncomePage() {
+function IncomePageContent() {
   const searchParams = useSearchParams();
   const { accountType, authError, loading, redirecting } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
@@ -468,5 +468,13 @@ export default function IncomePage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function IncomePage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <IncomePageContent />
+    </Suspense>
   );
 }

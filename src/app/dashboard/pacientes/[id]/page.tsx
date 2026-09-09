@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import {
@@ -89,7 +89,7 @@ const treatmentStatusLabels: Record<TreatmentStatus, string> = {
   PAUSADO: "Pausado",
 };
 
-export default function PatientDetailPage() {
+function PatientDetailPageContent() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const patientId = params.id;
@@ -1607,5 +1607,13 @@ export default function PatientDetailPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function PatientDetailPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <PatientDetailPageContent />
+    </Suspense>
   );
 }
