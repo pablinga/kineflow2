@@ -256,9 +256,8 @@ export default function IncomePage() {
             </div>
           </section>
 
-          <section className="mt-6 grid gap-3 md:grid-cols-4">
+          <section className="mt-6 grid gap-3 md:grid-cols-3">
             {[
-              { label: "Cobrado", value: formatCurrency(summary.paidAmount) },
               { label: "Pendiente", value: formatCurrency(summary.pendingAmount) },
               { label: "Sesiones cobradas", value: String(summary.paidCount) },
               { label: "Ticket promedio", value: formatCurrency(summary.averageAmount) },
