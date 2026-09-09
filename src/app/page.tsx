@@ -9,7 +9,9 @@ import {
   Instagram,
   Mail,
   MessageCircle,
+  Plus,
   Smartphone,
+  UserPlus,
   UsersRound,
 } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -92,25 +94,25 @@ export default async function Home({
     <main className="min-h-screen bg-ocean-50 text-ink">
       <PublicNavbar />
 
-      <section className="overflow-hidden border-b border-ocean-100 bg-gradient-to-b from-white to-ocean-50 px-4 py-14 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
+      <section className="border-b border-ocean-100 bg-gradient-to-b from-white to-ocean-50 px-4 py-14 sm:px-6 lg:px-8">
+        <div className="mx-auto grid max-w-7xl gap-16 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div>
-            <h1 className="mt-6 max-w-3xl text-4xl font-extrabold leading-tight text-ink sm:text-5xl">
-              Gestioná tus pacientes, turnos y sesiones en un solo lugar
+            <h1 className="mt-6 max-w-xl text-4xl font-extrabold leading-tight text-ink sm:text-5xl">
+              Gestioná tu consultorio sin perder tiempo en tareas
+              administrativas
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-              KineFlow está pensado para profesionales y clínicas de
-              rehabilitación que necesitan ordenar su día a día de forma
-              simple, rápida y desde cualquier dispositivo.
+            <p className="mt-5 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
+              Agenda, pacientes, evoluciones, cobros y recordatorios
+              automáticos por WhatsApp. Todo en un solo lugar.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               {showAuthLinks ? (
                 <LinkButton
                   className="px-8 py-4 text-base sm:text-lg"
                   href="/registro"
                   prefetch={false}
                 >
-                  Registrate gratis
+                  Probar gratis 3 meses
                   <ArrowRight className="h-4 w-4" />
                 </LinkButton>
               ) : (
@@ -126,9 +128,19 @@ export default async function Home({
                 Ver plan
               </LinkButton>
             </div>
+            {showAuthLinks ? (
+              <p className="mt-3 text-sm font-semibold text-slate-500">
+                Sin tarjeta de crédito
+              </p>
+            ) : null}
           </div>
 
-          <div className="relative">
+          <div className="relative mx-auto w-full max-w-xl lg:mx-0 lg:max-w-none">
+            <div
+              aria-hidden="true"
+              className="absolute -inset-x-6 -inset-y-8 -z-10 rounded-[2.5rem] bg-gradient-to-br from-ocean-100/70 via-transparent to-emerald-100/60 blur-2xl"
+            />
+
             <div className="relative rounded-lg bg-white p-4 shadow-card">
               <div className="flex items-center justify-between border-b border-ocean-100 pb-4">
                 <div>
@@ -177,6 +189,65 @@ export default async function Home({
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div
+              className="absolute -left-6 -top-6 hidden w-64 items-center gap-3 rounded-lg bg-white p-3 shadow-card lg:flex"
+              style={{
+                animation: "kf-float-a 6s ease-in-out infinite",
+                ["--kf-rotate" as string]: "-3deg",
+              }}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-600">
+                <CalendarDays className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-ink">
+                  Turno confirmado
+                </p>
+                <p className="text-xs text-slate-500">Hoy 09:00</p>
+              </div>
+              <CheckCircle2 className="ml-auto h-5 w-5 shrink-0 text-emerald-600" />
+            </div>
+
+            <div
+              className="absolute -right-6 top-1/3 hidden w-72 items-center gap-3 rounded-lg bg-white p-3 shadow-card lg:flex"
+              style={{
+                animation: "kf-float-b 7s ease-in-out infinite",
+                ["--kf-rotate" as string]: "2deg",
+              }}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <MessageCircle className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-ink">
+                  Recordatorio enviado
+                </p>
+                <p className="text-xs text-slate-500">Por WhatsApp</p>
+              </div>
+              <CheckCircle2 className="ml-auto h-5 w-5 shrink-0 text-emerald-600" />
+            </div>
+
+            <div
+              className="absolute -bottom-6 -left-4 hidden w-60 items-center gap-3 rounded-lg bg-white p-3 shadow-card lg:flex"
+              style={{
+                animation: "kf-float-a 6.5s ease-in-out infinite",
+                ["--kf-rotate" as string]: "2deg",
+              }}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-600">
+                <UserPlus className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-ink">
+                  Nuevo paciente
+                </p>
+                <p className="text-xs text-slate-500">Agregado hoy</p>
+              </div>
+              <span className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+              </span>
             </div>
           </div>
         </div>
