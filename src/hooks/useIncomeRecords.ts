@@ -275,7 +275,7 @@ export function useIncomeRecords(options: UseIncomeRecordsOptions) {
         let summaryQuery = applyFilters(
           supabase
             .from("appointments")
-            .select("session_amount, payment_status"),
+            .select("session_amount, payment_status, patients!inner(full_name)"),
           filterParams,
         );
 
