@@ -2,8 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
-import { PwaServiceWorkerRegistration } from "@/components/PwaServiceWorkerRegistration";
 import "./globals.css";
 
 const inter = Inter({
@@ -41,8 +39,6 @@ export default function RootLayout({
     <html lang="es">
       <body className={`${inter.variable} font-sans antialiased`}>
         {children}
-        <PwaServiceWorkerRegistration />
-        <PwaInstallPrompt />
         <Analytics />
         <SpeedInsights />
       </body>
