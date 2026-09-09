@@ -19,7 +19,10 @@ import { redirect } from "next/navigation";
 import { LegalLinks } from "@/components/layout/LegalLinks";
 import { PublicNavbar } from "@/components/layout/PublicNavbar";
 import { LinkButton } from "@/components/ui/Button";
-import { getVisiblePlansForMvp } from "@/lib/plans";
+import {
+  getVisiblePlansForMvp,
+  plans as commercialPlans,
+} from "@/lib/plans";
 import {
   ACCESS_REQUEST_MAILTO,
   SIGNUPS_CLOSED_MESSAGE,
@@ -179,16 +182,86 @@ export default async function Home({
             ) : null}
           </div>
 
-          <div className="order-2 mx-auto w-full max-w-2xl lg:mx-0 lg:max-w-none">
-            <Image
-              alt="Panel de KineFlow en una computadora, mostrando la agenda del día, turnos confirmados y recordatorios enviados por WhatsApp"
-              className="h-auto w-full rounded-lg shadow-card"
-              height={1024}
-              priority
-              sizes="(min-width: 1024px) 55vw, 100vw"
-              src="/images/landing/kineflow-hero.jpeg"
-              width={1536}
+          <div className="relative order-2 mx-auto w-full max-w-xl lg:mx-0 lg:max-w-none">
+            <div
+              aria-hidden="true"
+              className="absolute -inset-x-2 -inset-y-4 -z-10 rounded-[2.5rem] bg-gradient-to-br from-ocean-100/70 via-transparent to-emerald-100/60 blur-2xl sm:-inset-x-6 sm:-inset-y-8"
             />
+
+            <div className="rounded-t-xl border-8 border-b-0 border-slate-800 bg-slate-800 shadow-card">
+              <div className="relative aspect-[8/5] w-full overflow-hidden bg-white">
+                <Image
+                  alt="Captura del Dashboard de KineFlow, con turnos de hoy, pacientes activos y cobros pendientes"
+                  className="object-cover object-top"
+                  fill
+                  priority
+                  sizes="(min-width: 1024px) 55vw, 100vw"
+                  src="/images/landing/kineflow-screenshot-dashboard.png"
+                />
+              </div>
+            </div>
+            <div className="mx-auto h-3 w-full rounded-b-md bg-gradient-to-b from-slate-300 to-slate-400" />
+            <div className="mx-auto h-1.5 w-1/4 rounded-b-lg bg-slate-400" />
+
+            <div
+              aria-hidden="true"
+              className="absolute -left-6 -top-6 hidden w-64 items-center gap-3 rounded-lg bg-white p-3 shadow-card lg:flex"
+              style={{
+                animation: "kf-float-a 6s ease-in-out infinite",
+                ["--kf-rotate" as string]: "-3deg",
+              }}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-600">
+                <CalendarDays className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-ink">
+                  Turno confirmado
+                </p>
+                <p className="text-xs text-slate-500">Hoy 09:00</p>
+              </div>
+              <CheckCircle2 className="ml-auto h-5 w-5 shrink-0 text-emerald-600" />
+            </div>
+
+            <div
+              aria-hidden="true"
+              className="absolute -right-6 top-1/3 hidden w-72 items-center gap-3 rounded-lg bg-white p-3 shadow-card lg:flex"
+              style={{
+                animation: "kf-float-b 7s ease-in-out infinite",
+                ["--kf-rotate" as string]: "2deg",
+              }}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <MessageCircle className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-ink">
+                  Recordatorio enviado
+                </p>
+                <p className="text-xs text-slate-500">Por WhatsApp</p>
+              </div>
+              <CheckCircle2 className="ml-auto h-5 w-5 shrink-0 text-emerald-600" />
+            </div>
+
+            <div
+              aria-hidden="true"
+              className="absolute -bottom-6 -left-4 hidden w-60 items-center gap-3 rounded-lg bg-white p-3 shadow-card lg:flex"
+              style={{
+                animation: "kf-float-a 6.5s ease-in-out infinite",
+                ["--kf-rotate" as string]: "2deg",
+              }}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-600">
+                <UserPlus className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-ink">
+                  Nuevo paciente
+                </p>
+                <p className="text-xs text-slate-500">Agregado hoy</p>
+              </div>
+              <CheckCircle2 className="ml-auto h-5 w-5 shrink-0 text-emerald-600" />
+            </div>
           </div>
         </div>
       </section>
@@ -263,15 +336,35 @@ export default async function Home({
               </div>
             </div>
 
-            <div className="mx-auto w-full max-w-md lg:mx-0 lg:max-w-none">
-              <Image
-                alt="Recordatorio de turno enviado automáticamente por WhatsApp desde KineFlow a un paciente"
-                className="h-auto w-full rounded-lg shadow-card"
-                height={1024}
-                sizes="(min-width: 1024px) 45vw, 100vw"
-                src="/images/landing/kineflow-whatsapp.jpeg"
-                width={1536}
-              />
+            <div className="mx-auto w-full max-w-xs lg:mx-0">
+              <div className="rounded-[2rem] border-8 border-slate-800 bg-slate-800 shadow-card">
+                <div className="flex justify-center py-1.5">
+                  <span className="h-1.5 w-16 rounded-full bg-slate-600" />
+                </div>
+                <div className="overflow-hidden rounded-b-[1.5rem] bg-ocean-50">
+                  <div className="flex items-center gap-3 border-b border-ocean-100 bg-white p-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                      <MessageCircle className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-bold text-ink">KineFlow</p>
+                      <p className="text-xs text-slate-500">
+                        Mensajes automáticos
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-3 p-4">
+                    <div className="ml-auto max-w-[85%] rounded-lg rounded-tr-none bg-emerald-100 p-3 text-sm leading-6 text-ink">
+                      ¡Hola Sofía! Tu turno con Lic. Martín Pérez quedó
+                      confirmado para el miércoles a las 16:00.
+                    </div>
+                    <div className="ml-auto max-w-[85%] rounded-lg rounded-tr-none bg-emerald-100 p-3 text-sm leading-6 text-ink">
+                      ¡Hola Sofía! Te recordamos tu turno con Lic. Martín
+                      Pérez mañana a las 16:00. ¡Te esperamos!
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -289,41 +382,78 @@ export default async function Home({
             </p>
           </div>
 
-          <div className="mx-auto mt-10 max-w-4xl">
-            <Image
-              alt="Comparación de planes de KineFlow para kinesiólogos independientes y para clínicas o consultorios"
-              className="h-auto w-full rounded-lg shadow-card"
-              height={578}
-              sizes="(min-width: 1024px) 60vw, 100vw"
-              src="/images/landing/kineflow-independiente-clinica.jpeg"
-              width={1536}
-            />
-          </div>
+          <div className="mt-10 grid gap-6 lg:grid-cols-2">
+            {commercialPlans
+              .filter((plan) => plan.id !== "FREE")
+              .map((plan) => {
+                const Icon = plan.icon;
+                const isConsultorio = plan.id === "CONSULTORIO";
 
-          <div className="mt-8 flex flex-col items-center gap-3">
-            {showAuthLinks ? (
-              <LinkButton
-                className="px-8 py-4 text-base"
-                href="/registro"
-                prefetch={false}
-              >
-                Probar gratis 3 meses
-                <ArrowRight className="h-4 w-4" />
-              </LinkButton>
-            ) : (
-              <LinkButton
-                href={`mailto:${contactEmail}?subject=Quiero%20probar%20KineFlow`}
-                variant="secondary"
-              >
-                Contactanos
-                <ArrowRight className="h-4 w-4" />
-              </LinkButton>
-            )}
-            {showAuthLinks ? (
-              <p className="text-sm font-semibold text-slate-500">
-                Sin tarjeta de crédito
-              </p>
-            ) : null}
+                return (
+                  <article
+                    className="flex flex-col rounded-lg border border-ocean-100 bg-white p-6 shadow-card lg:p-7"
+                    key={plan.id}
+                  >
+                    <span
+                      className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${
+                        isConsultorio
+                          ? "bg-ocean-50 text-ocean-700"
+                          : "bg-emerald-50 text-emerald-700"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {isConsultorio
+                        ? "Clínica / Consultorio"
+                        : "Kinesiólogo independiente"}
+                    </span>
+
+                    <p className="mt-4 text-sm leading-6 text-slate-600">
+                      {plan.audience}
+                    </p>
+
+                    <ul className="mt-5 space-y-2.5">
+                      {plan.features.map((feature) => (
+                        <li
+                          className="flex items-start gap-2.5 text-sm text-ink"
+                          key={feature}
+                        >
+                          <CheckCircle2
+                            className={`mt-0.5 h-4 w-4 shrink-0 ${
+                              isConsultorio
+                                ? "text-ocean-600"
+                                : "text-emerald-600"
+                            }`}
+                          />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+
+                    {showAuthLinks ? (
+                      <LinkButton
+                        className="mt-6"
+                        href={plan.href}
+                        prefetch={false}
+                        variant={isConsultorio ? "primary" : "secondary"}
+                      >
+                        {plan.cta}
+                        <ArrowRight className="h-4 w-4" />
+                      </LinkButton>
+                    ) : (
+                      <LinkButton
+                        className="mt-6"
+                        href={`mailto:${contactEmail}?subject=Quiero%20probar%20KineFlow`}
+                        variant="secondary"
+                      >
+                        Contactanos
+                      </LinkButton>
+                    )}
+                    <p className="mt-2 text-xs text-slate-500">
+                      Sin tarjeta de crédito.
+                    </p>
+                  </article>
+                );
+              })}
           </div>
         </div>
       </section>
