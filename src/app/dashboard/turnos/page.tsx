@@ -30,7 +30,6 @@ import {
 import {
   appointmentStatusStyles,
   getAppointmentDisplayStatus,
-  isUpcomingActiveAppointment,
 } from "@/lib/appointment-ui";
 import { paymentStatusStyles } from "@/lib/payment-ui";
 import { formatDate, formatSessionAmount } from "@/lib/format";
@@ -553,13 +552,6 @@ export default function AppointmentsPage() {
     [appointments, originFilter, statusFilter],
   );
 
-  const upcomingAppointments = [...filteredAppointments]
-    .filter(isUpcomingActiveAppointment)
-    .sort(
-      (a, b) =>
-        new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
-    )
-    .slice(0, 12);
   const monthDays = useMemo(
     () => getMonthCalendarDays(calendarDate),
     [calendarDate],
@@ -1469,88 +1461,6 @@ export default function AppointmentsPage() {
               </div>
             </section>
           ) : null}
-          <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-bold text-ink">Próximos turnos</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Vista lista para revisión rápida.
-                </p>
-              </div>
-              <span className="rounded-full bg-ocean-50 px-3 py-1 text-sm font-semibold text-ocean-800">
-                {upcomingAppointments.length}
-              </span>
-            </div>
-            <div className="mt-5 divide-y divide-ocean-100">
-              {upcomingAppointments.map((appointment) => {
-                const status = getAppointmentDisplayStatus(appointment);
-
-                return (
-                  <div
-                    className="grid gap-3 py-4 md:grid-cols-[7rem_5rem_1fr_auto] md:items-center"
-                    key={appointment.id}
-                  >
-                    <p className="text-sm font-semibold text-slate-600">
-                      {appointment.date}
-                    </p>
-                    <p className="whitespace-nowrap text-sm font-bold text-ocean-800">
-                      {appointment.time}
-                    </p>
-                    <div>
-                      <Link
-                        className="font-semibold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
-                        href={`/dashboard/pacientes/${appointment.patientId}`}
-                        prefetch={false}
-                      >
-                        {appointment.patient}
-                      </Link>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {appointment.modality} - {appointment.originLabel}
-                      </p>
-                      {appointment.conflictWarning ? (
-                        <p className="mt-2 text-sm font-semibold text-amber-700">
-                          Conflicto de agenda: {appointment.conflictWarning}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className="w-fit rounded-full px-3 py-1 text-sm font-semibold text-white"
-                        style={{ backgroundColor: appointment.originColor }}
-                      >
-                        {appointment.originLabel}
-                      </span>
-                      <span
-                        className={`w-fit rounded-full px-3 py-1 text-sm font-semibold ${
-                          appointmentStatusStyles[status] ??
-                          "bg-slate-100 text-slate-700"
-                        }`}
-                      >
-                        {status}
-                      </span>
-                      <span
-                        className={`w-fit rounded-full px-3 py-1 text-sm font-semibold ${
-                          paymentStatusStyles[appointment.paymentStatusLabel] ??
-                          "bg-slate-100 text-slate-700"
-                        }`}
-                      >
-                        {appointment.paymentStatusLabel} ·{" "}
-                        {formatSessionAmount(appointment.amount)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {upcomingAppointments.length === 0 ? (
-              <div className="mt-5 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
-                <p className="font-semibold text-ink">
-                  No hay próximos turnos registrados.
-                </p>
-              </div>
-            ) : null}
-          </section>
-
           {selectedMobileDay ? (
             <DayDetailPanel
               day={selectedMobileDay}
