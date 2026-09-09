@@ -896,15 +896,7 @@ export default function PatientsPage() {
                         {patient.email || "Sin email"}
                       </p>
                     </div>
-                    <div className="mt-4 grid gap-3 border-t border-ocean-100 pt-4 sm:grid-cols-3">
-                      <div>
-                        <p className="text-xs font-semibold uppercase text-slate-500">
-                          Evolución
-                        </p>
-                        <p className="mt-1 text-sm font-semibold text-ocean-800">
-                          {patient.progress}
-                        </p>
-                      </div>
+                    <div className="mt-4 grid gap-3 border-t border-ocean-100 pt-4 sm:grid-cols-2">
                       <div>
                         <p className="text-xs font-semibold uppercase text-slate-500">
                           Última sesión
