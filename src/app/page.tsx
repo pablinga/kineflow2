@@ -1,9 +1,12 @@
 import {
   ArrowRight,
+  Bell,
   CalendarClock,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
+  Clock,
   CreditCard,
   HeartPulse,
   Instagram,
@@ -11,6 +14,7 @@ import {
   MessageCircle,
   Plus,
   Smartphone,
+  TrendingUp,
   UserPlus,
   UsersRound,
 } from "lucide-react";
@@ -31,11 +35,6 @@ const spotlightBenefits = [
     icon: CalendarClock,
     title: "Reservas online",
     text: "Tus pacientes reservan turnos solos desde un link, sin que vos tengas que coordinar por mensajes.",
-  },
-  {
-    icon: MessageCircle,
-    title: "Confirmación y recordatorio por WhatsApp",
-    text: "Tus pacientes reciben la confirmación del turno y un recordatorio automático antes de la sesión.",
   },
 ];
 
@@ -259,23 +258,16 @@ export default async function Home({
             Diseñado para lo que importa.
           </h2>
 
-          <div className="mt-8 grid gap-4 lg:grid-cols-2">
-            {spotlightBenefits.map((item, index) => {
+          <div className="mt-8 grid gap-4">
+            {spotlightBenefits.map((item) => {
               const Icon = item.icon;
-              const isEmerald = index === 1;
 
               return (
                 <article
-                  className={`flex items-start gap-4 rounded-lg p-6 shadow-card lg:p-7 ${
-                    isEmerald ? "bg-emerald-50/60" : "bg-ocean-50/60"
-                  }`}
+                  className="flex items-start gap-4 rounded-lg bg-ocean-50/60 p-6 shadow-card lg:p-7"
                   key={item.title}
                 >
-                  <span
-                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white ${
-                      isEmerald ? "text-emerald-600" : "text-ocean-600"
-                    }`}
-                  >
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white text-ocean-600">
                     <Icon aria-hidden="true" className="h-6 w-6" strokeWidth={2.25} />
                   </span>
                   <div>
@@ -313,6 +305,155 @@ export default async function Home({
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      <section
+        className="bg-ocean-50 px-4 py-14 sm:px-6 lg:px-8"
+        id="whatsapp"
+      >
+        <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold text-ink">
+              Menos ausencias. KineFlow recuerda los turnos por vos.
+            </h2>
+            <p className="mt-4 leading-7 text-slate-600">
+              KineFlow envía automáticamente la confirmación y el
+              recordatorio del turno por WhatsApp para que vos no tengas que
+              hacerlo.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-6 lg:grid-cols-[0.85fr_1fr_0.85fr] lg:items-center">
+            <div className="rounded-lg bg-white p-6 shadow-card lg:p-7">
+              <div className="space-y-5">
+                {[
+                  {
+                    icon: CheckCircle2,
+                    title: "Menos ausencias",
+                    text: "Tus pacientes no se olvidan.",
+                    color: "emerald",
+                  },
+                  {
+                    icon: Clock,
+                    title: "Ahorrá tiempo",
+                    text: "Todo se envía automáticamente.",
+                    color: "ocean",
+                  },
+                  {
+                    icon: UsersRound,
+                    title: "Mejor organización",
+                    text: "Aprovechá mejor tu agenda.",
+                    color: "emerald",
+                  },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isEmerald = item.color === "emerald";
+
+                  return (
+                    <div className="flex items-start gap-3" key={item.title}>
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                          isEmerald
+                            ? "bg-emerald-50 text-emerald-600"
+                            : "bg-ocean-50 text-ocean-600"
+                        }`}
+                      >
+                        <Icon aria-hidden="true" className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <p className="font-bold text-ink">{item.title}</p>
+                        <p className="mt-0.5 text-sm text-slate-500">
+                          {item.text}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="relative mx-auto w-full max-w-sm rounded-lg bg-white p-4 shadow-card">
+              <div className="flex items-center gap-3 border-b border-ocean-100 pb-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                  <MessageCircle className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-sm font-bold text-ink">KineFlow</p>
+                  <p className="text-xs text-slate-500">Mensaje automático</p>
+                </div>
+              </div>
+              <div className="mt-4 space-y-3">
+                <div className="rounded-lg rounded-tl-none bg-ocean-50 p-3 text-sm leading-6 text-ink">
+                  ¡Hola Sofía! Tu turno con Lic. Martín Pérez quedó
+                  confirmado para el miércoles a las 16:00.
+                </div>
+                <div className="ml-auto rounded-lg rounded-tr-none bg-emerald-50 p-3 text-sm leading-6 text-ink">
+                  ¡Hola Sofía! Te recordamos tu turno con Lic. Martín Pérez
+                  mañana a las 16:00. ¡Te esperamos!
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {[
+                {
+                  icon: CalendarDays,
+                  title: "Turno confirmado",
+                  text: "Mensaje enviado",
+                  color: "ocean",
+                },
+                {
+                  icon: Bell,
+                  title: "Recordatorio (24 h)",
+                  text: "Mensaje enviado",
+                  color: "emerald",
+                },
+                {
+                  icon: TrendingUp,
+                  title: "Menos ausencias",
+                  text: "Más pacientes, más tiempo para lo importante",
+                  color: "ocean",
+                },
+              ].map((item, index) => {
+                const Icon = item.icon;
+                const isEmerald = item.color === "emerald";
+
+                return (
+                  <div key={item.title}>
+                    <div className="flex items-center gap-3 rounded-lg bg-white p-3 shadow-card">
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                          isEmerald
+                            ? "bg-emerald-50 text-emerald-600"
+                            : "bg-ocean-50 text-ocean-600"
+                        }`}
+                      >
+                        <Icon aria-hidden="true" className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-ink">
+                          {item.title}
+                        </p>
+                        <p className="truncate text-xs text-slate-500">
+                          {item.text}
+                        </p>
+                      </div>
+                      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+                    </div>
+                    {index < 2 ? (
+                      <div className="flex justify-center py-1">
+                        <ChevronDown
+                          aria-hidden="true"
+                          className="h-4 w-4 text-ocean-200"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
