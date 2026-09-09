@@ -662,26 +662,6 @@ export default function PatientsPage() {
                 Ver planes
               </Link>
             </section>
-          ) : plan.plan === "FREE" ? (
-            <section className="mt-4 rounded-lg border border-ocean-200 bg-white p-4 shadow-card sm:mt-6 sm:p-5">
-              <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-                <div>
-                  <p className="font-bold text-ink">
-                    Prueba gratuita: {activePatientCount} pacientes activos
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Probá KineFlow gratis durante 3 meses, sin tarjeta y sin
-                    compromiso.
-                  </p>
-                </div>
-                <Link
-                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
-                  href="/dashboard/planes"
-                >
-                  Ver planes
-                </Link>
-              </div>
-            </section>
           ) : null}
 
           {patientLimitBlock ? (
@@ -916,8 +896,8 @@ export default function PatientsPage() {
                         {patient.email || "Sin email"}
                       </p>
                     </div>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                      <div className="rounded-lg bg-ocean-50 p-3">
+                    <div className="mt-4 grid gap-3 border-t border-ocean-100 pt-4 sm:grid-cols-3">
+                      <div>
                         <p className="text-xs font-semibold uppercase text-slate-500">
                           Evolución
                         </p>
@@ -925,7 +905,7 @@ export default function PatientsPage() {
                           {patient.progress}
                         </p>
                       </div>
-                      <div className="rounded-lg bg-ocean-50 p-3">
+                      <div>
                         <p className="text-xs font-semibold uppercase text-slate-500">
                           Última sesión
                         </p>
@@ -933,13 +913,7 @@ export default function PatientsPage() {
                           {patient.lastSession}
                         </p>
                       </div>
-                      <div
-                        className={`rounded-lg p-3 ${
-                          patient.nextAppointment === "Sin turno"
-                            ? "bg-ocean-50"
-                            : "bg-emerald-50"
-                        }`}
-                      >
+                      <div>
                         <p className="text-xs font-semibold uppercase text-slate-500">
                           Próximo turno
                         </p>
@@ -947,7 +921,7 @@ export default function PatientsPage() {
                           className={`mt-1 text-sm font-semibold ${
                             patient.nextAppointment === "Sin turno"
                               ? "text-ocean-800"
-                              : "text-emerald-800"
+                              : "text-emerald-700"
                           }`}
                         >
                           {patient.nextAppointment}
