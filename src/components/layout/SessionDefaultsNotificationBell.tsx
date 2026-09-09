@@ -70,7 +70,7 @@ export function SessionDefaultsNotificationBell() {
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-12 z-50 w-72 rounded-lg border border-ocean-100 bg-white p-4 shadow-card">
+        <div className="absolute right-0 top-12 z-50 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-ocean-100 bg-white p-4 shadow-card lg:right-auto lg:left-0">
           <p className="text-sm font-bold text-ink">
             Costo y duración de sesión por defecto
           </p>

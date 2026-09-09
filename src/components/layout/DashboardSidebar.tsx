@@ -272,7 +272,7 @@ export function DashboardSidebar() {
         </div>
       </div>
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-ocean-100 bg-white p-5 shadow-soft transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:block lg:h-screen lg:translate-x-0 lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-ocean-100 bg-white p-5 shadow-soft transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:flex lg:h-screen lg:translate-x-0 lg:shadow-none ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -292,85 +292,87 @@ export function DashboardSidebar() {
             </button>
           </div>
         </div>
-        {!loading && workspaceLoaded && workspaces.length > 0 ? (
-          <div className="mb-5">
-            <label className="block text-xs font-bold uppercase tracking-wide text-slate-400">
-              Espacio
-            </label>
-            {workspaces.length > 1 ? (
-              <div className="relative mt-2">
-                <select
-                  className="min-h-11 w-full appearance-none rounded-lg border border-ocean-100 bg-ocean-50 px-3 pr-10 text-sm font-semibold text-ink outline-none transition focus:border-ocean-400"
-                  onChange={(event) => selectWorkspace(event.target.value)}
-                  value={activeWorkspace?.id ?? ""}
-                >
-                  {workspaces.map((workspace) => (
-                    <option key={workspace.id} value={workspace.id}>
-                      {workspace.name} - {getWorkspaceTypeLabel(workspace.type)}
-                    </option>
-                  ))}
-                </select>
-                <ChevronsUpDown className="pointer-events-none absolute right-3 top-3 h-5 w-5 text-ocean-700" />
-              </div>
-            ) : (
-              <div className="mt-2 rounded-lg border border-ocean-100 bg-ocean-50 px-3 py-3">
-                <p className="truncate text-sm font-bold text-ink">
-                  {activeWorkspace?.name}
-                </p>
-                <p className="mt-0.5 text-xs font-semibold text-ocean-700">
-                  {activeWorkspace
-                    ? getWorkspaceTypeLabel(activeWorkspace.type)
-                    : ""}
-                </p>
-              </div>
-            )}
-          </div>
-        ) : null}
-        <nav className="space-y-1">
-          {visibleNavigation.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {!loading && workspaceLoaded && workspaces.length > 0 ? (
+            <div className="mb-5">
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-400">
+                Espacio
+              </label>
+              {workspaces.length > 1 ? (
+                <div className="relative mt-2">
+                  <select
+                    className="min-h-11 w-full appearance-none rounded-lg border border-ocean-100 bg-ocean-50 px-3 pr-10 text-sm font-semibold text-ink outline-none transition focus:border-ocean-400"
+                    onChange={(event) => selectWorkspace(event.target.value)}
+                    value={activeWorkspace?.id ?? ""}
+                  >
+                    {workspaces.map((workspace) => (
+                      <option key={workspace.id} value={workspace.id}>
+                        {workspace.name} - {getWorkspaceTypeLabel(workspace.type)}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronsUpDown className="pointer-events-none absolute right-3 top-3 h-5 w-5 text-ocean-700" />
+                </div>
+              ) : (
+                <div className="mt-2 rounded-lg border border-ocean-100 bg-ocean-50 px-3 py-3">
+                  <p className="truncate text-sm font-bold text-ink">
+                    {activeWorkspace?.name}
+                  </p>
+                  <p className="mt-0.5 text-xs font-semibold text-ocean-700">
+                    {activeWorkspace
+                      ? getWorkspaceTypeLabel(activeWorkspace.type)
+                      : ""}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : null}
+          <nav className="space-y-1">
+            {visibleNavigation.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
 
-            return (
-              <Link
-                className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition-colors duration-150 ease-out ${
-                  active
-                    ? "bg-ocean-500 text-white shadow-soft"
-                    : "text-slate-600 hover:bg-ocean-50 hover:text-ocean-800"
-                }`}
-                href={item.href}
-                key={item.label}
-                onClick={() => setOpen(false)}
-                prefetch={false}
-              >
-                <Icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <button
-          className={`mt-5 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-80 lg:mt-8 ${
-            loggingOut
-              ? "bg-ocean-50 text-ocean-800"
-              : "text-slate-600 hover:bg-ocean-50 hover:text-ocean-800"
-          }`}
-          disabled={loggingOut}
-          onClick={handleLogout}
-          type="button"
-        >
-          {loggingOut ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <LogOut className="h-5 w-5" />
-          )}
-          {loggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
-        </button>
-        {logoutError ? (
-          <p className="mt-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-            {logoutError}
-          </p>
-        ) : null}
+              return (
+                <Link
+                  className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition-colors duration-150 ease-out ${
+                    active
+                      ? "bg-ocean-500 text-white shadow-soft"
+                      : "text-slate-600 hover:bg-ocean-50 hover:text-ocean-800"
+                  }`}
+                  href={item.href}
+                  key={item.label}
+                  onClick={() => setOpen(false)}
+                  prefetch={false}
+                >
+                  <Icon className="h-5 w-5" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+          <button
+            className={`mt-5 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-80 lg:mt-8 ${
+              loggingOut
+                ? "bg-ocean-50 text-ocean-800"
+                : "text-slate-600 hover:bg-ocean-50 hover:text-ocean-800"
+            }`}
+            disabled={loggingOut}
+            onClick={handleLogout}
+            type="button"
+          >
+            {loggingOut ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <LogOut className="h-5 w-5" />
+            )}
+            {loggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
+          </button>
+          {logoutError ? (
+            <p className="mt-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+              {logoutError}
+            </p>
+          ) : null}
+        </div>
       </aside>
       {visibleMobileNavigation.length > 0 ? (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ocean-100 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-soft backdrop-blur lg:hidden">

@@ -89,18 +89,14 @@ export default async function Home({
   const showAuthLinks = arePublicAuthLinksVisible();
 
   return (
-    <main className="min-h-screen bg-[#FAF6EF] text-ink">
+    <main className="min-h-screen bg-ocean-50 text-ink">
       <PublicNavbar />
 
-      <section className="overflow-hidden border-b border-ocean-100 bg-gradient-to-b from-[#FDFBF7] to-[#F2E9DA] px-4 py-14 sm:px-6 lg:px-8">
+      <section className="overflow-hidden border-b border-ocean-100 bg-gradient-to-b from-white to-ocean-50 px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
           <div>
-            <div className="inline-flex items-center gap-3 rounded-full border border-ocean-100 bg-white px-3 py-2 text-sm font-bold text-ocean-600 shadow-card">
-              <KineFlowIcon className="h-7 w-7" />
-              {"Software para profesionales y cl\u00ednicas de rehabilitaci\u00f3n"}
-            </div>
             <h1 className="mt-6 max-w-3xl text-4xl font-extrabold leading-tight text-ink sm:text-5xl">
-              Gestiona tus pacientes, turnos y sesiones en un solo lugar
+              Gestioná tus pacientes, turnos y sesiones en un solo lugar
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
               KineFlow está pensado para profesionales y clínicas de
@@ -154,7 +150,7 @@ export default async function Home({
                   ["12:00", "Diego Ramos", "Sesión de fuerza"],
                 ].map(([time, patient, reason]) => (
                   <div
-                    className="grid grid-cols-[4rem_1fr] gap-3 rounded-lg bg-[#F2E9DA] p-3"
+                    className="grid grid-cols-[4rem_1fr] gap-3 rounded-lg bg-ocean-50 p-3"
                     key={`${time}-${patient}`}
                   >
                     <p className="font-extrabold text-ocean-600">{time}</p>
