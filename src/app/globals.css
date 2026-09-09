@@ -35,6 +35,32 @@ a {
   color: #0d1b2a;
 }
 
+@keyframes kf-float-a {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--kf-rotate, 0deg));
+  }
+  50% {
+    transform: translateY(-6px) rotate(var(--kf-rotate, 0deg));
+  }
+}
+
+@keyframes kf-float-b {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--kf-rotate, 0deg));
+  }
+  50% {
+    transform: translateY(6px) rotate(var(--kf-rotate, 0deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [style*="kf-float"] {
+    animation: none !important;
+  }
+}
+
 @layer base {
   :focus-visible {
     outline-color: var(--brand-blue);
