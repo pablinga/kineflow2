@@ -434,7 +434,7 @@ export default async function Home({
                         className="mt-6"
                         href={plan.href}
                         prefetch={false}
-                        variant={isConsultorio ? "primary" : "secondary"}
+                        variant="primary"
                       >
                         {plan.cta}
                         <ArrowRight className="h-4 w-4" />
