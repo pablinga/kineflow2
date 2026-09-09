@@ -660,7 +660,7 @@ export default function NewAppointmentPage() {
                   Tratamiento
                 </span>
                 <select
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
                   disabled={!appointment.patientId || isRefreshingTreatments}
                   onChange={(event) => updateTreatment(event.target.value)}
                   value={appointment.treatmentId}
@@ -683,6 +683,11 @@ export default function NewAppointmentPage() {
                         </option>
                       ))}
                 </select>
+                {!appointment.patientId && !isRefreshingTreatments ? (
+                  <p className="mt-2 text-sm text-slate-500">
+                    Elegí un paciente para ver sus tratamientos activos.
+                  </p>
+                ) : null}
                 {isRefreshingTreatments ? (
                   <p className="mt-2 text-sm text-ocean-700">
                     Cargando tratamientos...

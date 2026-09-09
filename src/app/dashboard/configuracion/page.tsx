@@ -3,12 +3,12 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
   CalendarOff,
-  CheckCircle2,
+  Contact,
   Palette,
   Plus,
   Save,
-  Settings,
   ShieldCheck,
+  Timer,
   Trash2,
 } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
@@ -307,7 +307,7 @@ export default function WorkspaceSettingsPage() {
           <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
-                <Settings className="h-5 w-5" />
+                <Contact className="h-5 w-5" />
               </span>
               <h2 className="text-xl font-bold text-ink">Datos de contacto</h2>
             </div>
@@ -375,7 +375,7 @@ export default function WorkspaceSettingsPage() {
           <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
-                <CheckCircle2 className="h-5 w-5" />
+                <Timer className="h-5 w-5" />
               </span>
               <h2 className="text-xl font-bold text-ink">
                 Configuración de sesiones
@@ -446,38 +446,50 @@ export default function WorkspaceSettingsPage() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6 lg:col-span-2">
-            <div className="flex items-center gap-3">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
-                <Palette className="h-5 w-5" />
-              </span>
-              <h2 className="text-xl font-bold text-ink">Color del espacio</h2>
-            </div>
-            <div className="mt-5 flex flex-wrap gap-3">
-              {WORKSPACE_COLOR_OPTIONS.map((color) => (
-                <button
-                  aria-label={`Elegir color ${color}`}
-                  className={`h-11 w-11 rounded-lg border-2 transition ${
-                    form.color === color
-                      ? "border-ink ring-2 ring-ocean-200"
-                      : "border-white hover:border-ocean-200"
-                  }`}
-                  disabled={!canEdit}
-                  key={color}
-                  onClick={() => setForm((current) => ({ ...current, color }))}
-                  style={{ backgroundColor: color }}
-                  type="button"
-                />
-              ))}
-            </div>
-          </section>
+          {activeWorkspace?.type === "CLINICA" ? (
+            <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6 lg:col-span-2">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
+                  <Palette className="h-5 w-5" />
+                </span>
+                <h2 className="text-xl font-bold text-ink">Color del espacio</h2>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Se usa para diferenciar a cada profesional en la agenda
+                compartida de la clínica.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {WORKSPACE_COLOR_OPTIONS.map((color) => (
+                  <button
+                    aria-label={`Elegir color ${color}`}
+                    className={`h-11 w-11 rounded-lg border-2 transition ${
+                      form.color === color
+                        ? "border-ink ring-2 ring-ocean-200"
+                        : "border-white hover:border-ocean-200"
+                    }`}
+                    disabled={!canEdit}
+                    key={color}
+                    onClick={() => setForm((current) => ({ ...current, color }))}
+                    style={{ backgroundColor: color }}
+                    type="button"
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           {canEdit ? (
-            <div className="flex justify-end lg:col-span-2">
+            <div className="flex flex-col items-end gap-1 lg:col-span-2">
               <Button disabled={savingSettings} type="submit">
                 <Save className="h-4 w-4" />
                 {savingSettings ? "Guardando..." : "Guardar configuración"}
               </Button>
+              <p className="text-xs text-slate-500">
+                Guarda los datos de contacto y sesiones
+                {activeWorkspace?.type === "CLINICA" ? " y color" : ""}. Los
+                días bloqueados y las obras sociales se guardan al
+                agregarlos.
+              </p>
             </div>
           ) : null}
         </form>

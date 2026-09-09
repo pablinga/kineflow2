@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowUpRight, WalletCards } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
@@ -58,7 +59,8 @@ function getAppointmentDisplayStatus(appointment: {
     : appointment.status;
 }
 
-export default function IncomePage() {
+function IncomePageContent() {
+  const searchParams = useSearchParams();
   const { accountType, authError, loading, redirecting } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
@@ -70,7 +72,9 @@ export default function IncomePage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "all">(
     "all",
   );
-  const [patientSearch, setPatientSearch] = useState("");
+  const [patientSearch, setPatientSearch] = useState(
+    () => searchParams.get("paciente") ?? "",
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const {
     error: incomeError,
@@ -464,5 +468,13 @@ export default function IncomePage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function IncomePage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <IncomePageContent />
+    </Suspense>
   );
 }

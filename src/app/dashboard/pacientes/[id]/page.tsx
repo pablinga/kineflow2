@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import {
@@ -89,7 +89,7 @@ const treatmentStatusLabels: Record<TreatmentStatus, string> = {
   PAUSADO: "Pausado",
 };
 
-export default function PatientDetailPage() {
+function PatientDetailPageContent() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const patientId = params.id;
@@ -749,15 +749,7 @@ export default function PatientDetailPage() {
               ) : null}
 
               <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-lg bg-slate-50 p-3 sm:col-span-2 xl:col-span-1">
-                    <p className="text-xs font-bold uppercase text-slate-600">
-                      Tratamiento activo
-                    </p>
-                    <p className="mt-1 truncate text-lg font-bold text-ink">
-                      {activeTreatment?.diagnosis ?? "Sin tratamiento"}
-                    </p>
-                  </div>
+                <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-lg bg-slate-50 p-3">
                     <p className="text-xs font-bold uppercase text-slate-600">
                       Sesiones
@@ -840,7 +832,7 @@ export default function PatientDetailPage() {
                         ? "border-amber-200 text-amber-800 hover:bg-amber-50"
                         : "border-ocean-200 text-ocean-800 hover:bg-ocean-50"
                     }`}
-                      href="/dashboard/ingresos"
+                      href={`/dashboard/ingresos?paciente=${encodeURIComponent(patient.name)}`}
                     >
                       <WalletCards className="h-4 w-4" />
                       Registrar cobro
@@ -1165,16 +1157,6 @@ export default function PatientDetailPage() {
                       <h2 className="text-lg font-bold text-ink">
                         Evoluciones / Sesiones
                       </h2>
-                    <button
-                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                      disabled={Boolean(writeBlockMessage)}
-                      onClick={openNewEvolutionModal}
-                      title={writeBlockMessage ?? undefined}
-                      type="button"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Nueva
-                    </button>
                     </div>
                     <div className="mt-4 space-y-2 sm:mt-5 sm:space-y-3">
                       {evolutions.map((item) => (
@@ -1625,5 +1607,13 @@ export default function PatientDetailPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function PatientDetailPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <PatientDetailPageContent />
+    </Suspense>
   );
 }
