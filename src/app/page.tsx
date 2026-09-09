@@ -145,7 +145,7 @@ export default async function Home({
         <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div className="order-1">
             <h1 className="mt-6 max-w-xl text-4xl font-extrabold leading-tight text-ink sm:text-5xl">
-              Gestioná tu consultorio sin perder tiempo en tareas
+              Gestioná tu práctica sin perder tiempo en tareas
               administrativas
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
@@ -269,7 +269,7 @@ export default async function Home({
       <section className="px-4 py-14 sm:px-6 lg:px-8" id="beneficios">
         <div className="mx-auto max-w-7xl">
           <h2 className="max-w-2xl text-3xl font-bold text-ink">
-            Todo lo que necesitás para tu consultorio.
+            Todo lo que necesitás para tu práctica.
           </h2>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
