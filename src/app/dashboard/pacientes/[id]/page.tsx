@@ -20,7 +20,6 @@ import {
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PatientEvolutionCharts } from "@/components/patients/PatientEvolutionCharts";
-import { BodyRegionPicker } from "@/components/treatments/BodyRegionPicker";
 import { TreatmentAttachmentsInput } from "@/components/treatments/TreatmentAttachmentsInput";
 import { TreatmentDocumentation } from "@/components/treatments/TreatmentDocumentation";
 import { FieldLabel } from "@/components/ui/FieldLabel";
@@ -1278,24 +1277,12 @@ export default function PatientDetailPage() {
                       value={treatment.diagnosis}
                     />
                   </label>
-                  <div className="block">
-                    <label
-                      className="text-sm font-semibold text-slate-700"
-                      htmlFor="treatment-body-region"
-                    >
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
                       Región del cuerpo
-                    </label>
-                    <div className="mt-2 rounded-lg border border-ocean-100 bg-white p-4">
-                      <BodyRegionPicker
-                        onSelect={(label) =>
-                          updateTreatmentField("bodyRegion", label)
-                        }
-                        value={treatment.bodyRegion}
-                      />
-                    </div>
+                    </span>
                     <input
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                      id="treatment-body-region"
                       onChange={(event) =>
                         updateTreatmentField("bodyRegion", event.target.value)
                       }
@@ -1303,7 +1290,7 @@ export default function PatientDetailPage() {
                       type="text"
                       value={treatment.bodyRegion}
                     />
-                  </div>
+                  </label>
                   <label className="block">
                     <FieldLabel required>Total de sesiones</FieldLabel>
                     <input
