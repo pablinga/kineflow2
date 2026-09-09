@@ -23,7 +23,7 @@ import { LegalLinks } from "@/components/layout/LegalLinks";
 import { PublicNavbar } from "@/components/layout/PublicNavbar";
 import { LinkButton } from "@/components/ui/Button";
 import { KineFlowIcon } from "@/components/ui/Logo";
-import { getVisiblePlansForMvp } from "@/lib/plans";
+import { getVisiblePlansForMvp, plans as commercialPlans } from "@/lib/plans";
 import {
   ACCESS_REQUEST_MAILTO,
   SIGNUPS_CLOSED_MESSAGE,
@@ -454,6 +454,94 @@ export default async function Home({
                 );
               })}
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-4 py-14 sm:px-6 lg:px-8" id="para-quien">
+        <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold text-ink">
+              Pensado para kinesiólogos independientes y clínicas o
+              consultorios.
+            </h2>
+            <p className="mt-4 leading-7 text-slate-600">
+              La misma herramienta, adaptada a tus necesidades.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-6 lg:grid-cols-2">
+            {commercialPlans
+              .filter((plan) => plan.id !== "FREE")
+              .map((plan) => {
+                const Icon = plan.icon;
+                const isConsultorio = plan.id === "CONSULTORIO";
+
+                return (
+                  <article
+                    className="flex flex-col rounded-lg border border-ocean-100 bg-white p-6 shadow-card lg:p-7"
+                    key={plan.id}
+                  >
+                    <span
+                      className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${
+                        isConsultorio
+                          ? "bg-ocean-50 text-ocean-700"
+                          : "bg-emerald-50 text-emerald-700"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {isConsultorio
+                        ? "Clínica / Consultorio"
+                        : "Kinesiólogo independiente"}
+                    </span>
+
+                    <p className="mt-4 text-sm leading-6 text-slate-600">
+                      {plan.audience}
+                    </p>
+
+                    <ul className="mt-5 space-y-2.5">
+                      {plan.features.map((feature) => (
+                        <li
+                          className="flex items-start gap-2.5 text-sm text-ink"
+                          key={feature}
+                        >
+                          <CheckCircle2
+                            className={`mt-0.5 h-4 w-4 shrink-0 ${
+                              isConsultorio
+                                ? "text-ocean-600"
+                                : "text-emerald-600"
+                            }`}
+                          />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+
+                    {showAuthLinks ? (
+                      <LinkButton
+                        className="mt-6"
+                        href={plan.href}
+                        prefetch={false}
+                        variant={isConsultorio ? "primary" : "secondary"}
+                      >
+                        {plan.cta}
+                        <ArrowRight className="h-4 w-4" />
+                      </LinkButton>
+                    ) : (
+                      <LinkButton
+                        className="mt-6"
+                        href={`mailto:${contactEmail}?subject=Quiero%20probar%20KineFlow`}
+                        variant="secondary"
+                      >
+                        Contactanos
+                      </LinkButton>
+                    )}
+                    <p className="mt-2 text-xs text-slate-500">
+                      Sin tarjeta de crédito.
+                    </p>
+                  </article>
+                );
+              })}
           </div>
         </div>
       </section>
