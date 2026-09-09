@@ -147,7 +147,6 @@ export default function DashboardPage() {
   const upcomingAppointments = summary.upcomingAppointments;
   const actionRequired = summary.actionRequired;
   const paymentActionRequired = summary.paymentActionRequired;
-  const nextAppointment = upcomingAppointments[0];
   const quickAccessItems = [
     {
       label: "Nuevo paciente",
@@ -193,11 +192,12 @@ export default function DashboardPage() {
         summary.activePatientCount === 0 ? "Sin pacientes cargados" : "En seguimiento",
     },
     {
-      label: "Próximo turno",
-      value: nextAppointment?.time ?? "-",
-      detail: nextAppointment
-        ? `${nextAppointment.patient} · ${nextAppointment.date}`
-        : "Sin próximos turnos",
+      label: "Cobros pendientes",
+      value: String(paymentActionRequired.length),
+      detail:
+        paymentActionRequired.length === 0
+          ? "Todo al día"
+          : "Requieren seguimiento",
     },
   ];
   return (
@@ -250,28 +250,42 @@ export default function DashboardPage() {
 
           {accessLevel === "TRIAL_ACTIVE" ? (
             <Card
-              as="section"
               variant={
                 trialDaysRemaining !== null && trialDaysRemaining <= 7
                   ? "warning"
                   : "default"
               }
-              className={`mt-4 flex flex-col justify-between gap-3 text-sm font-semibold sm:mt-6 sm:flex-row sm:items-center ${
-                trialDaysRemaining !== null && trialDaysRemaining <= 7
-                  ? "text-amber-900"
-                  : "text-ocean-900"
-              }`}
+              padding="md"
+              className="mt-4 flex flex-col justify-between gap-4 sm:mt-6 md:flex-row md:items-center"
             >
-              <p>
-                Prueba gratuita ·{" "}
-                {getTrialCountdownLabel(trialDaysRemaining) ??
-                  "3 meses incluidos"}
-              </p>
+              <div className="flex gap-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
+                  <CreditCard className="h-5 w-5" />
+                </span>
+                <div>
+                  <p
+                    className={`font-bold ${
+                      trialDaysRemaining !== null && trialDaysRemaining <= 7
+                        ? "text-amber-900"
+                        : "text-ink"
+                    }`}
+                  >
+                    Prueba gratuita ·{" "}
+                    {getTrialCountdownLabel(trialDaysRemaining) ??
+                      "3 meses incluidos"}
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    {trialDaysRemaining !== null && trialDaysRemaining <= 7
+                      ? "Se termina pronto. Activá un plan para no perder acceso a tus pacientes."
+                      : "Sin tarjeta y sin compromiso. Activá un plan cuando quieras."}
+                  </p>
+                </div>
+              </div>
               <Link
-                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
+                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
                 href="/dashboard/planes"
               >
-                Ver planes
+                Activar plan
               </Link>
             </Card>
           ) : null}
@@ -316,34 +330,7 @@ export default function DashboardPage() {
             </Card>
           ) : null}
 
-          {plan.plan === "FREE" ? (
-            <Card
-              variant="default"
-              padding="md"
-              className="mt-4 flex flex-col justify-between gap-4 sm:mt-6 md:flex-row md:items-center"
-            >
-              <div className="flex gap-4">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
-                  <CreditCard className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="font-bold text-ink">
-                    Tenés una prueba gratuita completa.
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Probá KineFlow gratis durante 3 meses, sin tarjeta y sin
-                    compromiso.
-                  </p>
-                </div>
-              </div>
-              <Link
-                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
-                href="/dashboard/planes"
-              >
-                Activár plan
-              </Link>
-            </Card>
-          ) : (
+          {plan.plan !== "FREE" ? (
             <Card
               variant="success"
               padding="md"
@@ -373,7 +360,7 @@ export default function DashboardPage() {
                 Ver mi plan
               </Link>
             </Card>
-          )}
+          ) : null}
 
           <section className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-3">
             {summaryCards.map((card) => (
