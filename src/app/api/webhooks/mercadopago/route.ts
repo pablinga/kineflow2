@@ -260,7 +260,11 @@ function verifyMercadoPagoWebhookSignature(
   )?.trim();
 
   if (!secret) {
-    return { signatureEnabled: false, valid: true };
+    return {
+      reason: "missing_webhook_secret_configuration",
+      signatureEnabled: false,
+      valid: false,
+    };
   }
 
   if (isMercadoPagoDashboardTestRequest(payload, url)) {
