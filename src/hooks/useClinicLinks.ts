@@ -209,17 +209,22 @@ export function useClinicLinks() {
       throw new Error("No pudimos identificar al usuario.");
     }
 
-    const { error: updateError } = await supabase
-      .from("clinic_professionals")
-      .update({
-        professional_id: sessionData.user.id,
-        responded_at: new Date().toISOString(),
-        status,
-      })
-      .eq("id", id);
+    if (!sessionData.user.email) {
+      throw new Error("No pudimos identificar tu email.");
+    }
 
-    if (updateError) {
-      throw new Error(mapSupabaseError(updateError));
+    const { error: rpcError } = await supabase.rpc(
+      "answer_clinic_professional_invitation",
+      {
+        invitation_id: id,
+        target_email: sessionData.user.email.trim().toLowerCase(),
+        target_professional_id: sessionData.user.id,
+        target_status: status,
+      },
+    );
+
+    if (rpcError) {
+      throw new Error(mapSupabaseError(rpcError));
     }
 
     await loadLinks();
