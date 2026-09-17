@@ -25,11 +25,14 @@ App de gestión clínica (turnos, pacientes, evoluciones, cobros, reserva públi
 ## Base de datos / migraciones
 
 - Los archivos van en `supabase/migrations/`, nombrados `YYYYMMDDNNNN_descripcion.sql`. **Revisar que el timestamp no esté ya usado** antes de crear uno nuevo (es común hacer varias features el mismo día).
-- La tabla de bookkeeping de migraciones de Supabase CLI no es confiable en este repo. Para aplicar una migración a un ambiente puntual, usar SQL directo (todo el archivo corre como una sola transacción implícita):
+- La tabla de bookkeeping de migraciones de Supabase CLI no es confiable en este repo: puede haber migraciones marcadas como aplicadas que en realidad no corrieron en el ambiente (pasó con `202606300002_harden_workspace_rls.sql`, que estaba en el repo pero nunca se había ejecutado contra QA, dejando esas RLS corriendo con funciones viejas). Si algo no se comporta como el código de una migración indica, no asumas que "está en el repo" implica "ya se aplicó" — verificar el estado real (`pg_policies`, `pg_proc`) antes de asumir.
+- Para aplicar una migración a un ambiente puntual, usar SQL directo (todo el archivo corre como una sola transacción implícita):
   ```bash
+  set -a; source .env.supabase-cli.local; set +a
   npx supabase db query --linked --project-ref <ref> -f supabase/migrations/archivo.sql
   ```
-- Aplicar primero en QA, verificar, recién después en prod. Antes de mergear `qa` a `main`, chequear si prod le falta alguna migración que ya está en QA (columnas/tablas nuevas que el código ya espera rompen prod si no se aplicaron).
+  `.env.supabase-cli.local` (gitignored) tiene `SUPABASE_ACCESS_TOKEN=sbp_...`, generado en https://supabase.com/dashboard/account/tokens. Pasar el token por env var evita que la CLI intente usar el Keychain de macOS (que pide una contraseña que no es la del login de Supabase). No usar `supabase login` interactivo para esto.
+- Aplicar primero en QA, verificar, recién después en prod. Antes de mergear `qa` a `main`, chequear si prod le falta alguna migración que ya está en QA (columnas/tablas nuevas que el código ya espera rompen prod si no se aplicaron) — y viceversa, si prod tiene algo que QA no.
 
 ## Probar cambios
 

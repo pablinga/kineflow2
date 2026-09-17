@@ -287,7 +287,7 @@ export async function getPublicProfessionals(
     .from("clinic_professionals")
     .select("id, professional_id, professional_email, profiles(full_name)")
     .eq("clinic_id", workspace.source_clinic_id)
-    .in("status", ["active", "accepted"])
+    .eq("status", "active")
     .not("professional_id", "is", null)
     .order("professional_email", { ascending: true });
 
@@ -346,7 +346,7 @@ export async function resolveBookingContext(
     .select("id, professional_id, professional_email, profiles(full_name)")
     .eq("id", professionalId)
     .eq("clinic_id", workspace.source_clinic_id)
-    .in("status", ["active", "accepted"])
+    .eq("status", "active")
     .not("professional_id", "is", null)
     .maybeSingle();
 

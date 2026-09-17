@@ -619,7 +619,13 @@ export default function ClinicKinesiologistsPage() {
     try {
       const lookup = await findByEmail(email);
       const linkId = await createOrReactivateInvitation(lookup);
-      await saveAvailability(linkId, availability);
+      const pendingAvailability = availability;
+
+      setEmail("");
+      setAvailability([]);
+      setModalOpen(false);
+
+      await saveAvailability(linkId, pendingAvailability);
 
       if (lookup.exists) {
         setMessage("Profesional vinculado como activo.");
@@ -632,9 +638,6 @@ export default function ClinicKinesiologistsPage() {
         );
       }
 
-      setEmail("");
-      setAvailability([]);
-      setModalOpen(false);
       await refreshKinesiologists();
     } catch (addError) {
       setActionError(
