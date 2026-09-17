@@ -13,11 +13,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
-import { formatCurrency } from "@/lib/format";
-import {
-  DEFAULT_SESSION_DURATION_MINUTES,
-  DEFAULT_SESSION_PRICE,
-} from "@/lib/session-defaults";
+import { DEFAULT_SESSION_DURATION_MINUTES } from "@/lib/session-defaults";
 import { isWhatsAppNotificationsEnabled } from "@/lib/whatsapp";
 
 type PageProps = {
@@ -668,13 +664,7 @@ export default function PublicBookingPage({ params }: PageProps) {
                       </div>
                     ) : (
                       <p className="mt-2 text-sm text-slate-600">
-                        Costo de la sesión:{" "}
-                        <span className="font-semibold text-ink">
-                          {formatCurrency(
-                            workspace?.defaultSessionPrice ?? DEFAULT_SESSION_PRICE,
-                          )}
-                        </span>{" "}
-                        · {durationMinutes} minutos
+                        Duración de la sesión: {durationMinutes} minutos
                       </p>
                     )}
                   </div>
