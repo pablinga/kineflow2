@@ -37,6 +37,8 @@ export type Appointment = {
   treatmentId: string | null;
   insuranceProviderId: string | null;
   insuranceMemberNumber: string | null;
+  artProviderId: string | null;
+  paymentType: PaymentType;
   professionalName: string | null;
   amount: number;
   paymentStatus: PaymentStatus;
@@ -58,6 +60,7 @@ export type AppointmentStatus =
 
 export type AppointmentOrigin = "independent" | "clinic";
 export type AppointmentModality = "presencial" | "domicilio" | "virtual";
+export type PaymentType = "PARTICULAR" | "OBRA_SOCIAL" | "ART";
 export type PaymentStatus = "pending" | "paid" | "waived" | "not_applicable";
 export type PaymentMethod =
   | "cash"
@@ -79,6 +82,8 @@ export type NewAppointmentInput = {
   sessionAmount?: number | null;
   insuranceProviderId?: string | null;
   insuranceMemberNumber?: string | null;
+  artProviderId?: string | null;
+  paymentType?: PaymentType;
 };
 
 export type NewClinicAppointmentInput = NewAppointmentInput & {
@@ -116,6 +121,8 @@ type AppointmentRow = {
   treatment_id: string | null;
   insurance_provider_id: string | null;
   insurance_member_number: string | null;
+  art_provider_id: string | null;
+  payment_type: PaymentType;
   patients: { full_name: string } | Array<{ full_name: string }> | null;
   clinics: { name: string; color: string } | Array<{ name: string; color: string }> | null;
   clinic_professionals:
@@ -221,6 +228,8 @@ function mapAppointment(row: AppointmentRow): Appointment {
     treatmentId: row.treatment_id,
     insuranceProviderId: row.insurance_provider_id,
     insuranceMemberNumber: row.insurance_member_number,
+    artProviderId: row.art_provider_id,
+    paymentType: row.payment_type,
     professionalName: clinicProfessionalProfile?.full_name ?? null,
     amount: Number(row.session_amount ?? 0),
     paymentStatus: row.payment_status ?? "pending",
@@ -383,7 +392,7 @@ export function useAppointments(
       let query = supabase
         .from("appointments")
         .select(
-          "id, workspace_id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, insurance_provider_id, insurance_member_number, payment_status, payment_method, paid_at, payment_notes, signature_path, signed_at, patients(full_name), clinics(name, color), clinic_professionals(color, profiles(full_name)), workspaces(color)",
+          "id, workspace_id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, insurance_provider_id, insurance_member_number, art_provider_id, payment_type, payment_status, payment_method, paid_at, payment_notes, signature_path, signed_at, patients(full_name), clinics(name, color), clinic_professionals(color, profiles(full_name)), workspaces(color)",
         )
         .order("scheduled_at", { ascending: true });
 
@@ -587,6 +596,8 @@ export function useAppointments(
       session_amount: input.sessionAmount ?? 0,
       insurance_provider_id: input.insuranceProviderId ?? null,
       insurance_member_number: input.insuranceMemberNumber ?? null,
+      art_provider_id: input.artProviderId ?? null,
+      payment_type: input.paymentType ?? "PARTICULAR",
       status: "pending",
     });
 
@@ -615,6 +626,8 @@ export function useAppointments(
       session_amount: input.sessionAmount ?? 0,
       insurance_provider_id: input.insuranceProviderId ?? null,
       insurance_member_number: input.insuranceMemberNumber ?? null,
+      art_provider_id: input.artProviderId ?? null,
+      payment_type: input.paymentType ?? "PARTICULAR",
       status: "pending",
     });
 

@@ -8,9 +8,14 @@ import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PatientSearchSelect } from "@/components/patients/PatientSearchSelect";
 import { FieldLabel } from "@/components/ui/FieldLabel";
-import { useAppointments, type NewAppointmentInput } from "@/hooks/useAppointments";
+import {
+  useAppointments,
+  type NewAppointmentInput,
+  type PaymentType,
+} from "@/hooks/useAppointments";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useInsuranceProviders } from "@/hooks/useInsuranceProviders";
+import { useArtProviders } from "@/hooks/useArtProviders";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
@@ -119,9 +124,12 @@ export default function NewAppointmentPage() {
   const activeInsuranceProviders = insuranceProviders.filter(
     (provider) => provider.active,
   );
+  const { providers: artProviders } = useArtProviders();
+  const activeArtProviders = artProviders.filter((provider) => provider.active);
   const [sessionAmount, setSessionAmount] = useState<number | null>(null);
-  const [wantsInsurance, setWantsInsurance] = useState(false);
+  const [paymentType, setPaymentType] = useState<PaymentType>("PARTICULAR");
   const [insuranceProviderId, setInsuranceProviderId] = useState("");
+  const [artProviderId, setArtProviderId] = useState("");
   const [insuranceMemberNumber, setInsuranceMemberNumber] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -464,10 +472,14 @@ export default function NewAppointmentPage() {
           clinicProfessionalId,
           professionalId: selectedProfessional.professional_id,
           sessionAmount,
-          insuranceProviderId: wantsInsurance ? insuranceProviderId || null : null,
-          insuranceMemberNumber: wantsInsurance
-            ? insuranceMemberNumber || null
-            : null,
+          paymentType,
+          insuranceProviderId:
+            paymentType === "OBRA_SOCIAL" ? insuranceProviderId || null : null,
+          artProviderId: paymentType === "ART" ? artProviderId || null : null,
+          insuranceMemberNumber:
+            paymentType === "OBRA_SOCIAL" || paymentType === "ART"
+              ? insuranceMemberNumber || null
+              : null,
         });
       } else {
         if (writeBlockMessage) {
@@ -483,10 +495,14 @@ export default function NewAppointmentPage() {
         await addAppointment({
           ...appointment,
           sessionAmount,
-          insuranceProviderId: wantsInsurance ? insuranceProviderId || null : null,
-          insuranceMemberNumber: wantsInsurance
-            ? insuranceMemberNumber || null
-            : null,
+          paymentType,
+          insuranceProviderId:
+            paymentType === "OBRA_SOCIAL" ? insuranceProviderId || null : null,
+          artProviderId: paymentType === "ART" ? artProviderId || null : null,
+          insuranceMemberNumber:
+            paymentType === "OBRA_SOCIAL" || paymentType === "ART"
+              ? insuranceMemberNumber || null
+              : null,
         });
       }
       router.push(
@@ -769,32 +785,42 @@ export default function NewAppointmentPage() {
 
             <div className="mt-4 rounded-lg border border-ocean-100 p-4">
               <span className="text-sm font-semibold text-slate-700">
-                ¿Paciente viene por obra social?
+                ¿Cómo paga el paciente?
               </span>
               <div className="mt-2 flex gap-4">
                 <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
                   <input
-                    checked={!wantsInsurance}
+                    checked={paymentType === "PARTICULAR"}
                     className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                    name="wantsInsurance"
-                    onChange={() => setWantsInsurance(false)}
+                    name="paymentType"
+                    onChange={() => setPaymentType("PARTICULAR")}
                     type="radio"
                   />
-                  No
+                  Particular
                 </label>
                 <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
                   <input
-                    checked={wantsInsurance}
+                    checked={paymentType === "OBRA_SOCIAL"}
                     className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                    name="wantsInsurance"
-                    onChange={() => setWantsInsurance(true)}
+                    name="paymentType"
+                    onChange={() => setPaymentType("OBRA_SOCIAL")}
                     type="radio"
                   />
-                  Sí
+                  Obra social
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <input
+                    checked={paymentType === "ART"}
+                    className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                    name="paymentType"
+                    onChange={() => setPaymentType("ART")}
+                    type="radio"
+                  />
+                  ART
                 </label>
               </div>
 
-              {wantsInsurance ? (
+              {paymentType === "OBRA_SOCIAL" ? (
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label className="block">
                     <span className="text-sm font-semibold text-slate-700">
@@ -825,6 +851,41 @@ export default function NewAppointmentPage() {
                         setInsuranceMemberNumber(event.target.value)
                       }
                       required={Boolean(insuranceProviderId)}
+                      value={insuranceMemberNumber}
+                    />
+                  </label>
+                </div>
+              ) : null}
+
+              {paymentType === "ART" ? (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      ART
+                    </span>
+                    <select
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) => setArtProviderId(event.target.value)}
+                      value={artProviderId}
+                    >
+                      <option value="">Seleccionar ART</option>
+                      {activeArtProviders.map((provider) => (
+                        <option key={provider.id} value={provider.id}>
+                          {provider.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Número de afiliado/credencial ART
+                    </span>
+                    <input
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) =>
+                        setInsuranceMemberNumber(event.target.value)
+                      }
+                      required={Boolean(artProviderId)}
                       value={insuranceMemberNumber}
                     />
                   </label>

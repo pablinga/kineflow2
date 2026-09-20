@@ -41,6 +41,13 @@ type InsuranceProvider = {
   name: string;
 };
 
+type ArtProvider = {
+  id: string;
+  name: string;
+};
+
+type PaymentType = "PARTICULAR" | "OBRA_SOCIAL" | "ART";
+
 type FreeSlot = {
   date: string;
   end: string;
@@ -115,6 +122,7 @@ export default function PublicBookingPage({ params }: PageProps) {
   const [insuranceProviders, setInsuranceProviders] = useState<
     InsuranceProvider[]
   >([]);
+  const [artProviders, setArtProviders] = useState<ArtProvider[]>([]);
   const [professionalId, setProfessionalId] = useState("");
   const [fromDate, setFromDate] = useState(() =>
     getMondayOfWeek(toDateValue(new Date())),
@@ -123,6 +131,7 @@ export default function PublicBookingPage({ params }: PageProps) {
   const [availabilityMessage, setAvailabilityMessage] = useState("");
   const [selectedSlot, setSelectedSlot] = useState<FreeSlot | null>(null);
   const [form, setForm] = useState({
+    artProviderId: "",
     company: "",
     documentNumber: "",
     email: "",
@@ -133,7 +142,7 @@ export default function PublicBookingPage({ params }: PageProps) {
     phone: "",
     whatsappConsent: false,
   });
-  const [hasInsurance, setHasInsurance] = useState(false);
+  const [paymentType, setPaymentType] = useState<PaymentType>("PARTICULAR");
   const [loadingProfessionals, setLoadingProfessionals] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -167,6 +176,7 @@ export default function PublicBookingPage({ params }: PageProps) {
         setInsuranceProviders(
           (result.insuranceProviders ?? []) as InsuranceProvider[],
         );
+        setArtProviders((result.artProviders ?? []) as ArtProvider[]);
         const nextWorkspace = result.workspace as Workspace;
         setProfessionalId(
           (current) =>
@@ -299,15 +309,18 @@ export default function PublicBookingPage({ params }: PageProps) {
         `/api/public/booking/${encodeURIComponent(workspaceId)}`,
         {
           body: JSON.stringify({
+            artProviderId: paymentType === "ART" ? form.artProviderId : "",
             company: form.company,
             documentNumber: form.documentNumber,
             durationMinutes,
             email: form.email,
             firstName: form.firstName,
-            insuranceMemberNumber: hasInsurance
-              ? form.insuranceMemberNumber
-              : "",
-            insuranceProviderId: hasInsurance ? form.insuranceProviderId : "",
+            insuranceMemberNumber:
+              paymentType === "OBRA_SOCIAL" || paymentType === "ART"
+                ? form.insuranceMemberNumber
+                : "",
+            insuranceProviderId:
+              paymentType === "OBRA_SOCIAL" ? form.insuranceProviderId : "",
             lastName: form.lastName,
             phone: form.phone,
             professionalId,
@@ -605,32 +618,42 @@ export default function PublicBookingPage({ params }: PageProps) {
                   />
                   <div className="rounded-lg border border-ocean-100 bg-white p-3">
                     <span className="text-sm font-semibold text-slate-700">
-                      ¿Venís por obra social?
+                      ¿Cómo pagás la sesión?
                     </span>
                     <div className="mt-2 flex gap-4">
                       <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
                         <input
-                          checked={!hasInsurance}
+                          checked={paymentType === "PARTICULAR"}
                           className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                          name="hasInsurance"
-                          onChange={() => setHasInsurance(false)}
+                          name="paymentType"
+                          onChange={() => setPaymentType("PARTICULAR")}
                           type="radio"
                         />
-                        No
+                        Particular
                       </label>
                       <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
                         <input
-                          checked={hasInsurance}
+                          checked={paymentType === "OBRA_SOCIAL"}
                           className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                          name="hasInsurance"
-                          onChange={() => setHasInsurance(true)}
+                          name="paymentType"
+                          onChange={() => setPaymentType("OBRA_SOCIAL")}
                           type="radio"
                         />
-                        Sí
+                        Obra social
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <input
+                          checked={paymentType === "ART"}
+                          className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                          name="paymentType"
+                          onChange={() => setPaymentType("ART")}
+                          type="radio"
+                        />
+                        ART
                       </label>
                     </div>
 
-                    {hasInsurance ? (
+                    {paymentType === "OBRA_SOCIAL" ? (
                       <div className="mt-3 grid gap-3">
                         <select
                           className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
@@ -662,11 +685,47 @@ export default function PublicBookingPage({ params }: PageProps) {
                           value={form.insuranceMemberNumber}
                         />
                       </div>
-                    ) : (
+                    ) : null}
+
+                    {paymentType === "ART" ? (
+                      <div className="mt-3 grid gap-3">
+                        <select
+                          className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              artProviderId: event.target.value,
+                            }))
+                          }
+                          value={form.artProviderId}
+                        >
+                          <option value="">Seleccioná tu ART</option>
+                          {artProviders.map((provider) => (
+                            <option key={provider.id} value={provider.id}>
+                              {provider.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              insuranceMemberNumber: event.target.value,
+                            }))
+                          }
+                          placeholder="Número de afiliado/credencial ART"
+                          required={Boolean(form.artProviderId)}
+                          value={form.insuranceMemberNumber}
+                        />
+                      </div>
+                    ) : null}
+
+                    {paymentType === "PARTICULAR" ? (
                       <p className="mt-2 text-sm text-slate-600">
                         Duración de la sesión: {durationMinutes} minutos
                       </p>
-                    )}
+                    ) : null}
                   </div>
                   {isWhatsAppNotificationsEnabled() ? (
                     <label className="flex items-start gap-3 rounded-lg border border-ocean-100 bg-white p-3 text-sm font-semibold leading-5 text-slate-700">

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  getActiveArtProviders,
   getActiveInsuranceProviders,
   getPublicProfessionals,
   getWorkspace,
@@ -31,12 +32,14 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
-    const [professionals, insuranceProviders] = await Promise.all([
+    const [professionals, insuranceProviders, artProviders] = await Promise.all([
       getPublicProfessionals(admin, workspace),
       getActiveInsuranceProviders(admin, workspace.id),
+      getActiveArtProviders(admin, workspace.id),
     ]);
 
     return NextResponse.json({
+      artProviders,
       insuranceProviders,
       professionals,
       workspace: {

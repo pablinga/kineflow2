@@ -24,6 +24,7 @@ type RouteContext = {
 };
 
 type BookingRequestBody = {
+  artProviderId?: string;
   company?: string;
   documentNumber?: string;
   durationMinutes?: number;
@@ -407,9 +408,25 @@ export async function POST(request: NextRequest, context: RouteContext) {
         (insuranceProvider as { id: string } | null)?.id ?? null;
     }
 
-    const insuranceMemberNumber = insuranceProviderId
-      ? normalizeText(body.insuranceMemberNumber) || null
-      : null;
+    let artProviderId: string | null = null;
+    const rawArtProviderId = normalizeText(body.artProviderId);
+
+    if (rawArtProviderId) {
+      const { data: artProvider } = await admin
+        .from("art_providers")
+        .select("id")
+        .eq("id", rawArtProviderId)
+        .eq("workspace_id", bookingContext.workspace.id)
+        .eq("active", true)
+        .maybeSingle();
+
+      artProviderId = (artProvider as { id: string } | null)?.id ?? null;
+    }
+
+    const insuranceMemberNumber =
+      insuranceProviderId || artProviderId
+        ? normalizeText(body.insuranceMemberNumber) || null
+        : null;
 
     if (
       insuranceMemberNumber &&
@@ -420,7 +437,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
         { status: 400 },
       );
     }
-    const sessionAmount = insuranceProviderId
+    const paymentType = insuranceProviderId
+      ? "OBRA_SOCIAL"
+      : artProviderId
+        ? "ART"
+        : "PARTICULAR";
+    const sessionAmount = insuranceProviderId || artProviderId
       ? 0
       : Number(
           bookingContext.workspace.default_session_price ?? DEFAULT_SESSION_PRICE,
@@ -428,6 +450,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const { data: appointment, error: appointmentError } = await admin.from("appointments").insert({
       appointment_origin: bookingContext.origin,
+      art_provider_id: artProviderId,
       clinic_id: bookingContext.clinicId,
       clinic_professional_id: bookingContext.clinicProfessionalId,
       duration_minutes: durationMinutes,
@@ -437,6 +460,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       notes: "Reserva creada desde enlace público.",
       owner_id: bookingContext.ownerId,
       patient_id: patient.id,
+      payment_type: paymentType,
       reason: "Sesion",
       scheduled_at: new Date(scheduledAt).toISOString(),
       session_amount: sessionAmount,
