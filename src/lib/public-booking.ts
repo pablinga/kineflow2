@@ -22,6 +22,11 @@ export type PublicInsuranceProvider = {
   name: string;
 };
 
+export type PublicArtProvider = {
+  id: string;
+  name: string;
+};
+
 export type PublicBookingProfessional = {
   id: string;
   name: string;
@@ -254,6 +259,24 @@ export async function getActiveInsuranceProviders(
   }
 
   return (data ?? []) as PublicInsuranceProvider[];
+}
+
+export async function getActiveArtProviders(
+  admin: SupabaseClient,
+  workspaceId: string,
+): Promise<PublicArtProvider[]> {
+  const { data, error } = await admin
+    .from("art_providers")
+    .select("id, name")
+    .eq("workspace_id", workspaceId)
+    .eq("active", true)
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new Error("No pudimos cargar las ART.");
+  }
+
+  return (data ?? []) as PublicArtProvider[];
 }
 
 export async function getPublicProfessionals(

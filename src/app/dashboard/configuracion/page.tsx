@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
   CalendarOff,
   Contact,
+  HardHat,
   Palette,
   Plus,
   Save,
@@ -28,6 +29,7 @@ import {
   useWorkspaceSettings,
 } from "@/hooks/useWorkspaceSettings";
 import { useInsuranceProviders } from "@/hooks/useInsuranceProviders";
+import { useArtProviders } from "@/hooks/useArtProviders";
 import { useWorkspaceBlockedDates } from "@/hooks/useWorkspaceBlockedDates";
 
 type FormState = {
@@ -110,6 +112,14 @@ export default function WorkspaceSettingsPage() {
     updateProvider,
   } = useInsuranceProviders();
   const {
+    addProvider: addArtProvider,
+    deleteProvider: deleteArtProvider,
+    error: artProvidersError,
+    loaded: artProvidersLoaded,
+    providers: artProviders,
+    updateProvider: updateArtProvider,
+  } = useArtProviders();
+  const {
     addBlockedDate,
     blockedDates,
     deleteBlockedDate,
@@ -122,9 +132,11 @@ export default function WorkspaceSettingsPage() {
     reason: "",
   });
   const [providerName, setProviderName] = useState("");
+  const [artProviderName, setArtProviderName] = useState("");
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingBlockedDate, setSavingBlockedDate] = useState(false);
   const [savingProvider, setSavingProvider] = useState(false);
+  const [savingArtProvider, setSavingArtProvider] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -133,15 +145,16 @@ export default function WorkspaceSettingsPage() {
     workspaceLoaded &&
     settingsLoaded &&
     providersLoaded &&
+    artProvidersLoaded &&
     blockedDatesLoaded;
   const canManage = activeWorkspace?.role === "ADMIN";
   const canEdit = canManage && !isReadOnly;
   const combinedError = useMemo(
     () =>
-      [settingsError, providersError, blockedDatesError, error]
+      [settingsError, providersError, artProvidersError, blockedDatesError, error]
         .filter(Boolean)
         .join(" "),
-    [blockedDatesError, error, providersError, settingsError],
+    [artProvidersError, blockedDatesError, error, providersError, settingsError],
   );
 
   useEffect(() => {
@@ -259,6 +272,28 @@ export default function WorkspaceSettingsPage() {
       );
     } finally {
       setSavingProvider(false);
+    }
+  }
+
+  async function handleAddArtProvider(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!canEdit || !artProviderName.trim()) {
+      return;
+    }
+
+    setSavingArtProvider(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await addArtProvider(artProviderName);
+      setArtProviderName("");
+      setMessage("ART agregada.");
+    } catch (saveError) {
+      setError(getFriendlyErrorMessage(saveError, "No pudimos agregar la ART."));
+    } finally {
+      setSavingArtProvider(false);
     }
   }
 
@@ -660,6 +695,100 @@ export default function WorkspaceSettingsPage() {
                             getFriendlyErrorMessage(
                               deleteError,
                               "No pudimos eliminar la obra social.",
+                            ),
+                          );
+                        }
+                      }}
+                      type="button"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
+                <HardHat className="h-5 w-5" />
+              </span>
+              <h2 className="text-xl font-bold text-ink">ART</h2>
+            </div>
+
+            <form className="mt-5 flex flex-col gap-3 sm:flex-row" onSubmit={handleAddArtProvider}>
+              <input
+                className="min-h-11 flex-1 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
+                disabled={!canEdit}
+                onChange={(event) => setArtProviderName(event.target.value)}
+                placeholder="Nombre de la ART"
+                required
+                value={artProviderName}
+              />
+              <Button disabled={!canEdit || savingArtProvider} type="submit">
+                <Plus className="h-4 w-4" />
+                Agregar
+              </Button>
+            </form>
+
+            <div className="mt-5 space-y-3">
+              {artProviders.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-4 text-sm font-semibold text-ocean-800">
+                  No hay ART cargadas.
+                </div>
+              ) : null}
+              {artProviders.map((provider) => (
+                <div
+                  className="flex items-center justify-between gap-3 rounded-lg border border-ocean-100 p-3"
+                  key={provider.id}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-ink">
+                      {provider.name}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      {provider.active ? "Activa" : "Inactiva"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                      <input
+                        checked={provider.active}
+                        className="h-4 w-4 accent-ocean-600"
+                        disabled={!canEdit}
+                        onChange={async (event) => {
+                          try {
+                            await updateArtProvider(provider.id, {
+                              active: event.target.checked,
+                            });
+                            setMessage("ART actualizada.");
+                          } catch (updateError) {
+                            setError(
+                              getFriendlyErrorMessage(
+                                updateError,
+                                "No pudimos actualizar la ART.",
+                              ),
+                            );
+                          }
+                        }}
+                        type="checkbox"
+                      />
+                      Activa
+                    </label>
+                    <button
+                      aria-label="Eliminar ART"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-100 text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
+                      disabled={!canEdit}
+                      onClick={async () => {
+                        try {
+                          await deleteArtProvider(provider.id);
+                          setMessage("ART eliminada.");
+                        } catch (deleteError) {
+                          setError(
+                            getFriendlyErrorMessage(
+                              deleteError,
+                              "No pudimos eliminar la ART.",
                             ),
                           );
                         }
