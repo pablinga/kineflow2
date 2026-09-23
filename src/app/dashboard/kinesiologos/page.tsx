@@ -563,6 +563,31 @@ export default function ClinicKinesiologistsPage() {
     );
   }, [kinesiologists, query]);
 
+  // Aviso push al profesional; si falla no bloquea el alta.
+  function notifyClinicInvitation(clinicProfessionalId: string) {
+    getSupabaseClient()
+      .auth.getSession()
+      .then(({ data }) => {
+        const accessToken = data.session?.access_token;
+
+        if (!accessToken) {
+          return;
+        }
+
+        return fetch("/api/push/clinic-invitation", {
+          body: JSON.stringify({ clinicProfessionalId }),
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+      })
+      .catch((notifyError) => {
+        console.warn("[push:clinic-invitation]", notifyError);
+      });
+  }
+
   async function sendInvitation(invitationId: string, targetEmail: string) {
     if (!activeWorkspace) {
       throw new Error("No encontramos la clínica activa.");
@@ -626,6 +651,7 @@ export default function ClinicKinesiologistsPage() {
       setModalOpen(false);
 
       await saveAvailability(linkId, pendingAvailability);
+      notifyClinicInvitation(linkId);
 
       if (lookup.exists) {
         setMessage("Profesional vinculado como activo.");

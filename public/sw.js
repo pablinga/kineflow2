@@ -57,3 +57,50 @@ self.addEventListener("fetch", (event) => {
     caches.match(request).then((cachedResponse) => cachedResponse || fetch(request)),
   );
 });
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { body: event.data ? event.data.text() : "" };
+  }
+
+  const title = payload.title || "KineFlow";
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      badge: "/icon-192.png",
+      body: payload.body || "",
+      data: { url: payload.url || "/dashboard" },
+      icon: "/icon-192.png",
+      tag: payload.tag,
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const targetUrl = new URL(
+    (event.notification.data && event.notification.data.url) || "/dashboard",
+    self.location.origin,
+  ).href;
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ includeUncontrolled: true, type: "window" })
+      .then((windowClients) => {
+        for (const client of windowClients) {
+          if (new URL(client.url).origin === self.location.origin && "focus" in client) {
+            return client.focus().then(() =>
+              "navigate" in client ? client.navigate(targetUrl) : client,
+            );
+          }
+        }
+
+        return self.clients.openWindow(targetUrl);
+      }),
+  );
+});

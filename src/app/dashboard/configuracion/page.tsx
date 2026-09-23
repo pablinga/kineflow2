@@ -19,6 +19,7 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PushNotificationsCard } from "@/components/dashboard/PushNotificationsCard";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
@@ -323,6 +324,8 @@ export default function WorkspaceSettingsPage() {
           eyebrow="Configuración"
           title="Tu espacio de trabajo"
         />
+
+        <PushNotificationsCard />
 
         {!canManage ? (
           <Alert className="mt-4" tone="warning" title="Solo lectura">
