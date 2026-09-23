@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   CalendarPlus,
   CheckCircle,
+  ClipboardList,
   ChevronLeft,
   ChevronRight,
   DollarSign,
@@ -40,6 +41,8 @@ import { usePatients } from "@/hooks/usePatients";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useClinicLinks, type ClinicAvailability } from "@/hooks/useClinicLinks";
+import { ClinicEvolutionModal } from "@/components/turnos/ClinicEvolutionModal";
+import { getSupabaseClient } from "@/lib/supabase";
 import { CLINIC_PROFESSIONAL_STATUS } from "@/lib/clinic-professionals";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 
@@ -512,6 +515,11 @@ export default function AppointmentsPage() {
   const [actionNotice, setActionNotice] = useState("");
   const [updatingId, setUpdatingId] = useState("");
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [evolutionAppointment, setEvolutionAppointment] =
+    useState<Appointment | null>(null);
+  const [registeredEvolutionIds, setRegisteredEvolutionIds] = useState<
+    Set<string>
+  >(() => new Set());
   const [actionsAppointment, setActionsAppointment] =
     useState<Appointment | null>(null);
   const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
@@ -584,6 +592,107 @@ export default function AppointmentsPage() {
       ).values(),
     );
   }, [appointments, clinicLinks]);
+
+  // Turnos de clínica asistidos: qué evoluciones ya registró el kinesiólogo,
+  // para no ofrecer registrar dos veces la misma.
+  const attendedClinicAppointmentIdsKey = useMemo(
+    () =>
+      appointments
+        .filter(
+          (appointment) =>
+            isProfessionalClinicAppointment(appointment) &&
+            getAppointmentDisplayStatus(appointment) === "Asistió",
+        )
+        .map((appointment) => appointment.id)
+        .sort()
+        .join(","),
+    // isProfessionalClinicAppointment solo depende del tipo de workspace activo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [appointments, activeWorkspace?.type],
+  );
+
+  useEffect(() => {
+    if (!attendedClinicAppointmentIdsKey) {
+      return;
+    }
+
+    let cancelled = false;
+    const appointmentIds = attendedClinicAppointmentIdsKey.split(",");
+
+    void getSupabaseClient()
+      .from("evolutions")
+      .select("appointment_id")
+      .in("appointment_id", appointmentIds)
+      .then(({ data }) => {
+        if (cancelled || !data) {
+          return;
+        }
+
+        setRegisteredEvolutionIds(
+          new Set(
+            data
+              .map((row) => (row as { appointment_id: string | null }).appointment_id)
+              .filter((id): id is string => Boolean(id)),
+          ),
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attendedClinicAppointmentIdsKey]);
+
+  function canRegisterClinicEvolution(appointment: Appointment) {
+    return (
+      isProfessionalClinicAppointment(appointment) &&
+      getAppointmentDisplayStatus(appointment) === "Asistió" &&
+      clinicLinks.some(
+        (link) =>
+          link.id === appointment.clinicProfessionalId &&
+          link.status === CLINIC_PROFESSIONAL_STATUS.active &&
+          link.canRegisterEvolutions,
+      )
+    );
+  }
+
+  function renderClinicEvolutionAction(appointment: Appointment, compact = false) {
+    if (!canRegisterClinicEvolution(appointment)) {
+      return null;
+    }
+
+    if (registeredEvolutionIds.has(appointment.id)) {
+      return (
+        <span
+          className={
+            compact
+              ? "inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-50 px-2 text-[0.68rem] font-semibold text-ocean-800"
+              : "flex w-full items-center gap-2 px-3 py-2.5 text-sm font-semibold text-ocean-800"
+          }
+        >
+          <CheckCircle className={compact ? "mr-1 h-3.5 w-3.5" : "h-4 w-4"} />
+          Evolución registrada
+        </span>
+      );
+    }
+
+    return (
+      <button
+        className={
+          compact
+            ? "inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-600 px-2 text-[0.68rem] font-semibold text-white transition hover:bg-ocean-700"
+            : "flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50"
+        }
+        onClick={() => {
+          setActionsAppointment(null);
+          setEvolutionAppointment(appointment);
+        }}
+        type="button"
+      >
+        {compact ? null : <ClipboardList className="h-4 w-4" />}
+        Registrar evolución
+      </button>
+    );
+  }
   const filteredAppointments = useMemo(
     () =>
       appointments.filter((appointment) => {
@@ -977,10 +1086,13 @@ export default function AppointmentsPage() {
           Marcar como no asistió
         </button>
         {clinicAppointment ? (
+          <>
+          {renderClinicEvolutionAction(appointment)}
           <p className="px-3 py-2.5 text-xs font-medium leading-5 text-slate-500">
             Turno de {appointment.clinicName ?? "la clínica"}: el cobro, la
             reprogramación y la cancelación los gestiona la clínica.
           </p>
+          </>
         ) : (
           <>
         <button
@@ -1098,7 +1210,9 @@ export default function AppointmentsPage() {
             >
               Marcar asistió
             </button>
-          ) : isAttended && !clinicAppointment ? (
+          ) : isAttended && clinicAppointment ? (
+            renderClinicEvolutionAction(appointment, true)
+          ) : isAttended ? (
             <Link
               className="inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-600 px-2 text-[0.68rem] font-semibold text-white transition hover:bg-ocean-700"
               href={`/dashboard/pacientes/${appointment.patientId}?appointment=${appointment.id}`}
@@ -1552,6 +1666,20 @@ export default function AppointmentsPage() {
               day={selectedMobileDay}
               onClose={() => setSelectedMobileDay(null)}
               onOpenActions={setActionsAppointment}
+            />
+          ) : null}
+
+          {evolutionAppointment ? (
+            <ClinicEvolutionModal
+              appointment={evolutionAppointment}
+              onClose={() => setEvolutionAppointment(null)}
+              onSaved={(appointmentId) => {
+                setRegisteredEvolutionIds(
+                  (current) => new Set([...current, appointmentId]),
+                );
+                setEvolutionAppointment(null);
+                setActionNotice("Evolución registrada");
+              }}
             />
           ) : null}
 

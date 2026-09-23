@@ -76,6 +76,7 @@ Decisión: un kinesiólogo trabaja **siempre en su espacio particular**; no camb
 - La leyenda de la agenda muestra cada clínica activa con su color y días/horarios (`clinic_professional_availability`); Mis consultorios ya los mostraba.
 - Se restauró en QA `can_insert_workspace_appointment` (había quedado con `clinic_professionals.status = 'accepted'`, pisada al aplicar tarde `202606300002`); ahora es idéntica a prod y al repo (`202607060001`). `can_access_patient` e `is_assigned_appointment_professional` siguen con `'accepted'` en ambos ambientes pero no las usa nada.
 
-Pendiente:
-- El kinesiólogo no ve el nombre de un paciente de clínica que no tenga asignado aunque tenga un turno con él (RLS de `patients` vía `is_patient_assigned_to_user`). Requiere migración.
-- Registrar la evolución de un turno de clínica: hoy solo desde la ficha del paciente (con `activeWorkspace.id`, que desde el particular no coincide con el workspace de la clínica). `can_register_evolutions` se guarda pero no se aplica en ningún lado.
+- `202609230004_clinic_professional_appointment_access.sql` (aplicada en QA; **falta en prod, aplicarla antes de mergear a `main`**): el kinesiólogo lee los pacientes de sus propios turnos de clínica mientras el vínculo esté activo (`has_active_clinic_appointment_with_patient`), registra evoluciones de pacientes de clínica solo si `clinic_professionals.can_register_evolutions` (ahora aplicado en `can_insert_workspace_evolution`) y lee las evoluciones que registró.
+- En la agenda, un turno de clínica asistido ofrece "Registrar evolución" (`ClinicEvolutionModal`), que guarda con el `workspace_id` del turno; si ya existe muestra "Evolución registrada".
+
+Pendiente posible: "Registrar evolución" también desde Sesiones diarias.

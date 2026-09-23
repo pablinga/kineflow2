@@ -33,6 +33,7 @@ export type ClinicLink = {
   respondedAt: string | null;
   color: string;
   role: string;
+  canRegisterEvolutions: boolean;
   availability: ClinicAvailability[];
 };
 
@@ -44,6 +45,7 @@ type ClinicLinkRow = {
   responded_at: string | null;
   color: string;
   role: string;
+  can_register_evolutions: boolean | null;
   clinics:
     | {
         name: string;
@@ -107,6 +109,7 @@ function mapClinicLink(row: ClinicLinkRow): ClinicLink {
     respondedAt: row.responded_at,
     color: row.color,
     role: row.role,
+    canRegisterEvolutions: row.can_register_evolutions ?? true,
     availability: (row.clinic_professional_availability ?? [])
       .filter((availability) => availability.active)
       .map((availability) => ({
@@ -167,7 +170,7 @@ export function useClinicLinks(enabled = true) {
       const { data, error: queryError } = await supabase
         .from("clinic_professionals")
         .select(
-          "id, clinic_id, status, invited_at, responded_at, color, role, clinics(name, email, phone, address), clinic_professional_availability(id, weekday, starts_at, ends_at, active, valid_from, valid_to)",
+          "id, clinic_id, status, invited_at, responded_at, color, role, can_register_evolutions, clinics(name, email, phone, address), clinic_professional_availability(id, weekday, starts_at, ends_at, active, valid_from, valid_to)",
         )
         .or(
           `professional_id.eq.${sessionData.user.id},and(professional_id.is.null,professional_email.eq.${userEmail})`,
