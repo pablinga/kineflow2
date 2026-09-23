@@ -38,6 +38,7 @@ function downloadExcel(rows: ReportRow[], month: string, hideProfessional: boole
     rows.map((row) => {
       const record: Record<string, string | number> = {
         Fecha: row.date,
+        Hora: row.time,
         Paciente: row.patient,
       };
 
@@ -238,6 +239,7 @@ function SessionsReportPageContent() {
                 <thead className="bg-ocean-50 text-slate-600">
                   <tr>
                     <th className="px-5 py-3 font-semibold">Fecha</th>
+                    <th className="px-5 py-3 font-semibold">Hora</th>
                     <th className="px-5 py-3 font-semibold">Paciente</th>
                     {hideProfessional ? null : (
                       <th className="px-5 py-3 font-semibold">Profesional</th>
@@ -253,10 +255,11 @@ function SessionsReportPageContent() {
                 </thead>
                 <tbody className="divide-y divide-ocean-100">
                   {rows.map((row, index) => (
-                    <tr key={`${row.date}-${row.patient}-${index}`}>
+                    <tr key={`${row.date}-${row.time}-${row.patient}-${index}`}>
                       <td className="px-5 py-4 font-semibold text-slate-600">
                         {row.date}
                       </td>
+                      <td className="px-5 py-4 text-slate-600">{row.time}</td>
                       <td className="px-5 py-4 text-ink">{row.patient}</td>
                       {hideProfessional ? null : (
                         <td className="px-5 py-4 text-slate-600">

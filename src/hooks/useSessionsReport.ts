@@ -14,6 +14,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 
 export type ReportRow = {
   date: string;
+  time: string;
   patient: string;
   professional: string;
   paymentType: string;
@@ -111,6 +112,12 @@ function mapReportRow(
   return {
     amount: Number(row.session_amount ?? 0),
     date: formatDate(new Date(row.scheduled_at)),
+    // Mismo formato que la agenda (useAppointments).
+    time: new Date(row.scheduled_at).toLocaleTimeString("es-AR", {
+      hour: "2-digit",
+      hour12: false,
+      minute: "2-digit",
+    }),
     memberNumber: row.insurance_member_number ?? "",
     patient: getPatient(row.patients)?.full_name ?? "Paciente",
     paymentType: paymentTypeLabels[row.payment_type],
