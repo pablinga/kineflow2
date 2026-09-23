@@ -67,7 +67,7 @@ App de gestión clínica (turnos, pacientes, evoluciones, cobros, reserva públi
 - **Configuración**: el botón de "Días bloqueados" desbordaba la tarjeta entre ~1024 y 1280 px; ahora es una fila flexible — en prod.
 - Nota: el `CRON_SECRET` de `.env.prod.local` está desactualizado respecto al de Vercel/vault de prod.
 
-### Espacio del kinesiólogo (en `qa`)
+### Espacio del kinesiólogo (en prod)
 
 Decisión: un kinesiólogo trabaja **siempre en su espacio particular**; no cambia al workspace de la clínica. Todos los menús (pacientes, ingresos, reportes, etc.) son del particular. Implementado:
 - `AuthSessionContext` / `useActiveWorkspace` fijan el espacio activo en el `PERSONAL` para cuentas `KINESIOLOGO` (ignoran el guardado en localStorage) y el sidebar oculta el selector. Los workspaces de clínica siguen en la lista porque la agenda los necesita.
@@ -76,7 +76,20 @@ Decisión: un kinesiólogo trabaja **siempre en su espacio particular**; no camb
 - La leyenda de la agenda muestra cada clínica activa con su color y días/horarios (`clinic_professional_availability`); Mis consultorios ya los mostraba.
 - Se restauró en QA `can_insert_workspace_appointment` (había quedado con `clinic_professionals.status = 'accepted'`, pisada al aplicar tarde `202606300002`); ahora es idéntica a prod y al repo (`202607060001`). `can_access_patient` e `is_assigned_appointment_professional` siguen con `'accepted'` en ambos ambientes pero no las usa nada.
 
-- `202609230004_clinic_professional_appointment_access.sql` (aplicada en QA; **falta en prod, aplicarla antes de mergear a `main`**): el kinesiólogo lee los pacientes de sus propios turnos de clínica mientras el vínculo esté activo (`has_active_clinic_appointment_with_patient`), registra evoluciones de pacientes de clínica solo si `clinic_professionals.can_register_evolutions` (ahora aplicado en `can_insert_workspace_evolution`) y lee las evoluciones que registró.
+- `202609230004_clinic_professional_appointment_access.sql` (aplicada en QA y prod): el kinesiólogo lee los pacientes de sus propios turnos de clínica mientras el vínculo esté activo (`has_active_clinic_appointment_with_patient`), registra evoluciones de pacientes de clínica solo si `clinic_professionals.can_register_evolutions` (ahora aplicado en `can_insert_workspace_evolution`) y lee las evoluciones que registró.
 - En la agenda, un turno de clínica asistido ofrece "Registrar evolución" (`ClinicEvolutionModal`), que guarda con el `workspace_id` del turno; si ya existe muestra "Evolución registrada".
 
 Pendiente posible: "Registrar evolución" también desde Sesiones diarias.
+
+### Otros cambios del 2026-09-23 (en prod)
+
+- **Historial de turnos en la ficha del paciente** (`PatientAppointmentHistory`): todos los turnos, más recientes primero, con origen (particular/clínica), estado y cobro. Permite Asistió / No asistió (no en turnos futuros), Cobrar (mismo formulario que la agenda) y "Marcar pendiente" (`markAppointmentUnpaid` en `useAppointments`). Mismas reglas que la agenda: en un turno de clínica el profesional solo marca asistencia; los particulares respetan el modo solo lectura. Se subió sin prueba end-to-end (solo `tsc` y lint).
+- **Documentación del tratamiento** (`TreatmentDocumentation`): un renglón por archivo con el nombre (clic abre el archivo) y los íconos de descargar y eliminar; adjuntar es un ícono de clip. Se quitaron tipo, tamaño, fecha y quién lo subió de la lista.
+- **Ficha del paciente**: Tratamientos quedaba 16 px más abajo que Evoluciones porque una sección oculta con la clase `hidden` seguía recibiendo el margen de `space-y`. Para ocultar un hijo dentro de `space-y-*` usar el atributo `hidden`, no la clase.
+- **Reporte de sesiones**: columna Hora al lado de Fecha, en la tabla y en el Excel (mismo formato que la agenda).
+- **404 de CSS en prod**: pedidos de bots (ej. AhrefsBot) a assets con hash de deploys anteriores. Es inofensivo; las páginas actuales apuntan a assets que existen. Mejora opcional, no aplicada: `src/middleware.ts` usa `matcher: "/:path*"` y se ejecuta en cada pedido (incluidos los estáticos) aunque solo responde preflights CORS (`OPTIONS`); se podría limitar a `/api/:path*`.
+
+### Forma de trabajar del usuario
+
+- Suele pedir "commitealo a qa y luego a main" en el mismo mensaje; en ese caso se hace el merge a `main` sin volver a preguntar.
+- Para cambios visuales chicos prefiere que se commitee sin correr Playwright (interrumpió esas corridas); para cambios que tocan permisos o datos conviene ofrecer la prueba end-to-end antes de commitear.
