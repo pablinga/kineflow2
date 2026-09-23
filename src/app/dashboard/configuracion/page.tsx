@@ -541,9 +541,9 @@ export default function WorkspaceSettingsPage() {
               <h2 className="text-xl font-bold text-ink">Días bloqueados</h2>
             </div>
 
-            <form className="mt-5 grid gap-3 sm:grid-cols-[10rem_1fr_auto]" onSubmit={handleAddBlockedDate}>
+            <form className="mt-5 flex flex-wrap gap-3" onSubmit={handleAddBlockedDate}>
               <input
-                className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
+                className="min-h-11 w-full rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50 sm:w-40"
                 disabled={!canEdit}
                 onChange={(event) =>
                   setBlockedDateForm((current) => ({
@@ -556,7 +556,7 @@ export default function WorkspaceSettingsPage() {
                 value={blockedDateForm.blockedDate}
               />
               <input
-                className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
+                className="min-h-11 min-w-0 flex-1 basis-40 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
                 disabled={!canEdit}
                 onChange={(event) =>
                   setBlockedDateForm((current) => ({
@@ -567,7 +567,11 @@ export default function WorkspaceSettingsPage() {
                 placeholder="Motivo opcional"
                 value={blockedDateForm.reason}
               />
-              <Button disabled={!canEdit || savingBlockedDate} type="submit">
+              <Button
+                className="w-full sm:ml-auto sm:w-auto"
+                disabled={!canEdit || savingBlockedDate}
+                type="submit"
+              >
                 <Plus className="h-4 w-4" />
                 Agregar
               </Button>
