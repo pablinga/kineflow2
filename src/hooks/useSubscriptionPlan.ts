@@ -100,7 +100,8 @@ export function useSubscriptionPlan() {
 
       try {
         const supabase = getSupabaseClient();
-        const { data: userData } = await supabase.auth.getUser();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userData = { user: sessionData.session?.user ?? null };
 
         if (!userData.user) {
           return;

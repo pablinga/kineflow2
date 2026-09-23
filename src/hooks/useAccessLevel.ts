@@ -57,12 +57,84 @@ function getTrialDaysRemaining(trialEndsAt: unknown) {
 
 export function resetAccessLevelSnapshot() {
   Object.assign(accessSnapshot, defaultSnapshot);
+  accessRequest = null;
+}
+
+type AccessResult = Pick<
+  AccessSnapshot,
+  "accessLevel" | "trialDaysRemaining" | "trialEndsAt"
+>;
+
+// Consulta en curso compartida: el sidebar y la página montan este hook a la
+// vez, y sin esto cada uno disparaba su propia cadena de requests.
+let accessRequest: { key: string; promise: Promise<AccessResult> } | null = null;
+
+async function fetchAccessLevel(accountId: string): Promise<AccessResult> {
+  const supabase = getSupabaseClient();
+  const [{ data: rpcData }, { data: profileData }] = await Promise.all([
+    supabase.rpc("get_account_access_level", {
+      target_account_id: accountId,
+    }),
+    supabase
+      .from("profiles")
+      .select("trial_ends_at")
+      .eq("id", accountId)
+      .maybeSingle(),
+  ]);
+  const accessLevel = normalizeAccessLevel(rpcData);
+  const rawTrialEndsAt =
+    (profileData as { trial_ends_at?: unknown } | null)?.trial_ends_at;
+
+  return {
+    accessLevel,
+    trialDaysRemaining:
+      accessLevel === "TRIAL_ACTIVE" ? getTrialDaysRemaining(rawTrialEndsAt) : null,
+    trialEndsAt:
+      accessLevel === "TRIAL_ACTIVE" && typeof rawTrialEndsAt === "string"
+        ? rawTrialEndsAt
+        : null,
+  };
+}
+
+async function resolveAccountId(
+  userId: string,
+  workspaceId: string | null,
+  workspaceOwnerId: string | null,
+) {
+  if (!workspaceId) {
+    return userId;
+  }
+
+  if (workspaceOwnerId) {
+    return workspaceOwnerId;
+  }
+
+  const { data: workspaceData } = await getSupabaseClient()
+    .from("workspaces")
+    .select("owner_id")
+    .eq("id", workspaceId)
+    .maybeSingle();
+
+  return (
+    ((workspaceData as { owner_id?: string | null } | null)?.owner_id as
+      | string
+      | null) ?? userId
+  );
+}
+
+function isSnapshotFresh(userId: string | null, workspaceId: string | null) {
+  return (
+    accessSnapshot.loaded &&
+    (userId === null || accessSnapshot.userId === userId) &&
+    accessSnapshot.workspaceId === workspaceId &&
+    Date.now() - accessSnapshot.fetchedAt < ACCESS_SNAPSHOT_MAX_AGE_MS
+  );
 }
 
 export function useAccessLevel() {
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
-  const snapshotFresh =
-    Date.now() - accessSnapshot.fetchedAt < ACCESS_SNAPSHOT_MAX_AGE_MS;
+  const workspaceId = activeWorkspace?.id ?? null;
+  const workspaceOwnerId = activeWorkspace?.ownerId ?? null;
   const [accessLevel, setAccessLevel] = useState<AccessLevel>(
     accessSnapshot.accessLevel,
   );
@@ -72,94 +144,69 @@ export function useAccessLevel() {
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(
     accessSnapshot.trialEndsAt,
   );
-  const [loaded, setLoaded] = useState(
-    accessSnapshot.loaded &&
-      accessSnapshot.workspaceId === activeWorkspace?.id &&
-      snapshotFresh,
-  );
+  const [loaded, setLoaded] = useState(isSnapshotFresh(null, workspaceId));
 
   useEffect(() => {
     let mounted = true;
+
+    function apply(result: AccessResult) {
+      if (!mounted) {
+        return;
+      }
+
+      setAccessLevel(result.accessLevel);
+      setTrialDaysRemaining(result.trialDaysRemaining);
+      setTrialEndsAt(result.trialEndsAt);
+    }
 
     async function loadAccessLevel() {
       if (!workspaceLoaded) {
         return;
       }
 
-      setLoaded(false);
-
       try {
-        const supabase = getSupabaseClient();
-        const { data: userData } = await supabase.auth.getUser();
-        const userId = userData.user?.id ?? null;
+        // getSession lee la sesión local; getUser hacía un round-trip al
+        // servidor solo para obtener el id. La RLS valida igual cada consulta.
+        const { data: sessionData } = await getSupabaseClient().auth.getSession();
+        const userId = sessionData.session?.user.id ?? null;
 
         if (!userId) {
           return;
         }
 
-        if (
-          accessSnapshot.loaded &&
-          accessSnapshot.userId === userId &&
-          accessSnapshot.workspaceId === (activeWorkspace?.id ?? null) &&
-          Date.now() - accessSnapshot.fetchedAt < ACCESS_SNAPSHOT_MAX_AGE_MS
-        ) {
-          if (mounted) {
-            setAccessLevel(accessSnapshot.accessLevel);
-            setTrialDaysRemaining(accessSnapshot.trialDaysRemaining);
-            setTrialEndsAt(accessSnapshot.trialEndsAt);
-          }
+        if (isSnapshotFresh(userId, workspaceId)) {
+          apply(accessSnapshot);
           return;
         }
 
-        let accountId = userId;
-
-        if (activeWorkspace?.id) {
-          const { data: workspaceData } = await supabase
-            .from("workspaces")
-            .select("owner_id")
-            .eq("id", activeWorkspace.id)
-            .maybeSingle();
-
-          accountId =
-            ((workspaceData as { owner_id?: string | null } | null)
-              ?.owner_id as string | null) ?? userId;
-        }
-
-        const [{ data: rpcData }, { data: profileData }] = await Promise.all([
-          supabase.rpc("get_account_access_level", {
-            target_account_id: accountId,
-          }),
-          supabase
-            .from("profiles")
-            .select("trial_ends_at")
-            .eq("id", accountId)
-            .maybeSingle(),
-        ]);
-        const nextAccessLevel = normalizeAccessLevel(rpcData);
-        const rawTrialEndsAt =
-          (profileData as { trial_ends_at?: unknown } | null)?.trial_ends_at;
-        const nextTrialDaysRemaining =
-          nextAccessLevel === "TRIAL_ACTIVE"
-            ? getTrialDaysRemaining(rawTrialEndsAt)
-            : null;
-        const nextTrialEndsAt =
-          nextAccessLevel === "TRIAL_ACTIVE" && typeof rawTrialEndsAt === "string"
-            ? rawTrialEndsAt
-            : null;
-
-        accessSnapshot.accessLevel = nextAccessLevel;
-        accessSnapshot.fetchedAt = Date.now();
-        accessSnapshot.loaded = true;
-        accessSnapshot.trialDaysRemaining = nextTrialDaysRemaining;
-        accessSnapshot.trialEndsAt = nextTrialEndsAt;
-        accessSnapshot.userId = userId;
-        accessSnapshot.workspaceId = activeWorkspace?.id ?? null;
-
         if (mounted) {
-          setAccessLevel(nextAccessLevel);
-          setTrialDaysRemaining(nextTrialDaysRemaining);
-          setTrialEndsAt(nextTrialEndsAt);
+          setLoaded(false);
         }
+
+        const key = `${userId}:${workspaceId ?? ""}`;
+
+        if (!accessRequest || accessRequest.key !== key) {
+          const promise = resolveAccountId(userId, workspaceId, workspaceOwnerId)
+            .then(fetchAccessLevel)
+            .then((result) => {
+              Object.assign(accessSnapshot, result, {
+                fetchedAt: Date.now(),
+                loaded: true,
+                userId,
+                workspaceId,
+              });
+              return result;
+            })
+            .finally(() => {
+              if (accessRequest?.promise === promise) {
+                accessRequest = null;
+              }
+            });
+
+          accessRequest = { key, promise };
+        }
+
+        apply(await accessRequest.promise);
       } finally {
         if (mounted) {
           setLoaded(true);
@@ -172,7 +219,7 @@ export function useAccessLevel() {
     return () => {
       mounted = false;
     };
-  }, [activeWorkspace?.id, workspaceLoaded]);
+  }, [workspaceId, workspaceLoaded, workspaceOwnerId]);
 
   return {
     accessLevel,
