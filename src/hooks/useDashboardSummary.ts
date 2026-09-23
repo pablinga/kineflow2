@@ -384,6 +384,8 @@ export function useDashboardSummary() {
           )
           .in("status", ["attended", "completed"])
           .eq("payment_status", "pending")
+          // Obra social / ART no se le cobran al paciente.
+          .eq("payment_type", "PARTICULAR")
           .gt("session_amount", 0)
           .order("scheduled_at", { ascending: false })
           .limit(8),

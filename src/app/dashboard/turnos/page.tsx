@@ -32,7 +32,11 @@ import {
   appointmentStatusStyles,
   getAppointmentDisplayStatus,
 } from "@/lib/appointment-ui";
-import { paymentStatusStyles } from "@/lib/payment-ui";
+import {
+  getCoverageLabel,
+  isPatientPaidAppointment,
+  paymentStatusStyles,
+} from "@/lib/payment-ui";
 import { formatDate, formatSessionAmount } from "@/lib/format";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
@@ -957,7 +961,8 @@ export default function AppointmentsPage() {
       );
       if (
         pendingAction.status === "attended" &&
-        !isProfessionalClinicAppointment(pendingAction.appointment)
+        !isProfessionalClinicAppointment(pendingAction.appointment) &&
+        isPatientPaidAppointment(pendingAction.appointment)
       ) {
         openPaymentModal(pendingAction.appointment);
       }
@@ -1095,6 +1100,7 @@ export default function AppointmentsPage() {
           </>
         ) : (
           <>
+        {isPatientPaidAppointment(appointment) ? (
         <button
           className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50 disabled:opacity-60"
           disabled={writeDisabled}
@@ -1104,6 +1110,7 @@ export default function AppointmentsPage() {
           <CalendarPlus className="h-4 w-4" />
           {appointment.paymentStatus === "pending" ? "Registrar cobro" : "Editar cobro"}
         </button>
+        ) : null}
         <button
           className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50 disabled:opacity-60"
           disabled={writeDisabled}
@@ -1177,7 +1184,11 @@ export default function AppointmentsPage() {
           >
             {appointment.originLabel}
           </span>
-          {clinicAppointment ? null : (
+          {clinicAppointment ? null : !isPatientPaidAppointment(appointment) ? (
+            <span className="w-fit rounded-full bg-sky-50 px-2 py-1 text-[0.62rem] font-semibold text-sky-800 ring-1 ring-sky-200">
+              {getCoverageLabel(appointment)}
+            </span>
+          ) : (
             <>
               <span
                 className={`w-fit rounded-full px-2 py-1 text-[0.62rem] font-semibold ${
@@ -1302,7 +1313,7 @@ export default function AppointmentsPage() {
                 <div className="mt-2 hidden space-y-1 md:block">
                   {dayAppointments.slice(0, 3).map((appointment) => (
                     <div
-                      className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment, !isProfessionalClinicAppointment(appointment))}`}
+                      className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment, !isProfessionalClinicAppointment(appointment) && isPatientPaidAppointment(appointment))}`}
                       data-appointment-id={appointment.id}
                       key={appointment.id}
                       style={{ borderLeftColor: appointment.originColor }}
@@ -1312,7 +1323,8 @@ export default function AppointmentsPage() {
                         {appointment.time} {appointment.patient}
                       </span>
                       {appointment.paymentStatus !== "paid" &&
-                      !isProfessionalClinicAppointment(appointment) ? (
+                      !isProfessionalClinicAppointment(appointment) &&
+                      isPatientPaidAppointment(appointment) ? (
                         <DollarSign className="pointer-events-none h-3 w-3 shrink-0" />
                       ) : null}
                     </div>
@@ -1391,7 +1403,7 @@ export default function AppointmentsPage() {
                     <div className="mt-1 space-y-1">
                       {slotAppointments.map((appointment) => (
                         <div
-                          className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment, !isProfessionalClinicAppointment(appointment))}`}
+                          className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment, !isProfessionalClinicAppointment(appointment) && isPatientPaidAppointment(appointment))}`}
                           data-appointment-id={appointment.id}
                           key={appointment.id}
                         >
@@ -1399,7 +1411,8 @@ export default function AppointmentsPage() {
                             {appointment.time} {appointment.patient}
                           </span>
                           {appointment.paymentStatus !== "paid" &&
-                      !isProfessionalClinicAppointment(appointment) ? (
+                      !isProfessionalClinicAppointment(appointment) &&
+                      isPatientPaidAppointment(appointment) ? (
                             <DollarSign className="pointer-events-none h-3 w-3 shrink-0" />
                           ) : null}
                         </div>

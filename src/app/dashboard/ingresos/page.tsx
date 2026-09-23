@@ -10,9 +10,12 @@ import {
   paymentMethodLabels,
   paymentStatusLabels,
   type PaymentMethod,
-  type PaymentStatus,
 } from "@/hooks/useAppointments";
-import { useIncomeRecords } from "@/hooks/useIncomeRecords";
+import {
+  type IncomePaymentFilter,
+  type IncomeRecord,
+  useIncomeRecords,
+} from "@/hooks/useIncomeRecords";
 import { appointmentStatusStyles } from "@/lib/appointment-ui";
 import { formatSessionAmount } from "@/lib/format";
 import { formatCurrency, paymentStatusStyles } from "@/lib/payment-ui";
@@ -59,6 +62,15 @@ function getAppointmentDisplayStatus(appointment: {
     : appointment.status;
 }
 
+// Turnos de obra social / ART: se facturan a la cobertura, no al paciente.
+function getIncomePaymentStyle(record: IncomeRecord) {
+  if (record.paymentType !== "PARTICULAR") {
+    return "bg-sky-50 text-sky-800 ring-1 ring-sky-200";
+  }
+
+  return paymentStatusStyles[record.paymentStatusLabel] ?? "bg-slate-100 text-slate-700";
+}
+
 function IncomePageContent() {
   const searchParams = useSearchParams();
   const { accountType, authError, loading, redirecting } = useRequireAuth();
@@ -66,7 +78,7 @@ function IncomePageContent() {
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const [fromDate, setFromDate] = useState(getDefaultFromDate);
   const [toDate, setToDate] = useState(getDefaultToDate);
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | "all">(
+  const [paymentStatus, setPaymentStatus] = useState<IncomePaymentFilter>(
     "all",
   );
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "all">(
@@ -214,7 +226,7 @@ function IncomePageContent() {
                 <select
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
                   onChange={(event) =>
-                    setPaymentStatus(event.target.value as PaymentStatus | "all")
+                    setPaymentStatus(event.target.value as IncomePaymentFilter)
                   }
                   value={paymentStatus}
                 >
@@ -224,6 +236,7 @@ function IncomePageContent() {
                       {label}
                     </option>
                   ))}
+                  <option value="to_bill">A facturar (obra social / ART)</option>
                 </select>
               </label>
               <label className="block">
@@ -260,9 +273,15 @@ function IncomePageContent() {
             </div>
           </section>
 
-          <section className="mt-6 grid gap-3 md:grid-cols-3">
+          <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { label: "Pendiente", value: formatCurrency(summary.pendingAmount) },
+              {
+                label: "A facturar a obra social / ART",
+                value: `${formatCurrency(summary.toBillAmount)} · ${summary.toBillCount} ${
+                  summary.toBillCount === 1 ? "sesión" : "sesiones"
+                }`,
+              },
               { label: "Sesiones cobradas", value: String(summary.paidCount) },
               { label: "Ticket promedio", value: formatCurrency(summary.averageAmount) },
             ].map((item) => (
@@ -342,9 +361,7 @@ function IncomePageContent() {
                         <td className="px-5 py-4">
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                              paymentStatusStyles[
-                                appointment.paymentStatusLabel
-                              ] ?? "bg-slate-100 text-slate-700"
+                              getIncomePaymentStyle(appointment)
                             }`}
                           >
                             {appointment.paymentStatusLabel}
@@ -404,8 +421,7 @@ function IncomePageContent() {
                       </span>
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          paymentStatusStyles[appointment.paymentStatusLabel] ??
-                          "bg-slate-100 text-slate-700"
+                          getIncomePaymentStyle(appointment)
                         }`}
                       >
                         {appointment.paymentStatusLabel}
