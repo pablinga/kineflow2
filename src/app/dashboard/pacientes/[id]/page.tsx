@@ -40,6 +40,8 @@ import { formatSessionAmount } from "@/lib/format";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
+import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
+import { PatientAppointmentHistory } from "@/components/patients/PatientAppointmentHistory";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import {
@@ -100,9 +102,12 @@ function PatientDetailPageContent() {
     appointments,
     error: appointmentsError,
     loaded: appointmentsLoaded,
+    markAppointmentUnpaid,
     rescheduleAppointment,
+    updateAppointmentPayment,
     updateAppointmentStatus,
   } = useAppointments(patientId);
+  const { activeWorkspace } = useActiveWorkspace();
   const {
     addEvolution,
     error: evolutionsError,
@@ -1204,6 +1209,56 @@ function PatientDetailPageContent() {
                   </section>
                 </div>
               </section>
+
+              <PatientAppointmentHistory
+                appointments={appointments}
+                isProfessionalClinicAppointment={(appointment) =>
+                  appointment.origin === "clinic" &&
+                  activeWorkspace?.type !== "CLINICA"
+                }
+                isReadOnly={isReadOnly}
+                onMarkUnpaid={async (appointment) => {
+                  setActionError("");
+                  setActionSuccess("");
+
+                  try {
+                    await markAppointmentUnpaid(appointment.id);
+                    setActionSuccess("El turno quedó pendiente de cobro.");
+                  } catch (error) {
+                    setActionError(
+                      getFriendlyErrorMessage(error, "No pudimos actualizar el cobro."),
+                    );
+                  }
+                }}
+                onPayment={async (appointment, input) => {
+                  setActionError("");
+                  setActionSuccess("");
+
+                  try {
+                    await updateAppointmentPayment(appointment.id, input);
+                    setActionSuccess("Cobro registrado.");
+                  } catch (error) {
+                    setActionError(
+                      getFriendlyErrorMessage(error, "No pudimos registrar el cobro."),
+                    );
+                  }
+                }}
+                onStatusChange={async (appointment, status) => {
+                  setActionError("");
+                  setActionSuccess("");
+
+                  try {
+                    await updateAppointmentStatus(appointment.id, status);
+                    setActionSuccess("Asistencia actualizada.");
+                  } catch (error) {
+                    setActionError(
+                      getFriendlyErrorMessage(error, "No pudimos actualizar el turno."),
+                    );
+                  }
+                }}
+                readOnlyMessage={readOnlyMessage}
+                showProfessional={activeWorkspace?.type === "CLINICA"}
+              />
                 </>
               ) : (
                 <PatientEvolutionCharts
