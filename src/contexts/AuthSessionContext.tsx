@@ -46,6 +46,7 @@ type ProfileRow = {
 type WorkspaceRow = {
   id: string;
   name: string;
+  owner_id: string | null;
   source_clinic_id: string | null;
   type: WorkspaceType;
   default_session_price: number | null;
@@ -58,8 +59,10 @@ type MembershipRow = {
 };
 
 type SubscriptionRow = {
+  account_id?: string | null;
   plans?: { code?: unknown } | Array<{ code?: unknown }> | null;
   status?: unknown;
+  workspace_id?: string | null;
 };
 
 export type AuthSessionContextValue = {
@@ -357,7 +360,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         supabase
           .from("workspaces")
           .select(
-            "id, name, type, source_clinic_id, default_session_price, default_session_duration_minutes",
+            "id, name, type, source_clinic_id, owner_id, default_session_price, default_session_duration_minutes",
           )
           .order("type", { ascending: false })
           .order("created_at", { ascending: true }),
@@ -409,7 +412,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           supabase
             .from("workspaces")
             .select(
-              "id, name, type, source_clinic_id, default_session_price, default_session_duration_minutes",
+              "id, name, type, source_clinic_id, owner_id, default_session_price, default_session_duration_minutes",
             )
             .order("type", { ascending: false })
             .order("created_at", { ascending: true }),
@@ -440,6 +443,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           id: workspace.id,
           name: workspace.name,
           role: membershipByWorkspace.get(workspace.id) ?? "KINESIOLOGO",
+          ownerId: workspace.owner_id,
           sourceClinicId: workspace.source_clinic_id,
           type: workspace.type,
           defaultSessionPrice: workspace.default_session_price,
@@ -480,36 +484,29 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       );
       setWorkspaceLoaded(true);
 
-      let subscriptionData: unknown = null;
-      let subscriptionError: unknown = null;
-
-      if (nextActiveWorkspace?.id) {
-        queryCount += 1;
-        const workspaceSubscription = await supabase
-          .from("subscriptions")
-          .select("status, plans(code)")
-          .eq("workspace_id", nextActiveWorkspace.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        subscriptionData = workspaceSubscription.data;
-        subscriptionError = workspaceSubscription.error;
-      }
-
-      if (!subscriptionData && !subscriptionError) {
-        queryCount += 1;
-        const accountSubscription = await supabase
-          .from("subscriptions")
-          .select("status, plans(code)")
-          .eq("account_id", currentUser.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        subscriptionData = accountSubscription.data;
-        subscriptionError = accountSubscription.error;
-      }
+      // Una sola consulta: trae las suscripciones del workspace activo y de
+      // la cuenta, y prioriza la del workspace (antes eran dos consultas en
+      // serie cuando el workspace no tenía suscripción propia).
+      queryCount += 1;
+      const subscriptionFilter = nextActiveWorkspace?.id
+        ? `workspace_id.eq.${nextActiveWorkspace.id},account_id.eq.${currentUser.id}`
+        : `account_id.eq.${currentUser.id}`;
+      const subscriptionResult = await supabase
+        .from("subscriptions")
+        .select("status, workspace_id, account_id, plans(code)")
+        .or(subscriptionFilter)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      const subscriptionRows = (subscriptionResult.data ?? []) as SubscriptionRow[];
+      const subscriptionError: unknown = subscriptionResult.error;
+      const subscriptionData: unknown =
+        (nextActiveWorkspace?.id
+          ? subscriptionRows.find(
+              (row) => row.workspace_id === nextActiveWorkspace.id,
+            )
+          : undefined) ??
+        subscriptionRows.find((row) => row.account_id === currentUser.id) ??
+        null;
 
       if (
         subscriptionError &&

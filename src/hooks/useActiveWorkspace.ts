@@ -14,6 +14,7 @@ export type ActiveWorkspace = {
   type: WorkspaceType;
   role: WorkspaceRole;
   sourceClinicId: string | null;
+  ownerId: string | null;
   defaultSessionPrice: number | null;
   defaultSessionDurationMinutes: number | null;
 };
@@ -23,6 +24,7 @@ type WorkspaceRow = {
   name: string;
   type: WorkspaceType;
   source_clinic_id: string | null;
+  owner_id: string | null;
   default_session_price: number | null;
   default_session_duration_minutes: number | null;
 };
@@ -125,7 +127,7 @@ export function useActiveWorkspace() {
       const { data: workspaceData, error: workspaceError } = await supabase
         .from("workspaces")
         .select(
-          "id, name, type, source_clinic_id, default_session_price, default_session_duration_minutes",
+          "id, name, type, source_clinic_id, owner_id, default_session_price, default_session_duration_minutes",
         )
         .order("type", { ascending: false })
         .order("created_at", { ascending: true });
@@ -175,6 +177,7 @@ export function useActiveWorkspace() {
           id: workspace.id,
           name: workspace.name,
           role: membershipByWorkspace.get(workspace.id) ?? "KINESIOLOGO",
+          ownerId: workspace.owner_id,
           sourceClinicId: workspace.source_clinic_id,
           type: workspace.type,
           defaultSessionPrice: workspace.default_session_price,
