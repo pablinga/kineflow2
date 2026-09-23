@@ -46,3 +46,33 @@ App de gestión clínica (turnos, pacientes, evoluciones, cobros, reserva públi
 - `clinic_professionals.status` usa el vocabulario `'pending' | 'active' | 'inactive'`. `workspace_members.status` usa un vocabulario **distinto y no relacionado**: `'pending' | 'accepted' | 'rejected' | 'inactive'`. Son tablas separadas — no asumir que comparten valores.
 - El endpoint público de reserva (`/api/public/booking/[workspaceId]`) tiene varias capas de protección (rate limit por IP, rate limit por teléfono, CAPTCHA opcional vía Turnstile, throttle de envío de WhatsApp) — no removerlas sin motivo al tocar ese archivo.
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` son opcionales: si no están configuradas, el CAPTCHA queda inactivo y todo sigue funcionando (no-op intencional).
+- **RLS y `insert().select()`**: una policy de SELECT que solo llama a una función que busca la fila por id (`can_access_workspace_x(id)`) rechaza el `INSERT ... RETURNING` (la función no ve la fila recién insertada) y la app muestra "No tenés permisos para guardar esos datos". Las policies de SELECT deben evaluar al menos una condición sobre las columnas de la propia fila (ej. `is_workspace_admin(workspace_id) or can_access_workspace_x(id)`). Ver `202609230003_fix_patients_select_on_insert.sql` y `202608300001_fix_treatments_owner_read_access.sql`.
+- **Modelo de clínica**: un kinesiólogo particular (cuenta `KINESIOLOGO`, workspace `PERSONAL`) y una clínica (cuenta `CONSULTORIO`, workspace `CLINICA` creado por el alta) son cosas distintas. El equipo de la clínica se arma con `clinic_professionals` (pantalla Equipo = `kinesiologos/page.tsx`); el trigger `sync_clinic_professional_workspace_member` crea el `workspace_members`. Solo el admin de la clínica da de alta pacientes en la clínica; un kinesiólogo del equipo no puede.
+- **Limpieza de datos de prueba**: `auth.admin.deleteUser` falla ("Database error deleting user") si el usuario todavía tiene workspaces/clínicas. Borrar antes turnos → pacientes → `clinic_professionals` → workspaces → clínicas, y recién después los usuarios.
+- **Carga del dashboard**: sesión, workspace y plan se cargan una sola vez en `AuthSessionContext`; `useAccessLevel` comparte la consulta en curso entre componentes. En hooks client-side usar `auth.getSession()` (local) para obtener el id del usuario, no `auth.getUser()` (hace un round-trip al servidor); la RLS valida igual cada consulta.
+- `npm run test` tiene una verificación desactualizada del texto de la landing ("Gestiona tus pacientes, turnos y sesiones") que falla desde el rediseño de la landing; no es una regresión nueva.
+
+## Historial
+
+### 2026-09-23
+
+- **Notificaciones push (PWA)** — en prod. Web Push con VAPID (`web-push`), sin servicios externos.
+  - Tablas `push_subscriptions` y `push_notification_log` (anti-duplicados) — `202609230001`. Cron `kineflow-push-daily-agenda` a las 10:00 UTC (07:00 AR) — `202609230002`, usa los mismos secretos de vault que el cron de WhatsApp.
+  - Eventos: resumen diario de turnos (a quien atiende: profesional asignado de la clínica o dueño del turno independiente) y aviso al profesional cuando lo suman a una clínica (solo si ya tiene cuenta; si no, sigue el email).
+  - Toggle por dispositivo en Configuración (`PushNotificationsCard`). En iOS solo funciona con la PWA instalada (iOS 16.4+).
+  - Env vars `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`: claves **distintas** en Preview (QA) y Production. Si faltan, push queda desactivado sin romper nada.
+- **Performance del dashboard** — en prod. Speed Insights había bajado a 73 (LCP desktop); con muy poco tráfico (~17 mediciones/semana) el puntaje oscila mucho. Se sacaron consultas en serie y duplicadas (plan en una consulta, `useAccessLevel` con `getSession` y consulta compartida, `owner_id` en el workspace activo). LCP medido local contra QA: ~1.15 s → ~0.45–0.65 s. Pendiente posible: no bloquear la página entera hasta que carguen plan y nivel de acceso.
+- **Fix RLS alta de pacientes** — aplicado en QA y prod (`202609230003`), también para `appointments`. Se aplicó en QA `202608300001` (treatments), que solo estaba en prod.
+- **`test:rls`** reescrito: A y B kinesiólogos particulares, C kinesiólogo del equipo de la clínica, D cuenta CONSULTORIO dueña de la clínica. Verifica aislamiento, que C vea solo pacientes asignados, que D dé de alta pacientes con insert + select y que C no pueda (exige rechazo de RLS `42501`). El cleanup ya no deja usuarios en QA.
+- **Configuración**: el botón de "Días bloqueados" desbordaba la tarjeta entre ~1024 y 1280 px; ahora es una fila flexible — en prod.
+- Nota: el `CRON_SECRET` de `.env.prod.local` está desactualizado respecto al de Vercel/vault de prod.
+
+### Pendiente: rediseño del espacio del kinesiólogo (definido, sin implementar)
+
+El selector de "Espacio" no convence. Decisiones tomadas:
+- Un kinesiólogo trabaja **siempre en su espacio particular**; no cambia al workspace de la clínica.
+- En su **agenda** ve sus turnos particulares y los turnos de la clínica asignados a él, con **colores distintos**.
+- Con los turnos de la clínica puede **ver y marcar asistencia** (y registrar la evolución si la clínica lo habilita con `can_register_evolutions`); no puede crearlos, moverlos ni cobrarlos.
+- Todos los demás menús (pacientes, ingresos, reportes, etc.) son **solo del particular**.
+- Mostrar **a qué clínica pertenece y qué días/horarios está habilitado** (`clinic_professional_availability`) en **Mis consultorios** y en la **leyenda de la agenda**.
+- Falta relevar: cómo carga hoy la agenda (filtro por `workspace_id`), qué permite la RLS para leer turnos y pacientes de la clínica desde el espacio particular, y qué funciones hoy solo se alcanzan cambiando al workspace de la clínica.
