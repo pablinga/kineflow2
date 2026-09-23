@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Download, Eye, FileText, Plus, Trash2, Upload, X } from "lucide-react";
+import { Download, FileText, Paperclip, Trash2, Upload, X } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { TreatmentAttachmentsInput } from "@/components/treatments/TreatmentAttachmentsInput";
 import { useTreatmentFiles } from "@/hooks/useTreatmentFiles";
 import {
-  getTreatmentFileMimeLabel,
-  treatmentFileCategoryLabels,
   type SelectedTreatmentAttachment,
   type TreatmentFileCategory,
 } from "@/lib/treatment-files";
@@ -100,20 +98,16 @@ export function TreatmentDocumentation({
 
   return (
     <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-3 sm:p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="font-bold text-ink">Documentacion</h3>
-          <p className="mt-1 text-sm text-slate-500">
-            Archivos asociados a este tratamiento.
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-bold text-ink">Documentación</h3>
         <button
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+          aria-label="Adjuntar archivos"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-ocean-200 text-ocean-800 transition hover:bg-ocean-50"
           onClick={() => setModalOpen(true)}
+          title="Adjuntar archivos"
           type="button"
         >
-          <Plus className="h-4 w-4" />
-          Adjuntar archivos
+          <Paperclip className="h-4 w-4" />
         </button>
       </div>
 
@@ -131,73 +125,53 @@ export function TreatmentDocumentation({
       <div className="mt-3 space-y-2">
         {!loaded ? (
           <p className="rounded-lg border border-dashed border-ocean-100 p-3 text-sm font-semibold text-slate-500">
-            Cargando documentacion...
+            Cargando documentación...
           </p>
         ) : files.length === 0 ? (
           <div className="rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-4 text-center">
             <FileText className="mx-auto h-6 w-6 text-ocean-500" />
             <p className="mt-2 text-sm font-semibold text-ink">
-              No hay documentacion adjunta.
+              No hay documentación adjunta.
             </p>
           </div>
         ) : (
           files.map((file) => (
             <article
-              className="rounded-lg border border-ocean-100 p-3"
+              className="flex items-center gap-2 rounded-lg border border-ocean-100 py-1.5 pl-3 pr-1.5"
               key={file.id}
             >
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <FileText className="h-4 w-4 text-ocean-600" />
-                    <p className="break-all text-sm font-bold text-ink">
-                      {file.originalName}
-                    </p>
-                    <span className="rounded-full bg-ocean-50 px-2 py-1 text-xs font-bold text-ocean-800">
-                      {getTreatmentFileMimeLabel(file.mimeType)}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-slate-500">
-                    <span>{file.sizeLabel}</span>
-                    <span>Cargado {file.createdAtLabel}</span>
-                    <span>Subido por {file.uploaderLabel}</span>
-                    {file.category ? (
-                      <span>{treatmentFileCategoryLabels[file.category]}</span>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-                  <button
-                    className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-ocean-200 px-3 text-xs font-bold text-ocean-800 transition hover:bg-ocean-50 disabled:opacity-60"
-                    disabled={openingId === file.id}
-                    onClick={() => openFile(file)}
-                    type="button"
-                  >
-                    <Eye className="h-4 w-4" />
-                    Ver
-                  </button>
-                  <button
-                    className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-ocean-200 px-3 text-xs font-bold text-ocean-800 transition hover:bg-ocean-50 disabled:opacity-60"
-                    disabled={openingId === file.id}
-                    onClick={() => openFile(file, true)}
-                    type="button"
-                  >
-                    <Download className="h-4 w-4" />
-                    Descargar
-                  </button>
-                  {file.canDelete ? (
-                    <button
-                      className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-red-100 px-3 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
-                      disabled={deletingId === file.id}
-                      onClick={() => handleDelete(file.id)}
-                      type="button"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Eliminar
-                    </button>
-                  ) : null}
-                </div>
-              </div>
+              <FileText className="h-4 w-4 shrink-0 text-ocean-600" />
+              <button
+                className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-ink underline-offset-4 hover:text-ocean-700 hover:underline disabled:opacity-60"
+                disabled={openingId === file.id}
+                onClick={() => openFile(file)}
+                title={file.originalName}
+                type="button"
+              >
+                {file.originalName}
+              </button>
+              <button
+                aria-label={`Descargar ${file.originalName}`}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ocean-800 transition hover:bg-ocean-50 disabled:opacity-60"
+                disabled={openingId === file.id}
+                onClick={() => openFile(file, true)}
+                title="Descargar"
+                type="button"
+              >
+                <Download className="h-4 w-4" />
+              </button>
+              {file.canDelete ? (
+                <button
+                  aria-label={`Eliminar ${file.originalName}`}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+                  disabled={deletingId === file.id}
+                  onClick={() => handleDelete(file.id)}
+                  title="Eliminar"
+                  type="button"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              ) : null}
             </article>
           ))
         )}
