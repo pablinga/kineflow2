@@ -867,7 +867,8 @@ function PatientDetailPageContent() {
 
               <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:mt-6 sm:gap-6">
                 <aside className="space-y-4">
-                  <section className="hidden">
+                  {/* Atributo hidden (no la clase): space-y lo saltea y no desplaza a Tratamientos. */}
+                  <section hidden>
                     <h2 className="text-lg font-bold text-ink">
                       Resumen económico
                     </h2>
