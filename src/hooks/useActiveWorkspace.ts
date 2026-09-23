@@ -191,7 +191,13 @@ export function useActiveWorkspace() {
 
           return left.name.localeCompare(right.name);
         });
-      const preferredWorkspaceId = getStoredWorkspaceId(sessionData.user.id);
+      // Igual que AuthSessionContext: un kinesiólogo queda siempre en su
+      // espacio particular.
+      const preferredWorkspaceId =
+        fallbackType === "PERSONAL"
+          ? nextWorkspaces.find((workspace) => workspace.type === "PERSONAL")?.id ??
+            null
+          : getStoredWorkspaceId(sessionData.user.id);
       const nextActiveWorkspace = chooseWorkspace(
         nextWorkspaces,
         preferredWorkspaceId,

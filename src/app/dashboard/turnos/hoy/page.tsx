@@ -27,7 +27,7 @@ function sameDay(left: Date, right: Date) {
 }
 
 export default function ListadoDelDiaPage() {
-  const { authError, loading, redirecting } = useRequireAuth();
+  const { accountType, authError, loading, redirecting } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const {
     appointments,
@@ -35,7 +35,10 @@ export default function ListadoDelDiaPage() {
     loaded: appointmentsLoaded,
     saveAppointmentSignature,
     updateAppointmentStatus,
-  } = useAppointments();
+  } = useAppointments(undefined, {
+    // El kinesiólogo ve también los turnos de las clínicas donde atiende.
+    unified: accountType === "KINESIOLOGO",
+  });
   const { providers } = useInsuranceProviders();
   const [actionError, setActionError] = useState("");
   const [updatingId, setUpdatingId] = useState("");
@@ -181,6 +184,12 @@ export default function ListadoDelDiaPage() {
             <div className="mt-6 space-y-3">
               {dayAppointments.map((appointment) => {
                 const isUpdating = updatingId === appointment.id;
+                // Turno de una clínica visto desde el espacio particular: el
+                // kinesiólogo registra la asistencia; la firma la gestiona la
+                // clínica.
+                const isClinicAppointment =
+                  appointment.origin === "clinic" &&
+                  activeWorkspace?.type !== "CLINICA";
 
                 return (
                   <article
@@ -205,12 +214,22 @@ export default function ListadoDelDiaPage() {
                         </div>
                       </div>
 
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isClinicAppointment ? (
+                          <span
+                            className="rounded-full px-3 py-1 text-xs font-semibold text-white"
+                            style={{ backgroundColor: appointment.originColor }}
+                          >
+                            {appointment.originLabel}
+                          </span>
+                        ) : null}
                       <span className="rounded-full bg-ocean-50 px-3 py-1 text-xs font-semibold text-ocean-800 ring-1 ring-ocean-100">
                         {appointment.insuranceProviderId
                           ? insuranceNameById.get(appointment.insuranceProviderId) ??
                             "Obra social"
                           : "Particular"}
                       </span>
+                      </div>
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-ocean-50 pt-3">
@@ -242,7 +261,7 @@ export default function ListadoDelDiaPage() {
                             <ClipboardSignature className="h-3.5 w-3.5" />
                             Firmado
                           </span>
-                        ) : (
+                        ) : isClinicAppointment ? null : (
                           <button
                             className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-ocean-200 px-3 text-xs font-semibold text-ocean-700 transition hover:bg-ocean-50"
                             onClick={() => setSigningAppointment(appointment)}

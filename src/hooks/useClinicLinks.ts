@@ -139,12 +139,18 @@ export function formatAvailability(availability: ClinicAvailability[]) {
     .join(", ");
 }
 
-export function useClinicLinks() {
+export function useClinicLinks(enabled = true) {
   const [links, setLinks] = useState<ClinicLink[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
 
   const loadLinks = useCallback(async () => {
+    if (!enabled) {
+      setLinks([]);
+      setLoaded(true);
+      return;
+    }
+
     setLoaded(false);
     setError("");
 
@@ -181,7 +187,7 @@ export function useClinicLinks() {
     } finally {
       setLoaded(true);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
     loadLinks();

@@ -67,12 +67,15 @@ App de gestión clínica (turnos, pacientes, evoluciones, cobros, reserva públi
 - **Configuración**: el botón de "Días bloqueados" desbordaba la tarjeta entre ~1024 y 1280 px; ahora es una fila flexible — en prod.
 - Nota: el `CRON_SECRET` de `.env.prod.local` está desactualizado respecto al de Vercel/vault de prod.
 
-### Pendiente: rediseño del espacio del kinesiólogo (definido, sin implementar)
+### Espacio del kinesiólogo (en `qa`)
 
-El selector de "Espacio" no convence. Decisiones tomadas:
-- Un kinesiólogo trabaja **siempre en su espacio particular**; no cambia al workspace de la clínica.
-- En su **agenda** ve sus turnos particulares y los turnos de la clínica asignados a él, con **colores distintos**.
-- Con los turnos de la clínica puede **ver y marcar asistencia** (y registrar la evolución si la clínica lo habilita con `can_register_evolutions`); no puede crearlos, moverlos ni cobrarlos.
-- Todos los demás menús (pacientes, ingresos, reportes, etc.) son **solo del particular**.
-- Mostrar **a qué clínica pertenece y qué días/horarios está habilitado** (`clinic_professional_availability`) en **Mis consultorios** y en la **leyenda de la agenda**.
-- Falta relevar: cómo carga hoy la agenda (filtro por `workspace_id`), qué permite la RLS para leer turnos y pacientes de la clínica desde el espacio particular, y qué funciones hoy solo se alcanzan cambiando al workspace de la clínica.
+Decisión: un kinesiólogo trabaja **siempre en su espacio particular**; no cambia al workspace de la clínica. Todos los menús (pacientes, ingresos, reportes, etc.) son del particular. Implementado:
+- `AuthSessionContext` / `useActiveWorkspace` fijan el espacio activo en el `PERSONAL` para cuentas `KINESIOLOGO` (ignoran el guardado en localStorage) y el sidebar oculta el selector. Los workspaces de clínica siguen en la lista porque la agenda los necesita.
+- Agenda y Sesiones diarias usan el modo `unified` **solo para cuentas `KINESIOLOGO`** (turnos con `owner_id` = el kinesiólogo en todos sus workspaces; un turno de clínica se guarda con `owner_id` = profesional asignado). Antes la agenda usaba `unified` para todos y la clínica no veía los turnos de su equipo.
+- Turnos de clínica vistos por el kinesiólogo: solo "Asistió / No asistió" (sin cobro, reprogramar, cancelar, firma ni link a la ficha); no dependen de su plan/trial. `/api/appointments/status` rechaza otros estados para turnos `appointment_origin = 'clinic'` si quien llama no es admin.
+- La leyenda de la agenda muestra cada clínica activa con su color y días/horarios (`clinic_professional_availability`); Mis consultorios ya los mostraba.
+- Se restauró en QA `can_insert_workspace_appointment` (había quedado con `clinic_professionals.status = 'accepted'`, pisada al aplicar tarde `202606300002`); ahora es idéntica a prod y al repo (`202607060001`). `can_access_patient` e `is_assigned_appointment_professional` siguen con `'accepted'` en ambos ambientes pero no las usa nada.
+
+Pendiente:
+- El kinesiólogo no ve el nombre de un paciente de clínica que no tenga asignado aunque tenga un turno con él (RLS de `patients` vía `is_patient_assigned_to_user`). Requiere migración.
+- Registrar la evolución de un turno de clínica: hoy solo desde la ficha del paciente (con `activeWorkspace.id`, que desde el particular no coincide con el workspace de la clínica). `can_register_evolutions` se guarda pero no se aplica en ningún lado.
