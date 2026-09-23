@@ -7,6 +7,7 @@ import {
 type AppointmentStatus = "pending" | "attended" | "cancelled" | "no_show" | "rescheduled";
 
 type AppointmentRow = {
+  appointment_origin: string | null;
   id: string;
   owner_id: string;
   patient_id: string;
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
 
   const { data: appointment, error: appointmentError } = await admin
     .from("appointments")
-    .select("id, owner_id, patient_id, status, treatment_id, session_number, workspace_id")
+    .select("id, owner_id, patient_id, status, treatment_id, session_number, workspace_id, appointment_origin")
     .eq("id", appointmentId)
     .maybeSingle();
 
@@ -95,13 +96,28 @@ export async function POST(request: Request) {
         .eq("status", "accepted")
         .maybeSingle()
     : { data: null };
-  const canUpdateAppointment =
-    currentAppointment.owner_id === user.id ||
+  const isWorkspaceAdmin =
     (membership as { role?: string } | null)?.role === "ADMIN";
+  const canUpdateAppointment =
+    currentAppointment.owner_id === user.id || isWorkspaceAdmin;
 
   if (!canUpdateAppointment) {
     return NextResponse.json(
       { error: "No tenés permisos para actualizar este turno." },
+      { status: 403 },
+    );
+  }
+
+  // En un turno de clínica, el profesional asignado solo registra asistencia;
+  // cancelarlo o cambiarlo a otro estado le corresponde a la clínica.
+  if (
+    currentAppointment.appointment_origin === "clinic" &&
+    !isWorkspaceAdmin &&
+    status !== "attended" &&
+    status !== "no_show"
+  ) {
+    return NextResponse.json(
+      { error: "Este turno lo gestiona la clínica: solo podés registrar la asistencia." },
       { status: 403 },
     );
   }

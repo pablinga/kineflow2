@@ -301,7 +301,7 @@ export function DashboardSidebar() {
               <label className="block text-xs font-bold uppercase tracking-wide text-slate-400">
                 Espacio
               </label>
-              {workspaces.length > 1 ? (
+              {workspaces.length > 1 && accountType !== "KINESIOLOGO" ? (
                 <div className="relative mt-2">
                   <select
                     className="min-h-11 w-full appearance-none rounded-lg border border-ocean-100 bg-ocean-50 px-3 pr-10 text-sm font-semibold text-ink outline-none transition focus:border-ocean-400"

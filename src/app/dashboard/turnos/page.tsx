@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   CalendarPlus,
   CheckCircle,
+  ClipboardList,
   ChevronLeft,
   ChevronRight,
   DollarSign,
@@ -39,6 +40,10 @@ import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { usePatients } from "@/hooks/usePatients";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
+import { useClinicLinks, type ClinicAvailability } from "@/hooks/useClinicLinks";
+import { ClinicEvolutionModal } from "@/components/turnos/ClinicEvolutionModal";
+import { getSupabaseClient } from "@/lib/supabase";
+import { CLINIC_PROFESSIONAL_STATUS } from "@/lib/clinic-professionals";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 
 type PendingAction = {
@@ -110,9 +115,9 @@ function getMonthCalendarDays(date: Date) {
   return days;
 }
 
-function getCalendarStatusClass(appointment: Appointment) {
+function getCalendarStatusClass(appointment: Appointment, showPayment = true) {
   const border =
-    appointment.paymentStatus !== "paid" ? "border-amber-400" : "";
+    showPayment && appointment.paymentStatus !== "paid" ? "border-amber-400" : "";
   const normalizedStatus = appointment.status.toLowerCase();
 
   if (
@@ -460,12 +465,33 @@ function actionToneClass(tone: PendingAction["tone"]) {
   return "bg-red-600 hover:bg-red-700";
 }
 
+const SHORT_WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+function formatShortAvailability(availability: ClinicAvailability[]) {
+  if (availability.length === 0) {
+    return "sin horarios asignados";
+  }
+
+  return availability
+    .map(
+      (item) =>
+        `${SHORT_WEEKDAYS[item.weekday]} ${item.startsAt}–${item.endsAt}`,
+    )
+    .join(", ");
+}
+
 export default function AppointmentsPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
   const {
     activeWorkspace,
     loaded: workspaceLoaded,
   } = useActiveWorkspace();
+  // Turno de una clínica visto por el kinesiólogo desde su espacio particular:
+  // solo puede marcar asistencia; cobro, reprogramación y cancelación los
+  // gestiona la clínica. Tampoco depende del plan del kinesiólogo.
+  const isProfessionalClinicAppointment = (appointment: Appointment) =>
+    appointment.origin === "clinic" && activeWorkspace?.type !== "CLINICA";
+  const { links: clinicLinks } = useClinicLinks(accountType === "KINESIOLOGO");
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const {
     accessLevel,
@@ -480,11 +506,20 @@ export default function AppointmentsPage() {
     rescheduleAppointment,
     updateAppointmentPayment,
     updateAppointmentStatus,
-  } = useAppointments(undefined, { unified: true });
+  } = useAppointments(undefined, {
+    // Solo el kinesiólogo ve en una agenda sus turnos propios y los de las
+    // clínicas donde atiende; la clínica ve los de su workspace.
+    unified: accountType === "KINESIOLOGO",
+  });
   const [actionError, setActionError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
   const [updatingId, setUpdatingId] = useState("");
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [evolutionAppointment, setEvolutionAppointment] =
+    useState<Appointment | null>(null);
+  const [registeredEvolutionIds, setRegisteredEvolutionIds] = useState<
+    Set<string>
+  >(() => new Set());
   const [actionsAppointment, setActionsAppointment] =
     useState<Appointment | null>(null);
   const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
@@ -521,21 +556,143 @@ export default function AppointmentsPage() {
     () => Array.from(new Set(appointments.map((appointment) => appointment.status))),
     [appointments],
   );
-  const unifiedLegendOptions = useMemo(
+  const unifiedLegendOptions = useMemo(() => {
+    // Las clínicas donde atiende el kinesiólogo aparecen siempre, con sus días
+    // habilitados, aunque en el período no haya turnos cargados.
+    const activeClinicLinks = clinicLinks.filter(
+      (link) => link.status === CLINIC_PROFESSIONAL_STATUS.active,
+    );
+    const linkedClinicIds = new Set(
+      activeClinicLinks.map((link) => link.clinicId),
+    );
+    const fromAppointments = appointments
+      .filter(
+        (appointment) =>
+          appointment.origin !== "clinic" ||
+          !appointment.clinicId ||
+          !linkedClinicIds.has(appointment.clinicId),
+      )
+      .map((appointment) => ({
+        color: appointment.originColor,
+        detail: "",
+        label: appointment.originLabel,
+      }));
+    const fromClinicLinks = activeClinicLinks.map((link) => ({
+      color: link.color,
+      detail: formatShortAvailability(link.availability),
+      label: link.clinicName,
+    }));
+
+    return Array.from(
+      new Map(
+        [...fromAppointments, ...fromClinicLinks].map((item) => [
+          `${item.label}-${item.color}`,
+          item,
+        ]),
+      ).values(),
+    );
+  }, [appointments, clinicLinks]);
+
+  // Turnos de clínica asistidos: qué evoluciones ya registró el kinesiólogo,
+  // para no ofrecer registrar dos veces la misma.
+  const attendedClinicAppointmentIdsKey = useMemo(
     () =>
-      Array.from(
-        new Map(
-          appointments.map((appointment) => [
-            `${appointment.originLabel}-${appointment.originColor}`,
-            {
-              color: appointment.originColor,
-              label: appointment.originLabel,
-            },
-          ]),
-        ).values(),
-      ),
-    [appointments],
+      appointments
+        .filter(
+          (appointment) =>
+            isProfessionalClinicAppointment(appointment) &&
+            getAppointmentDisplayStatus(appointment) === "Asistió",
+        )
+        .map((appointment) => appointment.id)
+        .sort()
+        .join(","),
+    // isProfessionalClinicAppointment solo depende del tipo de workspace activo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [appointments, activeWorkspace?.type],
   );
+
+  useEffect(() => {
+    if (!attendedClinicAppointmentIdsKey) {
+      return;
+    }
+
+    let cancelled = false;
+    const appointmentIds = attendedClinicAppointmentIdsKey.split(",");
+
+    void getSupabaseClient()
+      .from("evolutions")
+      .select("appointment_id")
+      .in("appointment_id", appointmentIds)
+      .then(({ data }) => {
+        if (cancelled || !data) {
+          return;
+        }
+
+        setRegisteredEvolutionIds(
+          new Set(
+            data
+              .map((row) => (row as { appointment_id: string | null }).appointment_id)
+              .filter((id): id is string => Boolean(id)),
+          ),
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attendedClinicAppointmentIdsKey]);
+
+  function canRegisterClinicEvolution(appointment: Appointment) {
+    return (
+      isProfessionalClinicAppointment(appointment) &&
+      getAppointmentDisplayStatus(appointment) === "Asistió" &&
+      clinicLinks.some(
+        (link) =>
+          link.id === appointment.clinicProfessionalId &&
+          link.status === CLINIC_PROFESSIONAL_STATUS.active &&
+          link.canRegisterEvolutions,
+      )
+    );
+  }
+
+  function renderClinicEvolutionAction(appointment: Appointment, compact = false) {
+    if (!canRegisterClinicEvolution(appointment)) {
+      return null;
+    }
+
+    if (registeredEvolutionIds.has(appointment.id)) {
+      return (
+        <span
+          className={
+            compact
+              ? "inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-50 px-2 text-[0.68rem] font-semibold text-ocean-800"
+              : "flex w-full items-center gap-2 px-3 py-2.5 text-sm font-semibold text-ocean-800"
+          }
+        >
+          <CheckCircle className={compact ? "mr-1 h-3.5 w-3.5" : "h-4 w-4"} />
+          Evolución registrada
+        </span>
+      );
+    }
+
+    return (
+      <button
+        className={
+          compact
+            ? "inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-600 px-2 text-[0.68rem] font-semibold text-white transition hover:bg-ocean-700"
+            : "flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50"
+        }
+        onClick={() => {
+          setActionsAppointment(null);
+          setEvolutionAppointment(appointment);
+        }}
+        type="button"
+      >
+        {compact ? null : <ClipboardList className="h-4 w-4" />}
+        Registrar evolución
+      </button>
+    );
+  }
   const filteredAppointments = useMemo(
     () =>
       appointments.filter((appointment) => {
@@ -623,7 +780,7 @@ export default function AppointmentsPage() {
     appointment: Appointment,
     status: AppointmentStatus,
   ) {
-    if (isReadOnly) {
+    if (isReadOnly && !isProfessionalClinicAppointment(appointment)) {
       setActionsAppointment(null);
       setActionError(
         "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes.",
@@ -786,7 +943,10 @@ export default function AppointmentsPage() {
     setUpdatingId(pendingAction.appointment.id);
 
     try {
-      if (isReadOnly) {
+      if (
+        isReadOnly &&
+        !isProfessionalClinicAppointment(pendingAction.appointment)
+      ) {
         setActionError(readOnlyMessage);
         return;
       }
@@ -795,7 +955,10 @@ export default function AppointmentsPage() {
         pendingAction.appointment.id,
         pendingAction.status,
       );
-      if (pendingAction.status === "attended") {
+      if (
+        pendingAction.status === "attended" &&
+        !isProfessionalClinicAppointment(pendingAction.appointment)
+      ) {
         openPaymentModal(pendingAction.appointment);
       }
       setActionNotice(
@@ -884,7 +1047,8 @@ export default function AppointmentsPage() {
 
   function renderActionItems(appointment: Appointment) {
     const disabled = updatingId === appointment.id;
-    const writeDisabled = disabled || isReadOnly;
+    const clinicAppointment = isProfessionalClinicAppointment(appointment);
+    const writeDisabled = disabled || (isReadOnly && !clinicAppointment);
     const futureAttendanceDisabled = isFutureAppointment(appointment);
 
     return (
@@ -894,7 +1058,7 @@ export default function AppointmentsPage() {
           disabled={writeDisabled || futureAttendanceDisabled}
           onClick={() => openStatusModal(appointment, "attended")}
           title={
-            isReadOnly
+            writeDisabled && isReadOnly
               ? readOnlyMessage
               : futureAttendanceDisabled
                 ? "Disponible cuando llegue el horario del turno"
@@ -910,7 +1074,7 @@ export default function AppointmentsPage() {
           disabled={writeDisabled || futureAttendanceDisabled}
           onClick={() => openStatusModal(appointment, "no_show")}
           title={
-            isReadOnly
+            writeDisabled && isReadOnly
               ? readOnlyMessage
               : futureAttendanceDisabled
                 ? "Disponible cuando llegue el horario del turno"
@@ -921,6 +1085,16 @@ export default function AppointmentsPage() {
           <XCircle className="h-4 w-4" />
           Marcar como no asistió
         </button>
+        {clinicAppointment ? (
+          <>
+          {renderClinicEvolutionAction(appointment)}
+          <p className="px-3 py-2.5 text-xs font-medium leading-5 text-slate-500">
+            Turno de {appointment.clinicName ?? "la clínica"}: el cobro, la
+            reprogramación y la cancelación los gestiona la clínica.
+          </p>
+          </>
+        ) : (
+          <>
         <button
           className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50 disabled:opacity-60"
           disabled={writeDisabled}
@@ -948,6 +1122,8 @@ export default function AppointmentsPage() {
           <XCircle className="h-4 w-4" />
           Cancelar turno
         </button>
+          </>
+        )}
       </>
     );
   }
@@ -957,6 +1133,7 @@ export default function AppointmentsPage() {
     const isAttended = status === "Asistió";
     const canMarkAttended =
       status === "Pendiente" || status === "Sin registrar asistencia";
+    const clinicAppointment = isProfessionalClinicAppointment(appointment);
 
     return (
       <article
@@ -969,14 +1146,20 @@ export default function AppointmentsPage() {
             <p className="whitespace-nowrap text-xs font-bold text-ocean-800">
               {appointment.time}
             </p>
-            <Link
-              className="mt-1 block min-w-0 truncate text-xs font-semibold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
-              href={`/dashboard/pacientes/${appointment.patientId}`}
-              prefetch={false}
-              title={`Ver detalle de ${appointment.patient}`}
-            >
-              {appointment.patient}
-            </Link>
+            {clinicAppointment ? (
+              <p className="mt-1 min-w-0 truncate text-xs font-semibold text-ink">
+                {appointment.patient}
+              </p>
+            ) : (
+              <Link
+                className="mt-1 block min-w-0 truncate text-xs font-semibold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
+                href={`/dashboard/pacientes/${appointment.patientId}`}
+                prefetch={false}
+                title={`Ver detalle de ${appointment.patient}`}
+              >
+                {appointment.patient}
+              </Link>
+            )}
           </div>
           <span
             className={`w-fit shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[0.62rem] font-semibold leading-none ${
@@ -994,17 +1177,21 @@ export default function AppointmentsPage() {
           >
             {appointment.originLabel}
           </span>
-          <span
-            className={`w-fit rounded-full px-2 py-1 text-[0.62rem] font-semibold ${
-              paymentStatusStyles[appointment.paymentStatusLabel] ??
-              "bg-slate-100 text-slate-700"
-            }`}
-          >
-            {appointment.paymentStatusLabel}
-          </span>
-          <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[0.62rem] font-semibold text-slate-600">
-            {formatSessionAmount(appointment.amount)}
-          </span>
+          {clinicAppointment ? null : (
+            <>
+              <span
+                className={`w-fit rounded-full px-2 py-1 text-[0.62rem] font-semibold ${
+                  paymentStatusStyles[appointment.paymentStatusLabel] ??
+                  "bg-slate-100 text-slate-700"
+                }`}
+              >
+                {appointment.paymentStatusLabel}
+              </span>
+              <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[0.62rem] font-semibold text-slate-600">
+                {formatSessionAmount(appointment.amount)}
+              </span>
+            </>
+          )}
         </div>
 
         {appointment.conflictWarning ? (
@@ -1023,6 +1210,8 @@ export default function AppointmentsPage() {
             >
               Marcar asistió
             </button>
+          ) : isAttended && clinicAppointment ? (
+            renderClinicEvolutionAction(appointment, true)
           ) : isAttended ? (
             <Link
               className="inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-600 px-2 text-[0.68rem] font-semibold text-white transition hover:bg-ocean-700"
@@ -1113,7 +1302,7 @@ export default function AppointmentsPage() {
                 <div className="mt-2 hidden space-y-1 md:block">
                   {dayAppointments.slice(0, 3).map((appointment) => (
                     <div
-                      className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment)}`}
+                      className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment, !isProfessionalClinicAppointment(appointment))}`}
                       data-appointment-id={appointment.id}
                       key={appointment.id}
                       style={{ borderLeftColor: appointment.originColor }}
@@ -1122,7 +1311,8 @@ export default function AppointmentsPage() {
                       <span className="pointer-events-none truncate">
                         {appointment.time} {appointment.patient}
                       </span>
-                      {appointment.paymentStatus !== "paid" ? (
+                      {appointment.paymentStatus !== "paid" &&
+                      !isProfessionalClinicAppointment(appointment) ? (
                         <DollarSign className="pointer-events-none h-3 w-3 shrink-0" />
                       ) : null}
                     </div>
@@ -1201,14 +1391,15 @@ export default function AppointmentsPage() {
                     <div className="mt-1 space-y-1">
                       {slotAppointments.map((appointment) => (
                         <div
-                          className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment)}`}
+                          className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment, !isProfessionalClinicAppointment(appointment))}`}
                           data-appointment-id={appointment.id}
                           key={appointment.id}
                         >
                           <span className="pointer-events-none truncate">
                             {appointment.time} {appointment.patient}
                           </span>
-                          {appointment.paymentStatus !== "paid" ? (
+                          {appointment.paymentStatus !== "paid" &&
+                      !isProfessionalClinicAppointment(appointment) ? (
                             <DollarSign className="pointer-events-none h-3 w-3 shrink-0" />
                           ) : null}
                         </div>
@@ -1387,18 +1578,27 @@ export default function AppointmentsPage() {
                 </select>
               </div>
             </div>
-            {unifiedLegendOptions.length > 1 ? (
+            {unifiedLegendOptions.length > 1 ||
+            unifiedLegendOptions.some((item) => item.detail) ? (
               <div className="mt-3 flex flex-wrap gap-2 border-t border-ocean-100 pt-3">
                 {unifiedLegendOptions.map((item) => (
                   <span
-                    className="inline-flex items-center gap-2 rounded-full bg-ocean-50 px-3 py-1 text-xs font-semibold text-slate-700"
+                    className="inline-flex max-w-full items-center gap-2 rounded-full bg-ocean-50 px-3 py-1 text-xs font-semibold text-slate-700"
                     key={`${item.label}-${item.color}`}
                   >
                     <span
-                      className="h-2.5 w-2.5 rounded-full"
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: item.color }}
                     />
-                    {item.label}
+                    <span className="min-w-0">
+                      {item.label}
+                      {item.detail ? (
+                        <span className="font-medium text-slate-500">
+                          {" "}
+                          · {item.detail}
+                        </span>
+                      ) : null}
+                    </span>
                   </span>
                 ))}
               </div>
@@ -1469,6 +1669,20 @@ export default function AppointmentsPage() {
             />
           ) : null}
 
+          {evolutionAppointment ? (
+            <ClinicEvolutionModal
+              appointment={evolutionAppointment}
+              onClose={() => setEvolutionAppointment(null)}
+              onSaved={(appointmentId) => {
+                setRegisteredEvolutionIds(
+                  (current) => new Set([...current, appointmentId]),
+                );
+                setEvolutionAppointment(null);
+                setActionNotice("Evolución registrada");
+              }}
+            />
+          ) : null}
+
           {actionsAppointment ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-3 pb-3">
               <div className="w-full max-w-sm rounded-xl border border-ocean-100 bg-white p-4 shadow-soft">
@@ -1477,13 +1691,19 @@ export default function AppointmentsPage() {
                     <h2 className="text-lg font-bold text-ink">
                       Acciones del turno
                     </h2>
-                    <Link
-                      className="mt-1 block text-sm font-semibold text-ocean-800 underline-offset-4 hover:underline"
-                      href={`/dashboard/pacientes/${actionsAppointment.patientId}`}
-                      prefetch={false}
-                    >
-                      {actionsAppointment.patient}
-                    </Link>
+                    {isProfessionalClinicAppointment(actionsAppointment) ? (
+                      <p className="mt-1 text-sm font-semibold text-ocean-800">
+                        {actionsAppointment.patient}
+                      </p>
+                    ) : (
+                      <Link
+                        className="mt-1 block text-sm font-semibold text-ocean-800 underline-offset-4 hover:underline"
+                        href={`/dashboard/pacientes/${actionsAppointment.patientId}`}
+                        prefetch={false}
+                      >
+                        {actionsAppointment.patient}
+                      </Link>
+                    )}
                     <p className="mt-1 text-sm text-slate-500">
                       {actionsAppointment.date} · {actionsAppointment.time}
                     </p>

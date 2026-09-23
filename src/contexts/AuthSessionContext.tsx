@@ -457,9 +457,15 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 
           return left.name.localeCompare(right.name);
         });
+      // Un kinesiólogo trabaja siempre en su espacio particular: los turnos de
+      // las clínicas donde atiende se ven en su agenda (modo unificado), así
+      // que no cambia al workspace de la clínica.
       const nextActiveWorkspace = chooseWorkspace(
         nextWorkspaces,
-        getStoredWorkspaceId(currentUser.id),
+        nextAccountType === "KINESIOLOGO"
+          ? nextWorkspaces.find((workspace) => workspace.type === "PERSONAL")?.id ??
+              null
+          : getStoredWorkspaceId(currentUser.id),
         fallbackType,
       );
 
@@ -648,14 +654,14 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const selectWorkspace = useCallback((workspaceId: string) => {
     const workspace = workspaces.find((item) => item.id === workspaceId);
 
-    if (!workspace || !user) {
+    if (!workspace || !user || profile?.accountType === "KINESIOLOGO") {
       return;
     }
 
     storeWorkspaceId(user.id, workspaceId);
     setActiveWorkspaceId(workspaceId);
     void loadSessionContext();
-  }, [loadSessionContext, user, workspaces]);
+  }, [loadSessionContext, profile?.accountType, user, workspaces]);
 
   const value = useMemo<AuthSessionContextValue>(
     () => ({
