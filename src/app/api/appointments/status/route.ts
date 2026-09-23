@@ -123,7 +123,15 @@ export async function POST(request: Request) {
   }
 
   let treatmentCompleted: { totalSessions: number } | null = null;
+  let treatmentUpdate: {
+    completed: boolean;
+    id: string;
+    status: string;
+    usedSessions: number;
+  } | null = null;
 
+  // Se calcula antes, pero el tratamiento se actualiza recién cuando el turno
+  // se guardó bien: si no, un turno rechazado sumaba igual la sesión.
   if (currentAppointment.treatment_id) {
     const { data: treatment } = await admin
         .from("treatments")
@@ -149,29 +157,17 @@ export async function POST(request: Request) {
       }
 
       const completed = usedSessions >= currentTreatment.total_sessions;
-      const nextTreatmentStatus = completed
-        ? "FINALIZADO"
-        : currentTreatment.status === "FINALIZADO"
-          ? "EN_CURSO"
-          : currentTreatment.status;
 
-      const { error: treatmentError } = await admin
-        .from("treatments")
-        .update({
-          ended_at: completed ? new Date().toISOString().slice(0, 10) : null,
-          status: nextTreatmentStatus,
-          used_sessions: usedSessions,
-        })
-        .eq("id", currentTreatment.id)
-        .eq("workspace_id", currentAppointment.workspace_id);
-
-      if (treatmentError) {
-        return NextResponse.json(
-          { error: "No pudimos actualizar el tratamiento." },
-          { status: 500 },
-        );
-      }
-
+      treatmentUpdate = {
+        completed,
+        id: currentTreatment.id,
+        status: completed
+          ? "FINALIZADO"
+          : currentTreatment.status === "FINALIZADO"
+            ? "EN_CURSO"
+            : currentTreatment.status,
+        usedSessions,
+      };
       currentAppointment.session_number = nextSessionNumber;
 
       if (completed && !wasAttended && willAttend) {
@@ -189,10 +185,41 @@ export async function POST(request: Request) {
     .eq("id", appointmentId);
 
   if (updateError) {
+    console.error("appointment status update failed", updateError);
+
+    // P0001 = raise exception de nuestros triggers, con mensaje ya pensado
+    // para el usuario (horario reservado, cuenta en solo lectura, etc.).
     return NextResponse.json(
-      { error: "No pudimos actualizar el turno." },
-      { status: 500 },
+      {
+        error:
+          updateError.code === "P0001" && updateError.message
+            ? updateError.message
+            : "No pudimos actualizar el turno.",
+      },
+      { status: updateError.code === "P0001" ? 409 : 500 },
     );
+  }
+
+  if (treatmentUpdate) {
+    const { error: treatmentError } = await admin
+      .from("treatments")
+      .update({
+        ended_at: treatmentUpdate.completed
+          ? new Date().toISOString().slice(0, 10)
+          : null,
+        status: treatmentUpdate.status,
+        used_sessions: treatmentUpdate.usedSessions,
+      })
+      .eq("id", treatmentUpdate.id)
+      .eq("workspace_id", currentAppointment.workspace_id);
+
+    if (treatmentError) {
+      console.error("appointment status treatment update failed", treatmentError);
+      return NextResponse.json(
+        { error: "Actualizamos el turno, pero no pudimos actualizar el tratamiento." },
+        { status: 500 },
+      );
+    }
   }
 
   return NextResponse.json({ ok: true, treatmentCompleted });
