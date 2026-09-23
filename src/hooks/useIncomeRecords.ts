@@ -8,6 +8,7 @@ import {
   paymentStatusLabels,
   type PaymentMethod,
   type PaymentStatus,
+  type PaymentType,
 } from "@/hooks/useAppointments";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { formatDate } from "@/lib/format";
@@ -26,6 +27,7 @@ export type IncomeRecord = {
   paymentMethodLabel: string;
   paymentStatus: PaymentStatus;
   paymentStatusLabel: string;
+  paymentType: PaymentType;
   scheduledAt: string;
   status: string;
   time: string;
@@ -37,7 +39,13 @@ export type IncomeSummary = {
   paidCount: number;
   pendingAmount: number;
   pendingCount: number;
+  /** Sesiones asistidas por obra social / ART: se facturan a la cobertura. */
+  toBillAmount: number;
+  toBillCount: number;
 };
+
+/** "to_bill" = sesiones asistidas por obra social / ART. */
+export type IncomePaymentFilter = PaymentStatus | "all" | "to_bill";
 
 export type UseIncomeRecordsOptions = {
   fromDate: string;
@@ -45,7 +53,7 @@ export type UseIncomeRecordsOptions = {
   pageSize: number;
   patientSearch: string;
   paymentMethod: PaymentMethod | "all";
-  paymentStatus: PaymentStatus | "all";
+  paymentStatus: IncomePaymentFilter;
   toDate: string;
 };
 
@@ -65,17 +73,27 @@ type IncomeAppointmentRow = {
   session_amount: number | null;
   payment_status: PaymentStatus | null;
   payment_method: PaymentMethod | null;
+  payment_type: PaymentType | null;
   paid_at: string | null;
   patients: { full_name: string } | Array<{ full_name: string }> | null;
 };
 
 type AmountRow = {
   payment_status: PaymentStatus | null;
+  payment_type: PaymentType | null;
   session_amount: number | null;
+  status: IncomeAppointmentRow["status"];
 };
+
+const ATTENDED_STATUSES = ["attended", "completed"];
+
+function isCoverage(paymentType: PaymentType | null) {
+  return paymentType === "OBRA_SOCIAL" || paymentType === "ART";
+}
 
 type FilterableIncomeQuery = {
   eq: (column: string, value: unknown) => FilterableIncomeQuery;
+  in: (column: string, values: unknown[]) => FilterableIncomeQuery;
   gte: (column: string, value: string) => FilterableIncomeQuery;
   ilike: (column: string, value: string) => FilterableIncomeQuery;
   lt: (column: string, value: string) => FilterableIncomeQuery;
@@ -87,6 +105,8 @@ const emptySummary: IncomeSummary = {
   paidCount: 0,
   pendingAmount: 0,
   pendingCount: 0,
+  toBillAmount: 0,
+  toBillCount: 0,
 };
 
 const modalityLabels: Record<IncomeAppointmentRow["modality"], string> = {
@@ -105,6 +125,8 @@ function mapIncomeRecord(row: IncomeAppointmentRow): IncomeRecord {
   const date = new Date(row.scheduled_at);
   const paymentStatus = row.payment_status ?? "pending";
   const paymentMethod = row.payment_method ?? "";
+  const paymentType = row.payment_type ?? "PARTICULAR";
+  const coverageLabel = paymentType === "ART" ? "ART" : "Obra social";
 
   return {
     amount: Number(row.session_amount ?? 0),
@@ -117,7 +139,12 @@ function mapIncomeRecord(row: IncomeAppointmentRow): IncomeRecord {
     paymentMethod,
     paymentMethodLabel: paymentMethod ? paymentMethodLabels[paymentMethod] : "Sin medio",
     paymentStatus,
-    paymentStatusLabel: paymentStatusLabels[paymentStatus],
+    paymentStatusLabel: isCoverage(paymentType)
+      ? ATTENDED_STATUSES.includes(row.status)
+        ? `A facturar · ${coverageLabel}`
+        : coverageLabel
+      : paymentStatusLabels[paymentStatus],
+    paymentType,
     scheduledAt: row.scheduled_at,
     status: appointmentStatusLabels[row.status],
     time: date.toLocaleTimeString("es-AR", {
@@ -144,7 +171,7 @@ function applyFilters<T>(
     fromDate: string;
     patientSearch: string;
     paymentMethod: PaymentMethod | "all";
-    paymentStatus: PaymentStatus | "all";
+    paymentStatus: IncomePaymentFilter;
     toDate: string;
     userId: string;
     workspaceId: string;
@@ -167,7 +194,16 @@ function applyFilters<T>(
     scopedQuery = scopedQuery.lt("scheduled_at", toExclusiveEndOfDayIso(params.toDate));
   }
 
-  if (params.paymentStatus !== "all") {
+  if (params.paymentStatus === "to_bill") {
+    scopedQuery = scopedQuery
+      .in("payment_type", ["OBRA_SOCIAL", "ART"])
+      .in("status", ATTENDED_STATUSES);
+  } else if (params.paymentStatus === "pending") {
+    // Pendiente de cobro al paciente: solo turnos particulares.
+    scopedQuery = scopedQuery
+      .eq("payment_status", "pending")
+      .eq("payment_type", "PARTICULAR");
+  } else if (params.paymentStatus !== "all") {
     scopedQuery = scopedQuery.eq("payment_status", params.paymentStatus);
   }
 
@@ -192,7 +228,16 @@ function applyFilters<T>(
 function getSummary(rows: AmountRow[]): IncomeSummary {
   const paidRows = rows.filter((row) => row.payment_status === "paid");
   const pendingRows = rows.filter(
-    (row) => row.payment_status === "pending" && Number(row.session_amount ?? 0) > 0,
+    (row) =>
+      row.payment_status === "pending" &&
+      !isCoverage(row.payment_type) &&
+      Number(row.session_amount ?? 0) > 0,
+  );
+  const toBillRows = rows.filter(
+    (row) =>
+      isCoverage(row.payment_type) &&
+      row.payment_status !== "paid" &&
+      ATTENDED_STATUSES.includes(row.status),
   );
   const paidAmount = paidRows.reduce(
     (total, row) => total + Number(row.session_amount ?? 0),
@@ -209,6 +254,11 @@ function getSummary(rows: AmountRow[]): IncomeSummary {
     paidCount: paidRows.length,
     pendingAmount,
     pendingCount: pendingRows.length,
+    toBillAmount: toBillRows.reduce(
+      (total, row) => total + Number(row.session_amount ?? 0),
+      0,
+    ),
+    toBillCount: toBillRows.length,
   };
 }
 
@@ -265,7 +315,7 @@ export function useIncomeRecords(options: UseIncomeRecordsOptions) {
           supabase
             .from("appointments")
             .select(
-              "id, patient_id, scheduled_at, modality, status, session_amount, payment_status, payment_method, paid_at, patients!inner(full_name)",
+              "id, patient_id, scheduled_at, modality, status, session_amount, payment_status, payment_method, payment_type, paid_at, patients!inner(full_name)",
               { count: "exact" },
             )
             .order("scheduled_at", { ascending: false })
@@ -275,7 +325,7 @@ export function useIncomeRecords(options: UseIncomeRecordsOptions) {
         let summaryQuery = applyFilters(
           supabase
             .from("appointments")
-            .select("session_amount, payment_status, patients!inner(full_name)"),
+            .select("session_amount, payment_status, payment_type, status, patients!inner(full_name)"),
           filterParams,
         );
 

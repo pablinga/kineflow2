@@ -16,10 +16,25 @@ export function getPaymentDate(appointment: Appointment) {
     : new Date(appointment.scheduledAt);
 }
 
+// Solo los turnos particulares los cobra el paciente; los de obra social o
+// ART no piden cobro ni ofrecen "Registrar cobro".
+export function isPatientPaidAppointment(appointment: {
+  paymentType?: Appointment["paymentType"] | null;
+}) {
+  return (appointment.paymentType ?? "PARTICULAR") === "PARTICULAR";
+}
+
+export function getCoverageLabel(appointment: {
+  paymentType?: Appointment["paymentType"] | null;
+}) {
+  return appointment.paymentType === "ART" ? "ART" : "Obra social";
+}
+
 export function isAttendedPendingPayment(appointment: Appointment) {
   return (
     appointment.status === "Asistió" &&
     appointment.paymentStatus === "pending" &&
-    appointment.amount > 0
+    appointment.amount > 0 &&
+    isPatientPaidAppointment(appointment)
   );
 }

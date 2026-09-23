@@ -13,7 +13,12 @@ import {
   appointmentStatusStyles,
   getAppointmentDisplayStatus,
 } from "@/lib/appointment-ui";
-import { formatCurrency, paymentStatusStyles } from "@/lib/payment-ui";
+import {
+  formatCurrency,
+  getCoverageLabel,
+  isPatientPaidAppointment,
+  paymentStatusStyles,
+} from "@/lib/payment-ui";
 
 const INITIAL_VISIBLE = 10;
 
@@ -128,6 +133,8 @@ export function PatientAppointmentHistory({
             const cancelled = appointment.status === "Cancelado";
             const future = isFuture(appointment);
             const isPaid = appointment.paymentStatus === "paid";
+            // Obra social / ART: no lo cobra el paciente.
+            const patientPays = isPatientPaidAppointment(appointment);
 
             return (
               <article
@@ -164,7 +171,11 @@ export function PatientAppointmentHistory({
                     >
                       {status}
                     </span>
-                    {clinicAppointment || cancelled ? null : (
+                    {clinicAppointment || cancelled ? null : !patientPays ? (
+                      <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-800 ring-1 ring-sky-200">
+                        {getCoverageLabel(appointment)}
+                      </span>
+                    ) : (
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                           paymentStatusStyles[appointment.paymentStatusLabel] ??
@@ -216,7 +227,7 @@ export function PatientAppointmentHistory({
                       <XCircle className="h-3.5 w-3.5" />
                       No asistió
                     </button>
-                    {clinicAppointment ? null : isPaid ? (
+                    {clinicAppointment || !patientPays ? null : isPaid ? (
                       <button
                         className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                         disabled={busy || blocked}

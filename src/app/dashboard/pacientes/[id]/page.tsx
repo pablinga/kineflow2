@@ -34,7 +34,7 @@ import {
 import {
   getAppointmentDisplayStatus,
 } from "@/lib/appointment-ui";
-import { formatCurrency } from "@/lib/payment-ui";
+import { formatCurrency, isPatientPaidAppointment } from "@/lib/payment-ui";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
@@ -159,8 +159,14 @@ function PatientDetailPageContent() {
   const totalPaid = appointments
     .filter((appointment) => appointment.paymentStatus === "paid")
     .reduce((total, appointment) => total + appointment.amount, 0);
+  // Lo que debe el paciente: los turnos de obra social / ART no se le cobran.
   const totalPending = appointments
-    .filter((appointment) => appointment.paymentStatus === "pending")
+    .filter(
+      (appointment) =>
+        appointment.paymentStatus === "pending" &&
+        appointment.status !== "Cancelado" &&
+        isPatientPaidAppointment(appointment),
+    )
     .reduce((total, appointment) => total + appointment.amount, 0);
   const lastPaidAppointment = [...appointments]
     .filter((appointment) => appointment.paymentStatus === "paid")
