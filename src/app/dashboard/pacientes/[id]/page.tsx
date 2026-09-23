@@ -21,7 +21,6 @@ import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PatientEvolutionCharts } from "@/components/patients/PatientEvolutionCharts";
 import { TreatmentAttachmentsInput } from "@/components/treatments/TreatmentAttachmentsInput";
-import { TreatmentDocumentation } from "@/components/treatments/TreatmentDocumentation";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { type Appointment, useAppointments } from "@/hooks/useAppointments";
 import { useEvolutions, type NewEvolutionInput } from "@/hooks/useEvolutions";
@@ -36,12 +35,12 @@ import {
   getAppointmentDisplayStatus,
 } from "@/lib/appointment-ui";
 import { formatCurrency } from "@/lib/payment-ui";
-import { formatSessionAmount } from "@/lib/format";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { PatientAppointmentHistory } from "@/components/patients/PatientAppointmentHistory";
+import { TreatmentList } from "@/components/treatments/TreatmentList";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import {
@@ -76,20 +75,6 @@ function createEmptyTreatment(patientId: string): NewTreatmentInput {
     totalSessions: 10,
   };
 }
-
-const treatmentStatusStyles: Record<TreatmentStatus, string> = {
-  ABANDONADO: "bg-slate-100 text-slate-700",
-  EN_CURSO: "bg-emerald-50 text-emerald-700",
-  FINALIZADO: "bg-sky-50 text-sky-700",
-  PAUSADO: "bg-amber-50 text-amber-700",
-};
-
-const treatmentStatusLabels: Record<TreatmentStatus, string> = {
-  ABANDONADO: "Abandonado",
-  EN_CURSO: "En curso",
-  FINALIZADO: "Finalizado",
-  PAUSADO: "Pausado",
-};
 
 function PatientDetailPageContent() {
   const params = useParams<{ id: string }>();
@@ -148,7 +133,6 @@ function PatientDetailPageContent() {
   const [assignmentActionError, setAssignmentActionError] = useState("");
   const [assignmentUpdatingId, setAssignmentUpdatingId] = useState("");
   const [evolutionModalOpen, setEvolutionModalOpen] = useState(false);
-  const [expandedTreatmentId, setExpandedTreatmentId] = useState("");
   const [treatment, setTreatment] = useState<NewTreatmentInput>(() =>
     createEmptyTreatment(patientId),
   );
@@ -185,10 +169,10 @@ function PatientDetailPageContent() {
         new Date(right.paidAt ?? right.scheduledAt).getTime() -
         new Date(left.paidAt ?? left.scheduledAt).getTime(),
     )[0];
-  const evolutionByAppointment = new Map(
+  const evolutionDateByAppointment = new Map(
     evolutions
       .filter((item) => item.appointmentId)
-      .map((item) => [item.appointmentId, item]),
+      .map((item) => [item.appointmentId as string, item.date]),
   );
 
   useEffect(() => {
@@ -275,19 +259,9 @@ function PatientDetailPageContent() {
     "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes.";
   const writeBlockMessage = isReadOnly ? readOnlyMessage : patientLimitBlock;
   const activeTreatment =
-    treatments.find((item) => item.id === expandedTreatmentId) ??
     treatments.find((item) => item.status === "EN_CURSO") ??
     treatments[0] ??
     null;
-  const activeTreatmentProgress = activeTreatment?.totalSessions
-    ? Math.min(
-        100,
-        (activeTreatment.usedSessions / activeTreatment.totalSessions) * 100,
-      )
-    : 0;
-  const activeTreatmentPending = activeTreatment
-    ? Math.max(activeTreatment.totalSessions - activeTreatment.usedSessions, 0)
-    : 0;
   const lastVisit = [...attendedAppointments].sort(
     (left, right) =>
       new Date(right.scheduledAt).getTime() -
@@ -933,227 +907,15 @@ function PatientDetailPageContent() {
                         <span className="hidden sm:inline">Nuevo tratamiento</span>
                       </button>
                     </div>
-                    {activeTreatment ? (
-                      <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold uppercase text-emerald-700">
-                              Tratamiento activo
-                            </p>
-                            <p className="mt-1 truncate text-lg font-bold text-ink">
-                              {activeTreatment.diagnosis}
-                            </p>
-                            <p className="mt-1 text-sm text-emerald-800">
-                              {activeTreatment.bodyRegion || "Sin región"}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
-                              {treatmentStatusLabels[activeTreatment.status]}
-                            </span>
-                            <details className="relative">
-                              <summary className="inline-flex min-h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600">
-                                ...
-                              </summary>
-                              <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
-                                <button
-                                  className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-amber-700 hover:bg-amber-50"
-                                  onClick={() =>
-                                    handleTreatmentStatus(
-                                      activeTreatment.id,
-                                      "PAUSADO",
-                                    )
-                                  }
-                                  type="button"
-                                >
-                                  Pausar
-                                </button>
-                                <button
-                                  className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-sky-700 hover:bg-sky-50"
-                                  onClick={() =>
-                                    handleTreatmentStatus(
-                                      activeTreatment.id,
-                                      "FINALIZADO",
-                                    )
-                                  }
-                                  type="button"
-                                >
-                                  Finalizar
-                                </button>
-                                <button
-                                  className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                                  onClick={() =>
-                                    handleTreatmentStatus(
-                                      activeTreatment.id,
-                                      "ABANDONADO",
-                                    )
-                                  }
-                                  type="button"
-                                >
-                                  Marcar como abandonado
-                                </button>
-                              </div>
-                            </details>
-                          </div>
-                        </div>
-                        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                          <div className="rounded-lg bg-white p-2">
-                            <p className="text-lg font-bold text-ink">
-                              {activeTreatment.usedSessions}
-                            </p>
-                            <p className="text-xs font-semibold text-slate-500">
-                              Realizadas
-                            </p>
-                          </div>
-                          <div className="rounded-lg bg-white p-2">
-                            <p className="text-lg font-bold text-ink">
-                              {activeTreatmentPending}
-                            </p>
-                            <p className="text-xs font-semibold text-slate-500">
-                              Pendientes
-                            </p>
-                          </div>
-                          <div className="rounded-lg bg-white p-2">
-                            <p className="text-lg font-bold text-ink">
-                              {activeTreatment.totalSessions}
-                            </p>
-                            <p className="text-xs font-semibold text-slate-500">
-                              Totales
-                            </p>
-                          </div>
-                        </div>
-                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
-                          <div
-                            className="h-full rounded-full bg-emerald-600"
-                            style={{ width: `${activeTreatmentProgress}%` }}
-                          />
-                        </div>
-                        <TreatmentDocumentation
-                          patientId={patientId}
-                          treatmentId={activeTreatment.id}
-                        />
-                      </div>
-                    ) : null}
-                    <div className="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
-                      {treatments
-                        .filter((item) => item.id !== activeTreatment?.id)
-                        .map((item) => {
-                          const treatmentAppointments = appointments.filter(
-                            (appointment) => appointment.treatmentId === item.id,
-                          );
-                          const progress =
-                            item.totalSessions > 0
-                              ? Math.min(100, (item.usedSessions / item.totalSessions) * 100)
-                              : 0;
-                          const expanded = expandedTreatmentId === item.id;
-
-                          return (
-                            <article
-                              className="rounded-lg border border-ocean-100 p-3 sm:p-4"
-                              key={item.id}
-                            >
-                            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-                              <div>
-                                <p className="font-bold text-ink">{item.diagnosis}</p>
-                                <p className="mt-1 text-sm text-slate-500">
-                                  {item.bodyRegion || "Sin región"} · Inicio {item.startedAt}
-                                </p>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                <span
-                                  className={`rounded-full px-3 py-1 text-sm font-semibold ${treatmentStatusStyles[item.status]}`}
-                                >
-                                  {treatmentStatusLabels[item.status]}
-                                </span>
-                                <details className="relative">
-                                  <summary className="inline-flex min-h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 text-slate-600">
-                                    ...
-                                  </summary>
-                                  <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-ocean-100 bg-white p-2 shadow-soft">
-                                    <button className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50" type="button">
-                                      Editar
-                                    </button>
-                                    <button className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-amber-700 hover:bg-amber-50" onClick={() => handleTreatmentStatus(item.id, "PAUSADO")} type="button">
-                                      Pausar
-                                    </button>
-                                    <button className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-sky-700 hover:bg-sky-50" onClick={() => handleTreatmentStatus(item.id, "FINALIZADO")} type="button">
-                                      Finalizar
-                                    </button>
-                                    <button className="flex w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => handleTreatmentStatus(item.id, "ABANDONADO")} type="button">
-                                      Marcar como abandonado
-                                    </button>
-                                  </div>
-                                </details>
-                              </div>
-                            </div>
-                            <div className="mt-3 sm:mt-4">
-                              <div className="flex items-center justify-between text-sm font-semibold text-slate-600">
-                                <span>
-                                  {item.usedSessions} realizadas ·{" "}
-                                  {Math.max(item.totalSessions - item.usedSessions, 0)} pendientes ·{" "}
-                                  {item.totalSessions} totales
-                                </span>
-                                <button
-                                  className="text-ocean-700 underline-offset-4 hover:underline"
-                                  onClick={() =>
-                                    setExpandedTreatmentId(expanded ? "" : item.id)
-                                  }
-                                  type="button"
-                                >
-                                  Ver sesiones
-                                </button>
-                              </div>
-                              <div className="mt-2 h-2 overflow-hidden rounded-full bg-ocean-50">
-                                <div
-                                  className="h-full rounded-full bg-ocean-600"
-                                  style={{ width: `${progress}%` }}
-                                />
-                              </div>
-                            </div>
-                            {expanded ? (
-                              <div className="mt-4 space-y-2">
-                                {treatmentAppointments.length === 0 ? (
-                                  <p className="rounded-lg border border-dashed border-ocean-100 p-3 text-sm text-slate-500">
-                                    Sin sesiones asociadas.
-                                  </p>
-                                ) : (
-                                  treatmentAppointments.map((appointment) => {
-                                    const linkedEvolution = evolutionByAppointment.get(appointment.id);
-
-                                    return (
-                                      <div
-                                        className="grid gap-2 rounded-lg bg-ocean-50 p-3 text-sm md:grid-cols-[4rem_1fr_1fr_1fr]"
-                                        key={appointment.id}
-                                      >
-                                        <p className="font-bold text-ocean-800">
-                                          #{appointment.sessionNumber ?? "-"}
-                                        </p>
-                                        <p>{appointment.date} · {appointment.time}</p>
-                                        <p>{getAppointmentDisplayStatus(appointment)} · {appointment.paymentStatusLabel} · {formatSessionAmount(appointment.amount)}</p>
-                                        <p className="text-ocean-700">
-                                          {linkedEvolution ? `Evolución ${linkedEvolution.date}` : "Sin evolución"}
-                                        </p>
-                                      </div>
-                                    );
-                                  })
-                                )}
-                                <TreatmentDocumentation
-                                  patientId={patientId}
-                                  treatmentId={item.id}
-                                />
-                              </div>
-                            ) : null}
-                            </article>
-                          );
-                        })}
-                      {treatments.length === 0 ? (
-                        <div className="rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-6 text-center">
-                          <p className="font-semibold text-ink">
-                            Este paciente todavía no tiene tratamientos.
-                          </p>
-                        </div>
-                      ) : null}
-                    </div>
+                    <TreatmentList
+                      appointments={appointments}
+                      evolutionDateByAppointment={evolutionDateByAppointment}
+                      isReadOnly={isReadOnly}
+                      onStatusChange={handleTreatmentStatus}
+                      patientId={patientId}
+                      readOnlyMessage={readOnlyMessage}
+                      treatments={treatments}
+                    />
                   </section>
                 </aside>
 
