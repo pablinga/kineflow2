@@ -762,6 +762,33 @@ export function useAppointments(
     await loadAppointments();
   }
 
+  // Deshace un cobro registrado: el turno vuelve a quedar pendiente de pago.
+  async function markAppointmentUnpaid(id: string) {
+    const currentAppointment = appointments.find(
+      (appointment) => appointment.id === id,
+    );
+
+    if (!currentAppointment?.workspaceId) {
+      throw new Error("No encontramos el turno.");
+    }
+
+    const { error: updateError } = await getSupabaseClient()
+      .from("appointments")
+      .update({
+        paid_at: null,
+        payment_method: null,
+        payment_status: "pending",
+      })
+      .eq("id", id)
+      .eq("workspace_id", currentAppointment.workspaceId);
+
+    if (updateError) {
+      throw new Error(mapSupabaseError(updateError));
+    }
+
+    await loadAppointments();
+  }
+
   async function saveAppointmentSignature(
     appointment: Appointment,
     signatureBlob: Blob,
@@ -816,6 +843,7 @@ export function useAppointments(
     refreshAppointments: loadAppointments,
     saveAppointmentSignature,
     updateAppointmentStatus,
+    markAppointmentUnpaid,
     updateAppointmentPayment,
   };
 }
