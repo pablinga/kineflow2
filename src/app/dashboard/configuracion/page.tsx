@@ -456,31 +456,31 @@ export default function WorkspaceSettingsPage() {
                   />
                 </label>
               </div>
-              {activeWorkspace?.type === "CLINICA" ? (
-                <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">
-                    Turnos simultáneos por profesional
-                  </span>
-                  <input
-                    className="mt-2 min-h-11 w-full max-w-xs rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
-                    disabled={!canEdit}
-                    min={1}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        maxSimultaneousAppointments: event.target.value,
-                      }))
-                    }
-                    type="number"
-                    value={form.maxSimultaneousAppointments}
-                  />
-                  <p className="mt-1 text-xs text-slate-500">
-                    Cuántos pacientes puede atender un mismo profesional en el
-                    mismo horario (ej: sala de rehabilitación). Dejalo en 1 si
-                    cada profesional atiende de a un paciente por vez.
-                  </p>
-                </label>
-              ) : null}
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">
+                  {activeWorkspace?.type === "CLINICA"
+                    ? "Turnos simultáneos por profesional"
+                    : "Turnos simultáneos"}
+                </span>
+                <input
+                  className="mt-2 min-h-11 w-full max-w-xs rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
+                  disabled={!canEdit}
+                  min={1}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      maxSimultaneousAppointments: event.target.value,
+                    }))
+                  }
+                  type="number"
+                  value={form.maxSimultaneousAppointments}
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  {activeWorkspace?.type === "CLINICA"
+                    ? "Cuántos pacientes puede atender un mismo profesional en el mismo horario (ej: sala de rehabilitación). Dejalo en 1 si cada profesional atiende de a un paciente por vez."
+                    : "Cuántos pacientes podés atender en el mismo horario (ej: gimnasio terapéutico). Dejalo en 1 si atendés de a un paciente por vez."}
+                </p>
+              </label>
             </div>
           </section>
 

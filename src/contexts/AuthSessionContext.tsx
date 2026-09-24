@@ -51,6 +51,7 @@ type WorkspaceRow = {
   type: WorkspaceType;
   default_session_price: number | null;
   default_session_duration_minutes: number | null;
+  max_simultaneous_appointments: number | null;
 };
 
 type MembershipRow = {
@@ -360,7 +361,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         supabase
           .from("workspaces")
           .select(
-            "id, name, type, source_clinic_id, owner_id, default_session_price, default_session_duration_minutes",
+            "id, name, type, source_clinic_id, owner_id, default_session_price, default_session_duration_minutes, max_simultaneous_appointments",
           )
           .order("type", { ascending: false })
           .order("created_at", { ascending: true }),
@@ -412,7 +413,7 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           supabase
             .from("workspaces")
             .select(
-              "id, name, type, source_clinic_id, owner_id, default_session_price, default_session_duration_minutes",
+              "id, name, type, source_clinic_id, owner_id, default_session_price, default_session_duration_minutes, max_simultaneous_appointments",
             )
             .order("type", { ascending: false })
             .order("created_at", { ascending: true }),
@@ -449,6 +450,8 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
           defaultSessionPrice: workspace.default_session_price,
           defaultSessionDurationMinutes:
             workspace.default_session_duration_minutes,
+          maxSimultaneousAppointments:
+            workspace.max_simultaneous_appointments ?? 1,
         }))
         .sort((left, right) => {
           if (left.type !== right.type) {

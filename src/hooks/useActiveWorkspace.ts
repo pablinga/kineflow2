@@ -17,6 +17,8 @@ export type ActiveWorkspace = {
   ownerId: string | null;
   defaultSessionPrice: number | null;
   defaultSessionDurationMinutes: number | null;
+  /** Cupo de turnos simultáneos por profesional (workspaces.max_simultaneous_appointments). */
+  maxSimultaneousAppointments: number;
 };
 
 type WorkspaceRow = {
@@ -27,6 +29,7 @@ type WorkspaceRow = {
   owner_id: string | null;
   default_session_price: number | null;
   default_session_duration_minutes: number | null;
+  max_simultaneous_appointments: number | null;
 };
 
 type MembershipRow = {
@@ -127,7 +130,7 @@ export function useActiveWorkspace() {
       const { data: workspaceData, error: workspaceError } = await supabase
         .from("workspaces")
         .select(
-          "id, name, type, source_clinic_id, owner_id, default_session_price, default_session_duration_minutes",
+          "id, name, type, source_clinic_id, owner_id, default_session_price, default_session_duration_minutes, max_simultaneous_appointments",
         )
         .order("type", { ascending: false })
         .order("created_at", { ascending: true });
@@ -183,6 +186,8 @@ export function useActiveWorkspace() {
           defaultSessionPrice: workspace.default_session_price,
           defaultSessionDurationMinutes:
             workspace.default_session_duration_minutes,
+          maxSimultaneousAppointments:
+            workspace.max_simultaneous_appointments ?? 1,
         }))
         .sort((left, right) => {
           if (left.type !== right.type) {
