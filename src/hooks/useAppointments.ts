@@ -15,6 +15,7 @@ import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export type Appointment = {
   id: string;
+  ownerId: string;
   workspaceId: string | null;
   patientId: string;
   scheduledAt: string;
@@ -100,6 +101,7 @@ export type AppointmentPaymentInput = {
 
 type AppointmentRow = {
   id: string;
+  owner_id: string;
   workspace_id: string | null;
   patient_id: string;
   scheduled_at: string;
@@ -199,6 +201,7 @@ function mapAppointment(row: AppointmentRow): Appointment {
 
   return {
     id: row.id,
+    ownerId: row.owner_id,
     workspaceId: row.workspace_id,
     patientId: row.patient_id,
     scheduledAt: row.scheduled_at,
@@ -309,49 +312,110 @@ function getConflictMessage(conflict: Appointment) {
   return `Hay otro turno asignado de ${range}.`;
 }
 
-function findAppointmentConflict(
+export type AppointmentConflict =
+  /** Superposición en el mismo workspace dentro del cupo (o sin superposición). */
+  | { capacity: number; kind: "none"; simultaneousCount: number }
+  /** Ya hay `count` turnos superpuestos en el mismo workspace y se alcanzó el cupo. */
+  | { appointment: Appointment; capacity: number; count: number; kind: "capacity" }
+  /** Se superpone con un turno de otro workspace: siempre se rechaza. */
+  | { appointment: Appointment; kind: "other_workspace" };
+
+/**
+ * Misma regla que el trigger validate_appointment_schedule: solo cuentan los
+ * turnos del mismo profesional (owner). En el mismo workspace se permiten
+ * hasta el cupo (max_simultaneous_appointments); en otro workspace, nunca.
+ */
+export function evaluateAppointmentConflict(
   appointments: Appointment[],
   params: {
+    capacityByWorkspace: Map<string, number>;
     durationMinutes: number;
     ignoreAppointmentId?: string;
+    ownerId: string;
     scheduledAt: string;
+    workspaceId: string | null;
   },
-) {
-  const start = new Date(params.scheduledAt);
-  const startTime = start.getTime();
+): AppointmentConflict {
+  const startTime = new Date(params.scheduledAt).getTime();
   const endTime = startTime + params.durationMinutes * 60 * 1000;
-
-  return appointments.find((appointment) => {
-    if (appointment.id === params.ignoreAppointmentId) {
-      return false;
-    }
-
-    if (appointment.status === "Cancelado") {
-      return false;
-    }
-
-    return overlaps(
-      startTime,
-      endTime,
-      new Date(appointment.scheduledAt).getTime(),
-      getAppointmentEnd(appointment),
+  const capacity = Math.max(
+    1,
+    (params.workspaceId && params.capacityByWorkspace.get(params.workspaceId)) || 1,
+  );
+  const overlapping = appointments
+    .filter(
+      (appointment) =>
+        appointment.id !== params.ignoreAppointmentId &&
+        appointment.status !== "Cancelado" &&
+        appointment.ownerId === params.ownerId &&
+        overlaps(
+          startTime,
+          endTime,
+          new Date(appointment.scheduledAt).getTime(),
+          getAppointmentEnd(appointment),
+        ),
+    )
+    .sort(
+      (left, right) =>
+        new Date(left.scheduledAt).getTime() - new Date(right.scheduledAt).getTime(),
     );
-  });
+  const sameWorkspace = overlapping.filter(
+    (appointment) => appointment.workspaceId === params.workspaceId,
+  );
+  const otherWorkspace = overlapping.find(
+    (appointment) => appointment.workspaceId !== params.workspaceId,
+  );
+
+  // Mismo orden que el trigger: primero el cupo, después otro workspace.
+  if (sameWorkspace.length >= capacity) {
+    return {
+      appointment: sameWorkspace[0],
+      capacity,
+      count: sameWorkspace.length,
+      kind: "capacity",
+    };
+  }
+
+  if (otherWorkspace) {
+    return { appointment: otherWorkspace, kind: "other_workspace" };
+  }
+
+  return { capacity, kind: "none", simultaneousCount: sameWorkspace.length };
 }
 
-function markAppointmentConflicts(appointments: Appointment[]) {
-  return appointments.map((appointment) => {
-    const conflict = findAppointmentConflict(appointments, {
-      durationMinutes: appointment.durationMinutes,
-      ignoreAppointmentId: appointment.id,
-      scheduledAt: appointment.scheduledAt,
-    });
+function getConflictWarning(conflict: AppointmentConflict) {
+  return conflict.kind === "none" ? null : getConflictMessage(conflict.appointment);
+}
 
-    return {
-      ...appointment,
-      conflictWarning: conflict ? getConflictMessage(conflict) : null,
-    };
-  });
+function markAppointmentConflicts(
+  appointments: Appointment[],
+  capacityByWorkspace: Map<string, number>,
+) {
+  return appointments.map((appointment) => ({
+    ...appointment,
+    conflictWarning: getConflictWarning(
+      evaluateAppointmentConflict(appointments, {
+        capacityByWorkspace,
+        durationMinutes: appointment.durationMinutes,
+        ignoreAppointmentId: appointment.id,
+        ownerId: appointment.ownerId,
+        scheduledAt: appointment.scheduledAt,
+        workspaceId: appointment.workspaceId,
+      }),
+    ),
+  }));
+}
+
+/** Cupo de turnos simultáneos por workspace; 1 si no hay dato. */
+export function getWorkspaceCapacityMap(
+  workspaces: Array<{ id: string; maxSimultaneousAppointments?: number | null }>,
+) {
+  return new Map(
+    workspaces.map((workspace) => [
+      workspace.id,
+      workspace.maxSimultaneousAppointments ?? 1,
+    ]),
+  );
 }
 
 export function useAppointments(
@@ -373,6 +437,9 @@ export function useAppointments(
   const [error, setError] = useState("");
   const unified = options.unified ?? false;
   const workspaceIdsKey = workspaces.map((workspace) => workspace.id).join(",");
+  const workspaceCapacityKey = workspaces
+    .map((workspace) => `${workspace.id}:${workspace.maxSimultaneousAppointments ?? 1}`)
+    .join(",");
 
   const loadAppointments = useCallback(async (signal?: AbortSignal) => {
     if (!activeWorkspaceLoaded) {
@@ -392,7 +459,7 @@ export function useAppointments(
       let query = supabase
         .from("appointments")
         .select(
-          "id, workspace_id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, insurance_provider_id, insurance_member_number, art_provider_id, payment_type, payment_status, payment_method, paid_at, payment_notes, signature_path, signed_at, patients(full_name), clinics(name, color), clinic_professionals(color, profiles(full_name)), workspaces(color)",
+          "id, owner_id, workspace_id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, insurance_provider_id, insurance_member_number, art_provider_id, payment_type, payment_status, payment_method, paid_at, payment_notes, signature_path, signed_at, patients(full_name), clinics(name, color), clinic_professionals(color, profiles(full_name)), workspaces(color)",
         )
         .order("scheduled_at", { ascending: true });
 
@@ -451,6 +518,14 @@ export function useAppointments(
       setAppointments(
         markAppointmentConflicts(
           ((data ?? []) as unknown as AppointmentRow[]).map(mapAppointment),
+          getWorkspaceCapacityMap(
+            workspaceCapacityKey
+              ? workspaceCapacityKey.split(",").map((entry) => {
+                  const [id, capacity] = entry.split(":");
+                  return { id, maxSimultaneousAppointments: Number(capacity) };
+                })
+              : [],
+          ),
         ),
       );
     } catch (loadError) {
@@ -475,6 +550,7 @@ export function useAppointments(
     patientId,
     unified,
     user,
+    workspaceCapacityKey,
     workspaceIdsKey,
   ]);
 
@@ -491,21 +567,29 @@ export function useAppointments(
   async function validateAppointmentSlot({
     durationMinutes,
     ignoreAppointmentId,
+    ownerId,
     scheduledAt,
+    workspaceId,
   }: {
     durationMinutes: number;
     ignoreAppointmentId?: string;
+    ownerId: string;
     scheduledAt: string;
+    workspaceId: string | null;
   }) {
     const start = new Date(scheduledAt);
     const startTime = start.getTime();
     const endTime = startTime + durationMinutes * 60 * 1000;
-    const conflict = findAppointmentConflict(appointments, {
-      durationMinutes,
-      ignoreAppointmentId,
-      scheduledAt,
-    });
-    const conflictWarning = conflict ? getConflictMessage(conflict) : null;
+    const conflictWarning = getConflictWarning(
+      evaluateAppointmentConflict(appointments, {
+        capacityByWorkspace: getWorkspaceCapacityMap(workspaces),
+        durationMinutes,
+        ignoreAppointmentId,
+        ownerId,
+        scheduledAt,
+        workspaceId,
+      }),
+    );
 
     const weekday = start.getDay();
     const date = toLocalDateValue(start);
@@ -578,7 +662,9 @@ export function useAppointments(
     const scheduledAt = new Date(`${input.date}T${input.time}`).toISOString();
     await validateAppointmentSlot({
       durationMinutes: input.durationMinutes,
+      ownerId: sessionData.user.id,
       scheduledAt,
+      workspaceId: activeWorkspace.id,
     });
 
     const { error: insertError } = await supabase.from("appointments").insert({
@@ -682,7 +768,9 @@ export function useAppointments(
       await validateAppointmentSlot({
         durationMinutes: currentAppointment.durationMinutes,
         ignoreAppointmentId: id,
+        ownerId: currentAppointment.ownerId,
         scheduledAt,
+        workspaceId: currentAppointment.workspaceId,
       });
     }
 

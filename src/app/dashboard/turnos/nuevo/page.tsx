@@ -12,6 +12,8 @@ import {
   useAppointments,
   type NewAppointmentInput,
   type PaymentType,
+  evaluateAppointmentConflict,
+  getWorkspaceCapacityMap,
 } from "@/hooks/useAppointments";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useInsuranceProviders } from "@/hooks/useInsuranceProviders";
@@ -103,10 +105,19 @@ function professionalMatchesAvailability(
 export default function NewAppointmentPage() {
   const router = useRouter();
   const { accountType, authError, loading, redirecting, user } = useRequireAuth();
-  const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
+  const {
+    activeWorkspace,
+    loaded: workspaceLoaded,
+    workspaces,
+  } = useActiveWorkspace();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const { accessLevel, isReadOnly, loaded: accessLoaded } = useAccessLevel();
-  const { addAppointment, addClinicAppointment, appointments } = useAppointments();
+  const { addAppointment, addClinicAppointment, appointments } = useAppointments(
+    undefined,
+    // El kinesiólogo ve también sus turnos de clínica, para detectar choques
+    // con otro consultorio (la base los rechaza siempre).
+    { unified: accountType === "KINESIOLOGO" },
+  );
   const { activePatients, loaded } = usePatients();
   const [clinicProfessionals, setClinicProfessionals] = useState<
     ClinicProfessionalOption[]
@@ -349,19 +360,23 @@ export default function NewAppointmentPage() {
   const preselectedPatient = activePatients.find(
     (patient) => patient.id === patientFromUrl,
   );
-  const conflictingAppointment =
-    appointment.date && appointment.time
-      ? appointments.find((item) => {
-          if (item.status === "Cancelado") {
-            return false;
-          }
-
-          const start = new Date(`${appointment.date}T${appointment.time}`).getTime();
-          const end = start + appointment.durationMinutes * 60 * 1000;
-          const itemStart = new Date(item.scheduledAt).getTime();
-          const itemEnd = itemStart + item.durationMinutes * 60 * 1000;
-
-          return start < itemEnd && end > itemStart;
+  // Profesional al que se le asigna el turno: el cupo y los choques se
+  // cuentan por profesional, igual que el trigger de la base.
+  const conflictOwnerId = isClinicWorkspace
+    ? isClinicProfessional
+      ? user?.id
+      : clinicProfessionals.find(
+          (professional) => professional.id === selectedClinicProfessionalId,
+        )?.professional_id
+    : user?.id;
+  const appointmentConflict =
+    appointment.date && appointment.time && conflictOwnerId
+      ? evaluateAppointmentConflict(appointments, {
+          capacityByWorkspace: getWorkspaceCapacityMap(workspaces),
+          durationMinutes: appointment.durationMinutes,
+          ownerId: conflictOwnerId,
+          scheduledAt: new Date(`${appointment.date}T${appointment.time}`).toISOString(),
+          workspaceId: activeWorkspace?.id ?? null,
         })
       : null;
 
@@ -905,11 +920,23 @@ export default function NewAppointmentPage() {
               />
             </label>
 
-            {conflictingAppointment ? (
+            {appointmentConflict?.kind === "capacity" ? (
               <p className="mt-4 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 sm:mt-5">
-                Ya existe un turno de {conflictingAppointment.patient} a las{" "}
-                {conflictingAppointment.time}. Podés guardar igualmente si la
-                superposición es intencional.
+                Ya tenés {appointmentConflict.count}{" "}
+                {appointmentConflict.count === 1 ? "turno" : "turnos"} en ese
+                horario y alcanzaste el cupo de turnos simultáneos.
+              </p>
+            ) : appointmentConflict?.kind === "other_workspace" ? (
+              <p className="mt-4 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 sm:mt-5">
+                Ese horario se superpone con un turno de{" "}
+                {appointmentConflict.appointment.patient} a las{" "}
+                {appointmentConflict.appointment.time} en otro consultorio.
+              </p>
+            ) : appointmentConflict?.kind === "none" &&
+              appointmentConflict.simultaneousCount > 0 ? (
+              <p className="mt-4 text-sm font-medium text-slate-500 sm:mt-5">
+                Turno simultáneo ({appointmentConflict.simultaneousCount + 1} de{" "}
+                {appointmentConflict.capacity})
               </p>
             ) : null}
 
@@ -941,11 +968,7 @@ export default function NewAppointmentPage() {
                 type="submit"
               >
                 <Save className="h-4 w-4" />
-                {saving
-                  ? "Guardando..."
-                  : conflictingAppointment
-                    ? "Guardar igual"
-                    : "Guardar turno"}
+                {saving ? "Guardando..." : "Guardar turno"}
               </button>
             </div>
           </form>
