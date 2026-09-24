@@ -106,6 +106,44 @@ export async function POST(request: Request) {
     );
   }
 
+  // El upsert de abajo pasaría una suscripción ACTIVE a PENDING_PAYMENT; si el
+  // usuario abandona el checkout, perdería el acceso pago (READ_ONLY).
+  let activeSubscriptionQuery = admin
+    .from("subscriptions")
+    .select("id")
+    .eq("account_id", user.id)
+    .eq("status", "ACTIVE");
+
+  activeSubscriptionQuery = workspaceId
+    ? activeSubscriptionQuery.eq("workspace_id", workspaceId)
+    : activeSubscriptionQuery.is("workspace_id", null);
+
+  const { data: activeSubscription, error: activeSubscriptionError } =
+    await activeSubscriptionQuery.limit(1).maybeSingle();
+
+  if (activeSubscriptionError) {
+    console.error("[billing:create-subscription] Active subscription lookup failed", {
+      accountId: user.id,
+      planId,
+      workspaceId,
+    });
+
+    return NextResponse.json(
+      { error: "No pudimos preparar la suscripcion para iniciar el checkout." },
+      { status: 500 },
+    );
+  }
+
+  if (activeSubscription) {
+    return NextResponse.json(
+      {
+        error:
+          "Ya tenés una suscripción activa para este plan. Si querés cambiarlo, primero cancelá la actual.",
+      },
+      { status: 409 },
+    );
+  }
+
   const pendingSubscriptionUpdatedAt = new Date().toISOString();
   const { error: pendingSubscriptionError } = await admin
     .from("subscriptions")

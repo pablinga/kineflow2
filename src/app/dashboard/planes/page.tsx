@@ -392,11 +392,13 @@ export default function PlansPage() {
                     <button
                       className={`mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition ${
                         isCurrent
-                          ? "border border-ocean-200 bg-white text-ocean-800"
+                          ? "border border-ocean-200 bg-white text-ocean-800 disabled:cursor-default"
                           : "bg-ocean-600 text-white shadow-soft hover:bg-ocean-700"
                       }`}
-                      disabled={checkoutLoading === item.id}
-                      onClick={() => handleCheckout(item.id)}
+                      disabled={isCurrent || checkoutLoading === item.id}
+                      onClick={() => {
+                        if (!isCurrent) handleCheckout(item.id);
+                      }}
                       type="button"
                     >
                       {isCurrent
