@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
-import { PatientEvolutionCharts } from "@/components/patients/PatientEvolutionCharts";
 import { TreatmentAttachmentsInput } from "@/components/treatments/TreatmentAttachmentsInput";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { type Appointment, useAppointments } from "@/hooks/useAppointments";
@@ -147,7 +146,6 @@ function PatientDetailPageContent() {
   const [canceling, setCanceling] = useState<Appointment | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
-  const [activeTab, setActiveTab] = useState<"resumen" | "graficos">("resumen");
 
   const patient = useMemo(
     () => patients.find((item) => item.id === patientId),
@@ -559,33 +557,7 @@ function PatientDetailPageContent() {
 
           {patient ? (
             <>
-              <div className="mb-4 flex gap-2 border-b border-ocean-100">
-                <button
-                  className={`min-h-11 px-4 text-sm font-semibold transition ${
-                    activeTab === "resumen"
-                      ? "border-b-2 border-ocean-600 text-ocean-800"
-                      : "text-slate-500 hover:text-ocean-700"
-                  }`}
-                  onClick={() => setActiveTab("resumen")}
-                  type="button"
-                >
-                  Resumen
-                </button>
-                <button
-                  className={`min-h-11 px-4 text-sm font-semibold transition ${
-                    activeTab === "graficos"
-                      ? "border-b-2 border-ocean-600 text-ocean-800"
-                      : "text-slate-500 hover:text-ocean-700"
-                  }`}
-                  onClick={() => setActiveTab("graficos")}
-                  type="button"
-                >
-                  Gráficos
-                </button>
-              </div>
-
-              {activeTab === "resumen" ? (
-                <>
+              <>
               <header className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:p-5">
                 <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
                   <div>
@@ -1027,13 +999,7 @@ function PatientDetailPageContent() {
                 readOnlyMessage={readOnlyMessage}
                 showProfessional={activeWorkspace?.type === "CLINICA"}
               />
-                </>
-              ) : (
-                <PatientEvolutionCharts
-                  appointments={appointments}
-                  evolutions={evolutions}
-                />
-              )}
+              </>
             </>
           ) : (
             <div className="rounded-lg border border-dashed border-ocean-200 bg-white p-8 text-center">
