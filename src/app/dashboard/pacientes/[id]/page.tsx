@@ -47,15 +47,14 @@ import {
   type TreatmentFileCategory,
 } from "@/lib/treatment-files";
 import { uploadTreatmentFiles } from "@/hooks/useTreatmentFiles";
-
-const today = new Date().toISOString().slice(0, 10);
+import { toArgentinaDateValue } from "@/lib/dates";
 
 function createEmptyEvolution(patientId: string): NewEvolutionInput {
   return {
     patientId,
     treatmentId: "",
     appointmentId: "",
-    sessionDate: today,
+    sessionDate: toArgentinaDateValue(),
     painLevel: 0,
     clinicalNotes: "",
     nextGoals: "",
@@ -68,7 +67,7 @@ function createEmptyTreatment(patientId: string): NewTreatmentInput {
     diagnosis: "",
     notes: "",
     patientId,
-    startedAt: today,
+    startedAt: toArgentinaDateValue(),
     totalSessions: 10,
   };
 }

@@ -49,6 +49,7 @@ import { ClinicEvolutionModal } from "@/components/turnos/ClinicEvolutionModal";
 import { getSupabaseClient } from "@/lib/supabase";
 import { CLINIC_PROFESSIONAL_STATUS } from "@/lib/clinic-professionals";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
+import { toArgentinaDateValue } from "@/lib/dates";
 
 type PendingAction = {
   appointment: Appointment;
@@ -843,7 +844,7 @@ export default function AppointmentsPage() {
     const scheduledAt = new Date(appointment.scheduledAt);
     setActionsAppointment(null);
     setRescheduling(appointment);
-    setRescheduleDate(scheduledAt.toISOString().slice(0, 10));
+    setRescheduleDate(toArgentinaDateValue(scheduledAt));
     setRescheduleTime(
       scheduledAt.toLocaleTimeString("es-AR", {
         hour: "2-digit",

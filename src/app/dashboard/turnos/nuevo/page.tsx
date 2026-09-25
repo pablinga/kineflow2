@@ -29,6 +29,7 @@ import {
   DEFAULT_SESSION_DURATION_MINUTES,
   DEFAULT_SESSION_PRICE,
 } from "@/lib/session-defaults";
+import { toArgentinaDateValue } from "@/lib/dates";
 
 type ClinicProfessionalOption = {
   id: string;
@@ -47,18 +48,18 @@ type ClinicProfessionalOption = {
     | null;
 };
 
-const today = new Date().toISOString().slice(0, 10);
-
-const emptyAppointment: NewAppointmentInput = {
+// Se arma al montar el formulario (no a nivel de módulo) para que "hoy" no
+// quede fijo desde que se cargó la página.
+const createEmptyAppointment = (): NewAppointmentInput => ({
   patientId: "",
-  date: today,
+  date: toArgentinaDateValue(),
   time: "",
   durationMinutes: DEFAULT_SESSION_DURATION_MINUTES,
   modality: "presencial",
   notes: "",
   sessionNumber: null,
   treatmentId: "",
-};
+});
 
 function parseTimeToMinutes(value: string) {
   const [hours = "0", minutes = "0"] = value.slice(0, 5).split(":");
@@ -126,7 +127,7 @@ export default function NewAppointmentPage() {
     useState("");
   const [patientFromUrl, setPatientFromUrl] = useState("");
   const [appointment, setAppointment] =
-    useState<NewAppointmentInput>(emptyAppointment);
+    useState<NewAppointmentInput>(createEmptyAppointment);
   const {
     activeTreatments,
     loaded: treatmentsLoaded,

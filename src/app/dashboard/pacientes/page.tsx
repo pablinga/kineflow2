@@ -32,6 +32,7 @@ import { canCreatePatient } from "@/lib/billing";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { getSupabaseClient } from "@/lib/supabase";
+import { toArgentinaDateValue } from "@/lib/dates";
 
 const emptyPatient: NewPatientInput = {
   assignedProfessionalId: "",
@@ -373,7 +374,7 @@ export default function PatientsPage() {
           ...initialTreatment,
           diagnosis: initialTreatment.diagnosis.trim(),
           patientId,
-          startedAt: new Date().toISOString().slice(0, 10),
+          startedAt: toArgentinaDateValue(),
         });
       }
 

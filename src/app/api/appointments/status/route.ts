@@ -3,6 +3,7 @@ import {
   getSupabaseAdminClient,
   getSupabaseServerClient,
 } from "@/lib/supabase-server";
+import { toArgentinaDateValue } from "@/lib/dates";
 
 type AppointmentStatus = "pending" | "attended" | "cancelled" | "no_show" | "rescheduled";
 
@@ -205,7 +206,7 @@ export async function POST(request: Request) {
       .from("treatments")
       .update({
         ended_at: treatmentUpdate.completed
-          ? new Date().toISOString().slice(0, 10)
+          ? toArgentinaDateValue()
           : null,
         status: treatmentUpdate.status,
         used_sessions: treatmentUpdate.usedSessions,
