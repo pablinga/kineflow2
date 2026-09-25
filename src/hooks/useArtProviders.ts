@@ -9,13 +9,26 @@ export type ArtProvider = {
   active: boolean;
   id: string;
   name: string;
+  /** Precio por sesión; null = sin precio cargado. */
+  sessionPrice: number | null;
 };
 
 type ArtProviderRow = {
   active: boolean;
   id: string;
   name: string;
+  session_price: number | string | null;
 };
+
+function mapArtProvider(row: ArtProviderRow): ArtProvider {
+  return {
+    active: row.active,
+    id: row.id,
+    name: row.name,
+    // numeric de Postgres puede llegar como string.
+    sessionPrice: row.session_price === null ? null : Number(row.session_price),
+  };
+}
 
 export function useArtProviders() {
   const { activeWorkspace, loaded: activeWorkspaceLoaded } = useActiveWorkspace();
@@ -40,7 +53,7 @@ export function useArtProviders() {
       const supabase = getSupabaseClient();
       const { data, error: queryError } = await supabase
         .from("art_providers")
-        .select("id, name, active")
+        .select("id, name, active, session_price")
         .eq("workspace_id", activeWorkspace.id)
         .order("name", { ascending: true });
 
@@ -48,7 +61,7 @@ export function useArtProviders() {
         throw new Error(mapSupabaseError(queryError));
       }
 
-      setProviders((data ?? []) as ArtProviderRow[]);
+      setProviders(((data ?? []) as ArtProviderRow[]).map(mapArtProvider));
     } catch (loadError) {
       setError(
         getFriendlyErrorMessage(
@@ -65,7 +78,7 @@ export function useArtProviders() {
     loadProviders();
   }, [loadProviders]);
 
-  async function addProvider(name: string) {
+  async function addProvider(name: string, sessionPrice: number | null = null) {
     const normalizedName = name.trim();
 
     if (!activeWorkspace?.id || !normalizedName) {
@@ -78,6 +91,7 @@ export function useArtProviders() {
       .insert({
         active: true,
         name: normalizedName,
+        session_price: sessionPrice,
         workspace_id: activeWorkspace.id,
       });
 
@@ -99,6 +113,9 @@ export function useArtProviders() {
       .update({
         ...(input.name !== undefined ? { name: input.name.trim() } : {}),
         ...(input.active !== undefined ? { active: input.active } : {}),
+        ...(input.sessionPrice !== undefined
+          ? { session_price: input.sessionPrice }
+          : {}),
       })
       .eq("workspace_id", activeWorkspace.id)
       .eq("id", id);

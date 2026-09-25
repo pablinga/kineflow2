@@ -21,6 +21,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PushNotificationsCard } from "@/components/dashboard/PushNotificationsCard";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
+import { formatCurrency } from "@/lib/format";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -72,6 +73,23 @@ function toFormState(settings: WorkspaceSettings | null): FormState {
     phone: settings.phone,
   };
 }
+
+// Precio por sesión de un prestador: vacío = sin precio (null); si no es un
+// número >= 0 devuelve undefined para mostrar el error.
+function parseProviderPrice(value: string): number | null | undefined {
+  const normalizedValue = value.trim().replace(",", ".");
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const price = Number(normalizedValue);
+
+  return Number.isFinite(price) && price >= 0 ? price : undefined;
+}
+
+const invalidProviderPriceMessage =
+  "Ingresá un precio por sesión válido (0 o más), o dejalo vacío.";
 
 function toNullableNumber(value: string) {
   const normalizedValue = value.trim().replace(",", ".");
@@ -133,7 +151,9 @@ export default function WorkspaceSettingsPage() {
     reason: "",
   });
   const [providerName, setProviderName] = useState("");
+  const [providerPrice, setProviderPrice] = useState("");
   const [artProviderName, setArtProviderName] = useState("");
+  const [artProviderPrice, setArtProviderPrice] = useState("");
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingBlockedDate, setSavingBlockedDate] = useState(false);
   const [savingProvider, setSavingProvider] = useState(false);
@@ -259,13 +279,21 @@ export default function WorkspaceSettingsPage() {
       return;
     }
 
+    const sessionPrice = parseProviderPrice(providerPrice);
+
+    if (sessionPrice === undefined) {
+      setError(invalidProviderPriceMessage);
+      return;
+    }
+
     setSavingProvider(true);
     setError("");
     setMessage("");
 
     try {
-      await addProvider(providerName);
+      await addProvider(providerName, sessionPrice);
       setProviderName("");
+      setProviderPrice("");
       setMessage("Obra social agregada.");
     } catch (saveError) {
       setError(
@@ -283,19 +311,79 @@ export default function WorkspaceSettingsPage() {
       return;
     }
 
+    const sessionPrice = parseProviderPrice(artProviderPrice);
+
+    if (sessionPrice === undefined) {
+      setError(invalidProviderPriceMessage);
+      return;
+    }
+
     setSavingArtProvider(true);
     setError("");
     setMessage("");
 
     try {
-      await addArtProvider(artProviderName);
+      await addArtProvider(artProviderName, sessionPrice);
       setArtProviderName("");
+      setArtProviderPrice("");
       setMessage("ART agregada.");
     } catch (saveError) {
       setError(getFriendlyErrorMessage(saveError, "No pudimos agregar la ART."));
     } finally {
       setSavingArtProvider(false);
     }
+  }
+
+  // Precio por sesión editable en la fila; guarda al salir del campo (o con
+  // Enter), igual que el checkbox "Activa" guarda al cambiar.
+  function renderProviderPriceInput(
+    provider: { id: string; name: string; sessionPrice: number | null },
+    save: (sessionPrice: number | null) => Promise<void>,
+  ) {
+    return (
+      <input
+        aria-label={`Precio por sesión de ${provider.name}`}
+        className="min-h-10 w-28 rounded-lg border border-ocean-100 px-2 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
+        defaultValue={provider.sessionPrice ?? ""}
+        disabled={!canEdit}
+        // Se re-monta cuando cambia el precio guardado, para mostrar el valor nuevo.
+        key={`${provider.id}-${provider.sessionPrice ?? "none"}`}
+        min={0}
+        onBlur={async (event) => {
+          const sessionPrice = parseProviderPrice(event.target.value);
+
+          if (sessionPrice === undefined) {
+            setError(invalidProviderPriceMessage);
+            return;
+          }
+
+          if (sessionPrice === provider.sessionPrice) {
+            return;
+          }
+
+          setError("");
+          setMessage("");
+
+          try {
+            await save(sessionPrice);
+          } catch (saveError) {
+            setError(
+              getFriendlyErrorMessage(saveError, "No pudimos guardar el precio."),
+            );
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
+        }}
+        placeholder="Sin precio"
+        step="100"
+        title="Precio por sesión"
+        type="number"
+      />
+    );
   }
 
   if (authError) {
@@ -639,6 +727,17 @@ export default function WorkspaceSettingsPage() {
                 required
                 value={providerName}
               />
+              <input
+                aria-label="Precio por sesión"
+                className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50 sm:w-40"
+                disabled={!canEdit}
+                min={0}
+                onChange={(event) => setProviderPrice(event.target.value)}
+                placeholder="Precio por sesión"
+                step="100"
+                type="number"
+                value={providerPrice}
+              />
               <Button disabled={!canEdit || savingProvider} type="submit">
                 <Plus className="h-4 w-4" />
                 Agregar
@@ -653,7 +752,7 @@ export default function WorkspaceSettingsPage() {
               ) : null}
               {providers.map((provider) => (
                 <div
-                  className="flex items-center justify-between gap-3 rounded-lg border border-ocean-100 p-3"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ocean-100 p-3"
                   key={provider.id}
                 >
                   <div className="min-w-0">
@@ -661,10 +760,17 @@ export default function WorkspaceSettingsPage() {
                       {provider.name}
                     </p>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
-                      {provider.active ? "Activa" : "Inactiva"}
+                      {provider.active ? "Activa" : "Inactiva"} ·{" "}
+                      {provider.sessionPrice === null
+                        ? "Sin precio"
+                        : formatCurrency(provider.sessionPrice)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {renderProviderPriceInput(provider, async (sessionPrice) => {
+                      await updateProvider(provider.id, { sessionPrice });
+                      setMessage("Obra social actualizada.");
+                    })}
                     <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
                       <input
                         checked={provider.active}
@@ -733,6 +839,17 @@ export default function WorkspaceSettingsPage() {
                 required
                 value={artProviderName}
               />
+              <input
+                aria-label="Precio por sesión"
+                className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50 sm:w-40"
+                disabled={!canEdit}
+                min={0}
+                onChange={(event) => setArtProviderPrice(event.target.value)}
+                placeholder="Precio por sesión"
+                step="100"
+                type="number"
+                value={artProviderPrice}
+              />
               <Button disabled={!canEdit || savingArtProvider} type="submit">
                 <Plus className="h-4 w-4" />
                 Agregar
@@ -747,7 +864,7 @@ export default function WorkspaceSettingsPage() {
               ) : null}
               {artProviders.map((provider) => (
                 <div
-                  className="flex items-center justify-between gap-3 rounded-lg border border-ocean-100 p-3"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ocean-100 p-3"
                   key={provider.id}
                 >
                   <div className="min-w-0">
@@ -755,10 +872,17 @@ export default function WorkspaceSettingsPage() {
                       {provider.name}
                     </p>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
-                      {provider.active ? "Activa" : "Inactiva"}
+                      {provider.active ? "Activa" : "Inactiva"} ·{" "}
+                      {provider.sessionPrice === null
+                        ? "Sin precio"
+                        : formatCurrency(provider.sessionPrice)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {renderProviderPriceInput(provider, async (sessionPrice) => {
+                      await updateArtProvider(provider.id, { sessionPrice });
+                      setMessage("ART actualizada.");
+                    })}
                     <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
                       <input
                         checked={provider.active}

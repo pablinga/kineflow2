@@ -9,13 +9,26 @@ export type InsuranceProvider = {
   active: boolean;
   id: string;
   name: string;
+  /** Precio por sesión; null = sin precio cargado. */
+  sessionPrice: number | null;
 };
 
 type InsuranceProviderRow = {
   active: boolean;
   id: string;
   name: string;
+  session_price: number | string | null;
 };
+
+function mapInsuranceProvider(row: InsuranceProviderRow): InsuranceProvider {
+  return {
+    active: row.active,
+    id: row.id,
+    name: row.name,
+    // numeric de Postgres puede llegar como string.
+    sessionPrice: row.session_price === null ? null : Number(row.session_price),
+  };
+}
 
 export function useInsuranceProviders() {
   const { activeWorkspace, loaded: activeWorkspaceLoaded } = useActiveWorkspace();
@@ -40,7 +53,7 @@ export function useInsuranceProviders() {
       const supabase = getSupabaseClient();
       const { data, error: queryError } = await supabase
         .from("insurance_providers")
-        .select("id, name, active")
+        .select("id, name, active, session_price")
         .eq("workspace_id", activeWorkspace.id)
         .order("name", { ascending: true });
 
@@ -48,7 +61,7 @@ export function useInsuranceProviders() {
         throw new Error(mapSupabaseError(queryError));
       }
 
-      setProviders((data ?? []) as InsuranceProviderRow[]);
+      setProviders(((data ?? []) as InsuranceProviderRow[]).map(mapInsuranceProvider));
     } catch (loadError) {
       setError(
         getFriendlyErrorMessage(
@@ -65,7 +78,7 @@ export function useInsuranceProviders() {
     loadProviders();
   }, [loadProviders]);
 
-  async function addProvider(name: string) {
+  async function addProvider(name: string, sessionPrice: number | null = null) {
     const normalizedName = name.trim();
 
     if (!activeWorkspace?.id || !normalizedName) {
@@ -78,6 +91,7 @@ export function useInsuranceProviders() {
       .insert({
         active: true,
         name: normalizedName,
+        session_price: sessionPrice,
         workspace_id: activeWorkspace.id,
       });
 
@@ -99,6 +113,9 @@ export function useInsuranceProviders() {
       .update({
         ...(input.name !== undefined ? { name: input.name.trim() } : {}),
         ...(input.active !== undefined ? { active: input.active } : {}),
+        ...(input.sessionPrice !== undefined
+          ? { session_price: input.sessionPrice }
+          : {}),
       })
       .eq("workspace_id", activeWorkspace.id)
       .eq("id", id);
