@@ -629,9 +629,9 @@ export default function WorkspaceSettingsPage() {
               <h2 className="text-xl font-bold text-ink">Días bloqueados</h2>
             </div>
 
-            <form className="mt-5 flex flex-wrap gap-3" onSubmit={handleAddBlockedDate}>
+            <form className="mt-5 flex gap-2 sm:gap-3" onSubmit={handleAddBlockedDate}>
               <input
-                className="min-h-11 w-full rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50 sm:w-40"
+                className="min-h-11 w-36 shrink-0 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50 sm:w-40"
                 disabled={!canEdit}
                 onChange={(event) =>
                   setBlockedDateForm((current) => ({
@@ -644,7 +644,7 @@ export default function WorkspaceSettingsPage() {
                 value={blockedDateForm.blockedDate}
               />
               <input
-                className="min-h-11 min-w-0 flex-1 basis-40 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
+                className="min-h-11 min-w-0 flex-1 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
                 disabled={!canEdit}
                 onChange={(event) =>
                   setBlockedDateForm((current) => ({
@@ -656,12 +656,13 @@ export default function WorkspaceSettingsPage() {
                 value={blockedDateForm.reason}
               />
               <Button
-                className="w-full sm:ml-auto sm:w-auto"
+                aria-label="Agregar día bloqueado"
+                className="w-11 shrink-0 !px-0"
                 disabled={!canEdit || savingBlockedDate}
+                title="Agregar día bloqueado"
                 type="submit"
               >
-                <Plus className="h-4 w-4" />
-                Agregar
+                <Plus className="h-5 w-5" />
               </Button>
             </form>
 
@@ -718,9 +719,9 @@ export default function WorkspaceSettingsPage() {
               <h2 className="text-xl font-bold text-ink">Obras sociales</h2>
             </div>
 
-            <form className="mt-5 flex flex-col gap-3 sm:flex-row" onSubmit={handleAddProvider}>
+            <form className="mt-5 flex gap-2 sm:gap-3" onSubmit={handleAddProvider}>
               <input
-                className="min-h-11 flex-1 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
+                className="min-h-11 min-w-0 flex-1 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
                 disabled={!canEdit}
                 onChange={(event) => setProviderName(event.target.value)}
                 placeholder="Nombre de la obra social"
@@ -729,18 +730,23 @@ export default function WorkspaceSettingsPage() {
               />
               <input
                 aria-label="Precio por sesión"
-                className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50 sm:w-40"
+                className="min-h-11 w-24 shrink-0 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50 sm:w-36"
                 disabled={!canEdit}
                 min={0}
                 onChange={(event) => setProviderPrice(event.target.value)}
-                placeholder="Precio por sesión"
+                placeholder="Precio"
                 step="100"
                 type="number"
                 value={providerPrice}
               />
-              <Button disabled={!canEdit || savingProvider} type="submit">
-                <Plus className="h-4 w-4" />
-                Agregar
+              <Button
+                aria-label="Agregar obra social"
+                className="w-11 shrink-0 !px-0"
+                disabled={!canEdit || savingProvider}
+                title="Agregar obra social"
+                type="submit"
+              >
+                <Plus className="h-5 w-5" />
               </Button>
             </form>
 
@@ -830,9 +836,9 @@ export default function WorkspaceSettingsPage() {
               <h2 className="text-xl font-bold text-ink">ART</h2>
             </div>
 
-            <form className="mt-5 flex flex-col gap-3 sm:flex-row" onSubmit={handleAddArtProvider}>
+            <form className="mt-5 flex gap-2 sm:gap-3" onSubmit={handleAddArtProvider}>
               <input
-                className="min-h-11 flex-1 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
+                className="min-h-11 min-w-0 flex-1 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
                 disabled={!canEdit}
                 onChange={(event) => setArtProviderName(event.target.value)}
                 placeholder="Nombre de la ART"
@@ -841,18 +847,23 @@ export default function WorkspaceSettingsPage() {
               />
               <input
                 aria-label="Precio por sesión"
-                className="min-h-11 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50 sm:w-40"
+                className="min-h-11 w-24 shrink-0 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50 sm:w-36"
                 disabled={!canEdit}
                 min={0}
                 onChange={(event) => setArtProviderPrice(event.target.value)}
-                placeholder="Precio por sesión"
+                placeholder="Precio"
                 step="100"
                 type="number"
                 value={artProviderPrice}
               />
-              <Button disabled={!canEdit || savingArtProvider} type="submit">
-                <Plus className="h-4 w-4" />
-                Agregar
+              <Button
+                aria-label="Agregar ART"
+                className="w-11 shrink-0 !px-0"
+                disabled={!canEdit || savingArtProvider}
+                title="Agregar ART"
+                type="submit"
+              >
+                <Plus className="h-5 w-5" />
               </Button>
             </form>
 
