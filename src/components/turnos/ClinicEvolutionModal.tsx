@@ -34,8 +34,6 @@ export function ClinicEvolutionModal({
     toDateInputValue(appointment.scheduledAt),
   );
   const [painLevel, setPainLevel] = useState(0);
-  const [mobility, setMobility] = useState("0");
-  const [strength, setStrength] = useState("0");
   const [clinicalNotes, setClinicalNotes] = useState("");
   const [nextGoals, setNextGoals] = useState("");
   const [saving, setSaving] = useState(false);
@@ -64,13 +62,11 @@ export function ClinicEvolutionModal({
       const { error: insertError } = await supabase.from("evolutions").insert({
         appointment_id: appointment.id,
         clinical_notes: clinicalNotes.trim(),
-        mobility_notes: mobility,
         next_goals: nextGoals.trim() || null,
         owner_id: userId,
         pain_level: painLevel,
         patient_id: appointment.patientId,
         session_date: sessionDate,
-        strength_notes: strength,
         treatment_id: appointment.treatmentId || null,
         workspace_id: appointment.workspaceId,
       });
@@ -114,8 +110,6 @@ export function ClinicEvolutionModal({
 
         {[
           { label: "Nivel de dolor", onChange: (value: string) => setPainLevel(Number(value)), value: String(painLevel) },
-          { label: "Movilidad", onChange: setMobility, value: mobility },
-          { label: "Fuerza", onChange: setStrength, value: strength },
         ].map((field) => (
           <label className="mt-4 block" key={field.label}>
             <span className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700">

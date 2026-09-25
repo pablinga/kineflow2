@@ -57,8 +57,6 @@ function createEmptyEvolution(patientId: string): NewEvolutionInput {
     appointmentId: "",
     sessionDate: today,
     painLevel: 0,
-    mobilityNotes: "",
-    strengthNotes: "",
     clinicalNotes: "",
     nextGoals: "",
   };
@@ -915,12 +913,6 @@ function PatientDetailPageContent() {
                               <p className="font-semibold text-ink">
                                 {item.date}
                               </p>
-                              <p className="mt-1 text-sm font-semibold text-ocean-800">
-                                Movilidad: {item.mobility}
-                              </p>
-                              <p className="mt-1 text-sm font-semibold text-emerald-700">
-                                Fuerza: {item.strength}
-                              </p>
                             </div>
                             <span className="flex w-fit shrink-0 items-center gap-2 rounded-full bg-ocean-50 px-3 py-1 text-sm font-semibold text-ocean-800 ring-1 ring-ocean-100">
                               <Activity className="h-4 w-4" />
@@ -1229,44 +1221,6 @@ function PatientDetailPageContent() {
                   </label>
                 </div>
 
-                <label className="mt-4 block">
-                  <span className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700">
-                    Movilidad
-                    <span className="rounded-full bg-ocean-50 px-3 py-1 text-ocean-800">
-                      {evolution.mobilityNotes || 0}/10
-                    </span>
-                  </span>
-                  <input
-                    className="mt-3 w-full accent-ocean-600"
-                    max={10}
-                    min={0}
-                    onChange={(event) =>
-                      updateField("mobilityNotes", event.target.value)
-                    }
-                    step={1}
-                    type="range"
-                    value={evolution.mobilityNotes || "0"}
-                  />
-                </label>
-                  <label className="mt-5 block">
-                    <span className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700">
-                      Fuerza
-                      <span className="rounded-full bg-ocean-50 px-3 py-1 text-ocean-800">
-                        {evolution.strengthNotes || 0}/10
-                      </span>
-                    </span>
-                    <input
-                      className="mt-3 w-full accent-ocean-600"
-                      max={10}
-                      min={0}
-                      onChange={(event) =>
-                        updateField("strengthNotes", event.target.value)
-                      }
-                      step={1}
-                      type="range"
-                      value={evolution.strengthNotes || "0"}
-                    />
-                  </label>
                 <label className="mt-4 block">
                   <FieldLabel required>Tratamiento</FieldLabel>
                   <textarea
