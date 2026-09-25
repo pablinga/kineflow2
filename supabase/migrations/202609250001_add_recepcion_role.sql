@@ -387,4 +387,137 @@ create policy "Workspace admins can manage ART providers"
   using (public.is_workspace_admin(workspace_id))
   with check (public.is_workspace_admin(workspace_id));
 
+-- 4i. appointments DELETE: RECEPCION cancela turnos pero no los borra. Mismo
+--     alcance que antes (ADMIN, o el dueño en su espacio PERSONAL) sin staff.
+drop policy if exists "Users can delete own appointments" on public.appointments;
+create policy "Users can delete own appointments"
+  on public.appointments
+  for delete
+  to authenticated
+  using (
+    public.is_workspace_admin(workspace_id)
+    or (
+      owner_id = auth.uid()
+      and exists (
+        select 1
+        from public.workspaces
+        where workspaces.id = appointments.workspace_id
+          and workspaces.type = 'PERSONAL'
+      )
+    )
+  );
+
+-- 4j. subscriptions SELECT: el staff lee la suscripción de su workspace para que
+--     la UI evalúe el plan real de la clínica (RECEPCION no ve la pantalla de
+--     Plan; solo se usa para los chequeos de límites). Antes: solo ADMIN.
+drop policy if exists "Users can read own subscriptions" on public.subscriptions;
+create policy "Users can read own subscriptions"
+  on public.subscriptions
+  for select
+  to authenticated
+  using (
+    account_id = auth.uid()
+    or (
+      workspace_id is not null
+      and public.is_workspace_staff(workspace_id)
+    )
+  );
+
+-- 4k. profiles SELECT: el staff de una clínica lee el perfil (nombre, matrícula)
+--     de los profesionales vinculados a esa clínica, para los selectores y la
+--     agenda. Policy nueva y aditiva: no toca "Clinics can search
+--     kinesiologists", que difiere entre QA y prod.
+drop policy if exists "Workspace staff can read clinic professional profiles" on public.profiles;
+create policy "Workspace staff can read clinic professional profiles"
+  on public.profiles
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.clinic_professionals
+      where clinic_professionals.professional_id = profiles.id
+        and public.is_workspace_staff(public.get_clinic_workspace_id(clinic_professionals.clinic_id))
+    )
+  );
+
+-- 5. sync_clinic_professional_workspace_member (definición live): el UPDATE por
+--    email no pisa una membresía RECEPCION si esa persona también se vincula
+--    como profesional con el mismo email.
+CREATE OR REPLACE FUNCTION public.sync_clinic_professional_workspace_member()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  target_workspace_id uuid;
+  clinic_owner_id uuid;
+  member_status text;
+begin
+  select workspaces.id, clinics.owner_id
+    into target_workspace_id, clinic_owner_id
+  from public.clinics
+  join public.workspaces on workspaces.source_clinic_id = clinics.id
+  where clinics.id = new.clinic_id
+  limit 1;
+
+  if target_workspace_id is null then
+    return new;
+  end if;
+
+  member_status := case
+    when new.status = 'active' then 'accepted'
+    else new.status
+  end;
+
+  insert into public.workspace_members (
+    workspace_id,
+    user_id,
+    email,
+    role,
+    status,
+    invited_by,
+    invited_at,
+    responded_at,
+    color,
+    can_register_evolutions,
+    can_view_assigned_patients,
+    source_clinic_professional_id
+  )
+  values (
+    target_workspace_id,
+    new.professional_id,
+    lower(trim(new.professional_email)),
+    case when upper(new.role) = 'ADMIN' then 'ADMIN' else 'KINESIOLOGO' end,
+    member_status,
+    clinic_owner_id,
+    new.invited_at,
+    new.responded_at,
+    new.color,
+    new.can_register_evolutions,
+    new.can_view_assigned_patients,
+    new.id
+  )
+  on conflict do nothing;
+
+  update public.workspace_members
+  set
+    user_id = new.professional_id,
+    role = case when upper(new.role) = 'ADMIN' then 'ADMIN' else 'KINESIOLOGO' end,
+    status = member_status,
+    responded_at = new.responded_at,
+    color = new.color,
+    can_register_evolutions = new.can_register_evolutions,
+    can_view_assigned_patients = new.can_view_assigned_patients,
+    source_clinic_professional_id = new.id,
+    updated_at = now()
+  where workspace_id = target_workspace_id
+    and email = lower(trim(new.professional_email))
+    and role <> 'RECEPCION';
+
+  return new;
+end;
+$function$;
+
 commit;
