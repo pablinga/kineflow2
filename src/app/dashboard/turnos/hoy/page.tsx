@@ -124,7 +124,7 @@ export default function ListadoDelDiaPage() {
       <section className="px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <h1 className="text-2xl font-bold text-ink sm:text-3xl">
-            Sesiones diarias
+            Asistencia de sesiones
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
@@ -285,8 +285,16 @@ export default function ListadoDelDiaPage() {
         <SignaturePad
           onCancel={() => setSigningAppointment(null)}
           onSave={async (blob) => {
-            await saveAppointmentSignature(signingAppointment, blob);
+            const signedAppointment = signingAppointment;
+
+            await saveAppointmentSignature(signedAppointment, blob);
             setSigningAppointment(null);
+
+            // Firmar la planilla confirma la asistencia. Si falla el cambio de
+            // estado, la firma queda guardada y se muestra el error.
+            if (signedAppointment.status !== "Asistió") {
+              await handleStatusChange(signedAppointment.id, "attended");
+            }
           }}
           patientName={signingAppointment.patient}
         />

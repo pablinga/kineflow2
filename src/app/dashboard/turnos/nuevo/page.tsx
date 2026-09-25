@@ -380,6 +380,34 @@ export default function NewAppointmentPage() {
         })
       : null;
 
+  // El precio del prestador (si lo tiene) precarga el monto; sigue editable.
+  function applyProviderPrice(sessionPrice: number | null | undefined) {
+    if (sessionPrice !== null && sessionPrice !== undefined) {
+      setSessionAmount(sessionPrice);
+    }
+  }
+
+  function selectPaymentType(nextPaymentType: PaymentType) {
+    setPaymentType(nextPaymentType);
+
+    if (nextPaymentType === "PARTICULAR") {
+      // Mismo precio por defecto que al abrir el formulario.
+      setSessionAmount(
+        activeWorkspace?.defaultSessionPrice ?? DEFAULT_SESSION_PRICE,
+      );
+    } else if (nextPaymentType === "OBRA_SOCIAL") {
+      applyProviderPrice(
+        activeInsuranceProviders.find((provider) => provider.id === insuranceProviderId)
+          ?.sessionPrice,
+      );
+    } else {
+      applyProviderPrice(
+        activeArtProviders.find((provider) => provider.id === artProviderId)
+          ?.sessionPrice,
+      );
+    }
+  }
+
   function updateField<Field extends keyof NewAppointmentInput>(
     field: Field,
     value: NewAppointmentInput[Field],
@@ -808,7 +836,7 @@ export default function NewAppointmentPage() {
                     checked={paymentType === "PARTICULAR"}
                     className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
                     name="paymentType"
-                    onChange={() => setPaymentType("PARTICULAR")}
+                    onChange={() => selectPaymentType("PARTICULAR")}
                     type="radio"
                   />
                   Particular
@@ -818,7 +846,7 @@ export default function NewAppointmentPage() {
                     checked={paymentType === "OBRA_SOCIAL"}
                     className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
                     name="paymentType"
-                    onChange={() => setPaymentType("OBRA_SOCIAL")}
+                    onChange={() => selectPaymentType("OBRA_SOCIAL")}
                     type="radio"
                   />
                   Obra social
@@ -828,7 +856,7 @@ export default function NewAppointmentPage() {
                     checked={paymentType === "ART"}
                     className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
                     name="paymentType"
-                    onChange={() => setPaymentType("ART")}
+                    onChange={() => selectPaymentType("ART")}
                     type="radio"
                   />
                   ART
@@ -843,9 +871,14 @@ export default function NewAppointmentPage() {
                     </span>
                     <select
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) =>
-                        setInsuranceProviderId(event.target.value)
-                      }
+                      onChange={(event) => {
+                        setInsuranceProviderId(event.target.value);
+                        applyProviderPrice(
+                          activeInsuranceProviders.find(
+                            (provider) => provider.id === event.target.value,
+                          )?.sessionPrice,
+                        );
+                      }}
                       value={insuranceProviderId}
                     >
                       <option value="">Seleccionar obra social</option>
@@ -880,7 +913,14 @@ export default function NewAppointmentPage() {
                     </span>
                     <select
                       className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) => setArtProviderId(event.target.value)}
+                      onChange={(event) => {
+                        setArtProviderId(event.target.value);
+                        applyProviderPrice(
+                          activeArtProviders.find(
+                            (provider) => provider.id === event.target.value,
+                          )?.sessionPrice,
+                        );
+                      }}
                       value={artProviderId}
                     >
                       <option value="">Seleccionar ART</option>

@@ -14,13 +14,9 @@ export type Evolution = {
   patient: string;
   date: string;
   pain: string;
-  mobility: string;
-  strength: string;
   notes: string;
   sessionDateRaw: string;
   painScore: number | null;
-  mobilityScore: number | null;
-  strengthScore: number | null;
 };
 
 export type NewEvolutionInput = {
@@ -28,8 +24,6 @@ export type NewEvolutionInput = {
   appointmentId?: string;
   sessionDate: string;
   painLevel: number;
-  mobilityNotes: string;
-  strengthNotes: string;
   clinicalNotes: string;
   nextGoals: string;
   treatmentId?: string;
@@ -42,20 +36,9 @@ type EvolutionRow = {
   appointment_id: string | null;
   session_date: string;
   pain_level: number | null;
-  mobility_notes: string | null;
-  strength_notes: string | null;
   clinical_notes: string;
   patients: { full_name: string } | Array<{ full_name: string }> | null;
 };
-
-function parseScore(value: string | null): number | null {
-  if (value === null) {
-    return null;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 10 ? parsed : null;
-}
 
 function mapEvolution(row: EvolutionRow): Evolution {
   const patient = Array.isArray(row.patients) ? row.patients[0] : row.patients;
@@ -68,13 +51,9 @@ function mapEvolution(row: EvolutionRow): Evolution {
     patient: patient?.full_name ?? "Paciente",
     date: formatDate(row.session_date),
     pain: row.pain_level === null ? "Sin dato" : `${row.pain_level}/10`,
-    mobility: row.mobility_notes ?? "Sin nota de movilidad",
-    strength: row.strength_notes ?? "Sin nota de fuerza",
     notes: row.clinical_notes,
     sessionDateRaw: row.session_date,
     painScore: row.pain_level,
-    mobilityScore: parseScore(row.mobility_notes),
-    strengthScore: parseScore(row.strength_notes),
   };
 }
 
@@ -120,7 +99,7 @@ export function useEvolutions(patientId?: string) {
       let query = supabase
         .from("evolutions")
         .select(
-          "id, patient_id, treatment_id, appointment_id, session_date, pain_level, mobility_notes, strength_notes, clinical_notes, patients(full_name)",
+          "id, patient_id, treatment_id, appointment_id, session_date, pain_level, clinical_notes, patients(full_name)",
         )
         .eq("workspace_id", activeWorkspace.id)
         .order("session_date", { ascending: false });
@@ -171,8 +150,6 @@ export function useEvolutions(patientId?: string) {
       appointment_id: input.appointmentId || null,
       session_date: input.sessionDate,
       pain_level: input.painLevel,
-      mobility_notes: input.mobilityNotes,
-      strength_notes: input.strengthNotes,
       clinical_notes: input.clinicalNotes,
       next_goals: input.nextGoals || null,
     });

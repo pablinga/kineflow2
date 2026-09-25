@@ -51,7 +51,7 @@ const navigation = {
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
     {
       href: "/dashboard/turnos/hoy",
-      label: "Sesiones diarias",
+      label: "Asistencia de sesiones",
       icon: ClipboardList,
     },
     {
@@ -76,7 +76,7 @@ const navigation = {
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
     {
       href: "/dashboard/turnos/hoy",
-      label: "Sesiones diarias",
+      label: "Asistencia de sesiones",
       icon: ClipboardList,
     },
     {
