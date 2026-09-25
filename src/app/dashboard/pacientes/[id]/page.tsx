@@ -48,6 +48,7 @@ import {
 } from "@/lib/treatment-files";
 import { uploadTreatmentFiles } from "@/hooks/useTreatmentFiles";
 import { toArgentinaDateValue } from "@/lib/dates";
+import { isRecepcionWorkspace } from "@/lib/workspace-permissions";
 
 function createEmptyEvolution(patientId: string): NewEvolutionInput {
   return {
@@ -89,6 +90,9 @@ function PatientDetailPageContent() {
     updateAppointmentStatus,
   } = useAppointments(patientId);
   const { activeWorkspace } = useActiveWorkspace();
+  // Recepción: evoluciones, tratamientos y archivos en solo lectura; los
+  // cobros se registran desde el historial de turnos.
+  const isRecepcion = isRecepcionWorkspace(activeWorkspace);
   const {
     addEvolution,
     error: evolutionsError,
@@ -179,7 +183,7 @@ function PatientDetailPageContent() {
   useEffect(() => {
     const appointmentId = searchParams.get("appointment");
 
-    if (!appointmentId || appointments.length === 0) {
+    if (!appointmentId || appointments.length === 0 || isRecepcion) {
       return;
     }
 
@@ -194,7 +198,7 @@ function PatientDetailPageContent() {
       }));
       setEvolutionModalOpen(true);
     }
-  }, [appointments, searchParams]);
+  }, [appointments, isRecepcion, searchParams]);
 
   if (authError) {
     return (
@@ -759,6 +763,7 @@ function PatientDetailPageContent() {
                       Nuevo turno
                     </Link>
                   )}
+                  {isRecepcion ? null : (
                   <button
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
                     disabled={Boolean(writeBlockMessage)}
@@ -769,7 +774,8 @@ function PatientDetailPageContent() {
                     <ClipboardPlus className="h-4 w-4" />
                     Nueva evolución
                   </button>
-                  {isReadOnly ? (
+                  )}
+                  {isRecepcion ? null : isReadOnly ? (
                     <button
                       className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-400"
                       disabled
@@ -863,6 +869,7 @@ function PatientDetailPageContent() {
                       <h2 className="text-lg font-bold text-ink">
                         Tratamientos
                       </h2>
+                      {isRecepcion ? null : (
                       <button
                         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 sm:px-4"
                         disabled={isReadOnly}
@@ -881,14 +888,20 @@ function PatientDetailPageContent() {
                         <span className="sm:hidden">Tratamiento</span>
                         <span className="hidden sm:inline">Nuevo tratamiento</span>
                       </button>
+                      )}
                     </div>
                     <TreatmentList
                       appointments={appointments}
+                      canAttachFiles={!isRecepcion}
                       evolutionDateByAppointment={evolutionDateByAppointment}
-                      isReadOnly={isReadOnly}
+                      isReadOnly={isReadOnly || isRecepcion}
                       onStatusChange={handleTreatmentStatus}
                       patientId={patientId}
-                      readOnlyMessage={readOnlyMessage}
+                      readOnlyMessage={
+                        isRecepcion
+                          ? "Recepción puede ver los tratamientos, pero no modificarlos."
+                          : readOnlyMessage
+                      }
                       treatments={treatments}
                     />
                   </section>

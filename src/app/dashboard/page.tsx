@@ -12,6 +12,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { PendingClinicInvitationsBanner } from "@/components/dashboard/PendingClinicInvitationsBanner";
+import { PendingReceptionInvitationsBanner } from "@/components/dashboard/PendingReceptionInvitationsBanner";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -29,6 +30,7 @@ import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 import { usePendingClinicInvitations } from "@/hooks/usePendingClinicInvitations";
+import { isRecepcionWorkspace } from "@/lib/workspace-permissions";
 
 function getAttendanceBadgeLabel(status: string) {
   return status === "Pendiente" ? "Pendiente asistencia" : status;
@@ -126,6 +128,8 @@ export default function DashboardPage() {
 
   const currentPlanName = getPlanDisplayName(plan.plan);
   const isClinicWorkspace = activeWorkspace?.type === "CLINICA";
+  // Recepción no ve Ingresos, Plan ni evoluciones: se ocultan esos accesos.
+  const isRecepcion = isRecepcionWorkspace(activeWorkspace);
   const effectiveAccountType = isClinicWorkspace ? "CONSULTORIO" : accountType;
   const patientLimitBlock = isClinicWorkspace
     ? null
@@ -141,7 +145,9 @@ export default function DashboardPage() {
   const dashboardTitle = isClinicWorkspace
     ? `Panel de ${activeWorkspace.name}`
     : `Hola, ${displayName}`;
-  const dashboardDescription = isClinicWorkspace
+  const dashboardDescription = isRecepcion
+    ? "Pacientes, agenda y asistencia de la clínica en un solo lugar."
+    : isClinicWorkspace
     ? "Equipo, pacientes, agenda e ingresos de la clínica en un solo lugar."
     : "Pacientes, turnos, evoluciones y cobros en un solo lugar.";
   const upcomingAppointments = summary.upcomingAppointments;
@@ -158,14 +164,19 @@ export default function DashboardPage() {
       href: "/dashboard/turnos/nuevo",
       icon: CalendarPlus,
     },
-    {
-      label: "Registrar evolución",
-      href: "/dashboard/pacientes",
-      icon: ClipboardPlus,
-    },
-    ...(effectiveAccountType === "KINESIOLOGO" &&
-    plan.plan !== "INDEPENDIENTE" &&
-    accessLevel !== "TRIAL_ACTIVE"
+    ...(isRecepcion
+      ? []
+      : [
+          {
+            label: "Registrar evolución",
+            href: "/dashboard/pacientes",
+            icon: ClipboardPlus,
+          },
+        ]),
+    ...(isRecepcion ||
+    (effectiveAccountType === "KINESIOLOGO" &&
+      plan.plan !== "INDEPENDIENTE" &&
+      accessLevel !== "TRIAL_ACTIVE")
       ? []
       : [
           {
@@ -248,7 +259,9 @@ export default function DashboardPage() {
             onReject={rejectInvitation}
           />
 
-          {accessLevel === "TRIAL_ACTIVE" ? (
+          <PendingReceptionInvitationsBanner />
+
+          {!isRecepcion && accessLevel === "TRIAL_ACTIVE" ? (
             <Card
               variant={
                 trialDaysRemaining !== null && trialDaysRemaining <= 7
@@ -290,7 +303,7 @@ export default function DashboardPage() {
             </Card>
           ) : null}
 
-          {isReadOnly ? (
+          {isRecepcion ? null : isReadOnly ? (
             <Card
               as="section"
               variant="danger"
@@ -330,7 +343,7 @@ export default function DashboardPage() {
             </Card>
           ) : null}
 
-          {plan.plan !== "FREE" ? (
+          {!isRecepcion && plan.plan !== "FREE" ? (
             <Card
               variant="success"
               padding="md"
@@ -477,7 +490,7 @@ export default function DashboardPage() {
                   {paymentActionRequired.length > 0 ? (
                     <Link
                       className="block rounded-lg border border-amber-100 bg-amber-50 p-3 transition hover:bg-amber-100"
-                      href="/dashboard/ingresos"
+                      href={isRecepcion ? "/dashboard/turnos" : "/dashboard/ingresos"}
                     >
                       <p className="text-sm font-semibold text-amber-800">
                         {paymentActionRequired.length}{" "}

@@ -33,6 +33,7 @@ import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { getSupabaseClient } from "@/lib/supabase";
 import { toArgentinaDateValue } from "@/lib/dates";
+import { isRecepcionWorkspace, isStaffMembership, isWorkspaceStaff } from "@/lib/workspace-permissions";
 
 const emptyPatient: NewPatientInput = {
   assignedProfessionalId: "",
@@ -172,7 +173,7 @@ export default function PatientsPage() {
     async function loadClinicProfessionals() {
       if (
         activeWorkspace?.type !== "CLINICA" ||
-        activeWorkspace.role !== "ADMIN" ||
+        !isStaffMembership(activeWorkspace.role, activeWorkspace.type) ||
         !activeWorkspace.sourceClinicId
       ) {
         setClinicProfessionals([]);
@@ -232,7 +233,11 @@ export default function PatientsPage() {
   const effectiveAccountType =
     activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
   const canManagePatients =
-    activeWorkspace?.type !== "CLINICA" || activeWorkspace.role === "ADMIN";
+    activeWorkspace?.type !== "CLINICA" || isWorkspaceStaff(activeWorkspace);
+  // Recepción crea y edita pacientes, pero no los deshabilita (es el "borrado"
+  // de la UI).
+  const canTogglePatientStatus =
+    canManagePatients && !isRecepcionWorkspace(activeWorkspace);
   const clinicPracticeBlocked =
     effectiveAccountType === "CONSULTORIO" &&
     plan.plan !== "FREE" &&
@@ -342,7 +347,7 @@ export default function PatientsPage() {
 
       if (
         activeWorkspace?.type === "CLINICA" &&
-        activeWorkspace.role === "ADMIN" &&
+        isWorkspaceStaff(activeWorkspace) &&
         clinicProfessionals.length === 0
       ) {
         setActionError(
@@ -479,7 +484,7 @@ export default function PatientsPage() {
     onChange: (value: string) => void;
     value: string;
   }) {
-    if (activeWorkspace?.type !== "CLINICA" || activeWorkspace.role !== "ADMIN") {
+    if (activeWorkspace?.type !== "CLINICA" || !isWorkspaceStaff(activeWorkspace)) {
       return null;
     }
 
@@ -572,7 +577,7 @@ export default function PatientsPage() {
             <Pencil className="h-5 w-5" />
           </button>
         ) : null}
-        {canManagePatients && !isReadOnly && patient.status === "Activo" ? (
+        {canTogglePatientStatus && !isReadOnly && patient.status === "Activo" ? (
           <button
             aria-label="Deshabilitar"
             className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50 hover:text-red-700"
@@ -582,7 +587,7 @@ export default function PatientsPage() {
           >
             <UserX className="h-5 w-5" />
           </button>
-        ) : canManagePatients && !isReadOnly ? (
+        ) : canTogglePatientStatus && !isReadOnly ? (
           <button
             aria-label="Reactivar"
             className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700"

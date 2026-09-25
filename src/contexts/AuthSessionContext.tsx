@@ -26,6 +26,7 @@ import {
   type PlanStatus,
 } from "@/lib/plans";
 import { getSupabaseClient } from "@/lib/supabase";
+import { getSelectableWorkspaces } from "@/lib/workspace-permissions";
 import type {
   AccountType,
   AuthProfile,
@@ -460,15 +461,20 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 
           return left.name.localeCompare(right.name);
         });
-      // Un kinesiólogo trabaja siempre en su espacio particular: los turnos de
-      // las clínicas donde atiende se ven en su agenda (modo unificado), así
-      // que no cambia al workspace de la clínica.
+      // Un kinesiólogo trabaja en su espacio particular: los turnos de las
+      // clínicas donde atiende se ven en su agenda (modo unificado). Solo
+      // cambia de espacio para entrar a una clínica donde es recepción.
+      const storedWorkspaceId = getStoredWorkspaceId(currentUser.id);
       const nextActiveWorkspace = chooseWorkspace(
         nextWorkspaces,
         nextAccountType === "KINESIOLOGO"
-          ? nextWorkspaces.find((workspace) => workspace.type === "PERSONAL")?.id ??
+          ? getSelectableWorkspaces(nextWorkspaces, "KINESIOLOGO").some(
+              (workspace) => workspace.id === storedWorkspaceId,
+            )
+            ? storedWorkspaceId
+            : nextWorkspaces.find((workspace) => workspace.type === "PERSONAL")?.id ??
               null
-          : getStoredWorkspaceId(currentUser.id),
+          : storedWorkspaceId,
         fallbackType,
       );
 
@@ -657,7 +663,13 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const selectWorkspace = useCallback((workspaceId: string) => {
     const workspace = workspaces.find((item) => item.id === workspaceId);
 
-    if (!workspace || !user || profile?.accountType === "KINESIOLOGO") {
+    if (
+      !workspace ||
+      !user ||
+      !getSelectableWorkspaces(workspaces, profile?.accountType).some(
+        (item) => item.id === workspaceId,
+      )
+    ) {
       return;
     }
 

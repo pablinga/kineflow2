@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthSessionContext } from "@/contexts/AuthSessionContext";
 import { getSupabaseClient } from "@/lib/supabase";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
+import { getSelectableWorkspaces } from "@/lib/workspace-permissions";
 
 export type WorkspaceType = "PERSONAL" | "CLINICA";
-export type WorkspaceRole = "ADMIN" | "KINESIOLOGO";
+export type WorkspaceRole = "ADMIN" | "KINESIOLOGO" | "RECEPCION";
 
 export type ActiveWorkspace = {
   id: string;
@@ -196,13 +197,18 @@ export function useActiveWorkspace() {
 
           return left.name.localeCompare(right.name);
         });
-      // Igual que AuthSessionContext: un kinesiólogo queda siempre en su
-      // espacio particular.
+      // Igual que AuthSessionContext: un kinesiólogo queda en su espacio
+      // particular, salvo que haya elegido una clínica donde es recepción.
+      const storedWorkspaceId = getStoredWorkspaceId(sessionData.user.id);
       const preferredWorkspaceId =
         fallbackType === "PERSONAL"
-          ? nextWorkspaces.find((workspace) => workspace.type === "PERSONAL")?.id ??
-            null
-          : getStoredWorkspaceId(sessionData.user.id);
+          ? getSelectableWorkspaces(nextWorkspaces, "KINESIOLOGO").some(
+              (workspace) => workspace.id === storedWorkspaceId,
+            )
+            ? storedWorkspaceId
+            : nextWorkspaces.find((workspace) => workspace.type === "PERSONAL")?.id ??
+              null
+          : storedWorkspaceId;
       const nextActiveWorkspace = chooseWorkspace(
         nextWorkspaces,
         preferredWorkspaceId,

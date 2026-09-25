@@ -37,7 +37,8 @@ export default function ListadoDelDiaPage() {
     updateAppointmentStatus,
   } = useAppointments(undefined, {
     // El kinesiólogo ve también los turnos de las clínicas donde atiende.
-    unified: accountType === "KINESIOLOGO",
+    // En una clínica donde es recepción, ve la agenda de la clínica.
+    unified: accountType === "KINESIOLOGO" && activeWorkspace?.type !== "CLINICA",
   });
   const { providers } = useInsuranceProviders();
   const [actionError, setActionError] = useState("");

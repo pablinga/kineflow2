@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdminClient } from "@/lib/supabase-server";
 
 type InvitePayload = {
   clinicName?: string;
@@ -32,11 +33,9 @@ function buildInvitationBody(params: {
 export async function POST(request: NextRequest) {
   try {
     const payload = (await request.json()) as InvitePayload;
-    const email = payload.email?.trim().toLowerCase();
-    const clinicName = payload.clinicName?.trim();
     const token = payload.token?.trim();
 
-    if (!email || !clinicName || !token) {
+    if (!token) {
       return NextResponse.json(
         { error: "Faltan datos para enviar la invitacion." },
         { status: 400 },
@@ -69,6 +68,59 @@ export async function POST(request: NextRequest) {
         { status: 401 },
       );
     }
+
+    const admin = getSupabaseAdminClient();
+
+    if (!admin) {
+      return NextResponse.json(
+        { error: "No pudimos enviar la invitacion." },
+        { status: 500 },
+      );
+    }
+
+    // Solo el dueño o un admin de la clínica puede mandar la invitación, y el
+    // email y el nombre de la clínica salen de la invitación guardada (no del
+    // body), para que no se puedan usar para mandar mails arbitrarios.
+    const { data: invitation } = await admin
+      .from("clinic_professionals")
+      .select("clinic_id, professional_email, clinics(name)")
+      .eq("id", token)
+      .maybeSingle();
+    const invitationRow = invitation as {
+      clinic_id: string;
+      clinics: { name: string } | Array<{ name: string }> | null;
+      professional_email: string;
+    } | null;
+
+    if (!invitationRow) {
+      return NextResponse.json(
+        { error: "No encontramos la invitacion." },
+        { status: 404 },
+      );
+    }
+
+    const { data: workspaceId } = await admin.rpc("get_clinic_workspace_id", {
+      target_clinic_id: invitationRow.clinic_id,
+    });
+    const [{ data: isOwner }, { data: isAdmin }] = await Promise.all([
+      supabase.rpc("is_clinic_owner", { target_clinic_id: invitationRow.clinic_id }),
+      workspaceId
+        ? supabase.rpc("is_workspace_admin", { target_workspace_id: workspaceId })
+        : Promise.resolve({ data: false }),
+    ]);
+
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json(
+        { error: "No tenés permisos para invitar profesionales a esta clínica." },
+        { status: 403 },
+      );
+    }
+
+    const clinic = Array.isArray(invitationRow.clinics)
+      ? invitationRow.clinics[0]
+      : invitationRow.clinics;
+    const email = invitationRow.professional_email.trim().toLowerCase();
+    const clinicName = clinic?.name?.trim() || payload.clinicName?.trim() || "la clínica";
 
     const invitationUrl = `${getAppUrl(request)}/invitacion?token=${token}`;
     const subject = `Te invitaron a unirte a ${clinicName} en KineFlow`;

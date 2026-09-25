@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
+import { isWorkspaceStaff } from "@/lib/workspace-permissions";
 
 export type WorkspaceProfessional = {
   id: string;
@@ -48,8 +49,9 @@ export function usePatientAssignments(patientId?: string) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
 
+  // Admin o recepción: gestionan la asignación de profesionales.
   const isClinicAdmin =
-    activeWorkspace?.type === "CLINICA" && activeWorkspace.role === "ADMIN";
+    activeWorkspace?.type === "CLINICA" && isWorkspaceStaff(activeWorkspace);
 
   const assignedProfessionalIds = useMemo(
     () => new Set(assignments.map((assignment) => assignment.professionalId)),

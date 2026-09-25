@@ -30,6 +30,7 @@ import {
   useClinicKinesiologists,
 } from "@/hooks/useClinicKinesiologists";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
+import { ReceptionTeamSection } from "@/components/team/ReceptionTeamSection";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -1067,6 +1068,10 @@ export default function ClinicKinesiologistsPage() {
             )}
           </div>
         </section>
+
+        {activeWorkspace?.type === "CLINICA" ? (
+          <ReceptionTeamSection workspaceId={activeWorkspace.id} />
+        ) : null}
       </PageContainer>
 
       {modalOpen ? (

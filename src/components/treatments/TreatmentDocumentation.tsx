@@ -11,11 +11,14 @@ import {
 } from "@/lib/treatment-files";
 
 type TreatmentDocumentationProps = {
+  /** false = solo ver y descargar (sin adjuntar). */
+  canAttach?: boolean;
   patientId: string;
   treatmentId: string;
 };
 
 export function TreatmentDocumentation({
+  canAttach = true,
   patientId,
   treatmentId,
 }: TreatmentDocumentationProps) {
@@ -100,6 +103,7 @@ export function TreatmentDocumentation({
     <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-3 sm:p-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-bold text-ink">Documentación</h3>
+        {canAttach ? (
         <button
           aria-label="Adjuntar archivos"
           className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-ocean-200 text-ocean-800 transition hover:bg-ocean-50"
@@ -109,6 +113,7 @@ export function TreatmentDocumentation({
         >
           <Paperclip className="h-4 w-4" />
         </button>
+        ) : null}
       </div>
 
       {error ? (

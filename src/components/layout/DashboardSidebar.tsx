@@ -40,6 +40,11 @@ import {
   type WorkspaceType,
 } from "@/hooks/useActiveWorkspace";
 import { shouldShowClinicFeatures } from "@/lib/features";
+import {
+  getSelectableWorkspaces,
+  isPathAllowedForRecepcion,
+  isRecepcionWorkspace,
+} from "@/lib/workspace-permissions";
 
 const LOGOUT_TIMEOUT_MS = 5000;
 const LOGOUT_REDIRECT_FALLBACK_MS = 800;
@@ -141,8 +146,16 @@ export function DashboardSidebar() {
   } = useActiveWorkspace();
   const effectiveAccountType =
     activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
-  const mobileNavigationOrder =
-    effectiveAccountType === "CONSULTORIO"
+  const isRecepcion = isRecepcionWorkspace(activeWorkspace);
+  const selectableWorkspaces = getSelectableWorkspaces(workspaces, accountType);
+  const mobileNavigationOrder = isRecepcion
+    ? [
+        "/dashboard",
+        "/dashboard/turnos",
+        "/dashboard/pacientes",
+        "/dashboard/turnos/hoy",
+      ]
+    : effectiveAccountType === "CONSULTORIO"
       ? [
           "/dashboard",
           "/dashboard/turnos",
@@ -165,7 +178,11 @@ export function DashboardSidebar() {
           (item) => item.href !== "/dashboard/ingresos",
         )
       : navigation[effectiveAccountType];
-  const roleNavigation = isClinicAdmin
+  // Recepción: solo Inicio, Pacientes, Agenda y Asistencia de sesiones (mismo
+  // allowlist que el guard de rutas).
+  const roleNavigation = isRecepcion
+    ? baseNavigation.filter((item) => isPathAllowedForRecepcion(item.href))
+    : isClinicAdmin
     ? baseNavigation
     : baseNavigation.filter(
         (item) =>
@@ -301,16 +318,17 @@ export function DashboardSidebar() {
               <label className="block text-xs font-bold uppercase tracking-wide text-slate-400">
                 Espacio
               </label>
-              {workspaces.length > 1 && accountType !== "KINESIOLOGO" ? (
+              {selectableWorkspaces.length > 1 ? (
                 <div className="relative mt-2">
                   <select
                     className="min-h-11 w-full appearance-none rounded-lg border border-ocean-100 bg-ocean-50 px-3 pr-10 text-sm font-semibold text-ink outline-none transition focus:border-ocean-400"
                     onChange={(event) => selectWorkspace(event.target.value)}
                     value={activeWorkspace?.id ?? ""}
                   >
-                    {workspaces.map((workspace) => (
+                    {selectableWorkspaces.map((workspace) => (
                       <option key={workspace.id} value={workspace.id}>
                         {workspace.name} - {getWorkspaceTypeLabel(workspace.type)}
+                        {isRecepcionWorkspace(workspace) ? " (recepción)" : ""}
                       </option>
                     ))}
                   </select>

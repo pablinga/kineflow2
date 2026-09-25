@@ -29,6 +29,7 @@ import {
   DEFAULT_SESSION_DURATION_MINUTES,
   DEFAULT_SESSION_PRICE,
 } from "@/lib/session-defaults";
+import { isWorkspaceStaff } from "@/lib/workspace-permissions";
 import { toArgentinaDateValue } from "@/lib/dates";
 
 type ClinicProfessionalOption = {
@@ -117,7 +118,10 @@ export default function NewAppointmentPage() {
     undefined,
     // El kinesiólogo ve también sus turnos de clínica, para detectar choques
     // con otro consultorio (la base los rechaza siempre).
-    { unified: accountType === "KINESIOLOGO" },
+    {
+      unified:
+        accountType === "KINESIOLOGO" && activeWorkspace?.type !== "CLINICA",
+    },
   );
   const { activePatients, loaded } = usePatients();
   const [clinicProfessionals, setClinicProfessionals] = useState<
@@ -330,13 +334,16 @@ export default function NewAppointmentPage() {
   const effectiveAccountType =
     activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
   const isClinicWorkspace = activeWorkspace?.type === "CLINICA";
-  const isClinicAdmin = isClinicWorkspace && activeWorkspace.role === "ADMIN";
+  // Staff de la clínica (admin o recepción): elige profesional y agenda para
+  // cualquiera del equipo.
+  const isClinicAdmin = isClinicWorkspace && isWorkspaceStaff(activeWorkspace);
   const isClinicProfessional =
     isClinicWorkspace && activeWorkspace.role === "KINESIOLOGO";
   const canCreateClinicSchedule =
     !isClinicWorkspace ||
     activeWorkspace.role === "ADMIN" ||
-    activeWorkspace.role === "KINESIOLOGO";
+    activeWorkspace.role === "KINESIOLOGO" ||
+    activeWorkspace.role === "RECEPCION";
   const canChangeClinicProfessional = isClinicAdmin;
   const independentPracticeBlocked = false;
   const clinicPlanBlocked =
