@@ -49,6 +49,7 @@ import { ClinicEvolutionModal } from "@/components/turnos/ClinicEvolutionModal";
 import { getSupabaseClient } from "@/lib/supabase";
 import { CLINIC_PROFESSIONAL_STATUS } from "@/lib/clinic-professionals";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
+import { toArgentinaDateValue } from "@/lib/dates";
 
 type PendingAction = {
   appointment: Appointment;
@@ -513,7 +514,8 @@ export default function AppointmentsPage() {
   } = useAppointments(undefined, {
     // Solo el kinesiólogo ve en una agenda sus turnos propios y los de las
     // clínicas donde atiende; la clínica ve los de su workspace.
-    unified: accountType === "KINESIOLOGO",
+    // En una clínica donde es recepción, ve la agenda de la clínica.
+    unified: accountType === "KINESIOLOGO" && activeWorkspace?.type !== "CLINICA",
   });
   const [actionError, setActionError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
@@ -843,7 +845,7 @@ export default function AppointmentsPage() {
     const scheduledAt = new Date(appointment.scheduledAt);
     setActionsAppointment(null);
     setRescheduling(appointment);
-    setRescheduleDate(scheduledAt.toISOString().slice(0, 10));
+    setRescheduleDate(toArgentinaDateValue(scheduledAt));
     setRescheduleTime(
       scheduledAt.toLocaleTimeString("es-AR", {
         hour: "2-digit",
@@ -916,7 +918,8 @@ export default function AppointmentsPage() {
   const canUseClinicSchedule =
     activeWorkspace?.type !== "CLINICA" ||
     activeWorkspace.role === "ADMIN" ||
-    activeWorkspace.role === "KINESIOLOGO";
+    activeWorkspace.role === "KINESIOLOGO" ||
+    activeWorkspace.role === "RECEPCION";
   const canCreateAppointment =
     ((effectiveAccountType === "CONSULTORIO" &&
       (plan.plan === "FREE" ||

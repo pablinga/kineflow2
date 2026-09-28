@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { toArgentinaDateValue } from "@/lib/dates";
 
 export type TreatmentStatus =
   | "EN_CURSO"
@@ -227,7 +228,7 @@ export function useTreatments(
       .update({
         ended_at:
           status === "FINALIZADO" || status === "ABANDONADO"
-            ? new Date().toISOString().slice(0, 10)
+            ? toArgentinaDateValue()
             : null,
         status,
       })

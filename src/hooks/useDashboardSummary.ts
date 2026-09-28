@@ -7,6 +7,7 @@ import { appointmentStatusLabels } from "@/lib/appointment-ui";
 import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
+import { isStaffMembership } from "@/lib/workspace-permissions";
 
 type PatientStatus = "active" | "inactive";
 type AppointmentStatus =
@@ -300,7 +301,7 @@ export function useDashboardSummary() {
 
         if (activeWorkspace.type === "PERSONAL") {
           scopedQuery = scopedQuery.eq("owner_id", userId).is("clinic_id", null);
-        } else if (activeWorkspace.role === "ADMIN") {
+        } else if (isStaffMembership(activeWorkspace.role, activeWorkspace.type)) {
           scopedQuery = scopedQuery.eq(
             "clinic_id",
             activeWorkspace.sourceClinicId ?? "",

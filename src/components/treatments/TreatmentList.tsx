@@ -35,6 +35,8 @@ const statusActions: Array<{
 
 type TreatmentListProps = {
   appointments: Appointment[];
+  /** false = la documentación queda en solo lectura (sin adjuntar). */
+  canAttachFiles?: boolean;
   /** Fecha de la evolución asociada a cada turno (por id de turno). */
   evolutionDateByAppointment: Map<string, string>;
   isReadOnly: boolean;
@@ -56,6 +58,7 @@ function getProgress(treatment: Treatment) {
 
 export function TreatmentList({
   appointments,
+  canAttachFiles = true,
   evolutionDateByAppointment,
   isReadOnly,
   onStatusChange,
@@ -241,7 +244,11 @@ export function TreatmentList({
               </ul>
             )}
 
-            <TreatmentDocumentation patientId={patientId} treatmentId={detail.id} />
+            <TreatmentDocumentation
+              canAttach={canAttachFiles}
+              patientId={patientId}
+              treatmentId={detail.id}
+            />
           </div>
         </div>
       ) : null}

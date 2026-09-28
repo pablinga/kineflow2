@@ -6,6 +6,7 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { isStaffMembership } from "@/lib/workspace-permissions";
 
 export type PatientStatus = "Activo" | "Inactivo";
 
@@ -243,7 +244,8 @@ export function usePatients(options: UsePatientsOptions = {}) {
         activeCountQuery = activeCountQuery
           .eq("owner_id", user.id)
           .is("clinic_id", null);
-      } else if (activeWorkspace.role === "ADMIN") {
+      } else if (isStaffMembership(activeWorkspace.role, activeWorkspace.type)) {
+        // Admin o recepción: todos los pacientes de la clínica.
         patientQuery = patientQuery.eq(
           "clinic_id",
           activeWorkspace.sourceClinicId ?? "",

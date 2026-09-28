@@ -616,117 +616,123 @@ export default function PublicBookingPage({ params }: PageProps) {
                     required
                     value={form.phone}
                   />
-                  <div className="rounded-lg border border-ocean-100 bg-white p-3">
-                    <span className="text-sm font-semibold text-slate-700">
-                      ¿Cómo pagás la sesión?
-                    </span>
-                    <div className="mt-2 flex gap-4">
-                      <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                        <input
-                          checked={paymentType === "PARTICULAR"}
-                          className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                          name="paymentType"
-                          onChange={() => setPaymentType("PARTICULAR")}
-                          type="radio"
-                        />
-                        Particular
-                      </label>
-                      <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                        <input
-                          checked={paymentType === "OBRA_SOCIAL"}
-                          className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                          name="paymentType"
-                          onChange={() => setPaymentType("OBRA_SOCIAL")}
-                          type="radio"
-                        />
-                        Obra social
-                      </label>
-                      <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                        <input
-                          checked={paymentType === "ART"}
-                          className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                          name="paymentType"
-                          onChange={() => setPaymentType("ART")}
-                          type="radio"
-                        />
-                        ART
-                      </label>
+                  {insuranceProviders.length > 0 || artProviders.length > 0 ? (
+                    <div className="rounded-lg border border-ocean-100 bg-white p-3">
+                      <span className="text-sm font-semibold text-slate-700">
+                        ¿Cómo pagás la sesión?
+                      </span>
+                      <div className="mt-2 flex gap-4">
+                        <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                          <input
+                            checked={paymentType === "PARTICULAR"}
+                            className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                            name="paymentType"
+                            onChange={() => setPaymentType("PARTICULAR")}
+                            type="radio"
+                          />
+                          Particular
+                        </label>
+                        {insuranceProviders.length > 0 ? (
+                          <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <input
+                              checked={paymentType === "OBRA_SOCIAL"}
+                              className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                              name="paymentType"
+                              onChange={() => setPaymentType("OBRA_SOCIAL")}
+                              type="radio"
+                            />
+                            Obra social
+                          </label>
+                        ) : null}
+                        {artProviders.length > 0 ? (
+                          <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <input
+                              checked={paymentType === "ART"}
+                              className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                              name="paymentType"
+                              onChange={() => setPaymentType("ART")}
+                              type="radio"
+                            />
+                            ART
+                          </label>
+                        ) : null}
+                      </div>
+
+                      {paymentType === "OBRA_SOCIAL" ? (
+                        <div className="mt-3 grid gap-3">
+                          <select
+                            className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                            onChange={(event) =>
+                              setForm((current) => ({
+                                ...current,
+                                insuranceProviderId: event.target.value,
+                              }))
+                            }
+                            value={form.insuranceProviderId}
+                          >
+                            <option value="">Seleccioná tu obra social</option>
+                            {insuranceProviders.map((provider) => (
+                              <option key={provider.id} value={provider.id}>
+                                {provider.name}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                            onChange={(event) =>
+                              setForm((current) => ({
+                                ...current,
+                                insuranceMemberNumber: event.target.value,
+                              }))
+                            }
+                            placeholder="Número de afiliado"
+                            required={Boolean(form.insuranceProviderId)}
+                            value={form.insuranceMemberNumber}
+                          />
+                        </div>
+                      ) : null}
+
+                      {paymentType === "ART" ? (
+                        <div className="mt-3 grid gap-3">
+                          <select
+                            className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                            onChange={(event) =>
+                              setForm((current) => ({
+                                ...current,
+                                artProviderId: event.target.value,
+                              }))
+                            }
+                            value={form.artProviderId}
+                          >
+                            <option value="">Seleccioná tu ART</option>
+                            {artProviders.map((provider) => (
+                              <option key={provider.id} value={provider.id}>
+                                {provider.name}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                            onChange={(event) =>
+                              setForm((current) => ({
+                                ...current,
+                                insuranceMemberNumber: event.target.value,
+                              }))
+                            }
+                            placeholder="Número de afiliado/credencial ART"
+                            required={Boolean(form.artProviderId)}
+                            value={form.insuranceMemberNumber}
+                          />
+                        </div>
+                      ) : null}
+
+                      {paymentType === "PARTICULAR" ? (
+                        <p className="mt-2 text-sm text-slate-600">
+                          Duración de la sesión: {durationMinutes} minutos
+                        </p>
+                      ) : null}
                     </div>
-
-                    {paymentType === "OBRA_SOCIAL" ? (
-                      <div className="mt-3 grid gap-3">
-                        <select
-                          className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                          onChange={(event) =>
-                            setForm((current) => ({
-                              ...current,
-                              insuranceProviderId: event.target.value,
-                            }))
-                          }
-                          value={form.insuranceProviderId}
-                        >
-                          <option value="">Seleccioná tu obra social</option>
-                          {insuranceProviders.map((provider) => (
-                            <option key={provider.id} value={provider.id}>
-                              {provider.name}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                          onChange={(event) =>
-                            setForm((current) => ({
-                              ...current,
-                              insuranceMemberNumber: event.target.value,
-                            }))
-                          }
-                          placeholder="Número de afiliado"
-                          required={Boolean(form.insuranceProviderId)}
-                          value={form.insuranceMemberNumber}
-                        />
-                      </div>
-                    ) : null}
-
-                    {paymentType === "ART" ? (
-                      <div className="mt-3 grid gap-3">
-                        <select
-                          className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                          onChange={(event) =>
-                            setForm((current) => ({
-                              ...current,
-                              artProviderId: event.target.value,
-                            }))
-                          }
-                          value={form.artProviderId}
-                        >
-                          <option value="">Seleccioná tu ART</option>
-                          {artProviders.map((provider) => (
-                            <option key={provider.id} value={provider.id}>
-                              {provider.name}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                          onChange={(event) =>
-                            setForm((current) => ({
-                              ...current,
-                              insuranceMemberNumber: event.target.value,
-                            }))
-                          }
-                          placeholder="Número de afiliado/credencial ART"
-                          required={Boolean(form.artProviderId)}
-                          value={form.insuranceMemberNumber}
-                        />
-                      </div>
-                    ) : null}
-
-                    {paymentType === "PARTICULAR" ? (
-                      <p className="mt-2 text-sm text-slate-600">
-                        Duración de la sesión: {durationMinutes} minutos
-                      </p>
-                    ) : null}
-                  </div>
+                  ) : null}
                   {isWhatsAppNotificationsEnabled() ? (
                     <label className="flex items-start gap-3 rounded-lg border border-ocean-100 bg-white p-3 text-sm font-semibold leading-5 text-slate-700">
                       <input

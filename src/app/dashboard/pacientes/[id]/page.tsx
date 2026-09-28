@@ -47,15 +47,15 @@ import {
   type TreatmentFileCategory,
 } from "@/lib/treatment-files";
 import { uploadTreatmentFiles } from "@/hooks/useTreatmentFiles";
-
-const today = new Date().toISOString().slice(0, 10);
+import { toArgentinaDateValue } from "@/lib/dates";
+import { isRecepcionWorkspace } from "@/lib/workspace-permissions";
 
 function createEmptyEvolution(patientId: string): NewEvolutionInput {
   return {
     patientId,
     treatmentId: "",
     appointmentId: "",
-    sessionDate: today,
+    sessionDate: toArgentinaDateValue(),
     painLevel: 0,
     clinicalNotes: "",
     nextGoals: "",
@@ -68,7 +68,7 @@ function createEmptyTreatment(patientId: string): NewTreatmentInput {
     diagnosis: "",
     notes: "",
     patientId,
-    startedAt: today,
+    startedAt: toArgentinaDateValue(),
     totalSessions: 10,
   };
 }
@@ -90,6 +90,9 @@ function PatientDetailPageContent() {
     updateAppointmentStatus,
   } = useAppointments(patientId);
   const { activeWorkspace } = useActiveWorkspace();
+  // Recepción: evoluciones, tratamientos y archivos en solo lectura; los
+  // cobros se registran desde el historial de turnos.
+  const isRecepcion = isRecepcionWorkspace(activeWorkspace);
   const {
     addEvolution,
     error: evolutionsError,
@@ -180,7 +183,7 @@ function PatientDetailPageContent() {
   useEffect(() => {
     const appointmentId = searchParams.get("appointment");
 
-    if (!appointmentId || appointments.length === 0) {
+    if (!appointmentId || appointments.length === 0 || isRecepcion) {
       return;
     }
 
@@ -195,7 +198,7 @@ function PatientDetailPageContent() {
       }));
       setEvolutionModalOpen(true);
     }
-  }, [appointments, searchParams]);
+  }, [appointments, isRecepcion, searchParams]);
 
   if (authError) {
     return (
@@ -627,7 +630,7 @@ function PatientDetailPageContent() {
                     </p>
                   ) : null}
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {professionals.map((professional) => {
                       const assignment = assignmentByProfessional.get(
                         professional.id,
@@ -760,6 +763,7 @@ function PatientDetailPageContent() {
                       Nuevo turno
                     </Link>
                   )}
+                  {isRecepcion ? null : (
                   <button
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
                     disabled={Boolean(writeBlockMessage)}
@@ -770,7 +774,8 @@ function PatientDetailPageContent() {
                     <ClipboardPlus className="h-4 w-4" />
                     Nueva evolución
                   </button>
-                  {isReadOnly ? (
+                  )}
+                  {isRecepcion ? null : isReadOnly ? (
                     <button
                       className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-400"
                       disabled
@@ -820,7 +825,7 @@ function PatientDetailPageContent() {
                 </section>
               ) : null}
 
-              <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:mt-6 sm:gap-6">
+              <section className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:mt-6 sm:gap-6">
                 <aside className="space-y-4">
                   {/* Atributo hidden (no la clase): space-y lo saltea y no desplaza a Tratamientos. */}
                   <section hidden>
@@ -864,6 +869,7 @@ function PatientDetailPageContent() {
                       <h2 className="text-lg font-bold text-ink">
                         Tratamientos
                       </h2>
+                      {isRecepcion ? null : (
                       <button
                         className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 sm:px-4"
                         disabled={isReadOnly}
@@ -882,14 +888,20 @@ function PatientDetailPageContent() {
                         <span className="sm:hidden">Tratamiento</span>
                         <span className="hidden sm:inline">Nuevo tratamiento</span>
                       </button>
+                      )}
                     </div>
                     <TreatmentList
                       appointments={appointments}
+                      canAttachFiles={!isRecepcion}
                       evolutionDateByAppointment={evolutionDateByAppointment}
-                      isReadOnly={isReadOnly}
+                      isReadOnly={isReadOnly || isRecepcion}
                       onStatusChange={handleTreatmentStatus}
                       patientId={patientId}
-                      readOnlyMessage={readOnlyMessage}
+                      readOnlyMessage={
+                        isRecepcion
+                          ? "Recepción puede ver los tratamientos, pero no modificarlos."
+                          : readOnlyMessage
+                      }
                       treatments={treatments}
                     />
                   </section>

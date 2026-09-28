@@ -3,6 +3,7 @@ import {
   getSupabaseAdminClient,
   getSupabaseServerClient,
 } from "@/lib/supabase-server";
+import { toArgentinaDateValue } from "@/lib/dates";
 
 type AppointmentStatus = "pending" | "attended" | "cancelled" | "no_show" | "rescheduled";
 
@@ -87,19 +88,30 @@ export async function POST(request: Request) {
   }
 
   const currentAppointment = appointment as AppointmentRow;
-  const { data: membership } = currentAppointment.workspace_id
-    ? await admin
-        .from("workspace_members")
-        .select("role")
-        .eq("workspace_id", currentAppointment.workspace_id)
-        .eq("user_id", user.id)
-        .eq("status", "accepted")
-        .maybeSingle()
-    : { data: null };
-  const isWorkspaceAdmin =
-    (membership as { role?: string } | null)?.role === "ADMIN";
+  const [{ data: membership }, { data: workspace }] = currentAppointment.workspace_id
+    ? await Promise.all([
+        admin
+          .from("workspace_members")
+          .select("role")
+          .eq("workspace_id", currentAppointment.workspace_id)
+          .eq("user_id", user.id)
+          .eq("status", "accepted")
+          .maybeSingle(),
+        admin
+          .from("workspaces")
+          .select("type")
+          .eq("id", currentAppointment.workspace_id)
+          .maybeSingle(),
+      ])
+    : [{ data: null }, { data: null }];
+  const membershipRole = (membership as { role?: string } | null)?.role;
+  // Staff = ADMIN, o RECEPCION en una clínica (igual que is_workspace_staff).
+  const isWorkspaceStaff =
+    membershipRole === "ADMIN" ||
+    (membershipRole === "RECEPCION" &&
+      (workspace as { type?: string } | null)?.type === "CLINICA");
   const canUpdateAppointment =
-    currentAppointment.owner_id === user.id || isWorkspaceAdmin;
+    currentAppointment.owner_id === user.id || isWorkspaceStaff;
 
   if (!canUpdateAppointment) {
     return NextResponse.json(
@@ -109,10 +121,10 @@ export async function POST(request: Request) {
   }
 
   // En un turno de clínica, el profesional asignado solo registra asistencia;
-  // cancelarlo o cambiarlo a otro estado le corresponde a la clínica.
+  // cancelarlo o cambiarlo a otro estado le corresponde a la clínica (staff).
   if (
     currentAppointment.appointment_origin === "clinic" &&
-    !isWorkspaceAdmin &&
+    !isWorkspaceStaff &&
     status !== "attended" &&
     status !== "no_show"
   ) {
@@ -205,7 +217,7 @@ export async function POST(request: Request) {
       .from("treatments")
       .update({
         ended_at: treatmentUpdate.completed
-          ? new Date().toISOString().slice(0, 10)
+          ? toArgentinaDateValue()
           : null,
         status: treatmentUpdate.status,
         used_sessions: treatmentUpdate.usedSessions,

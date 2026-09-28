@@ -32,6 +32,8 @@ import { canCreatePatient } from "@/lib/billing";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { getSupabaseClient } from "@/lib/supabase";
+import { toArgentinaDateValue } from "@/lib/dates";
+import { isStaffMembership, isWorkspaceStaff } from "@/lib/workspace-permissions";
 
 const emptyPatient: NewPatientInput = {
   assignedProfessionalId: "",
@@ -171,7 +173,7 @@ export default function PatientsPage() {
     async function loadClinicProfessionals() {
       if (
         activeWorkspace?.type !== "CLINICA" ||
-        activeWorkspace.role !== "ADMIN" ||
+        !isStaffMembership(activeWorkspace.role, activeWorkspace.type) ||
         !activeWorkspace.sourceClinicId
       ) {
         setClinicProfessionals([]);
@@ -230,8 +232,9 @@ export default function PatientsPage() {
 
   const effectiveAccountType =
     activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
+  // Admin y recepción gestionan los pacientes de la clínica.
   const canManagePatients =
-    activeWorkspace?.type !== "CLINICA" || activeWorkspace.role === "ADMIN";
+    activeWorkspace?.type !== "CLINICA" || isWorkspaceStaff(activeWorkspace);
   const clinicPracticeBlocked =
     effectiveAccountType === "CONSULTORIO" &&
     plan.plan !== "FREE" &&
@@ -341,7 +344,7 @@ export default function PatientsPage() {
 
       if (
         activeWorkspace?.type === "CLINICA" &&
-        activeWorkspace.role === "ADMIN" &&
+        isWorkspaceStaff(activeWorkspace) &&
         clinicProfessionals.length === 0
       ) {
         setActionError(
@@ -373,7 +376,7 @@ export default function PatientsPage() {
           ...initialTreatment,
           diagnosis: initialTreatment.diagnosis.trim(),
           patientId,
-          startedAt: new Date().toISOString().slice(0, 10),
+          startedAt: toArgentinaDateValue(),
         });
       }
 
@@ -478,7 +481,7 @@ export default function PatientsPage() {
     onChange: (value: string) => void;
     value: string;
   }) {
-    if (activeWorkspace?.type !== "CLINICA" || activeWorkspace.role !== "ADMIN") {
+    if (activeWorkspace?.type !== "CLINICA" || !isWorkspaceStaff(activeWorkspace)) {
       return null;
     }
 
@@ -844,7 +847,7 @@ export default function PatientsPage() {
                 ))}
               </div>
             ) : (
-              <div className="mt-5 grid gap-3 xl:grid-cols-2">
+              <div className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-2">
                 {filteredPatients.map((patient) => (
                   <article
                     className={`rounded-lg border p-4 shadow-card ${
