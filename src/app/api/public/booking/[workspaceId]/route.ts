@@ -37,6 +37,7 @@ type BookingRequestBody = {
   phone?: string;
   professionalId?: string;
   scheduledAt?: string;
+  source?: string;
   turnstileToken?: string;
   whatsappConsent?: boolean;
 };
@@ -451,6 +452,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { data: appointment, error: appointmentError } = await admin.from("appointments").insert({
       appointment_origin: bookingContext.origin,
       art_provider_id: artProviderId,
+      booking_source: body.source === "qr" ? "public_qr" : "public_link",
       clinic_id: bookingContext.clinicId,
       clinic_professional_id: bookingContext.clinicProfessionalId,
       duration_minutes: durationMinutes,
