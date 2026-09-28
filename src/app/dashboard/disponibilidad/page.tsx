@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { BookingQrCard } from "@/components/booking/BookingQrCard";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { FieldLabel } from "@/components/ui/FieldLabel";
@@ -327,6 +328,15 @@ export default function IndependentAvailabilityPage() {
               </Link>
               .
             </p>
+
+            {publicBookingLink ? (
+              <div className="mx-auto max-w-xs">
+                <BookingQrCard
+                  bookingUrl={publicBookingLink}
+                  workspaceName={activeWorkspace?.name || "Mi consultorio"}
+                />
+              </div>
+            ) : null}
           </section>
         </PageContainer>
       </main>
@@ -515,7 +525,7 @@ export default function IndependentAvailabilityPage() {
                 <div>
                   <h2 className="font-bold text-ink">Tu link público</h2>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Compartilo con pacientes para que elijan un horario libre.
+                    Compartilo con pacientes o descargá el QR para tu consultorio, web o redes.
                   </p>
                 </div>
               </div>
@@ -538,6 +548,13 @@ export default function IndependentAvailabilityPage() {
                 )}
                 Copiar link
               </Button>
+
+              {publicBookingLink ? (
+                <BookingQrCard
+                  bookingUrl={publicBookingLink}
+                  workspaceName={activeWorkspace?.name || "Mi consultorio"}
+                />
+              ) : null}
             </section>
 
             <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
