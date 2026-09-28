@@ -93,3 +93,10 @@ Pendiente posible: "Registrar evolución" también desde Sesiones diarias.
 
 - Suele pedir "commitealo a qa y luego a main" en el mismo mensaje; en ese caso se hace el merge a `main` sin volver a preguntar.
 - Para cambios visuales chicos prefiere que se commitee sin correr Playwright (interrumpió esas corridas); para cambios que tocan permisos o datos conviene ofrecer la prueba end-to-end antes de commitear.
+
+### Panel admin de la plataforma (2026-09-28)
+
+- `/admin` (reporte semanal de KPIs) con login propio, independiente de las cuentas de KineFlow. Variables en Vercel (Preview y Production, valores distintos): `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET`. Sin ellas `/admin` responde 404.
+- Cambiar la contraseña: `node scripts/admin-password-hash.mjs` y reemplazar `ADMIN_PASSWORD_HASH` en Vercel (invalida las sesiones abiertas). No hay recuperación por mail a propósito.
+- Seguridad: cookie firmada HMAC httpOnly/SameSite=strict de 8 h; bloqueo tras 5 fallos en 15 min por IP (50 global) en `admin_login_attempts`; `admin_weekly_kpis()` solo la ejecuta `service_role`.
+- `appointments.booking_source` (`manual` | `public_link` | `public_qr`): la reserva pública lo completa (`?src=qr` → `public_qr`). Los turnos online previos se marcaron por la nota "Reserva creada desde enlace público." — `202609280002`, aplicada en QA y prod.

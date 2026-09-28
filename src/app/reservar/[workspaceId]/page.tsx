@@ -325,6 +325,11 @@ export default function PublicBookingPage({ params }: PageProps) {
             phone: form.phone,
             professionalId,
             scheduledAt: selectedSlot.start,
+            // El QR de Disponibilidad abre el enlace con ?src=qr.
+            source:
+              new URLSearchParams(window.location.search).get("src") === "qr"
+                ? "qr"
+                : "link",
             turnstileToken,
             whatsappConsent: form.whatsappConsent,
           }),
