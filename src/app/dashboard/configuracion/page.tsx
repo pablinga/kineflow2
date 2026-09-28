@@ -624,96 +624,6 @@ export default function WorkspaceSettingsPage() {
           <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
-                <CalendarOff className="h-5 w-5" />
-              </span>
-              <h2 className="text-xl font-bold text-ink">Días bloqueados</h2>
-            </div>
-
-            <form className="mt-5 flex gap-2 sm:gap-3" onSubmit={handleAddBlockedDate}>
-              <input
-                className="min-h-11 w-36 shrink-0 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50 sm:w-40"
-                disabled={!canEdit}
-                onChange={(event) =>
-                  setBlockedDateForm((current) => ({
-                    ...current,
-                    blockedDate: event.target.value,
-                  }))
-                }
-                required
-                type="date"
-                value={blockedDateForm.blockedDate}
-              />
-              <input
-                className="min-h-11 min-w-0 flex-1 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
-                disabled={!canEdit}
-                onChange={(event) =>
-                  setBlockedDateForm((current) => ({
-                    ...current,
-                    reason: event.target.value,
-                  }))
-                }
-                placeholder="Motivo opcional"
-                value={blockedDateForm.reason}
-              />
-              <Button
-                aria-label="Agregar día bloqueado"
-                className="w-11 shrink-0 !px-0"
-                disabled={!canEdit || savingBlockedDate}
-                title="Agregar día bloqueado"
-                type="submit"
-              >
-                <Plus className="h-5 w-5" />
-              </Button>
-            </form>
-
-            <div className="mt-5 space-y-3">
-              {blockedDates.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-4 text-sm font-semibold text-ocean-800">
-                  No hay días bloqueados.
-                </div>
-              ) : null}
-              {blockedDates.map((item) => (
-                <div
-                  className="flex items-center justify-between gap-3 rounded-lg border border-ocean-100 p-3"
-                  key={item.id}
-                >
-                  <div>
-                    <p className="text-sm font-bold capitalize text-ink">
-                      {formatDate(item.blockedDate)}
-                    </p>
-                    {item.reason ? (
-                      <p className="mt-1 text-sm text-slate-600">{item.reason}</p>
-                    ) : null}
-                  </div>
-                  <button
-                    aria-label="Eliminar día bloqueado"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-100 text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
-                    disabled={!canEdit}
-                    onClick={async () => {
-                      try {
-                        await deleteBlockedDate(item.id);
-                        setMessage("Día bloqueado eliminado.");
-                      } catch (deleteError) {
-                        setError(
-                          getFriendlyErrorMessage(
-                            deleteError,
-                            "No pudimos eliminar el día bloqueado.",
-                          ),
-                        );
-                      }
-                    }}
-                    type="button"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6">
-            <div className="flex items-center gap-3">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
                 <ShieldCheck className="h-5 w-5" />
               </span>
               <h2 className="text-xl font-bold text-ink">Obras sociales</h2>
@@ -940,6 +850,96 @@ export default function WorkspaceSettingsPage() {
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6 lg:col-span-2">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
+                <CalendarOff className="h-5 w-5" />
+              </span>
+              <h2 className="text-xl font-bold text-ink">Días bloqueados</h2>
+            </div>
+
+            <form className="mt-5 flex gap-2 sm:gap-3" onSubmit={handleAddBlockedDate}>
+              <input
+                className="min-h-11 w-36 shrink-0 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50 sm:w-40"
+                disabled={!canEdit}
+                onChange={(event) =>
+                  setBlockedDateForm((current) => ({
+                    ...current,
+                    blockedDate: event.target.value,
+                  }))
+                }
+                required
+                type="date"
+                value={blockedDateForm.blockedDate}
+              />
+              <input
+                className="min-h-11 min-w-0 flex-1 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50"
+                disabled={!canEdit}
+                onChange={(event) =>
+                  setBlockedDateForm((current) => ({
+                    ...current,
+                    reason: event.target.value,
+                  }))
+                }
+                placeholder="Motivo opcional"
+                value={blockedDateForm.reason}
+              />
+              <Button
+                aria-label="Agregar día bloqueado"
+                className="w-11 shrink-0 !px-0"
+                disabled={!canEdit || savingBlockedDate}
+                title="Agregar día bloqueado"
+                type="submit"
+              >
+                <Plus className="h-5 w-5" />
+              </Button>
+            </form>
+
+            <div className="mt-5 space-y-3">
+              {blockedDates.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-4 text-sm font-semibold text-ocean-800">
+                  No hay días bloqueados.
+                </div>
+              ) : null}
+              {blockedDates.map((item) => (
+                <div
+                  className="flex items-center justify-between gap-3 rounded-lg border border-ocean-100 p-3"
+                  key={item.id}
+                >
+                  <div>
+                    <p className="text-sm font-bold capitalize text-ink">
+                      {formatDate(item.blockedDate)}
+                    </p>
+                    {item.reason ? (
+                      <p className="mt-1 text-sm text-slate-600">{item.reason}</p>
+                    ) : null}
+                  </div>
+                  <button
+                    aria-label="Eliminar día bloqueado"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-100 text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
+                    disabled={!canEdit}
+                    onClick={async () => {
+                      try {
+                        await deleteBlockedDate(item.id);
+                        setMessage("Día bloqueado eliminado.");
+                      } catch (deleteError) {
+                        setError(
+                          getFriendlyErrorMessage(
+                            deleteError,
+                            "No pudimos eliminar el día bloqueado.",
+                          ),
+                        );
+                      }
+                    }}
+                    type="button"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               ))}
             </div>
