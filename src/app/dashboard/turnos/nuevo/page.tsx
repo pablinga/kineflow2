@@ -834,127 +834,133 @@ export default function NewAppointmentPage() {
               </label>
             </div>
 
-            <div className="mt-4 rounded-lg border border-ocean-100 p-4">
-              <span className="text-sm font-semibold text-slate-700">
-                ¿Cómo paga el paciente?
-              </span>
-              <div className="mt-2 flex gap-4">
-                <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <input
-                    checked={paymentType === "PARTICULAR"}
-                    className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                    name="paymentType"
-                    onChange={() => selectPaymentType("PARTICULAR")}
-                    type="radio"
-                  />
-                  Particular
-                </label>
-                <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <input
-                    checked={paymentType === "OBRA_SOCIAL"}
-                    className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                    name="paymentType"
-                    onChange={() => selectPaymentType("OBRA_SOCIAL")}
-                    type="radio"
-                  />
-                  Obra social
-                </label>
-                <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                  <input
-                    checked={paymentType === "ART"}
-                    className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                    name="paymentType"
-                    onChange={() => selectPaymentType("ART")}
-                    type="radio"
-                  />
-                  ART
-                </label>
-              </div>
-
-              {paymentType === "OBRA_SOCIAL" ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
+            {activeInsuranceProviders.length > 0 || activeArtProviders.length > 0 ? (
+              <div className="mt-4 rounded-lg border border-ocean-100 p-4">
+                <span className="text-sm font-semibold text-slate-700">
+                  ¿Cómo paga el paciente?
+                </span>
+                <div className="mt-2 flex gap-4">
+                  <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <input
+                      checked={paymentType === "PARTICULAR"}
+                      className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                      name="paymentType"
+                      onChange={() => selectPaymentType("PARTICULAR")}
+                      type="radio"
+                    />
+                    Particular
+                  </label>
+                  {activeInsuranceProviders.length > 0 ? (
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                      <input
+                        checked={paymentType === "OBRA_SOCIAL"}
+                        className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                        name="paymentType"
+                        onChange={() => selectPaymentType("OBRA_SOCIAL")}
+                        type="radio"
+                      />
                       Obra social
-                    </span>
-                    <select
-                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) => {
-                        setInsuranceProviderId(event.target.value);
-                        applyProviderPrice(
-                          activeInsuranceProviders.find(
-                            (provider) => provider.id === event.target.value,
-                          )?.sessionPrice,
-                        );
-                      }}
-                      value={insuranceProviderId}
-                    >
-                      <option value="">Seleccionar obra social</option>
-                      {activeInsuranceProviders.map((provider) => (
-                        <option key={provider.id} value={provider.id}>
-                          {provider.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Número de afiliado
-                    </span>
-                    <input
-                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) =>
-                        setInsuranceMemberNumber(event.target.value)
-                      }
-                      required={Boolean(insuranceProviderId)}
-                      value={insuranceMemberNumber}
-                    />
-                  </label>
-                </div>
-              ) : null}
-
-              {paymentType === "ART" ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
+                    </label>
+                  ) : null}
+                  {activeArtProviders.length > 0 ? (
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                      <input
+                        checked={paymentType === "ART"}
+                        className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                        name="paymentType"
+                        onChange={() => selectPaymentType("ART")}
+                        type="radio"
+                      />
                       ART
-                    </span>
-                    <select
-                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) => {
-                        setArtProviderId(event.target.value);
-                        applyProviderPrice(
-                          activeArtProviders.find(
-                            (provider) => provider.id === event.target.value,
-                          )?.sessionPrice,
-                        );
-                      }}
-                      value={artProviderId}
-                    >
-                      <option value="">Seleccionar ART</option>
-                      {activeArtProviders.map((provider) => (
-                        <option key={provider.id} value={provider.id}>
-                          {provider.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-sm font-semibold text-slate-700">
-                      Número de afiliado/credencial ART
-                    </span>
-                    <input
-                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) =>
-                        setInsuranceMemberNumber(event.target.value)
-                      }
-                      required={Boolean(artProviderId)}
-                      value={insuranceMemberNumber}
-                    />
-                  </label>
+                    </label>
+                  ) : null}
                 </div>
-              ) : null}
-            </div>
+
+                {paymentType === "OBRA_SOCIAL" ? (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-sm font-semibold text-slate-700">
+                        Obra social
+                      </span>
+                      <select
+                        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                        onChange={(event) => {
+                          setInsuranceProviderId(event.target.value);
+                          applyProviderPrice(
+                            activeInsuranceProviders.find(
+                              (provider) => provider.id === event.target.value,
+                            )?.sessionPrice,
+                          );
+                        }}
+                        value={insuranceProviderId}
+                      >
+                        <option value="">Seleccionar obra social</option>
+                        {activeInsuranceProviders.map((provider) => (
+                          <option key={provider.id} value={provider.id}>
+                            {provider.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="text-sm font-semibold text-slate-700">
+                        Número de afiliado
+                      </span>
+                      <input
+                        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                        onChange={(event) =>
+                          setInsuranceMemberNumber(event.target.value)
+                        }
+                        required={Boolean(insuranceProviderId)}
+                        value={insuranceMemberNumber}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+
+                {paymentType === "ART" ? (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-sm font-semibold text-slate-700">
+                        ART
+                      </span>
+                      <select
+                        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                        onChange={(event) => {
+                          setArtProviderId(event.target.value);
+                          applyProviderPrice(
+                            activeArtProviders.find(
+                              (provider) => provider.id === event.target.value,
+                            )?.sessionPrice,
+                          );
+                        }}
+                        value={artProviderId}
+                      >
+                        <option value="">Seleccionar ART</option>
+                        {activeArtProviders.map((provider) => (
+                          <option key={provider.id} value={provider.id}>
+                            {provider.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="text-sm font-semibold text-slate-700">
+                        Número de afiliado/credencial ART
+                      </span>
+                      <input
+                        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                        onChange={(event) =>
+                          setInsuranceMemberNumber(event.target.value)
+                        }
+                        required={Boolean(artProviderId)}
+                        value={insuranceMemberNumber}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <label className="mt-4 block">
               <span className="text-sm font-semibold text-slate-700">

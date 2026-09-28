@@ -630,7 +630,7 @@ function PatientDetailPageContent() {
                     </p>
                   ) : null}
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {professionals.map((professional) => {
                       const assignment = assignmentByProfessional.get(
                         professional.id,
@@ -825,7 +825,7 @@ function PatientDetailPageContent() {
                 </section>
               ) : null}
 
-              <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:mt-6 sm:gap-6">
+              <section className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:mt-6 sm:gap-6">
                 <aside className="space-y-4">
                   {/* Atributo hidden (no la clase): space-y lo saltea y no desplaza a Tratamientos. */}
                   <section hidden>

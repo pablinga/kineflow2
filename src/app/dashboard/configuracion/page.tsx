@@ -620,7 +620,7 @@ export default function WorkspaceSettingsPage() {
           ) : null}
         </form>
 
-        <section className="mt-4 grid gap-4 lg:grid-cols-2">
+        <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">

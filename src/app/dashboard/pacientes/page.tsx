@@ -847,7 +847,7 @@ export default function PatientsPage() {
                 ))}
               </div>
             ) : (
-              <div className="mt-5 grid gap-3 xl:grid-cols-2">
+              <div className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-2">
                 {filteredPatients.map((patient) => (
                   <article
                     className={`rounded-lg border p-4 shadow-card ${
