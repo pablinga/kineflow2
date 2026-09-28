@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import QRCode, { type QRCodeRenderersOptions } from "qrcode";
-import { Download, FileCode, ImageDown } from "lucide-react";
+import { Download } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 
@@ -13,11 +13,15 @@ type BookingQrCardProps = {
 
 // ocean-700 de tailwind.config.ts (color de marca de la app).
 const BRAND_COLOR = "#0B43AE";
+// Corrección "H" (~30%): el QR sigue leyéndose con el logo tapando el centro.
 const QR_OPTIONS: QRCodeRenderersOptions = {
   color: { dark: "#000000", light: "#ffffff" },
-  errorCorrectionLevel: "M",
+  errorCorrectionLevel: "H",
   margin: 4,
 };
+const LOGO_SRC = "/icon-512.png";
+// Lado del logo respecto del QR: ~20% queda holgado dentro de la corrección H.
+const LOGO_RATIO = 0.2;
 
 const CARD_WIDTH = 1080;
 const CARD_HEIGHT = 1350;
@@ -56,6 +60,15 @@ function canvasToBlob(canvas: HTMLCanvasElement) {
         reject(new Error("No pudimos generar la imagen."));
       }
     }, "image/png");
+  });
+}
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("No pudimos cargar el logo."));
+    image.src = src;
   });
 }
 
@@ -191,8 +204,30 @@ async function drawShareCard(qrUrl: string, workspaceName: string) {
   context.fill();
 
   const qrCanvas = document.createElement("canvas");
-  await QRCode.toCanvas(qrCanvas, qrUrl, { ...QR_OPTIONS, width: qrSize });
-  context.drawImage(qrCanvas, boxX + boxPadding, boxY + boxPadding, qrSize, qrSize);
+  const [, logo] = await Promise.all([
+    QRCode.toCanvas(qrCanvas, qrUrl, { ...QR_OPTIONS, width: qrSize }),
+    loadImage(LOGO_SRC),
+  ]);
+  const qrX = boxX + boxPadding;
+  const qrY = boxY + boxPadding;
+  context.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+
+  // Logo al centro sobre un recuadro blanco, para que no se mezcle con los módulos.
+  const logoSize = Math.round(qrSize * LOGO_RATIO);
+  const logoPadding = 14;
+  const logoX = qrX + (qrSize - logoSize) / 2;
+  const logoY = qrY + (qrSize - logoSize) / 2;
+  context.fillStyle = "#ffffff";
+  roundedRect(
+    context,
+    logoX - logoPadding,
+    logoY - logoPadding,
+    logoSize + logoPadding * 2,
+    logoSize + logoPadding * 2,
+    28,
+  );
+  context.fill();
+  context.drawImage(logo, logoX, logoY, logoSize, logoSize);
 
   context.fillStyle = "#ffffff";
   fitFontSize(
@@ -219,8 +254,9 @@ async function drawShareCard(qrUrl: string, workspaceName: string) {
 }
 
 /**
- * QR del link público de reservas: vista previa y descargas (PNG, SVG y una
- * tarjeta vertical lista para redes). Todo se genera en el navegador.
+ * QR del link público de reservas con el logo de KineFlow al centro: vista
+ * previa y descarga de una tarjeta vertical lista para imprimir o compartir.
+ * Todo se genera en el navegador.
  */
 export function BookingQrCard({ bookingUrl, workspaceName }: BookingQrCardProps) {
   const qrUrl = useMemo(() => buildQrUrl(bookingUrl), [bookingUrl]);
@@ -265,29 +301,11 @@ export function BookingQrCard({ bookingUrl, workspaceName }: BookingQrCardProps)
     }
   }
 
-  function downloadPng() {
-    return runDownload(async () => {
-      const canvas = document.createElement("canvas");
-      await QRCode.toCanvas(canvas, qrUrl, { ...QR_OPTIONS, width: 1024 });
-      downloadBlob(await canvasToBlob(canvas), "kineflow-qr-reservas.png");
-    });
-  }
-
-  function downloadSvg() {
-    return runDownload(async () => {
-      const svg = await QRCode.toString(qrUrl, { ...QR_OPTIONS, type: "svg" });
-      downloadBlob(
-        new Blob([svg], { type: "image/svg+xml;charset=utf-8" }),
-        "kineflow-qr-reservas.svg",
-      );
-    });
-  }
-
   function downloadCard() {
     return runDownload(async () => {
       downloadBlob(
         await drawShareCard(qrUrl, workspaceName.trim() || "Mi consultorio"),
-        "kineflow-tarjeta-reservas.png",
+        "kineflow-qr-reservas.png",
       );
     });
   }
@@ -296,14 +314,20 @@ export function BookingQrCard({ bookingUrl, workspaceName }: BookingQrCardProps)
     <div className="mt-4 border-t border-ocean-100 pt-4">
       <div className="flex justify-center">
         {previewSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element -- data URL generada en el cliente
-          <img
-            alt="Código QR del link de reservas"
-            className="h-[180px] w-[180px] rounded-lg border border-ocean-100 bg-white"
-            height={180}
-            src={previewSrc}
-            width={180}
-          />
+          <div className="relative h-[180px] w-[180px]">
+            {/* eslint-disable-next-line @next/next/no-img-element -- data URL generada en el cliente */}
+            <img
+              alt="Código QR del link de reservas"
+              className="h-[180px] w-[180px] rounded-lg border border-ocean-100 bg-white"
+              height={180}
+              src={previewSrc}
+              width={180}
+            />
+            <span className="absolute left-1/2 top-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-lg bg-white p-1">
+              {/* eslint-disable-next-line @next/next/no-img-element -- ícono estático de /public */}
+              <img alt="" className="h-full w-full" height={32} src={LOGO_SRC} width={32} />
+            </span>
+          </div>
         ) : (
           <div className="h-[180px] w-[180px] animate-pulse rounded-lg bg-ocean-50" />
         )}
@@ -315,20 +339,16 @@ export function BookingQrCard({ bookingUrl, workspaceName }: BookingQrCardProps)
         </Alert>
       ) : null}
 
-      <div className="mt-4 grid gap-2">
-        <Button disabled={busy} onClick={downloadPng} type="button" variant="secondary">
-          <Download className="h-4 w-4" />
-          Descargar QR (PNG)
-        </Button>
-        <Button disabled={busy} onClick={downloadSvg} type="button" variant="secondary">
-          <FileCode className="h-4 w-4" />
-          Descargar QR (SVG)
-        </Button>
-        <Button disabled={busy} onClick={downloadCard} type="button" variant="secondary">
-          <ImageDown className="h-4 w-4" />
-          Descargar tarjeta
-        </Button>
-      </div>
+      <Button
+        className="mt-4 w-full"
+        disabled={busy}
+        onClick={downloadCard}
+        type="button"
+        variant="secondary"
+      >
+        <Download className="h-4 w-4" />
+        {busy ? "Generando..." : "Descargar QR"}
+      </Button>
     </div>
   );
 }
