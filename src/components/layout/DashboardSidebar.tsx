@@ -178,8 +178,8 @@ export function DashboardSidebar() {
           (item) => item.href !== "/dashboard/ingresos",
         )
       : navigation[effectiveAccountType];
-  // Recepción: solo Inicio, Pacientes, Agenda y Asistencia de sesiones (mismo
-  // allowlist que el guard de rutas).
+  // Recepción: el menú de la clínica sin Configuración, Reportes, Ingresos ni
+  // Equipo (misma regla que el guard de rutas).
   const roleNavigation = isRecepcion
     ? baseNavigation.filter((item) => isPathAllowedForRecepcion(item.href))
     : isClinicAdmin

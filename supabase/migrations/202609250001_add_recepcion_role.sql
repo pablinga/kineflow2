@@ -1,7 +1,9 @@
--- Rol RECEPCION para workspaces CLINICA: gestiona todos los pacientes y turnos
--- de la clínica (crear, editar, reprogramar, cancelar, estado, firma, cobros),
--- no puede borrar pacientes, y ve evoluciones/tratamientos/archivos solo en
--- lectura. No es profesional (no está en clinic_professionals).
+-- Rol RECEPCION para workspaces CLINICA: lo mismo que ADMIN sobre pacientes y
+-- turnos (incluido borrar, cobrar y firmar), pero evoluciones/tratamientos/
+-- archivos solo en lectura, y sin acceso a Configuración, Reportes, Ingresos ni
+-- Equipo (eso lo resuelve la UI). No es profesional (no está en
+-- clinic_professionals). Los DELETE de patients/appointments siguen usando
+-- can_manage_workspace_patient / can_manage_workspace_appointment (3c/3d).
 --
 -- Las funciones 3a-3f parten de la definición LIVE de QA (idénticas a prod
 -- salvo finales de línea). 3g parte de la definición LIVE de prod: en QA esa
@@ -270,14 +272,6 @@ create policy "Users can read own patients"
     or public.has_active_clinic_appointment_with_patient(id)
   );
 
--- 4b. patients DELETE: solo ADMIN (RECEPCION no borra pacientes)
-drop policy if exists "Users can delete own patients" on public.patients;
-create policy "Users can delete own patients"
-  on public.patients
-  for delete
-  to authenticated
-  using (public.is_workspace_admin(workspace_id));
-
 -- 4c. appointments SELECT
 drop policy if exists "Users can read own appointments" on public.appointments;
 create policy "Users can read own appointments"
@@ -386,26 +380,6 @@ create policy "Workspace admins can manage ART providers"
   to authenticated
   using (public.is_workspace_admin(workspace_id))
   with check (public.is_workspace_admin(workspace_id));
-
--- 4i. appointments DELETE: RECEPCION cancela turnos pero no los borra. Mismo
---     alcance que antes (ADMIN, o el dueño en su espacio PERSONAL) sin staff.
-drop policy if exists "Users can delete own appointments" on public.appointments;
-create policy "Users can delete own appointments"
-  on public.appointments
-  for delete
-  to authenticated
-  using (
-    public.is_workspace_admin(workspace_id)
-    or (
-      owner_id = auth.uid()
-      and exists (
-        select 1
-        from public.workspaces
-        where workspaces.id = appointments.workspace_id
-          and workspaces.type = 'PERSONAL'
-      )
-    )
-  );
 
 -- 4j. subscriptions SELECT: el staff lee la suscripción de su workspace para que
 --     la UI evalúe el plan real de la clínica (RECEPCION no ve la pantalla de

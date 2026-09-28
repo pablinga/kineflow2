@@ -33,7 +33,7 @@ import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { getSupabaseClient } from "@/lib/supabase";
 import { toArgentinaDateValue } from "@/lib/dates";
-import { isRecepcionWorkspace, isStaffMembership, isWorkspaceStaff } from "@/lib/workspace-permissions";
+import { isStaffMembership, isWorkspaceStaff } from "@/lib/workspace-permissions";
 
 const emptyPatient: NewPatientInput = {
   assignedProfessionalId: "",
@@ -232,12 +232,9 @@ export default function PatientsPage() {
 
   const effectiveAccountType =
     activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
+  // Admin y recepción gestionan los pacientes de la clínica.
   const canManagePatients =
     activeWorkspace?.type !== "CLINICA" || isWorkspaceStaff(activeWorkspace);
-  // Recepción crea y edita pacientes, pero no los deshabilita (es el "borrado"
-  // de la UI).
-  const canTogglePatientStatus =
-    canManagePatients && !isRecepcionWorkspace(activeWorkspace);
   const clinicPracticeBlocked =
     effectiveAccountType === "CONSULTORIO" &&
     plan.plan !== "FREE" &&
@@ -577,7 +574,7 @@ export default function PatientsPage() {
             <Pencil className="h-5 w-5" />
           </button>
         ) : null}
-        {canTogglePatientStatus && !isReadOnly && patient.status === "Activo" ? (
+        {canManagePatients && !isReadOnly && patient.status === "Activo" ? (
           <button
             aria-label="Deshabilitar"
             className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50 hover:text-red-700"
@@ -587,7 +584,7 @@ export default function PatientsPage() {
           >
             <UserX className="h-5 w-5" />
           </button>
-        ) : canTogglePatientStatus && !isReadOnly ? (
+        ) : canManagePatients && !isReadOnly ? (
           <button
             aria-label="Reactivar"
             className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700"

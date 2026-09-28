@@ -25,19 +25,21 @@ export function isStaffMembership(
   return role === "ADMIN" || (role === "RECEPCION" && type === "CLINICA");
 }
 
-/**
- * Rutas que puede abrir RECEPCION: Inicio, Pacientes, Agenda y Asistencia de
- * sesiones. El resto del dashboard queda bloqueado (sidebar y RoleRouteGuard).
- */
-export function isPathAllowedForRecepcion(pathname: string) {
-  if (pathname === "/dashboard") {
-    return true;
-  }
+// Secciones que RECEPCION no ve: igual que el admin salvo Configuración,
+// Reportes, Ingresos y Equipo (y Mis consultorios, que es del particular).
+const RECEPCION_BLOCKED_PATHS = [
+  "/dashboard/configuracion",
+  "/dashboard/reportes",
+  "/dashboard/ingresos",
+  "/dashboard/equipo",
+  "/dashboard/kinesiologos",
+  "/dashboard/mis-consultorios",
+];
 
-  // /dashboard/pacientes/[id], /dashboard/turnos/nuevo, etc.
-  return (
-    pathname.startsWith("/dashboard/pacientes") ||
-    pathname.startsWith("/dashboard/turnos")
+/** false si la ruta es una de las secciones bloqueadas para RECEPCION. */
+export function isPathAllowedForRecepcion(pathname: string) {
+  return !RECEPCION_BLOCKED_PATHS.some(
+    (blockedPath) => pathname === blockedPath || pathname.startsWith(`${blockedPath}/`),
   );
 }
 
