@@ -178,8 +178,8 @@ export function DashboardSidebar() {
           (item) => item.href !== "/dashboard/ingresos",
         )
       : navigation[effectiveAccountType];
-  // Recepción: el menú de la clínica sin Configuración, Reportes, Ingresos ni
-  // Equipo (misma regla que el guard de rutas).
+  // Recepción: el menú de la clínica sin Configuración, Reportes, Ingresos,
+  // Equipo ni Plan (misma regla que el guard de rutas).
   const roleNavigation = isRecepcion
     ? baseNavigation.filter((item) => isPathAllowedForRecepcion(item.href))
     : isClinicAdmin

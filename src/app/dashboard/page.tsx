@@ -128,7 +128,8 @@ export default function DashboardPage() {
 
   const currentPlanName = getPlanDisplayName(plan.plan);
   const isClinicWorkspace = activeWorkspace?.type === "CLINICA";
-  // Recepción no ve Ingresos ni crea evoluciones: se ocultan esos accesos.
+  // Recepción no ve Ingresos ni Plan, ni crea evoluciones: se ocultan esos
+  // accesos.
   const isRecepcion = isRecepcionWorkspace(activeWorkspace);
   const effectiveAccountType = isClinicWorkspace ? "CONSULTORIO" : accountType;
   const patientLimitBlock = isClinicWorkspace
@@ -261,7 +262,7 @@ export default function DashboardPage() {
 
           <PendingReceptionInvitationsBanner />
 
-          {accessLevel === "TRIAL_ACTIVE" ? (
+          {!isRecepcion && accessLevel === "TRIAL_ACTIVE" ? (
             <Card
               variant={
                 trialDaysRemaining !== null && trialDaysRemaining <= 7
@@ -303,7 +304,7 @@ export default function DashboardPage() {
             </Card>
           ) : null}
 
-          {isReadOnly ? (
+          {isRecepcion ? null : isReadOnly ? (
             <Card
               as="section"
               variant="danger"
@@ -343,7 +344,7 @@ export default function DashboardPage() {
             </Card>
           ) : null}
 
-          {plan.plan !== "FREE" ? (
+          {!isRecepcion && plan.plan !== "FREE" ? (
             <Card
               variant="success"
               padding="md"

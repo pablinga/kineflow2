@@ -26,7 +26,7 @@ export function isStaffMembership(
 }
 
 // Secciones que RECEPCION no ve: igual que el admin salvo Configuración,
-// Reportes, Ingresos y Equipo (y Mis consultorios, que es del particular).
+// Reportes, Ingresos, Equipo y Plan (y Mis consultorios, que es del particular).
 const RECEPCION_BLOCKED_PATHS = [
   "/dashboard/configuracion",
   "/dashboard/reportes",
@@ -34,6 +34,10 @@ const RECEPCION_BLOCKED_PATHS = [
   "/dashboard/equipo",
   "/dashboard/kinesiologos",
   "/dashboard/mis-consultorios",
+  "/dashboard/planes",
+  "/dashboard/suscripcion-exitosa",
+  "/dashboard/suscripcion-error",
+  "/dashboard/suscripcion-pendiente",
 ];
 
 /** false si la ruta es una de las secciones bloqueadas para RECEPCION. */
