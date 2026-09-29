@@ -17,6 +17,8 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
+import { EvaluationList } from "@/components/evaluations/EvaluationList";
+import { EvaluationModal } from "@/components/evaluations/EvaluationModal";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { TreatmentAttachmentsInput } from "@/components/treatments/TreatmentAttachmentsInput";
@@ -24,6 +26,11 @@ import { FieldLabel } from "@/components/ui/FieldLabel";
 import { type Appointment, useAppointments } from "@/hooks/useAppointments";
 import { useEvolutions, type NewEvolutionInput } from "@/hooks/useEvolutions";
 import { usePatientAssignments } from "@/hooks/usePatientAssignments";
+import {
+  usePatientEvaluations,
+  type NewEvaluationInput,
+  type PatientEvaluation,
+} from "@/hooks/usePatientEvaluations";
 import { usePatients } from "@/hooks/usePatients";
 import {
   useTreatments,
@@ -107,6 +114,11 @@ function PatientDetailPageContent() {
     updateTreatmentStatus,
   } = useTreatments(patientId);
   const {
+    addEvaluation,
+    error: evaluationsError,
+    evaluations,
+  } = usePatientEvaluations(patientId);
+  const {
     activePatients,
     error: patientsError,
     loaded: patientsLoaded,
@@ -142,6 +154,7 @@ function PatientDetailPageContent() {
     SelectedTreatmentAttachment[]
   >([]);
   const [treatmentModalOpen, setTreatmentModalOpen] = useState(false);
+  const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
   const [updatingId, setUpdatingId] = useState("");
   const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
   const [canceling, setCanceling] = useState<Appointment | null>(null);
@@ -399,6 +412,29 @@ function PatientDetailPageContent() {
       setSaving(false);
       setTreatmentSavingStep("idle");
     }
+  }
+
+  function openTreatmentFromEvaluation(source: PatientEvaluation) {
+    if (isReadOnly) {
+      setActionError(readOnlyMessage);
+      return;
+    }
+
+    setTreatment({
+      ...createEmptyTreatment(patientId),
+      bodyRegion: source.painLocation,
+      diagnosis: source.kinesicDiagnosis,
+      evaluationId: source.id,
+      totalSessions: source.suggestedSessions ?? 10,
+    });
+    setTreatmentModalOpen(true);
+  }
+
+  async function handleEvaluationSave(input: NewEvaluationInput) {
+    await addEvaluation(input);
+    setEvaluationModalOpen(false);
+    setActionError("");
+    setActionSuccess("Evaluación guardada.");
   }
 
   async function handleTreatmentStatus(id: string, status: TreatmentStatus) {
@@ -867,6 +903,49 @@ function PatientDetailPageContent() {
                   <section className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:p-5">
                     <div className="flex items-center justify-between gap-4">
                       <h2 className="text-lg font-bold text-ink">
+                        Evaluaciones
+                      </h2>
+                      {isRecepcion ? null : (
+                        <button
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 sm:px-4"
+                          disabled={isReadOnly}
+                          onClick={() => setEvaluationModalOpen(true)}
+                          title={isReadOnly ? readOnlyMessage : "Nueva evaluación"}
+                          type="button"
+                        >
+                          <Plus className="h-4 w-4" />
+                          <span className="sm:hidden">Evaluación</span>
+                          <span className="hidden sm:inline">Nueva evaluación</span>
+                        </button>
+                      )}
+                    </div>
+                    {evaluationsError ? (
+                      <p className="mt-3 text-sm font-semibold text-red-700">
+                        {evaluationsError}
+                      </p>
+                    ) : null}
+                    <EvaluationList
+                      canCreateTreatment={!isRecepcion && !isReadOnly}
+                      evaluations={evaluations}
+                      latestEvolutionPain={
+                        evolutions[0] && evolutions[0].pain !== "Sin dato"
+                          ? evolutions[0].pain
+                          : null
+                      }
+                      onCreateTreatment={openTreatmentFromEvaluation}
+                      treatedEvaluationIds={
+                        new Set(
+                          treatments
+                            .map((item) => item.evaluationId)
+                            .filter((id): id is string => Boolean(id)),
+                        )
+                      }
+                    />
+                  </section>
+
+                  <section className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:p-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <h2 className="text-lg font-bold text-ink">
                         Tratamientos
                       </h2>
                       {isRecepcion ? null : (
@@ -1014,6 +1093,14 @@ function PatientDetailPageContent() {
             </div>
           )}
 
+          {evaluationModalOpen ? (
+            <EvaluationModal
+              onClose={() => setEvaluationModalOpen(false)}
+              onSave={handleEvaluationSave}
+              patientName={patient?.name ?? "Paciente"}
+            />
+          ) : null}
+
           {treatmentModalOpen ? (
             <div className="fixed inset-0 z-50 flex items-end bg-ink/60 px-3 pb-3 sm:items-center sm:justify-center sm:px-4 sm:py-6">
               <form
@@ -1028,6 +1115,9 @@ function PatientDetailPageContent() {
                     </h2>
                     <p className="mt-1 text-sm text-slate-500">
                       Asociado a {patient?.name ?? "este paciente"}.
+                      {treatment.evaluationId
+                        ? " Precargado desde la evaluación."
+                        : ""}
                     </p>
                   </div>
                   <button

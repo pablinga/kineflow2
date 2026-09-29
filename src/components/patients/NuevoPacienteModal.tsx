@@ -7,26 +7,27 @@ import {
   type ReactNode,
 } from "react";
 import { Plus, X } from "lucide-react";
+import { EvaluationFields } from "@/components/evaluations/EvaluationFields";
 import { FieldLabel } from "@/components/ui/FieldLabel";
+import type { NewEvaluationInput } from "@/hooks/usePatientEvaluations";
 import type { NewPatientInput } from "@/hooks/usePatients";
-import type { NewTreatmentInput } from "@/hooks/useTreatments";
-
-type InitialTreatmentInput = Omit<NewTreatmentInput, "patientId" | "startedAt">;
 
 type NuevoPacienteModalProps = {
   assignedProfessionalSelect: ReactNode;
-  createInitialTreatment: boolean;
+  /** Recepción da de alta pacientes pero no carga datos clínicos. */
+  canEvaluate: boolean;
+  createInitialEvaluation: boolean;
   error: string;
-  initialTreatment: InitialTreatmentInput;
+  initialEvaluation: NewEvaluationInput;
   isOpen: boolean;
   newPatient: NewPatientInput;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onToggleInitialTreatment: (value: boolean) => void;
+  onToggleInitialEvaluation: (value: boolean) => void;
   onUpdateField: (field: keyof NewPatientInput, value: string) => void;
-  onUpdateInitialTreatmentField: (
-    field: keyof InitialTreatmentInput,
-    value: string | number,
+  onUpdateInitialEvaluationField: <Field extends keyof NewEvaluationInput>(
+    field: Field,
+    value: NewEvaluationInput[Field],
   ) => void;
   saving: boolean;
 };
@@ -42,16 +43,17 @@ const focusableSelector = [
 
 export function NuevoPacienteModal({
   assignedProfessionalSelect,
-  createInitialTreatment,
+  canEvaluate,
+  createInitialEvaluation,
   error,
-  initialTreatment,
+  initialEvaluation,
   isOpen,
   newPatient,
   onClose,
   onSubmit,
-  onToggleInitialTreatment,
+  onToggleInitialEvaluation,
   onUpdateField,
-  onUpdateInitialTreatmentField,
+  onUpdateInitialEvaluationField,
   saving,
 }: NuevoPacienteModalProps) {
   const modalRef = useRef<HTMLFormElement | null>(null);
@@ -217,76 +219,35 @@ export function NuevoPacienteModal({
           {assignedProfessionalSelect}
         </div>
 
-        <section className="mt-6 rounded-lg border border-ocean-100 bg-ocean-50 p-4">
-          <label className="flex items-center gap-3">
-            <input
-              checked={createInitialTreatment}
-              className="h-5 w-5 rounded border-ocean-200 text-ocean-600"
-              onChange={(event) =>
-                onToggleInitialTreatment(event.target.checked)
-              }
-              type="checkbox"
-            />
-            <span className="text-sm font-bold text-ink">
-              Crear tratamiento inicial
-            </span>
-          </label>
-          {createInitialTreatment ? (
-            <div className="mt-4 grid gap-5 md:grid-cols-2">
-              <label className="block md:col-span-2">
-                <FieldLabel required={createInitialTreatment}>
-                  Diagnóstico
-                </FieldLabel>
-                <input
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                  onChange={(event) =>
-                    onUpdateInitialTreatmentField(
-                      "diagnosis",
-                      event.target.value,
-                    )
-                  }
-                  required={createInitialTreatment}
-                  type="text"
-                  value={initialTreatment.diagnosis}
+        {canEvaluate ? (
+          <section className="mt-6 rounded-lg border border-ocean-100 bg-ocean-50 p-4">
+            <label className="flex items-center gap-3">
+              <input
+                checked={createInitialEvaluation}
+                className="h-5 w-5 rounded border-ocean-200 text-ocean-600"
+                onChange={(event) =>
+                  onToggleInitialEvaluation(event.target.checked)
+                }
+                type="checkbox"
+              />
+              <span className="text-sm font-bold text-ink">
+                Cargar evaluación inicial
+              </span>
+            </label>
+            <p className="mt-1 pl-8 text-xs text-slate-500">
+              También podés evaluarlo después desde su ficha. El tratamiento se
+              crea aparte.
+            </p>
+            {createInitialEvaluation ? (
+              <div className="mt-4">
+                <EvaluationFields
+                  onChange={onUpdateInitialEvaluationField}
+                  value={initialEvaluation}
                 />
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
-                  Región del cuerpo
-                </span>
-                <input
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                  onChange={(event) =>
-                    onUpdateInitialTreatmentField(
-                      "bodyRegion",
-                      event.target.value,
-                    )
-                  }
-                  placeholder="Columna lumbar, rodilla derecha"
-                  type="text"
-                  value={initialTreatment.bodyRegion}
-                />
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
-                  Total de sesiones
-                </span>
-                <input
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                  min={1}
-                  onChange={(event) =>
-                    onUpdateInitialTreatmentField(
-                      "totalSessions",
-                      Number(event.target.value),
-                    )
-                  }
-                  type="number"
-                  value={initialTreatment.totalSessions}
-                />
-              </label>
-            </div>
-          ) : null}
-        </section>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
