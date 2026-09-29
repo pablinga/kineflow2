@@ -27,13 +27,21 @@ import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
-import { useTreatments, type NewTreatmentInput } from "@/hooks/useTreatments";
+import {
+  createEmptyEvaluation,
+  insertPatientEvaluation,
+  validateEvaluation,
+  type NewEvaluationInput,
+} from "@/hooks/usePatientEvaluations";
 import { canCreatePatient } from "@/lib/billing";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { getSupabaseClient } from "@/lib/supabase";
-import { toArgentinaDateValue } from "@/lib/dates";
-import { isStaffMembership, isWorkspaceStaff } from "@/lib/workspace-permissions";
+import {
+  isRecepcionWorkspace,
+  isStaffMembership,
+  isWorkspaceStaff,
+} from "@/lib/workspace-permissions";
 
 const emptyPatient: NewPatientInput = {
   assignedProfessionalId: "",
@@ -42,13 +50,6 @@ const emptyPatient: NewPatientInput = {
   phone: "",
   email: "",
   condition: "",
-};
-
-const emptyInitialTreatment: Omit<NewTreatmentInput, "patientId" | "startedAt"> = {
-  bodyRegion: "",
-  diagnosis: "",
-  notes: "",
-  totalSessions: 10,
 };
 
 type PatientViewMode = "cards" | "list";
@@ -94,6 +95,7 @@ function getPatientInitials(name: string) {
 export default function PatientsPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
+  const canEvaluatePatients = !isRecepcionWorkspace(activeWorkspace);
   const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const {
@@ -118,12 +120,12 @@ export default function PatientsPage() {
     isReadOnly,
     loaded: accessLoaded,
   } = useAccessLevel();
-  const { addTreatment } = useTreatments(undefined, { enabled: false });
   const [viewMode, setViewMode] = useState<PatientViewMode>("cards");
   const [showForm, setShowForm] = useState(false);
   const [newPatient, setNewPatient] = useState<NewPatientInput>(emptyPatient);
-  const [createInitialTreatment, setCreateInitialTreatment] = useState(false);
-  const [initialTreatment, setInitialTreatment] = useState(emptyInitialTreatment);
+  const [createInitialEvaluation, setCreateInitialEvaluation] = useState(false);
+  const [initialEvaluation, setInitialEvaluation] =
+    useState<NewEvaluationInput>(createEmptyEvaluation);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [editPatient, setEditPatient] = useState<NewPatientInput>(emptyPatient);
   const [clinicProfessionals, setClinicProfessionals] = useState<
@@ -276,18 +278,18 @@ export default function PatientsPage() {
     setEditPatient((current) => ({ ...current, [field]: value }));
   }
 
-  function updateInitialTreatmentField(
-    field: keyof typeof emptyInitialTreatment,
-    value: string | number,
+  function updateInitialEvaluationField<Field extends keyof NewEvaluationInput>(
+    field: Field,
+    value: NewEvaluationInput[Field],
   ) {
-    setInitialTreatment((current) => ({ ...current, [field]: value }));
+    setInitialEvaluation((current) => ({ ...current, [field]: value }));
   }
 
   function closeNewPatientModal() {
     setShowForm(false);
     setNewPatient(emptyPatient);
-    setCreateInitialTreatment(false);
-    setInitialTreatment(emptyInitialTreatment);
+    setCreateInitialEvaluation(false);
+    setInitialEvaluation(createEmptyEvaluation());
   }
 
   function validateContact(input: NewPatientInput) {
@@ -364,27 +366,36 @@ export default function PatientsPage() {
         return;
       }
 
-      if (createInitialTreatment && !initialTreatment.diagnosis.trim()) {
-        setActionError("Ingresá el diagnóstico del tratamiento inicial.");
+      const withEvaluation = canEvaluatePatients && createInitialEvaluation;
+      const evaluationError = withEvaluation
+        ? validateEvaluation(initialEvaluation)
+        : "";
+
+      if (evaluationError) {
+        setActionError(evaluationError);
         return;
       }
 
       const patientId = await addPatient(newPatient);
+      let notice = "Paciente creado correctamente";
 
-      if (createInitialTreatment) {
-        await addTreatment({
-          ...initialTreatment,
-          diagnosis: initialTreatment.diagnosis.trim(),
-          patientId,
-          startedAt: toArgentinaDateValue(),
-        });
+      if (withEvaluation && activeWorkspace?.id) {
+        try {
+          await insertPatientEvaluation(activeWorkspace.id, patientId, initialEvaluation);
+        } catch (evaluationSaveError) {
+          // El paciente ya quedó creado: avisar sin perderlo.
+          notice = `Paciente creado, pero no pudimos guardar la evaluación (${getFriendlyErrorMessage(
+            evaluationSaveError,
+            "error desconocido",
+          )}). Podés cargarla desde su ficha.`;
+        }
       }
 
       setNewPatient(emptyPatient);
-      setCreateInitialTreatment(false);
-      setInitialTreatment(emptyInitialTreatment);
+      setCreateInitialEvaluation(false);
+      setInitialEvaluation(createEmptyEvaluation());
       setShowForm(false);
-      setActionNotice("Paciente creado correctamente");
+      setActionNotice(notice);
     } catch (submitError) {
       setActionError(
         getFriendlyErrorMessage(submitError, "No pudimos guardar el paciente."),
@@ -716,16 +727,17 @@ export default function PatientsPage() {
               onChange: (value) => updateField("assignedProfessionalId", value),
               value: newPatient.assignedProfessionalId ?? "",
             })}
-            createInitialTreatment={createInitialTreatment}
+            canEvaluate={canEvaluatePatients}
+            createInitialEvaluation={createInitialEvaluation}
             error={actionError}
-            initialTreatment={initialTreatment}
+            initialEvaluation={initialEvaluation}
             isOpen={showForm}
             newPatient={newPatient}
             onClose={closeNewPatientModal}
             onSubmit={handleSubmit}
-            onToggleInitialTreatment={setCreateInitialTreatment}
+            onToggleInitialEvaluation={setCreateInitialEvaluation}
             onUpdateField={updateField}
-            onUpdateInitialTreatmentField={updateInitialTreatmentField}
+            onUpdateInitialEvaluationField={updateInitialEvaluationField}
             saving={saving}
           />
 

@@ -24,12 +24,15 @@ export type Treatment = {
   status: TreatmentStatus;
   startedAt: string;
   endedAt: string | null;
+  evaluationId: string | null;
   notes: string;
 };
 
 export type NewTreatmentInput = {
   bodyRegion: string;
   diagnosis: string;
+  /** Evaluación de la que sale el tratamiento, si se creó desde una. */
+  evaluationId?: string | null;
   notes: string;
   patientId: string;
   startedAt: string;
@@ -40,6 +43,7 @@ type TreatmentRow = {
   body_region: string | null;
   diagnosis: string;
   ended_at: string | null;
+  evaluation_id: string | null;
   id: string;
   notes: string | null;
   patient_id: string;
@@ -61,6 +65,7 @@ function mapTreatment(row: TreatmentRow): Treatment {
     bodyRegion: row.body_region ?? "",
     diagnosis: row.diagnosis,
     endedAt: row.ended_at,
+    evaluationId: row.evaluation_id,
     id: row.id,
     notes: row.notes ?? "",
     patientId: row.patient_id,
@@ -123,7 +128,7 @@ export function useTreatments(
       let query = supabase
         .from("treatments")
         .select(
-          "id, patient_id, diagnosis, body_region, total_sessions, used_sessions, status, started_at, ended_at, notes",
+          "id, patient_id, diagnosis, body_region, total_sessions, used_sessions, status, started_at, ended_at, notes, evaluation_id",
         )
         .eq("workspace_id", activeWorkspace.id);
 
@@ -190,6 +195,7 @@ export function useTreatments(
       .insert({
         body_region: input.bodyRegion.trim() || null,
         diagnosis: input.diagnosis.trim(),
+        evaluation_id: input.evaluationId || null,
         notes: input.notes.trim() || null,
         owner_id: sessionData.user.id,
         workspace_id: activeWorkspace.id,
