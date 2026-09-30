@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   ANY_PROFESSIONAL_ID,
   findAnyAvailableBookingContext,
+  getPublicBookingAllowsSimultaneous,
   getWorkspace,
   isWorkspaceReadOnlyForBooking,
   isSlotAvailable,
@@ -450,6 +451,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         );
 
     const { data: appointment, error: appointmentError } = await admin.from("appointments").insert({
+      allows_simultaneous: getPublicBookingAllowsSimultaneous(bookingContext.workspace),
       appointment_origin: bookingContext.origin,
       art_provider_id: artProviderId,
       booking_source: body.source === "qr" ? "public_qr" : "public_link",
