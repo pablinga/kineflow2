@@ -147,6 +147,8 @@ export default function NewAppointmentPage() {
   const [insuranceProviderId, setInsuranceProviderId] = useState("");
   const [artProviderId, setArtProviderId] = useState("");
   const [insuranceMemberNumber, setInsuranceMemberNumber] = useState("");
+  // Se inicializa y se reaplica según el tipo/cupo del workspace (ver efecto).
+  const [allowsSimultaneous, setAllowsSimultaneous] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [professionalAvailabilityNotice, setProfessionalAvailabilityNotice] =
@@ -175,6 +177,21 @@ export default function NewAppointmentPage() {
       activeWorkspace.defaultSessionPrice ?? DEFAULT_SESSION_PRICE,
     );
   }, [activeWorkspace, workspaceLoaded]);
+
+  // Default de "Turno simultáneo" según el workspace del turno: en una clínica
+  // va marcado; en el espacio particular, desmarcado (y forzado a false con
+  // cupo 1). Se reaplica si cambia el workspace activo o su cupo.
+  const activeWorkspaceId = activeWorkspace?.id;
+  const activeWorkspaceType = activeWorkspace?.type;
+  const activeWorkspaceCapacity = activeWorkspace?.maxSimultaneousAppointments;
+
+  useEffect(() => {
+    if (!activeWorkspaceId) {
+      return;
+    }
+
+    setAllowsSimultaneous(activeWorkspaceType === "CLINICA");
+  }, [activeWorkspaceCapacity, activeWorkspaceId, activeWorkspaceType]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -368,6 +385,13 @@ export default function NewAppointmentPage() {
   const preselectedPatient = activePatients.find(
     (patient) => patient.id === patientFromUrl,
   );
+  const simultaneousCapacity = Math.max(
+    1,
+    activeWorkspace?.maxSimultaneousAppointments ?? 1,
+  );
+  // CLINICA: siempre visible. PERSONAL: solo con cupo > 1.
+  const showSimultaneousToggle = isClinicWorkspace || simultaneousCapacity > 1;
+  const effectiveAllowsSimultaneous = showSimultaneousToggle && allowsSimultaneous;
   // Profesional al que se le asigna el turno: el cupo y los choques se
   // cuentan por profesional, igual que el trigger de la base.
   const conflictOwnerId = isClinicWorkspace
@@ -380,6 +404,7 @@ export default function NewAppointmentPage() {
   const appointmentConflict =
     appointment.date && appointment.time && conflictOwnerId
       ? evaluateAppointmentConflict(appointments, {
+          allowsSimultaneous: effectiveAllowsSimultaneous,
           capacityByWorkspace: getWorkspaceCapacityMap(workspaces),
           durationMinutes: appointment.durationMinutes,
           ownerId: conflictOwnerId,
@@ -519,6 +544,7 @@ export default function NewAppointmentPage() {
 
         await addClinicAppointment({
           ...appointment,
+          allowsSimultaneous: effectiveAllowsSimultaneous,
           clinicId: selectedProfessional.clinic_id,
           clinicProfessionalId,
           professionalId: selectedProfessional.professional_id,
@@ -545,6 +571,7 @@ export default function NewAppointmentPage() {
 
         await addAppointment({
           ...appointment,
+          allowsSimultaneous: effectiveAllowsSimultaneous,
           sessionAmount,
           paymentType,
           insuranceProviderId:
@@ -834,6 +861,27 @@ export default function NewAppointmentPage() {
               </label>
             </div>
 
+            {showSimultaneousToggle ? (
+              <label className="mt-4 flex items-start gap-3 rounded-lg border border-ocean-100 p-4">
+                <input
+                  checked={allowsSimultaneous}
+                  className="mt-0.5 h-4 w-4 rounded border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                  onChange={(event) => setAllowsSimultaneous(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-slate-700">
+                    Turno simultáneo
+                  </span>
+                  <span className="mt-0.5 block text-xs text-slate-500">
+                    {simultaneousCapacity === 1
+                      ? "Tu cupo de turnos simultáneos es 1; se puede cambiar en Configuración."
+                      : `Permite que otros turnos simultáneos compartan este horario (hasta ${simultaneousCapacity}).`}
+                  </span>
+                </span>
+              </label>
+            ) : null}
+
             {activeInsuranceProviders.length > 0 || activeArtProviders.length > 0 ? (
               <div className="mt-4 rounded-lg border border-ocean-100 p-4">
                 <span className="text-sm font-semibold text-slate-700">
@@ -974,7 +1022,13 @@ export default function NewAppointmentPage() {
               />
             </label>
 
-            {appointmentConflict?.kind === "capacity" ? (
+            {appointmentConflict?.kind === "exclusive" ? (
+              <p className="mt-4 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 sm:mt-5">
+                {appointmentConflict.reason === "new_exclusive"
+                  ? "Ya hay un turno en ese horario. Si esta sesión se puede superponer, marcala como turno simultáneo."
+                  : "En ese horario hay un turno que no admite simultáneos."}
+              </p>
+            ) : appointmentConflict?.kind === "capacity" ? (
               <p className="mt-4 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 sm:mt-5">
                 Ya tenés {appointmentConflict.count}{" "}
                 {appointmentConflict.count === 1 ? "turno" : "turnos"} en ese
@@ -987,6 +1041,7 @@ export default function NewAppointmentPage() {
                 {appointmentConflict.appointment.time} en otro consultorio.
               </p>
             ) : appointmentConflict?.kind === "none" &&
+              effectiveAllowsSimultaneous &&
               appointmentConflict.simultaneousCount > 0 ? (
               <p className="mt-4 text-sm font-medium text-slate-500 sm:mt-5">
                 Turno simultáneo ({appointmentConflict.simultaneousCount + 1} de{" "}

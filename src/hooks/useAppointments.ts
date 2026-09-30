@@ -20,6 +20,8 @@ export type Appointment = {
   patientId: string;
   scheduledAt: string;
   durationMinutes: number;
+  /** Si comparte el horario con otros turnos simultáneos (hasta el cupo). */
+  allowsSimultaneous: boolean;
   date: string;
   time: string;
   patient: string;
@@ -85,6 +87,8 @@ export type NewAppointmentInput = {
   insuranceMemberNumber?: string | null;
   artProviderId?: string | null;
   paymentType?: PaymentType;
+  /** Default false. */
+  allowsSimultaneous?: boolean;
 };
 
 export type NewClinicAppointmentInput = NewAppointmentInput & {
@@ -106,6 +110,7 @@ type AppointmentRow = {
   patient_id: string;
   scheduled_at: string;
   duration_minutes: number;
+  allows_simultaneous: boolean | null;
   modality: AppointmentModality;
   reason: string;
   status: AppointmentStatus | "confirmed" | "completed";
@@ -206,6 +211,7 @@ function mapAppointment(row: AppointmentRow): Appointment {
     patientId: row.patient_id,
     scheduledAt: row.scheduled_at,
     durationMinutes: row.duration_minutes,
+    allowsSimultaneous: row.allows_simultaneous ?? false,
     date: formatDate(date),
     time: date.toLocaleTimeString("es-AR", {
       hour: "2-digit",
@@ -315,6 +321,16 @@ function getConflictMessage(conflict: Appointment) {
 export type AppointmentConflict =
   /** Superposición en el mismo workspace dentro del cupo (o sin superposición). */
   | { capacity: number; kind: "none"; simultaneousCount: number }
+  /**
+   * Superposición en el mismo workspace con un turno exclusivo:
+   * "new_exclusive" = el turno evaluado no es simultáneo;
+   * "existing_exclusive" = es simultáneo pero algún superpuesto no lo es.
+   */
+  | {
+      appointment: Appointment;
+      kind: "exclusive";
+      reason: "new_exclusive" | "existing_exclusive";
+    }
   /** Ya hay `count` turnos superpuestos en el mismo workspace y se alcanzó el cupo. */
   | { appointment: Appointment; capacity: number; count: number; kind: "capacity" }
   /** Se superpone con un turno de otro workspace: siempre se rechaza. */
@@ -322,12 +338,14 @@ export type AppointmentConflict =
 
 /**
  * Misma regla que el trigger validate_appointment_schedule: solo cuentan los
- * turnos del mismo profesional (owner). En el mismo workspace se permiten
- * hasta el cupo (max_simultaneous_appointments); en otro workspace, nunca.
+ * turnos del mismo profesional (owner). En el mismo workspace un turno no
+ * simultáneo ocupa el horario en exclusiva; los simultáneos conviven entre sí
+ * hasta el cupo (max_simultaneous_appointments). En otro workspace, nunca.
  */
 export function evaluateAppointmentConflict(
   appointments: Appointment[],
   params: {
+    allowsSimultaneous: boolean;
     capacityByWorkspace: Map<string, number>;
     durationMinutes: number;
     ignoreAppointmentId?: string;
@@ -366,7 +384,23 @@ export function evaluateAppointmentConflict(
     (appointment) => appointment.workspaceId !== params.workspaceId,
   );
 
-  // Mismo orden que el trigger: primero el cupo, después otro workspace.
+  // Mismo orden que el trigger: exclusividad, cupo y después otro workspace.
+  if (sameWorkspace.length > 0 && !params.allowsSimultaneous) {
+    return { appointment: sameWorkspace[0], kind: "exclusive", reason: "new_exclusive" };
+  }
+
+  const exclusiveOverlap = sameWorkspace.find(
+    (appointment) => !appointment.allowsSimultaneous,
+  );
+
+  if (exclusiveOverlap) {
+    return {
+      appointment: exclusiveOverlap,
+      kind: "exclusive",
+      reason: "existing_exclusive",
+    };
+  }
+
   if (sameWorkspace.length >= capacity) {
     return {
       appointment: sameWorkspace[0],
@@ -395,6 +429,7 @@ function markAppointmentConflicts(
     ...appointment,
     conflictWarning: getConflictWarning(
       evaluateAppointmentConflict(appointments, {
+        allowsSimultaneous: appointment.allowsSimultaneous,
         capacityByWorkspace,
         durationMinutes: appointment.durationMinutes,
         ignoreAppointmentId: appointment.id,
@@ -459,7 +494,7 @@ export function useAppointments(
       let query = supabase
         .from("appointments")
         .select(
-          "id, owner_id, workspace_id, patient_id, scheduled_at, duration_minutes, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, insurance_provider_id, insurance_member_number, art_provider_id, payment_type, payment_status, payment_method, paid_at, payment_notes, signature_path, signed_at, patients(full_name), clinics(name, color), clinic_professionals(color, profiles(full_name)), workspaces(color)",
+          "id, owner_id, workspace_id, patient_id, scheduled_at, duration_minutes, allows_simultaneous, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, insurance_provider_id, insurance_member_number, art_provider_id, payment_type, payment_status, payment_method, paid_at, payment_notes, signature_path, signed_at, patients(full_name), clinics(name, color), clinic_professionals(color, profiles(full_name)), workspaces(color)",
         )
         .order("scheduled_at", { ascending: true });
 
@@ -565,12 +600,14 @@ export function useAppointments(
   }, [loadAppointments]);
 
   async function validateAppointmentSlot({
+    allowsSimultaneous,
     durationMinutes,
     ignoreAppointmentId,
     ownerId,
     scheduledAt,
     workspaceId,
   }: {
+    allowsSimultaneous: boolean;
     durationMinutes: number;
     ignoreAppointmentId?: string;
     ownerId: string;
@@ -582,6 +619,7 @@ export function useAppointments(
     const endTime = startTime + durationMinutes * 60 * 1000;
     const conflictWarning = getConflictWarning(
       evaluateAppointmentConflict(appointments, {
+        allowsSimultaneous,
         capacityByWorkspace: getWorkspaceCapacityMap(workspaces),
         durationMinutes,
         ignoreAppointmentId,
@@ -661,6 +699,7 @@ export function useAppointments(
 
     const scheduledAt = new Date(`${input.date}T${input.time}`).toISOString();
     await validateAppointmentSlot({
+      allowsSimultaneous: input.allowsSimultaneous ?? false,
       durationMinutes: input.durationMinutes,
       ownerId: sessionData.user.id,
       scheduledAt,
@@ -677,6 +716,7 @@ export function useAppointments(
       reason: input.reason?.trim() || "Sesion",
       notes: input.notes || null,
       appointment_origin: "independent",
+      allows_simultaneous: input.allowsSimultaneous ?? false,
       treatment_id: input.treatmentId || null,
       session_number: input.sessionNumber ?? null,
       session_amount: input.sessionAmount ?? 0,
@@ -707,6 +747,7 @@ export function useAppointments(
       reason: input.reason?.trim() || "Sesion",
       notes: input.notes || null,
       appointment_origin: "clinic",
+      allows_simultaneous: input.allowsSimultaneous ?? false,
       clinic_id: input.clinicId,
       clinic_professional_id: input.clinicProfessionalId,
       session_amount: input.sessionAmount ?? 0,
@@ -757,15 +798,27 @@ export function useAppointments(
     return result;
   }
 
-  async function rescheduleAppointment(id: string, date: string, time: string) {
+  /**
+   * `allowsSimultaneous` es opcional: si no se pasa, el turno conserva su
+   * valor actual (así lo usa la ficha del paciente).
+   */
+  async function rescheduleAppointment(
+    id: string,
+    date: string,
+    time: string,
+    allowsSimultaneous?: boolean,
+  ) {
     const supabase = getSupabaseClient();
     const scheduledAt = new Date(`${date}T${time}`).toISOString();
     const currentAppointment = appointments.find(
       (appointment) => appointment.id === id,
     );
+    const nextAllowsSimultaneous =
+      allowsSimultaneous ?? currentAppointment?.allowsSimultaneous ?? false;
 
     if (currentAppointment?.origin === "independent") {
       await validateAppointmentSlot({
+        allowsSimultaneous: nextAllowsSimultaneous,
         durationMinutes: currentAppointment.durationMinutes,
         ignoreAppointmentId: id,
         ownerId: currentAppointment.ownerId,
@@ -777,6 +830,9 @@ export function useAppointments(
     let query = supabase
       .from("appointments")
       .update({
+        ...(allowsSimultaneous === undefined
+          ? {}
+          : { allows_simultaneous: allowsSimultaneous }),
         scheduled_at: scheduledAt,
         status: "rescheduled",
       })

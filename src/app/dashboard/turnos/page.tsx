@@ -490,7 +490,26 @@ export default function AppointmentsPage() {
   const {
     activeWorkspace,
     loaded: workspaceLoaded,
+    workspaces,
   } = useActiveWorkspace();
+  // Tipo y cupo del workspace de cada turno (en la agenda unificada del
+  // kinesiólogo conviven turnos de su espacio particular y de clínicas).
+  function getAppointmentWorkspace(appointment: Appointment) {
+    const workspace = workspaces.find((item) => item.id === appointment.workspaceId);
+
+    return {
+      capacity: Math.max(1, workspace?.maxSimultaneousAppointments ?? 1),
+      isClinic: (workspace?.type ?? (appointment.origin === "clinic" ? "CLINICA" : "PERSONAL")) === "CLINICA",
+    };
+  }
+
+  // Mismas reglas que el formulario de nuevo turno: CLINICA siempre, PERSONAL
+  // solo con cupo > 1.
+  function canToggleSimultaneous(appointment: Appointment) {
+    const { capacity, isClinic } = getAppointmentWorkspace(appointment);
+
+    return isClinic || capacity > 1;
+  }
   // Turno de una clínica visto por el kinesiólogo desde su espacio particular:
   // solo puede marcar asistencia; cobro, reprogramación y cancelación los
   // gestiona la clínica. Tampoco depende del plan del kinesiólogo.
@@ -532,6 +551,8 @@ export default function AppointmentsPage() {
   const [editingPayment, setEditingPayment] = useState<Appointment | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
+  const [rescheduleAllowsSimultaneous, setRescheduleAllowsSimultaneous] =
+    useState(false);
   const [paymentForm, setPaymentForm] = useState<AppointmentPaymentInput>({
     amount: 0,
     paymentMethod: "",
@@ -845,6 +866,8 @@ export default function AppointmentsPage() {
     const scheduledAt = new Date(appointment.scheduledAt);
     setActionsAppointment(null);
     setRescheduling(appointment);
+    // Valor actual del turno, no el default del workspace.
+    setRescheduleAllowsSimultaneous(appointment.allowsSimultaneous);
     setRescheduleDate(toArgentinaDateValue(scheduledAt));
     setRescheduleTime(
       scheduledAt.toLocaleTimeString("es-AR", {
@@ -1005,6 +1028,10 @@ export default function AppointmentsPage() {
         rescheduling.id,
         rescheduleDate,
         rescheduleTime,
+        // Sin checkbox visible, el turno conserva su valor actual.
+        canToggleSimultaneous(rescheduling)
+          ? rescheduleAllowsSimultaneous
+          : undefined,
       );
       setRescheduling(null);
       setActionNotice("Turno reprogramado");
@@ -1187,6 +1214,29 @@ export default function AppointmentsPage() {
           >
             {appointment.originLabel}
           </span>
+          {(() => {
+            const { capacity, isClinic } = getAppointmentWorkspace(appointment);
+
+            // En clínica lo normal es simultáneo: se marca el exclusivo. En el
+            // particular con cupo > 1, al revés.
+            if (isClinic && !appointment.allowsSimultaneous) {
+              return (
+                <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[0.62rem] font-semibold text-slate-600">
+                  Exclusivo
+                </span>
+              );
+            }
+
+            if (!isClinic && capacity > 1 && appointment.allowsSimultaneous) {
+              return (
+                <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[0.62rem] font-semibold text-slate-600">
+                  Simultáneo
+                </span>
+              );
+            }
+
+            return null;
+          })()}
           {clinicAppointment ? null : !isPatientPaidAppointment(appointment) ? (
             <span className="w-fit rounded-full bg-sky-50 px-2 py-1 text-[0.62rem] font-semibold text-sky-800 ring-1 ring-sky-200">
               {getCoverageLabel(appointment)}
@@ -1827,6 +1877,30 @@ export default function AppointmentsPage() {
                     />
                   </label>
                 </div>
+                {canToggleSimultaneous(rescheduling) ? (
+                  <label className="mt-4 flex items-start gap-3 rounded-lg border border-ocean-100 p-3">
+                    <input
+                      checked={rescheduleAllowsSimultaneous}
+                      className="mt-0.5 h-4 w-4 rounded border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+                      onChange={(event) =>
+                        setRescheduleAllowsSimultaneous(event.target.checked)
+                      }
+                      type="checkbox"
+                    />
+                    <span>
+                      <span className="block text-sm font-semibold text-slate-700">
+                        Turno simultáneo
+                      </span>
+                      <span className="mt-0.5 block text-xs text-slate-500">
+                        {getAppointmentWorkspace(rescheduling).capacity === 1
+                          ? "Tu cupo de turnos simultáneos es 1; se puede cambiar en Configuración."
+                          : `Permite que otros turnos simultáneos compartan este horario (hasta ${
+                              getAppointmentWorkspace(rescheduling).capacity
+                            }).`}
+                      </span>
+                    </span>
+                  </label>
+                ) : null}
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
                   <button
                     className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"

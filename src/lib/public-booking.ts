@@ -62,8 +62,10 @@ type AvailabilityRow = {
 };
 
 type AppointmentSlotRow = {
+  allows_simultaneous: boolean | null;
   duration_minutes: number;
   scheduled_at: string;
+  workspace_id: string | null;
 };
 
 type WorkspaceBlockedDateRow = {
@@ -327,6 +329,16 @@ export async function getPublicProfessionals(
   }));
 }
 
+/**
+ * Los turnos reservados online son simultáneos si el workspace es una clínica
+ * o tiene cupo > 1 (el paciente no elige).
+ */
+export function getPublicBookingAllowsSimultaneous(workspace: PublicBookingWorkspace) {
+  return (
+    workspace.type === "CLINICA" || (workspace.max_simultaneous_appointments ?? 1) > 1
+  );
+}
+
 export async function resolveBookingContext(
   admin: SupabaseClient,
   workspaceId: string,
@@ -473,7 +485,7 @@ async function getBookedAppointments(
 
   const query = admin
     .from("appointments")
-    .select("scheduled_at, duration_minutes")
+    .select("scheduled_at, duration_minutes, allows_simultaneous, workspace_id")
     .eq("owner_id", context.ownerId)
     .in("status", ACTIVE_APPOINTMENT_STATUSES)
     .gte("scheduled_at", fromIso)
@@ -613,7 +625,7 @@ export async function getFreeSlots(params: {
         const end = buildLocalIso(date, startMinutes + params.durationMinutes);
         const startTime = new Date(start).getTime();
         const endTime = new Date(end).getTime();
-        const overlappingCount = bookedAppointments.filter((appointment) =>
+        const overlapping = bookedAppointments.filter((appointment) =>
           overlaps(
             startTime,
             endTime,
@@ -621,9 +633,22 @@ export async function getFreeSlots(params: {
             new Date(appointment.scheduled_at).getTime() +
               appointment.duration_minutes * 60 * 1000,
           ),
-        ).length;
+        );
+        const overlappingCount = overlapping.length;
+        // Libre si no hay superposición, o si con cupo > 1 todos los
+        // superpuestos son simultáneos, del mismo workspace (otro workspace
+        // siempre bloquea, igual que el trigger) y queda lugar en el cupo.
+        const isAvailable =
+          overlappingCount === 0 ||
+          (workspaceCapacity > 1 &&
+            overlappingCount < workspaceCapacity &&
+            overlapping.every(
+              (appointment) =>
+                appointment.allows_simultaneous === true &&
+                appointment.workspace_id === params.context.workspace.id,
+            ));
 
-        if (overlappingCount < workspaceCapacity) {
+        if (isAvailable) {
           seenSlotKeys.add(slotKey);
           slots.push({
             date,
