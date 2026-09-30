@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
 
   const response = await fetch("https://api.resend.com/emails", {
     body: JSON.stringify({
-      from: process.env.RESEND_FROM_EMAIL || "KineFlow <notificaciones@kineflow.ar>",
+      from: process.env.RESEND_FROM_EMAIL || "KineFlow <notificaciones@mail.kineflow.ar>",
       subject,
       text,
       to: email,

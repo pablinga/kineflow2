@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     const text = buildInvitationBody({ clinicName, invitationUrl });
     const resendApiKey = process.env.RESEND_API_KEY;
     const from =
-      process.env.RESEND_FROM_EMAIL || "KineFlow <notificaciones@kineflow.ar>";
+      process.env.RESEND_FROM_EMAIL || "KineFlow <notificaciones@mail.kineflow.ar>";
 
     if (!resendApiKey) {
       console.log("invite-professional email prepared", {
