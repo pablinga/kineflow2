@@ -503,12 +503,9 @@ export default function AppointmentsPage() {
     };
   }
 
-  // Mismas reglas que el formulario de nuevo turno: CLINICA siempre, PERSONAL
-  // solo con cupo > 1.
+  // Mismas reglas que el formulario de nuevo turno: solo con cupo > 1.
   function canToggleSimultaneous(appointment: Appointment) {
-    const { capacity, isClinic } = getAppointmentWorkspace(appointment);
-
-    return isClinic || capacity > 1;
+    return getAppointmentWorkspace(appointment).capacity > 1;
   }
   // Turno de una clínica visto por el kinesiólogo desde su espacio particular:
   // solo puede marcar asistencia; cobro, reprogramación y cancelación los
@@ -1217,8 +1214,13 @@ export default function AppointmentsPage() {
           {(() => {
             const { capacity, isClinic } = getAppointmentWorkspace(appointment);
 
-            // En clínica lo normal es simultáneo: se marca el exclusivo. En el
-            // particular con cupo > 1, al revés.
+            // Solo con cupo > 1 (con cupo 1 todos son exclusivos). En clínica
+            // lo normal es simultáneo: se marca el exclusivo; en el particular,
+            // al revés.
+            if (capacity <= 1) {
+              return null;
+            }
+
             if (isClinic && !appointment.allowsSimultaneous) {
               return (
                 <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[0.62rem] font-semibold text-slate-600">
@@ -1227,7 +1229,7 @@ export default function AppointmentsPage() {
               );
             }
 
-            if (!isClinic && capacity > 1 && appointment.allowsSimultaneous) {
+            if (!isClinic && appointment.allowsSimultaneous) {
               return (
                 <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[0.62rem] font-semibold text-slate-600">
                   Simultáneo
@@ -1892,11 +1894,8 @@ export default function AppointmentsPage() {
                         Turno simultáneo
                       </span>
                       <span className="mt-0.5 block text-xs text-slate-500">
-                        {getAppointmentWorkspace(rescheduling).capacity === 1
-                          ? "Tu cupo de turnos simultáneos es 1; se puede cambiar en Configuración."
-                          : `Permite que otros turnos simultáneos compartan este horario (hasta ${
-                              getAppointmentWorkspace(rescheduling).capacity
-                            }).`}
+                        Permite que otros turnos simultáneos compartan este
+                        horario (hasta {getAppointmentWorkspace(rescheduling).capacity}).
                       </span>
                     </span>
                   </label>

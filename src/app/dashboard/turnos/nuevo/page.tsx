@@ -389,9 +389,13 @@ export default function NewAppointmentPage() {
     1,
     activeWorkspace?.maxSimultaneousAppointments ?? 1,
   );
-  // CLINICA: siempre visible. PERSONAL: solo con cupo > 1.
-  const showSimultaneousToggle = isClinicWorkspace || simultaneousCapacity > 1;
-  const effectiveAllowsSimultaneous = showSimultaneousToggle && allowsSimultaneous;
+  // Solo tiene sentido elegir con cupo > 1. Con cupo 1 no se muestra y el
+  // turno se guarda con el default de su tipo (CLINICA simultáneo, PERSONAL
+  // exclusivo), para que se comporte igual si después se sube el cupo.
+  const showSimultaneousToggle = simultaneousCapacity > 1;
+  const effectiveAllowsSimultaneous = showSimultaneousToggle
+    ? allowsSimultaneous
+    : isClinicWorkspace;
   // Profesional al que se le asigna el turno: el cupo y los choques se
   // cuentan por profesional, igual que el trigger de la base.
   const conflictOwnerId = isClinicWorkspace
@@ -874,9 +878,8 @@ export default function NewAppointmentPage() {
                     Turno simultáneo
                   </span>
                   <span className="mt-0.5 block text-xs text-slate-500">
-                    {simultaneousCapacity === 1
-                      ? "Tu cupo de turnos simultáneos es 1; se puede cambiar en Configuración."
-                      : `Permite que otros turnos simultáneos compartan este horario (hasta ${simultaneousCapacity}).`}
+                    Permite que otros turnos simultáneos compartan este horario
+                    (hasta {simultaneousCapacity}).
                   </span>
                 </span>
               </label>
