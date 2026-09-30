@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { renderKineflowEmail } from "@/lib/email-templates";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
 
@@ -22,12 +23,35 @@ function buildInvitationBody(params: {
   return [
     `Te invitaron a unirte a ${params.clinicName} en KineFlow.`,
     "",
-    "Al aceptar la invitacion vas a poder trabajar con la clinica desde tu cuenta de kinesiologo.",
+    "Al aceptar la invitación vas a poder trabajar con la clínica desde tu cuenta de kinesiólogo.",
     "",
-    `Aceptar invitacion: ${params.invitationUrl}`,
+    `Aceptar invitación: ${params.invitationUrl}`,
     "",
-    "Si no esperabas esta invitacion, podes ignorar este correo.",
+    "Si no esperabas esta invitación, podés ignorar este correo.",
   ].join("\n");
+}
+
+function buildInvitationHtml(params: {
+  clinicName: string;
+  invitationUrl: string;
+}) {
+  return renderKineflowEmail({
+    ctaLabel: "Aceptar invitación",
+    ctaUrl: params.invitationUrl,
+    footnote: "Si no esperabas esta invitación, podés ignorar este correo.",
+    highlights: [
+      { icon: "📅", text: "Ver en tu agenda los turnos que te asigne la clínica" },
+      { icon: "✅", text: "Registrar asistencia y evoluciones de sus pacientes" },
+      { icon: "🏠", text: "Seguir usando tu espacio particular como siempre" },
+    ],
+    highlightsTitle: "¿Qué vas a poder hacer?",
+    icon: "🤝",
+    paragraphs: [
+      `**${params.clinicName}** te invitó a sumarte a su equipo en KineFlow.`,
+      "Si todavía no tenés cuenta, creala con este mismo email y vas a ver la invitación al ingresar.",
+    ],
+    title: "Te invitaron a una clínica",
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -125,6 +149,7 @@ export async function POST(request: NextRequest) {
     const invitationUrl = `${getAppUrl(request)}/invitacion?token=${token}`;
     const subject = `Te invitaron a unirte a ${clinicName} en KineFlow`;
     const text = buildInvitationBody({ clinicName, invitationUrl });
+    const html = buildInvitationHtml({ clinicName, invitationUrl });
     const resendApiKey = process.env.RESEND_API_KEY;
     const from =
       process.env.RESEND_FROM_EMAIL || "KineFlow <notificaciones@mail.kineflow.ar>";
@@ -142,6 +167,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch("https://api.resend.com/emails", {
       body: JSON.stringify({
         from,
+        html,
         subject,
         text,
         to: email,

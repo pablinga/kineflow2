@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { renderKineflowEmail } from "@/lib/email-templates";
 import {
   getSupabaseAdminClient,
   getSupabaseServerClient,
@@ -20,6 +21,26 @@ function getAppUrl(request: NextRequest) {
     process.env.NEXT_PUBLIC_APP_URL ||
     `${request.nextUrl.protocol}//${request.nextUrl.host}`
   );
+}
+
+function buildInvitationHtml(params: { clinicName: string; dashboardUrl: string }) {
+  return renderKineflowEmail({
+    ctaLabel: "Ingresar a KineFlow",
+    ctaUrl: params.dashboardUrl,
+    footnote: "Si no esperabas esta invitación, podés ignorar este correo.",
+    highlights: [
+      { icon: "👥", text: "Gestionar los pacientes de la clínica" },
+      { icon: "📅", text: "Organizar la agenda y los turnos" },
+      { icon: "💰", text: "Registrar asistencia y cobros" },
+    ],
+    highlightsTitle: "¿Qué vas a poder hacer?",
+    icon: "🤝",
+    paragraphs: [
+      `**${params.clinicName}** te invitó a sumarte como recepción en KineFlow.`,
+      "Ingresá (o creá tu cuenta con este mismo email) y aceptá la invitación desde el inicio.",
+    ],
+    title: "Te invitaron como recepción",
+  });
 }
 
 function buildInvitationBody(params: { clinicName: string; dashboardUrl: string }) {
@@ -132,10 +153,9 @@ export async function POST(request: NextRequest) {
 
   const clinicName = workspaceRow.name?.trim() || "la clínica";
   const subject = `Te invitaron como recepción de ${clinicName} en KineFlow`;
-  const text = buildInvitationBody({
-    clinicName,
-    dashboardUrl: `${getAppUrl(request)}/dashboard`,
-  });
+  const dashboardUrl = `${getAppUrl(request)}/dashboard`;
+  const text = buildInvitationBody({ clinicName, dashboardUrl });
+  const html = buildInvitationHtml({ clinicName, dashboardUrl });
   const resendApiKey = process.env.RESEND_API_KEY;
 
   if (!resendApiKey) {
@@ -146,6 +166,7 @@ export async function POST(request: NextRequest) {
   const response = await fetch("https://api.resend.com/emails", {
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL || "KineFlow <notificaciones@mail.kineflow.ar>",
+      html,
       subject,
       text,
       to: email,
