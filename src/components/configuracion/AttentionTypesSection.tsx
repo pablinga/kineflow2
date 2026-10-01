@@ -24,12 +24,15 @@ type DraftState = {
   price: string;
 };
 
-const emptyDraft: DraftState = {
-  allowsSimultaneous: true,
-  durationMinutes: DEFAULT_SESSION_DURATION_MINUTES,
-  name: "",
-  price: "",
-};
+/** Default de "Admite turnos simultáneos": marcado en clínica, desmarcado en el particular. */
+function createEmptyDraft(isClinic: boolean): DraftState {
+  return {
+    allowsSimultaneous: isClinic,
+    durationMinutes: DEFAULT_SESSION_DURATION_MINUTES,
+    name: "",
+    price: "",
+  };
+}
 
 const inputClassName =
   "min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-3 text-sm outline-none focus:border-ocean-400 disabled:bg-slate-50";
@@ -77,11 +80,13 @@ function DraftFields({
   draft,
   idPrefix,
   onChange,
+  showSimultaneous,
 }: {
   disabled: boolean;
   draft: DraftState;
   idPrefix: string;
   onChange: (draft: DraftState) => void;
+  showSimultaneous: boolean;
 }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_9rem]">
@@ -128,39 +133,47 @@ function DraftFields({
           value={draft.price}
         />
       </label>
-      <label
-        className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 sm:col-span-3"
-        htmlFor={`${idPrefix}-simultaneous`}
-      >
-        <input
-          checked={draft.allowsSimultaneous}
-          className="h-4 w-4 accent-ocean-600"
-          disabled={disabled}
-          id={`${idPrefix}-simultaneous`}
-          onChange={(event) =>
-            onChange({ ...draft, allowsSimultaneous: event.target.checked })
-          }
-          type="checkbox"
-        />
-        Admite turnos simultáneos
-      </label>
+      {showSimultaneous ? (
+        <label
+          className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 sm:col-span-3"
+          htmlFor={`${idPrefix}-simultaneous`}
+        >
+          <input
+            checked={draft.allowsSimultaneous}
+            className="h-4 w-4 accent-ocean-600"
+            disabled={disabled}
+            id={`${idPrefix}-simultaneous`}
+            onChange={(event) =>
+              onChange({ ...draft, allowsSimultaneous: event.target.checked })
+            }
+            type="checkbox"
+          />
+          Admite turnos simultáneos
+        </label>
+      ) : null}
     </div>
   );
 }
 
 /**
- * Catálogo de "Tipos de atención" de la clínica (no confundir con los
- * tratamientos del paciente). Solo el admin edita; no se borran, se
- * desactivan.
+ * Catálogo de "Tipos de atención" del workspace, clínica o particular (no
+ * confundir con los tratamientos del paciente). Solo el admin edita; no se
+ * borran, se desactivan.
  */
 export function AttentionTypesSection({
   canEdit,
   capacity,
+  workspaceType,
 }: {
   canEdit: boolean;
-  /** max_simultaneous_appointments de la clínica. */
+  /** max_simultaneous_appointments del workspace. */
   capacity: number;
+  workspaceType: "CLINICA" | "PERSONAL";
 }) {
+  const isClinic = workspaceType === "CLINICA";
+  // En el particular con cupo 1 no se habla de simultaneidad (checkbox ni
+  // badges) y los tipos nuevos se crean exclusivos. Si sube el cupo, aparece.
+  const showSimultaneous = isClinic || capacity > 1;
   const {
     addAttentionType,
     attentionTypes,
@@ -168,9 +181,9 @@ export function AttentionTypesSection({
     setAttentionTypeActive,
     updateAttentionType,
   } = useAttentionTypes({ includeInactive: true });
-  const [draft, setDraft] = useState<DraftState>(emptyDraft);
+  const [draft, setDraft] = useState<DraftState>(() => createEmptyDraft(isClinic));
   const [editingId, setEditingId] = useState("");
-  const [editDraft, setEditDraft] = useState<DraftState>(emptyDraft);
+  const [editDraft, setEditDraft] = useState<DraftState>(() => createEmptyDraft(isClinic));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -211,13 +224,18 @@ export function AttentionTypesSection({
     }
 
     const added = await run(
-      () => addAttentionType({ ...input, sortOrder: attentionTypes.length }),
+      () =>
+        addAttentionType({
+          ...input,
+          allowsSimultaneous: showSimultaneous ? input.allowsSimultaneous : false,
+          sortOrder: attentionTypes.length,
+        }),
       "Tipo de atención agregado.",
       "No pudimos agregar el tipo de atención.",
     );
 
     if (added) {
-      setDraft(emptyDraft);
+      setDraft(createEmptyDraft(isClinic));
     }
   }
 
@@ -262,8 +280,11 @@ export function AttentionTypesSection({
         <h2 className="text-xl font-bold text-ink">Tipos de atención</h2>
       </div>
       <p className="mt-2 text-sm text-slate-600">
-        Definí los tipos de atención que ofrece la clínica. Al dar un turno se
-        completan la duración, el precio y si admite turnos simultáneos.
+        {isClinic
+          ? "Definí los tipos de atención que ofrece la clínica. Al dar un turno se completan la duración, el precio y si admite turnos simultáneos."
+          : `Definí los tipos de atención que ofrecés. Al dar un turno se completan la duración y el precio${
+              capacity > 1 ? " y si admite turnos simultáneos" : ""
+            }.`}
       </p>
       <p className="mt-1 text-sm text-slate-500">
         Ej.: Kinesiología general, RPG, ATM, Gimnasio terapéutico, Drenaje
@@ -278,6 +299,7 @@ export function AttentionTypesSection({
             draft={draft}
             idPrefix="new-attention-type"
             onChange={setDraft}
+            showSimultaneous={showSimultaneous}
           />
           <div className="mt-3 flex justify-end">
             <Button disabled={saving} type="submit">
@@ -317,6 +339,7 @@ export function AttentionTypesSection({
                 draft={editDraft}
                 idPrefix={`edit-${type.id}`}
                 onChange={setEditDraft}
+                showSimultaneous={showSimultaneous}
               />
               <div className="mt-3 flex justify-end gap-2">
                 <Button
@@ -344,9 +367,11 @@ export function AttentionTypesSection({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate text-sm font-bold text-ink">{type.name}</p>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.68rem] font-semibold text-slate-600">
-                    {type.allowsSimultaneous ? "Simultáneo" : "Exclusivo"}
-                  </span>
+                  {showSimultaneous ? (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.68rem] font-semibold text-slate-600">
+                      {type.allowsSimultaneous ? "Simultáneo" : "Exclusivo"}
+                    </span>
+                  ) : null}
                   {type.active ? null : (
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.68rem] font-semibold text-slate-500">
                       Inactivo
@@ -399,7 +424,7 @@ export function AttentionTypesSection({
         )}
       </div>
 
-      {capacity <= 1 ? (
+      {isClinic && capacity <= 1 ? (
         <p className="mt-4 text-sm text-slate-500">
           Con cupo 1, los tipos de atención simultáneos no se pueden superponer.
           Podés cambiar el cupo en esta misma pantalla.
