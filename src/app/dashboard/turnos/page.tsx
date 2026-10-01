@@ -50,6 +50,11 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { CLINIC_PROFESSIONAL_STATUS } from "@/lib/clinic-professionals";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { toArgentinaDateValue } from "@/lib/dates";
+import { getPrefilledSessionAmount } from "@/lib/attention-pricing";
+import { DEFAULT_SESSION_PRICE } from "@/lib/session-defaults";
+import { useAttentionTypes } from "@/hooks/useAttentionTypes";
+import { useInsuranceProviders } from "@/hooks/useInsuranceProviders";
+import { useArtProviders } from "@/hooks/useArtProviders";
 
 type PendingAction = {
   appointment: Appointment;
@@ -550,6 +555,12 @@ export default function AppointmentsPage() {
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [rescheduleAllowsSimultaneous, setRescheduleAllowsSimultaneous] =
     useState(false);
+  const [rescheduleAttentionTypeId, setRescheduleAttentionTypeId] = useState("");
+  // Catálogo del workspace activo, para cambiar el tipo de atención al
+  // reprogramar (mismas reglas de precarga que el formulario de nuevo turno).
+  const { attentionTypes } = useAttentionTypes();
+  const { providers: insuranceProviders } = useInsuranceProviders();
+  const { providers: artProviders } = useArtProviders();
   const [paymentForm, setPaymentForm] = useState<AppointmentPaymentInput>({
     amount: 0,
     paymentMethod: "",
@@ -865,6 +876,7 @@ export default function AppointmentsPage() {
     setRescheduling(appointment);
     // Valor actual del turno, no el default del workspace.
     setRescheduleAllowsSimultaneous(appointment.allowsSimultaneous);
+    setRescheduleAttentionTypeId(appointment.attentionTypeId ?? "");
     setRescheduleDate(toArgentinaDateValue(scheduledAt));
     setRescheduleTime(
       scheduledAt.toLocaleTimeString("es-AR", {
@@ -1004,6 +1016,62 @@ export default function AppointmentsPage() {
     }
   }
 
+  // Tipo de atención al reprogramar: solo en turnos del workspace activo (el
+  // catálogo es por workspace). Si cambia, se aplican duración y monto con la
+  // misma regla que al dar el turno; el monto no se toca si ya está cobrado.
+  function canChangeAttentionType(appointment: Appointment) {
+    return (
+      appointment.workspaceId === activeWorkspace?.id &&
+      (attentionTypes.length > 0 || Boolean(appointment.attentionTypeId))
+    );
+  }
+
+  function getRescheduleAttentionChanges(appointment: Appointment) {
+    if (
+      !canChangeAttentionType(appointment) ||
+      rescheduleAttentionTypeId === (appointment.attentionTypeId ?? "")
+    ) {
+      return undefined;
+    }
+
+    const nextType = attentionTypes.find((type) => type.id === rescheduleAttentionTypeId);
+
+    if (!nextType) {
+      // "Sin especificar": se quita el tipo, sin tocar duración ni monto.
+      return {
+        attentionTypeId: null,
+        attentionTypeName: null,
+        durationMinutes: appointment.durationMinutes,
+      };
+    }
+
+    const providerPrice =
+      appointment.paymentType === "OBRA_SOCIAL"
+        ? insuranceProviders.find((item) => item.id === appointment.insuranceProviderId)
+            ?.sessionPrice
+        : appointment.paymentType === "ART"
+          ? artProviders.find((item) => item.id === appointment.artProviderId)
+              ?.sessionPrice
+          : undefined;
+    const sessionAmount =
+      appointment.paymentStatus === "paid"
+        ? undefined
+        : getPrefilledSessionAmount({
+            attentionTypePrice: nextType.price,
+            particularDefaultPrice:
+              activeWorkspace?.defaultSessionPrice ?? DEFAULT_SESSION_PRICE,
+            paymentType: appointment.paymentType,
+            providerPrice,
+          });
+
+    return {
+      attentionTypeId: nextType.id,
+      attentionTypeName: nextType.name,
+      durationMinutes: nextType.durationMinutes,
+      sessionAmount,
+    };
+  }
+
   async function handleRescheduleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -1025,10 +1093,15 @@ export default function AppointmentsPage() {
         rescheduling.id,
         rescheduleDate,
         rescheduleTime,
-        // Sin checkbox visible, el turno conserva su valor actual.
+        // Sin checkbox visible, el turno conserva su valor actual (salvo que
+        // el tipo de atención elegido defina otro).
         canToggleSimultaneous(rescheduling)
           ? rescheduleAllowsSimultaneous
-          : undefined,
+          : rescheduleAttentionTypeId !== (rescheduling.attentionTypeId ?? "")
+            ? attentionTypes.find((type) => type.id === rescheduleAttentionTypeId)
+                ?.allowsSimultaneous
+            : undefined,
+        getRescheduleAttentionChanges(rescheduling),
       );
       setRescheduling(null);
       setActionNotice("Turno reprogramado");
@@ -1194,6 +1267,11 @@ export default function AppointmentsPage() {
                 {appointment.patient}
               </Link>
             )}
+            {appointment.attentionTypeName ? (
+              <p className="mt-0.5 min-w-0 truncate text-[0.68rem] font-medium text-slate-500">
+                {appointment.attentionTypeName}
+              </p>
+            ) : null}
           </div>
           <span
             className={`w-fit shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[0.62rem] font-semibold leading-none ${
@@ -1879,6 +1957,49 @@ export default function AppointmentsPage() {
                     />
                   </label>
                 </div>
+                {canChangeAttentionType(rescheduling) ? (
+                  <label className="mt-4 block">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Tipo de atención
+                    </span>
+                    <select
+                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                      onChange={(event) => {
+                        const nextType = attentionTypes.find(
+                          (type) => type.id === event.target.value,
+                        );
+                        setRescheduleAttentionTypeId(event.target.value);
+
+                        if (nextType) {
+                          setRescheduleAllowsSimultaneous(nextType.allowsSimultaneous);
+                        }
+                      }}
+                      value={rescheduleAttentionTypeId}
+                    >
+                      <option value="">Sin especificar</option>
+                      {rescheduling.attentionTypeId &&
+                      !attentionTypes.some(
+                        (type) => type.id === rescheduling.attentionTypeId,
+                      ) ? (
+                        <option value={rescheduling.attentionTypeId}>
+                          {rescheduling.attentionTypeName ?? "Tipo de atención"} (inactivo)
+                        </option>
+                      ) : null}
+                      {attentionTypes.map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.name} · {type.durationMinutes} min
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Duración:{" "}
+                      {attentionTypes.find((type) => type.id === rescheduleAttentionTypeId)
+                        ?.durationMinutes ?? rescheduling.durationMinutes}{" "}
+                      min. Si cambiás el tipo, se actualizan la duración y el monto
+                      (salvo que ya esté cobrado).
+                    </p>
+                  </label>
+                ) : null}
                 {canToggleSimultaneous(rescheduling) ? (
                   <label className="mt-4 flex items-start gap-3 rounded-lg border border-ocean-100 p-3">
                     <input

@@ -19,6 +19,7 @@ import { FieldLabel } from "@/components/ui/FieldLabel";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PushNotificationsCard } from "@/components/dashboard/PushNotificationsCard";
+import { AttentionTypesSection } from "@/components/configuracion/AttentionTypesSection";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { formatCurrency } from "@/lib/format";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
@@ -588,6 +589,14 @@ export default function WorkspaceSettingsPage() {
         </form>
 
         <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* Por ahora solo clínicas; la tabla no depende del tipo de workspace. */}
+          {activeWorkspace?.type === "CLINICA" ? (
+            <AttentionTypesSection
+              canEdit={canEdit}
+              capacity={settings?.maxSimultaneousAppointments ?? 1}
+            />
+          ) : null}
+
           <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
