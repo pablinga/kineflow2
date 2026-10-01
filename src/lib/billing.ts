@@ -37,13 +37,22 @@ export function canCreatePatient(params: {
   plan: CommercialPlan;
   planStatus: BillingPlanStatus;
 }) {
-  return canCreatePatientByPolicy(params);
+  // Recepción trabaja con el plan de la clínica.
+  return canCreatePatientByPolicy({
+    ...params,
+    accountType: params.accountType === "RECEPCION" ? "CONSULTORIO" : params.accountType,
+  });
 }
 
 export function isPlanAllowedForAccount(
   plan: CommercialPlan,
   accountType: AccountType,
 ) {
+  // Una cuenta de recepción no contrata planes.
+  if (accountType === "RECEPCION") {
+    return false;
+  }
+
   return isPlanVisibleForAccount(plan, accountType);
 }
 

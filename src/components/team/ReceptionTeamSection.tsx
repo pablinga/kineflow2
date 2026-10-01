@@ -1,27 +1,45 @@
 "use client";
 
 import { type FormEvent, useCallback, useEffect, useState } from "react";
-import { MailPlus, Send, Trash2 } from "lucide-react";
+import { KeyRound, RotateCcw, UserPlus, UserX, Wand2, X } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
+import { FieldLabel } from "@/components/ui/FieldLabel";
+import { PasswordInput } from "@/components/ui/PasswordInput";
+import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type ReceptionMember = {
   email: string;
   id: string;
+  /** account: creada por esta clínica · legacy: kinesiólogo invitado · invitation: pendiente. */
+  kind: "account" | "legacy" | "invitation";
   name: string;
-  status: "pending" | "accepted";
+  status: "pending" | "accepted" | "inactive";
 };
 
-type ReceptionMemberRow = {
-  email: string;
-  id: string;
-  profiles: { full_name: string | null } | Array<{ full_name: string | null }> | null;
-  status: "pending" | "accepted";
-};
+const MIN_PASSWORD_LENGTH = 8;
+const PASSWORD_ALPHABET =
+  "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*?";
 
-async function inviteReception(workspaceId: string, email: string) {
+/** 12 caracteres aleatorios (sin I, l, O, 0, 1 para que no se confundan). */
+function generatePassword(length = 12) {
+  const values = new Uint32Array(length);
+  crypto.getRandomValues(values);
+
+  return Array.from(values, (value) => PASSWORD_ALPHABET[value % PASSWORD_ALPHABET.length]).join("");
+}
+
+function getLoginUrl() {
+  const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+  return `${base.replace(/\/$/, "")}/login`;
+}
+
+async function receptionRequest<T>(
+  method: "GET" | "POST" | "PATCH",
+  body?: Record<string, unknown>,
+  query = "",
+) {
   const { data } = await getSupabaseClient().auth.getSession();
   const accessToken = data.session?.access_token;
 
@@ -29,106 +47,165 @@ async function inviteReception(workspaceId: string, email: string) {
     throw new Error("No pudimos identificar tu sesión.");
   }
 
-  const response = await fetch("/api/invite-reception", {
-    body: JSON.stringify({ email, workspaceId }),
+  const response = await fetch(`/api/reception-members${query}`, {
+    body: body ? JSON.stringify(body) : undefined,
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    method: "POST",
+    method,
   });
-  const result = (await response.json().catch(() => ({}))) as {
-    error?: string;
-    skipped?: boolean;
-  };
+  const result = (await response.json().catch(() => ({}))) as T & { error?: string };
 
   if (!response.ok) {
-    throw new Error(result.error ?? "No pudimos enviar la invitación.");
+    throw new Error(result.error ?? "No pudimos completar la acción.");
   }
 
-  return Boolean(result.skipped);
+  return result;
+}
+
+function validatePasswords(password: string, confirmation: string) {
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `La contraseña tiene que tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`;
+  }
+
+  if (password !== confirmation) {
+    return "Las contraseñas no coinciden.";
+  }
+
+  return "";
+}
+
+function PasswordFields({
+  confirmation,
+  onConfirmationChange,
+  onPasswordChange,
+  password,
+}: {
+  confirmation: string;
+  onConfirmationChange: (value: string) => void;
+  onPasswordChange: (value: string) => void;
+  password: string;
+}) {
+  return (
+    <>
+      <div>
+        <PasswordInput
+          autoComplete="new-password"
+          label="Contraseña"
+          minLength={MIN_PASSWORD_LENGTH}
+          onChange={onPasswordChange}
+          required
+          value={password}
+        />
+        <button
+          className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-ocean-700 hover:text-ocean-800"
+          onClick={() => {
+            const generated = generatePassword();
+            onPasswordChange(generated);
+            onConfirmationChange(generated);
+          }}
+          type="button"
+        >
+          <Wand2 className="h-4 w-4" />
+          Generar contraseña
+        </button>
+      </div>
+      <PasswordInput
+        autoComplete="new-password"
+        label="Confirmar contraseña"
+        minLength={MIN_PASSWORD_LENGTH}
+        onChange={onConfirmationChange}
+        required
+        value={confirmation}
+      />
+    </>
+  );
 }
 
 /**
- * Personas de recepción de la clínica (workspace_members con rol RECEPCION).
- * No son profesionales: no pasan por clinic_professionals.
+ * Cuentas de recepción de la clínica: el admin las crea con email y
+ * contraseña (no hay invitación ni email). No son profesionales: no pasan por
+ * clinic_professionals.
  */
 export function ReceptionTeamSection({ workspaceId }: { workspaceId: string }) {
   const [members, setMembers] = useState<ReceptionMember[]>([]);
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   const [savingId, setSavingId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [passwordMember, setPasswordMember] = useState<ReceptionMember | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [newConfirmation, setNewConfirmation] = useState("");
+  const [modalError, setModalError] = useState("");
 
   const loadMembers = useCallback(async () => {
-    const { data, error: queryError } = await getSupabaseClient()
-      .from("workspace_members")
-      .select("id, email, status, profiles!workspace_members_user_id_fkey(full_name)")
-      .eq("workspace_id", workspaceId)
-      .eq("role", "RECEPCION")
-      .in("status", ["pending", "accepted"])
-      .order("email", { ascending: true });
-
-    if (queryError) {
-      setError(mapSupabaseError(queryError));
-      return;
+    try {
+      const result = await receptionRequest<{ members: ReceptionMember[] }>(
+        "GET",
+        undefined,
+        `?workspaceId=${encodeURIComponent(workspaceId)}`,
+      );
+      setMembers(result.members ?? []);
+    } catch (loadError) {
+      setError(getFriendlyErrorMessage(loadError, "No pudimos cargar el equipo de recepción."));
     }
-
-    setMembers(
-      ((data ?? []) as unknown as ReceptionMemberRow[]).map((row) => {
-        const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-
-        return {
-          email: row.email,
-          id: row.id,
-          name: profile?.full_name?.trim() || "",
-          status: row.status,
-        };
-      }),
-    );
   }, [workspaceId]);
 
   useEffect(() => {
     void loadMembers();
   }, [loadMembers]);
 
-  async function sendInvitation(targetEmail: string, savingKey: string) {
-    setSavingId(savingKey);
+  async function handleCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError("");
     setNotice("");
 
+    const validationError = validatePasswords(password, confirmation);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    const name = fullName.trim();
+    setSavingId("new");
+
     try {
-      const skipped = await inviteReception(workspaceId, targetEmail);
+      await receptionRequest("POST", {
+        email: email.trim().toLowerCase(),
+        fullName: name,
+        password,
+        workspaceId,
+      });
       setNotice(
-        skipped
-          ? "Invitación creada. El email quedó en los logs porque el envío no está configurado."
-          : `Invitación enviada a ${targetEmail}.`,
+        `Listo. ${name} ya puede ingresar en ${getLoginUrl()} con ese email y contraseña. Compartile la contraseña por un medio privado.`,
       );
+      setFullName("");
       setEmail("");
+      setPassword("");
+      setConfirmation("");
       await loadMembers();
-    } catch (inviteError) {
-      setError(getFriendlyErrorMessage(inviteError, "No pudimos enviar la invitación."));
+    } catch (createError) {
+      setError(getFriendlyErrorMessage(createError, "No pudimos crear la cuenta."));
     } finally {
       setSavingId("");
     }
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function setStatus(member: ReceptionMember, status: "inactive" | "accepted") {
+    const label = member.name || member.email;
+    const question =
+      member.kind === "invitation"
+        ? `¿Cancelar la invitación a ${member.email}?`
+        : status === "inactive"
+          ? `¿Dar de baja el acceso de ${label}? No va a poder ingresar a la clínica.`
+          : `¿Reactivar el acceso de ${label}?`;
 
-    if (email.trim()) {
-      await sendInvitation(email.trim().toLowerCase(), "new");
-    }
-  }
-
-  async function removeMember(member: ReceptionMember) {
-    if (
-      !window.confirm(
-        member.status === "pending"
-          ? `¿Cancelar la invitación a ${member.email}?`
-          : `¿Quitar el acceso de recepción a ${member.name || member.email}?`,
-      )
-    ) {
+    if (!window.confirm(question)) {
       return;
     }
 
@@ -136,23 +213,75 @@ export function ReceptionTeamSection({ workspaceId }: { workspaceId: string }) {
     setError("");
     setNotice("");
 
-    const { error: updateError } = await getSupabaseClient()
-      .from("workspace_members")
-      .update({ status: "inactive" })
-      .eq("id", member.id)
-      .eq("workspace_id", workspaceId);
+    try {
+      await receptionRequest("PATCH", {
+        action: "set_status",
+        memberId: member.id,
+        status,
+        workspaceId,
+      });
+      setNotice(
+        member.kind === "invitation"
+          ? "Invitación cancelada."
+          : status === "inactive"
+            ? `Diste de baja el acceso de ${label}.`
+            : `${label} puede volver a ingresar.`,
+      );
+      await loadMembers();
+    } catch (statusError) {
+      setError(getFriendlyErrorMessage(statusError, "No pudimos actualizar el acceso."));
+    } finally {
+      setSavingId("");
+    }
+  }
 
-    setSavingId("");
+  function openPasswordModal(member: ReceptionMember) {
+    setPasswordMember(member);
+    setNewPassword("");
+    setNewConfirmation("");
+    setModalError("");
+  }
 
-    if (updateError) {
-      setError(mapSupabaseError(updateError));
+  function closePasswordModal() {
+    setPasswordMember(null);
+    setNewPassword("");
+    setNewConfirmation("");
+    setModalError("");
+  }
+
+  async function handlePasswordChange(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!passwordMember) {
       return;
     }
 
-    setNotice(
-      member.status === "pending" ? "Invitación cancelada." : "Acceso de recepción quitado.",
-    );
-    await loadMembers();
+    const validationError = validatePasswords(newPassword, newConfirmation);
+
+    if (validationError) {
+      setModalError(validationError);
+      return;
+    }
+
+    setSavingId(passwordMember.id);
+    setModalError("");
+
+    try {
+      await receptionRequest("PATCH", {
+        action: "set_password",
+        memberId: passwordMember.id,
+        password: newPassword,
+        workspaceId,
+      });
+      setNotice(
+        `Cambiaste la contraseña de ${passwordMember.name || passwordMember.email}. Compartísela por un medio privado.`,
+      );
+      closePasswordModal();
+    } catch (passwordError) {
+      setModalError(getFriendlyErrorMessage(passwordError, "No pudimos cambiar la contraseña."));
+    } finally {
+      setSavingId("");
+    }
   }
 
   return (
@@ -164,20 +293,44 @@ export function ReceptionTeamSection({ workspaceId }: { workspaceId: string }) {
         tratamientos los ven en solo lectura.
       </p>
 
-      <form className="mt-4 flex gap-2 sm:gap-3" onSubmit={handleSubmit}>
-        <input
-          aria-label="Email de la persona de recepción"
-          className="min-h-11 min-w-0 flex-1 rounded-lg border border-ocean-100 px-3 text-sm outline-none focus:border-ocean-400"
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="Email de la persona de recepción"
-          required
-          type="email"
-          value={email}
-        />
-        <Button disabled={Boolean(savingId)} type="submit">
-          <MailPlus className="h-4 w-4" />
-          <span className="hidden sm:inline">Invitar</span>
-        </Button>
+      <form className="mt-5 rounded-lg border border-ocean-100 bg-ocean-50 p-4" onSubmit={handleCreate}>
+        <h3 className="font-bold text-ink">Crear acceso de recepción</h3>
+        <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label className="block">
+            <FieldLabel required>Nombre y apellido</FieldLabel>
+            <input
+              autoComplete="off"
+              className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-3 text-sm outline-none focus:border-ocean-400"
+              maxLength={120}
+              onChange={(event) => setFullName(event.target.value)}
+              required
+              value={fullName}
+            />
+          </label>
+          <label className="block">
+            <FieldLabel required>Email</FieldLabel>
+            <input
+              autoComplete="off"
+              className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-3 text-sm outline-none focus:border-ocean-400"
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              type="email"
+              value={email}
+            />
+          </label>
+          <PasswordFields
+            confirmation={confirmation}
+            onConfirmationChange={setConfirmation}
+            onPasswordChange={setPassword}
+            password={password}
+          />
+        </div>
+        <div className="mt-4 flex justify-end">
+          <Button disabled={Boolean(savingId)} type="submit">
+            <UserPlus className="h-4 w-4" />
+            {savingId === "new" ? "Creando..." : "Crear acceso"}
+          </Button>
+        </div>
       </form>
 
       {error ? (
@@ -186,9 +339,17 @@ export function ReceptionTeamSection({ workspaceId }: { workspaceId: string }) {
         </Alert>
       ) : null}
       {notice ? (
-        <Alert className="mt-3" tone="success">
-          {notice}
-        </Alert>
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm font-medium text-emerald-800" role="status">
+          <p className="min-w-0 flex-1 break-words">{notice}</p>
+          <button
+            aria-label="Cerrar mensaje"
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-emerald-700 hover:bg-emerald-100"
+            onClick={() => setNotice("")}
+            type="button"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       ) : null}
 
       <ul className="mt-4 space-y-2">
@@ -197,45 +358,144 @@ export function ReceptionTeamSection({ workspaceId }: { workspaceId: string }) {
             Todavía no hay personas de recepción.
           </li>
         ) : null}
-        {members.map((member) => (
-          <li
-            className="flex items-center gap-3 rounded-lg border border-ocean-100 p-3"
-            key={member.id}
+        {members.map((member) => {
+          const statusLabel =
+            member.kind === "invitation"
+              ? "Invitación pendiente"
+              : member.status === "accepted"
+                ? "Activa"
+                : "Dada de baja";
+          const busy = Boolean(savingId);
+
+          return (
+            <li
+              className="flex flex-col gap-3 rounded-lg border border-ocean-100 p-3 sm:flex-row sm:items-center"
+              key={member.id}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-ink">
+                  {member.name || member.email}
+                </p>
+                <p className="truncate text-xs font-semibold text-slate-500">
+                  {member.name ? `${member.email} · ` : ""}
+                  <span
+                    className={
+                      member.status === "accepted"
+                        ? "text-emerald-700"
+                        : member.kind === "invitation"
+                          ? "text-amber-700"
+                          : "text-slate-500"
+                    }
+                  >
+                    {statusLabel}
+                  </span>
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {member.kind === "invitation" ? (
+                  <Button
+                    disabled={busy}
+                    onClick={() => setStatus(member, "inactive")}
+                    type="button"
+                    variant="secondary"
+                  >
+                    <X className="h-4 w-4" />
+                    Cancelar invitación
+                  </Button>
+                ) : (
+                  <>
+                    {member.kind === "account" && member.status === "accepted" ? (
+                      <Button
+                        disabled={busy}
+                        onClick={() => openPasswordModal(member)}
+                        type="button"
+                        variant="secondary"
+                      >
+                        <KeyRound className="h-4 w-4" />
+                        Cambiar contraseña
+                      </Button>
+                    ) : null}
+                    {member.status === "accepted" ? (
+                      <Button
+                        disabled={busy}
+                        onClick={() => setStatus(member, "inactive")}
+                        type="button"
+                        variant="secondary"
+                      >
+                        <UserX className="h-4 w-4" />
+                        Dar de baja
+                      </Button>
+                    ) : member.kind === "account" ? (
+                      <Button
+                        disabled={busy}
+                        onClick={() => setStatus(member, "accepted")}
+                        type="button"
+                        variant="secondary"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        Reactivar
+                      </Button>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      {passwordMember ? (
+        <div className="fixed inset-0 z-50 flex items-end bg-ink/60 px-3 pb-3 sm:items-center sm:justify-center sm:px-4 sm:py-6">
+          <form
+            className="w-full max-w-md rounded-t-2xl border border-ocean-100 bg-white p-5 shadow-soft sm:rounded-lg"
+            onSubmit={handlePasswordChange}
           >
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-ink">
-                {member.name || member.email}
-              </p>
-              <p className="truncate text-xs font-semibold text-slate-500">
-                {member.name ? `${member.email} · ` : ""}
-                {member.status === "pending" ? "Invitación pendiente" : "Activa"}
-              </p>
-            </div>
-            {member.status === "pending" ? (
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-ink">Cambiar contraseña</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {passwordMember.name || passwordMember.email}
+                </p>
+              </div>
               <button
-                aria-label={`Reenviar invitación a ${member.email}`}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ocean-800 transition hover:bg-ocean-50 disabled:opacity-50"
+                aria-label="Cerrar"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50"
                 disabled={Boolean(savingId)}
-                onClick={() => sendInvitation(member.email, member.id)}
-                title="Reenviar invitación"
+                onClick={closePasswordModal}
                 type="button"
               >
-                <Send className="h-4 w-4" />
+                <X className="h-4 w-4" />
               </button>
+            </div>
+            {modalError ? (
+              <Alert className="mt-4" tone="error">
+                {modalError}
+              </Alert>
             ) : null}
-            <button
-              aria-label={`Quitar a ${member.email}`}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-700 transition hover:bg-red-50 disabled:opacity-50"
-              disabled={Boolean(savingId)}
-              onClick={() => removeMember(member)}
-              title={member.status === "pending" ? "Cancelar invitación" : "Quitar acceso"}
-              type="button"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </li>
-        ))}
-      </ul>
+            <div className="mt-4 grid grid-cols-1 gap-4">
+              <PasswordFields
+                confirmation={newConfirmation}
+                onConfirmationChange={setNewConfirmation}
+                onPasswordChange={setNewPassword}
+                password={newPassword}
+              />
+            </div>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <Button
+                disabled={Boolean(savingId)}
+                onClick={closePasswordModal}
+                type="button"
+                variant="secondary"
+              >
+                Cancelar
+              </Button>
+              <Button disabled={Boolean(savingId)} type="submit">
+                {savingId === passwordMember.id ? "Guardando..." : "Guardar contraseña"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </section>
   );
 }

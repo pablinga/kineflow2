@@ -145,9 +145,11 @@ export function useActiveWorkspace() {
         .select("account_type")
         .eq("id", sessionData.user.id)
         .maybeSingle();
+      const profileAccountType = (profileData as { account_type?: string } | null)
+        ?.account_type;
+      // Consultorio y recepción trabajan en el workspace de la clínica.
       const fallbackType =
-        (profileData as { account_type?: string } | null)?.account_type ===
-        "CONSULTORIO"
+        profileAccountType === "CONSULTORIO" || profileAccountType === "RECEPCION"
           ? "CLINICA"
           : "PERSONAL";
 

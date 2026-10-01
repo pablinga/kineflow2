@@ -95,7 +95,7 @@ const navigation = {
     { href: "/dashboard/planes", label: "Plan", icon: CreditCard },
   ],
 } satisfies Record<
-  AccountType,
+  Exclude<AccountType, "RECEPCION">,
   Array<{ href: string; label: string; icon: typeof Home }>
 >;
 
@@ -144,9 +144,13 @@ export function DashboardSidebar() {
     selectWorkspace,
     workspaces,
   } = useActiveWorkspace();
+  // Una cuenta RECEPCION solo trabaja en clínicas: usa el menú de la clínica.
   const effectiveAccountType =
-    activeWorkspace?.type === "CLINICA" ? "CONSULTORIO" : accountType;
-  const isRecepcion = isRecepcionWorkspace(activeWorkspace);
+    activeWorkspace?.type === "CLINICA" || accountType === "RECEPCION"
+      ? "CONSULTORIO"
+      : accountType;
+  const isRecepcion =
+    isRecepcionWorkspace(activeWorkspace) || accountType === "RECEPCION";
   const selectableWorkspaces = getSelectableWorkspaces(workspaces, accountType);
   const mobileNavigationOrder = isRecepcion
     ? [
