@@ -307,6 +307,11 @@ export default function NewAppointmentPage() {
     );
 
     setSelectedClinicProfessionalId(assignedProfessional?.id ?? "");
+    // Con paciente elegido primero, se muestran directo los horarios de su
+    // profesional asignado (se puede cambiar a "Sin preferencia").
+    if (assignedProfessional) {
+      setSlotProfessionalFilter(assignedProfessional.id);
+    }
   }, [
     activePatients,
     activeWorkspace?.role,
@@ -942,7 +947,7 @@ export default function NewAppointmentPage() {
     </label>
   );
   const attentionTypeField = attentionTypes.length > 0 ? (
-    <label className="block md:col-span-2">
+    <label className={isClinicWorkspace ? "block" : "block md:col-span-2"}>
       <span className="text-sm font-semibold text-slate-700">
         Tipo de atención
       </span>
@@ -1035,6 +1040,30 @@ export default function NewAppointmentPage() {
     </label>
   );
 
+  const simultaneousField = showSimultaneousToggle ? (
+    <label
+      className={`flex items-start gap-3 rounded-lg border border-ocean-100 p-4 ${
+        isClinicWorkspace ? "md:col-span-2" : "mt-4"
+      }`}
+    >
+      <input
+        checked={allowsSimultaneous}
+        className="mt-0.5 h-4 w-4 rounded border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+        onChange={(event) => setAllowsSimultaneous(event.target.checked)}
+        type="checkbox"
+      />
+      <span>
+        <span className="block text-sm font-semibold text-slate-700">
+          Turno simultáneo
+        </span>
+        <span className="mt-0.5 block text-xs text-slate-500">
+          Permite que otros turnos simultáneos compartan este horario
+          (hasta {simultaneousCapacity}).
+        </span>
+      </span>
+    </label>
+  ) : null;
+
   // --- Clínica: profesional primero y horarios libres -----------------------
   const slotFilterProfessionals = clinicProfessionals.map((professional) => {
     const profile = Array.isArray(professional.profiles)
@@ -1078,7 +1107,7 @@ export default function NewAppointmentPage() {
   }
 
   const slotProfessionalFilterField = isClinicAdmin ? (
-    <label className="block md:col-span-2">
+    <label className="block">
       <FieldLabel required>Profesional</FieldLabel>
       <select
         className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
@@ -1162,7 +1191,7 @@ export default function NewAppointmentPage() {
             Solo para casos puntuales. El turno igual tiene que respetar la
             disponibilidad y el cupo del profesional.
           </p>
-          <div className="mt-3 grid gap-4 md:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
             {dateField}
             {timeField}
             {slotQueryProfessional === "any" ? legacyProfessionalField : null}
@@ -1247,15 +1276,16 @@ export default function NewAppointmentPage() {
             className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5"
             onSubmit={handleSubmit}
           >
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {isClinicWorkspace ? (
                 <>
-                  {slotProfessionalFilterField}
-                  {attentionTypeField}
-                  {durationField}
-                  {clinicSlotsField}
                   {patientField}
                   {treatmentField}
+                  {slotProfessionalFilterField}
+                  {attentionTypeField ?? durationField}
+                  {attentionTypeField ? durationField : null}
+                  {simultaneousField}
+                  {clinicSlotsField}
                   {modalityField}
                   {costField}
                 </>
@@ -1274,25 +1304,7 @@ export default function NewAppointmentPage() {
               )}
             </div>
 
-            {showSimultaneousToggle ? (
-              <label className="mt-4 flex items-start gap-3 rounded-lg border border-ocean-100 p-4">
-                <input
-                  checked={allowsSimultaneous}
-                  className="mt-0.5 h-4 w-4 rounded border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                  onChange={(event) => setAllowsSimultaneous(event.target.checked)}
-                  type="checkbox"
-                />
-                <span>
-                  <span className="block text-sm font-semibold text-slate-700">
-                    Turno simultáneo
-                  </span>
-                  <span className="mt-0.5 block text-xs text-slate-500">
-                    Permite que otros turnos simultáneos compartan este horario
-                    (hasta {simultaneousCapacity}).
-                  </span>
-                </span>
-              </label>
-            ) : null}
+            {isClinicWorkspace ? null : simultaneousField}
 
             {activeInsuranceProviders.length > 0 || activeArtProviders.length > 0 ? (
               <div className="mt-4 rounded-lg border border-ocean-100 p-4">
