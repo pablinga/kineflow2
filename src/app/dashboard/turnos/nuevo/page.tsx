@@ -3,10 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarCheck, Save } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PatientSearchSelect } from "@/components/patients/PatientSearchSelect";
+import {
+  getMondayOfWeek,
+  type PickerSlot,
+  SlotPicker,
+} from "@/components/turnos/SlotPicker";
+import { Alert } from "@/components/ui/Alert";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import {
   useAppointments,
@@ -163,6 +169,34 @@ export default function NewAppointmentPage() {
   const hasLoadedOnceRef = useRef(false);
   const hasManuallySelectedProfessionalRef = useRef(false);
   const hasInitializedWorkspaceDefaultsRef = useRef(false);
+  // Clínica: primero el profesional (o "Sin preferencia") y después un horario
+  // libre, como en la reserva online. La carga manual queda como excepción.
+  const [slotProfessionalFilter, setSlotProfessionalFilter] = useState("any");
+  const [slotWeekStart, setSlotWeekStart] = useState(() =>
+    getMondayOfWeek(toArgentinaDateValue()),
+  );
+  const [availableSlots, setAvailableSlots] = useState<PickerSlot[]>([]);
+  const [slotHolidays, setSlotHolidays] = useState<string[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState("");
+  const [selectedSlotStart, setSelectedSlotStart] = useState("");
+  const [manualDateEntry, setManualDateEntry] = useState(false);
+  const selectedSlotRef = useRef({ professionalId: "", start: "" });
+
+  const simultaneousCapacity = Math.max(
+    1,
+    activeWorkspace?.maxSimultaneousAppointments ?? 1,
+  );
+  // Solo tiene sentido elegir con cupo > 1. Con cupo 1 no se muestra y el
+  // turno se guarda con el default de su tipo (CLINICA simultáneo, PERSONAL
+  // exclusivo), para que se comporte igual si después se sube el cupo.
+  const showSimultaneousToggle = simultaneousCapacity > 1;
+  const selectedAttentionType =
+    attentionTypes.find((type) => type.id === attentionTypeId) ?? null;
+  // Con el checkbox oculto, el tipo de atención (si hay) define el valor.
+  const effectiveAllowsSimultaneous = showSimultaneousToggle
+    ? allowsSimultaneous
+    : selectedAttentionType?.allowsSimultaneous ?? activeWorkspace?.type === "CLINICA";
 
   useEffect(() => {
     if (
@@ -273,6 +307,11 @@ export default function NewAppointmentPage() {
     );
 
     setSelectedClinicProfessionalId(assignedProfessional?.id ?? "");
+    // Con paciente elegido primero, se muestran directo los horarios de su
+    // profesional asignado (se puede cambiar a "Sin preferencia").
+    if (assignedProfessional) {
+      setSlotProfessionalFilter(assignedProfessional.id);
+    }
   }, [
     activePatients,
     activeWorkspace?.role,
@@ -338,6 +377,122 @@ export default function NewAppointmentPage() {
     selectedClinicProfessionalId,
   ]);
 
+  // Profesional por el que se piden horarios: en el rol KINESIOLOGO de una
+  // clínica es siempre el propio; para el staff, el filtro elegido.
+  const slotQueryProfessional =
+    activeWorkspace?.type === "CLINICA" && activeWorkspace.role === "KINESIOLOGO"
+      ? selectedClinicProfessionalId
+      : slotProfessionalFilter;
+  const slotQueryDuration = appointment.durationMinutes;
+  const slotsEnabled =
+    activeWorkspace?.type === "CLINICA" && Boolean(activeWorkspaceId && slotQueryProfessional);
+
+  useEffect(() => {
+    selectedSlotRef.current = {
+      professionalId: selectedClinicProfessionalId,
+      start: selectedSlotStart,
+    };
+  }, [selectedClinicProfessionalId, selectedSlotStart]);
+
+  // Horarios libres: se recalculan al cambiar profesional, semana, duración o
+  // simultaneidad (con debounce y cancelación del pedido anterior). Si el
+  // horario elegido dejó de estar libre, se limpia la selección.
+  useEffect(() => {
+    if (!slotsEnabled || !activeWorkspaceId) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setSlotsLoading(true);
+      setSlotsError("");
+
+      try {
+        const { getSupabaseClient } = await import("@/lib/supabase");
+        const { data } = await getSupabaseClient().auth.getSession();
+        const accessToken = data.session?.access_token;
+
+        if (!accessToken) {
+          throw new Error("No pudimos identificar tu sesión.");
+        }
+
+        const query = new URLSearchParams({
+          allowsSimultaneous: String(effectiveAllowsSimultaneous),
+          durationMinutes: String(slotQueryDuration),
+          from: slotWeekStart,
+          professionalId: slotQueryProfessional,
+          to: (() => {
+            const end = new Date(`${slotWeekStart}T12:00:00`);
+            end.setDate(end.getDate() + 6);
+            return toArgentinaDateValue(end);
+          })(),
+          workspaceId: activeWorkspaceId,
+        });
+        const response = await fetch(`/api/appointments/availability?${query}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          signal: controller.signal,
+        });
+        const result = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          holidays?: string[];
+          slots?: PickerSlot[];
+        };
+
+        if (!response.ok) {
+          throw new Error(result.error ?? "No pudimos cargar los horarios.");
+        }
+
+        const nextSlots = result.slots ?? [];
+        setAvailableSlots(nextSlots);
+        setSlotHolidays(result.holidays ?? []);
+
+        const current = selectedSlotRef.current;
+
+        if (
+          current.start &&
+          !nextSlots.some(
+            (slot) =>
+              slot.start === current.start &&
+              slot.professionals.some(
+                (professional) =>
+                  professional.clinicProfessionalId === current.professionalId,
+              ),
+          )
+        ) {
+          setSelectedSlotStart("");
+          setAppointment((previous) => ({ ...previous, time: "" }));
+        }
+      } catch (loadError) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        // Sin horarios no se bloquea a la clínica: se abre la carga manual.
+        setAvailableSlots([]);
+        setSlotsError(
+          getFriendlyErrorMessage(loadError, "No pudimos cargar los horarios disponibles."),
+        );
+        setManualDateEntry(true);
+      } finally {
+        if (!controller.signal.aborted) {
+          setSlotsLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [
+    activeWorkspaceId,
+    effectiveAllowsSimultaneous,
+    slotQueryDuration,
+    slotQueryProfessional,
+    slotWeekStart,
+    slotsEnabled,
+  ]);
+
   if (authError) {
     return <DashboardLoading error={authError} />;
   }
@@ -392,20 +547,6 @@ export default function NewAppointmentPage() {
   const preselectedPatient = activePatients.find(
     (patient) => patient.id === patientFromUrl,
   );
-  const simultaneousCapacity = Math.max(
-    1,
-    activeWorkspace?.maxSimultaneousAppointments ?? 1,
-  );
-  // Solo tiene sentido elegir con cupo > 1. Con cupo 1 no se muestra y el
-  // turno se guarda con el default de su tipo (CLINICA simultáneo, PERSONAL
-  // exclusivo), para que se comporte igual si después se sube el cupo.
-  const showSimultaneousToggle = simultaneousCapacity > 1;
-  const selectedAttentionType =
-    attentionTypes.find((type) => type.id === attentionTypeId) ?? null;
-  // Con el checkbox oculto, el tipo de atención (si hay) define el valor.
-  const effectiveAllowsSimultaneous = showSimultaneousToggle
-    ? allowsSimultaneous
-    : selectedAttentionType?.allowsSimultaneous ?? isClinicWorkspace;
   // Profesional al que se le asigna el turno: el cupo y los choques se
   // cuentan por profesional, igual que el trigger de la base.
   const conflictOwnerId = isClinicWorkspace
@@ -566,6 +707,13 @@ export default function NewAppointmentPage() {
               (professional) => professional.id === selectedClinicProfessionalId,
             );
 
+        if (!manualDateEntry && !selectedSlotStart) {
+          setError(
+            "Elegí un horario disponible o cargá la fecha y hora manualmente.",
+          );
+          return;
+        }
+
         if (!selectedProfessional?.professional_id) {
           setError("Seleccioná un profesional vinculado al consultorio.");
           return;
@@ -652,6 +800,407 @@ export default function NewAppointmentPage() {
     }
   }
 
+  // Campos del formulario: el orden cambia entre clínica y particular.
+  const dateField = (
+    <label className="block">
+      <FieldLabel required>Fecha</FieldLabel>
+      <input
+        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+        onChange={(event) => {
+          setSelectedSlotStart("");
+          updateField("date", event.target.value);
+        }}
+        required
+        type="date"
+        value={appointment.date}
+      />
+    </label>
+  );
+  const timeField = (
+    <label className="block">
+      <FieldLabel required>Hora</FieldLabel>
+      <input
+        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+        onChange={(event) => {
+          setSelectedSlotStart("");
+          updateField("time", event.target.value);
+        }}
+        required
+        type="time"
+        value={appointment.time}
+      />
+    </label>
+  );
+  const legacyProfessionalField = isClinicAdmin ? (
+    <label className="block md:col-span-2">
+      <FieldLabel required>Profesional</FieldLabel>
+      <select
+        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+        disabled={!canChangeClinicProfessional}
+        onChange={(event) => {
+          hasManuallySelectedProfessionalRef.current = true;
+          setSelectedClinicProfessionalId(event.target.value);
+        }}
+        required
+        value={selectedClinicProfessionalId}
+      >
+        <option value="">Seleccionar profesional vinculado</option>
+        {availableClinicProfessionals.map((professional) => {
+          const profile = Array.isArray(professional.profiles)
+            ? professional.profiles[0]
+            : professional.profiles;
+          const clinic = Array.isArray(professional.clinics)
+            ? professional.clinics[0]
+            : professional.clinics;
+
+          return (
+            <option key={professional.id} value={professional.id}>
+              {profile?.full_name ?? "Profesional"} ·{" "}
+              {clinic?.name ?? "Consultorio"}
+            </option>
+          );
+        })}
+      </select>
+      {professionalAvailabilityNotice ? (
+        <p className="mt-2 text-sm text-amber-700">
+          {professionalAvailabilityNotice}
+        </p>
+      ) : null}
+    </label>
+  ) : null;
+  const patientField = (
+    <div>
+      <PatientSearchSelect
+        disabled={Boolean(preselectedPatient)}
+        onChange={updatePatient}
+        patients={activePatients}
+        required
+        value={appointment.patientId}
+      />
+      {activePatients.length === 0 ? (
+        <p className="mt-2 text-sm text-amber-700">
+          Primero carga un paciente activo para asignarle un turno.
+        </p>
+      ) : null}
+      {preselectedPatient ? (
+        <p className="mt-2 text-sm text-ocean-700">
+          Paciente preseleccionado desde su historial.
+        </p>
+      ) : null}
+    </div>
+  );
+  const treatmentField = (
+    <label className="block">
+      <span className="text-sm font-semibold text-slate-700">
+        Tratamiento
+      </span>
+      <select
+        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
+        disabled={!appointment.patientId || isRefreshingTreatments}
+        onChange={(event) => updateTreatment(event.target.value)}
+        value={appointment.treatmentId}
+      >
+        <option value="">
+          {isRefreshingTreatments
+            ? "Cargando tratamientos..."
+            : "Sin tratamiento"}
+        </option>
+        {isRefreshingTreatments
+          ? null
+          : activeTreatments.map((treatment) => (
+              <option key={treatment.id} value={treatment.id}>
+                {treatment.diagnosis}
+                {treatment.bodyRegion
+                  ? ` · ${treatment.bodyRegion}`
+                  : ""}{" "}
+                ({treatment.usedSessions}/{treatment.totalSessions}{" "}
+                sesiones)
+              </option>
+            ))}
+      </select>
+      {!appointment.patientId && !isRefreshingTreatments ? (
+        <p className="mt-2 text-sm text-slate-500">
+          Elegí un paciente para ver sus tratamientos activos.
+        </p>
+      ) : null}
+      {isRefreshingTreatments ? (
+        <p className="mt-2 text-sm text-ocean-700">
+          Cargando tratamientos...
+        </p>
+      ) : null}
+      {appointment.patientId &&
+      !isRefreshingTreatments &&
+      activeTreatments.length === 0 ? (
+        <p className="mt-2 text-sm text-slate-500">
+          Este paciente no tiene tratamientos activos. Creá uno desde
+          su{" "}
+          <Link
+            className="font-semibold text-ocean-700 underline-offset-4 hover:underline"
+            href={`/dashboard/pacientes/${appointment.patientId}`}
+            prefetch={false}
+          >
+            ficha
+          </Link>
+          .
+        </p>
+      ) : null}
+    </label>
+  );
+  const attentionTypeField = attentionTypes.length > 0 ? (
+    <label className={isClinicWorkspace ? "block" : "block md:col-span-2"}>
+      <span className="text-sm font-semibold text-slate-700">
+        Tipo de atención
+      </span>
+      <select
+        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+        onChange={(event) => selectAttentionType(event.target.value)}
+        value={attentionTypeId}
+      >
+        <option value="">Sin especificar</option>
+        {attentionTypes.map((type) => (
+          <option key={type.id} value={type.id}>
+            {type.name} · {type.durationMinutes} min
+          </option>
+        ))}
+      </select>
+      {selectedAttentionType ? (
+        <p className="mt-1 text-sm font-semibold text-slate-600">
+          Duración: {selectedAttentionType.durationMinutes} min
+        </p>
+      ) : (
+        <p className="mt-1 text-sm text-slate-500">
+          Ej.: RPG, ATM, Kinesiología general. Completa la duración y
+          el precio automáticamente.
+        </p>
+      )}
+    </label>
+  ) : null;
+  // Con tipo de atención elegido, la duración sale del tipo (no se edita acá).
+  const durationField = selectedAttentionType ? null : (
+    <label className="block">
+      <span className="text-sm font-semibold text-slate-700">
+        Duración
+      </span>
+      <select
+        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+        onChange={(event) =>
+          updateField("durationMinutes", Number(event.target.value))
+        }
+        value={appointment.durationMinutes}
+      >
+        {APPOINTMENT_DURATION_OPTIONS.map((minutes) => (
+          <option key={minutes} value={minutes}>
+            {minutes} min
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+  const modalityField = (
+    <label className="block">
+      <span className="text-sm font-semibold text-slate-700">
+        Modalidad
+      </span>
+      <select
+        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+        onChange={(event) =>
+          updateField(
+            "modality",
+            event.target.value as NewAppointmentInput["modality"],
+          )
+        }
+        value={appointment.modality}
+      >
+        <option value="presencial">Presencial</option>
+        <option value="domicilio">Domicilio</option>
+        <option value="virtual">Virtual</option>
+      </select>
+    </label>
+  );
+  const costField = (
+    <label className="block">
+      <span className="text-sm font-semibold text-slate-700">
+        Costo de la sesión
+      </span>
+      <input
+        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+        inputMode="decimal"
+        min={0}
+        onChange={(event) =>
+          setSessionAmount(
+            event.target.value === ""
+              ? null
+              : Number(event.target.value),
+          )
+        }
+        placeholder="0"
+        type="number"
+        value={sessionAmount ?? ""}
+      />
+    </label>
+  );
+
+  const simultaneousField = showSimultaneousToggle ? (
+    <label
+      className={`flex items-start gap-3 rounded-lg border border-ocean-100 p-4 ${
+        isClinicWorkspace ? "md:col-span-2" : "mt-4"
+      }`}
+    >
+      <input
+        checked={allowsSimultaneous}
+        className="mt-0.5 h-4 w-4 rounded border-ocean-200 text-ocean-600 focus:ring-ocean-400"
+        onChange={(event) => setAllowsSimultaneous(event.target.checked)}
+        type="checkbox"
+      />
+      <span>
+        <span className="block text-sm font-semibold text-slate-700">
+          Turno simultáneo
+        </span>
+        <span className="mt-0.5 block text-xs text-slate-500">
+          Permite que otros turnos simultáneos compartan este horario
+          (hasta {simultaneousCapacity}).
+        </span>
+      </span>
+    </label>
+  ) : null;
+
+  // --- Clínica: profesional primero y horarios libres -----------------------
+  const slotFilterProfessionals = clinicProfessionals.map((professional) => {
+    const profile = Array.isArray(professional.profiles)
+      ? professional.profiles[0]
+      : professional.profiles;
+
+    return {
+      id: professional.id,
+      name: profile?.full_name ?? professional.professional_email.split("@")[0] ?? "Profesional",
+    };
+  });
+  const selectedSlot =
+    availableSlots.find((slot) => slot.start === selectedSlotStart) ?? null;
+  const assignedSlotProfessional = selectedSlot?.professionals.find(
+    (professional) => professional.clinicProfessionalId === selectedClinicProfessionalId,
+  );
+
+  // Elegir un horario completa fecha, hora y profesional en el estado del
+  // formulario, así el guardado y la validación de conflictos no cambian.
+  function selectSlot(
+    slot: PickerSlot,
+    professional: PickerSlot["professionals"][number] = slot.professionals[0],
+  ) {
+    if (!professional) {
+      return;
+    }
+
+    hasManuallySelectedProfessionalRef.current = true;
+    setSelectedSlotStart(slot.start);
+    setSelectedClinicProfessionalId(professional.clinicProfessionalId);
+    setAppointment((current) => ({ ...current, date: slot.date, time: slot.startTime }));
+  }
+
+  function changeSlotProfessionalFilter(value: string) {
+    setSlotProfessionalFilter(value);
+
+    if (value !== "any") {
+      hasManuallySelectedProfessionalRef.current = true;
+      setSelectedClinicProfessionalId(value);
+    }
+  }
+
+  const slotProfessionalFilterField = isClinicAdmin ? (
+    <label className="block">
+      <FieldLabel required>Profesional</FieldLabel>
+      <select
+        className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+        onChange={(event) => changeSlotProfessionalFilter(event.target.value)}
+        value={slotProfessionalFilter}
+      >
+        <option value="any">Sin preferencia</option>
+        {slotFilterProfessionals.map((professional) => (
+          <option key={professional.id} value={professional.id}>
+            {professional.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  ) : null;
+
+  const clinicSlotsField = (
+    <div className="md:col-span-2">
+      {slotsError ? (
+        <Alert className="mb-3" tone="error">
+          {slotsError} Podés cargar la fecha y hora manualmente.
+        </Alert>
+      ) : null}
+      <SlotPicker
+        holidays={slotHolidays}
+        loading={slotsLoading}
+        onSelect={(slot) => selectSlot(slot)}
+        onWeekChange={setSlotWeekStart}
+        selected={selectedSlotStart || null}
+        showProfessionalCount={slotQueryProfessional === "any"}
+        slots={availableSlots}
+        weekStart={slotWeekStart}
+      />
+      {selectedSlot && slotQueryProfessional === "any" && selectedSlot.professionals.length > 1 ? (
+        <div className="mt-3">
+          <p className="text-sm font-semibold text-slate-700">
+            ¿Con qué profesional?
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {selectedSlot.professionals.map((professional) => {
+              const chosen = professional.clinicProfessionalId === selectedClinicProfessionalId;
+
+              return (
+                <button
+                  className={
+                    chosen
+                      ? "inline-flex min-h-9 items-center rounded-full bg-ocean-600 px-3 text-sm font-semibold text-white"
+                      : "inline-flex min-h-9 items-center rounded-full border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                  }
+                  key={professional.clinicProfessionalId}
+                  onClick={() => selectSlot(selectedSlot, professional)}
+                  type="button"
+                >
+                  {professional.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      {selectedSlot && assignedSlotProfessional ? (
+        <p className="mt-3 rounded-lg bg-ocean-50 px-3 py-2 text-sm font-semibold text-ocean-900">
+          {new Date(`${selectedSlot.date}T12:00:00`).toLocaleDateString("es-AR", {
+            day: "2-digit",
+            month: "long",
+            weekday: "long",
+          })}{" "}
+          a las {selectedSlot.startTime} con {assignedSlotProfessional.name}
+        </p>
+      ) : null}
+      <button
+        className="mt-3 text-sm font-semibold text-ocean-700 underline-offset-4 hover:underline"
+        onClick={() => setManualDateEntry((current) => !current)}
+        type="button"
+      >
+        {manualDateEntry ? "Ocultar carga manual" : "Cargar fecha y hora manualmente"}
+      </button>
+      {manualDateEntry ? (
+        <div className="mt-3 rounded-lg border border-ocean-100 p-4">
+          <p className="text-sm text-slate-500">
+            Solo para casos puntuales. El turno igual tiene que respetar la
+            disponibilidad y el cupo del profesional.
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {dateField}
+            {timeField}
+            {slotQueryProfessional === "any" ? legacyProfessionalField : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
@@ -727,239 +1276,35 @@ export default function NewAppointmentPage() {
             className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5"
             onSubmit={handleSubmit}
           >
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block">
-                <FieldLabel required>Fecha</FieldLabel>
-                <input
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                  onChange={(event) => updateField("date", event.target.value)}
-                  required
-                  type="date"
-                  value={appointment.date}
-                />
-              </label>
-              <label className="block">
-                <FieldLabel required>Hora</FieldLabel>
-                <input
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                  onChange={(event) => updateField("time", event.target.value)}
-                  required
-                  type="time"
-                  value={appointment.time}
-                />
-              </label>
-              {isClinicAdmin ? (
-                <label className="block md:col-span-2">
-                  <FieldLabel required>Profesional</FieldLabel>
-                  <select
-                    className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                    disabled={!canChangeClinicProfessional}
-                    onChange={(event) => {
-                      hasManuallySelectedProfessionalRef.current = true;
-                      setSelectedClinicProfessionalId(event.target.value);
-                    }}
-                    required
-                    value={selectedClinicProfessionalId}
-                  >
-                    <option value="">Seleccionar profesional vinculado</option>
-                    {availableClinicProfessionals.map((professional) => {
-                      const profile = Array.isArray(professional.profiles)
-                        ? professional.profiles[0]
-                        : professional.profiles;
-                      const clinic = Array.isArray(professional.clinics)
-                        ? professional.clinics[0]
-                        : professional.clinics;
-
-                      return (
-                        <option key={professional.id} value={professional.id}>
-                          {profile?.full_name ?? "Profesional"} ·{" "}
-                          {clinic?.name ?? "Consultorio"}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  {professionalAvailabilityNotice ? (
-                    <p className="mt-2 text-sm text-amber-700">
-                      {professionalAvailabilityNotice}
-                    </p>
-                  ) : null}
-                </label>
-              ) : null}
-              <div>
-                <PatientSearchSelect
-                  disabled={Boolean(preselectedPatient)}
-                  onChange={updatePatient}
-                  patients={activePatients}
-                  required
-                  value={appointment.patientId}
-                />
-                {activePatients.length === 0 ? (
-                  <p className="mt-2 text-sm text-amber-700">
-                    Primero carga un paciente activo para asignarle un turno.
-                  </p>
-                ) : null}
-                {preselectedPatient ? (
-                  <p className="mt-2 text-sm text-ocean-700">
-                    Paciente preseleccionado desde su historial.
-                  </p>
-                ) : null}
-              </div>
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
-                  Tratamiento
-                </span>
-                <select
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
-                  disabled={!appointment.patientId || isRefreshingTreatments}
-                  onChange={(event) => updateTreatment(event.target.value)}
-                  value={appointment.treatmentId}
-                >
-                  <option value="">
-                    {isRefreshingTreatments
-                      ? "Cargando tratamientos..."
-                      : "Sin tratamiento"}
-                  </option>
-                  {isRefreshingTreatments
-                    ? null
-                    : activeTreatments.map((treatment) => (
-                        <option key={treatment.id} value={treatment.id}>
-                          {treatment.diagnosis}
-                          {treatment.bodyRegion
-                            ? ` · ${treatment.bodyRegion}`
-                            : ""}{" "}
-                          ({treatment.usedSessions}/{treatment.totalSessions}{" "}
-                          sesiones)
-                        </option>
-                      ))}
-                </select>
-                {!appointment.patientId && !isRefreshingTreatments ? (
-                  <p className="mt-2 text-sm text-slate-500">
-                    Elegí un paciente para ver sus tratamientos activos.
-                  </p>
-                ) : null}
-                {isRefreshingTreatments ? (
-                  <p className="mt-2 text-sm text-ocean-700">
-                    Cargando tratamientos...
-                  </p>
-                ) : null}
-                {appointment.patientId &&
-                !isRefreshingTreatments &&
-                activeTreatments.length === 0 ? (
-                  <p className="mt-2 text-sm text-slate-500">
-                    Este paciente no tiene tratamientos activos. Creá uno desde
-                    su{" "}
-                    <Link
-                      className="font-semibold text-ocean-700 underline-offset-4 hover:underline"
-                      href={`/dashboard/pacientes/${appointment.patientId}`}
-                      prefetch={false}
-                    >
-                      ficha
-                    </Link>
-                    .
-                  </p>
-                ) : null}
-              </label>
-              {attentionTypes.length > 0 ? (
-                <label className="block md:col-span-2">
-                  <span className="text-sm font-semibold text-slate-700">
-                    Tipo de atención
-                  </span>
-                  <select
-                    className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                    onChange={(event) => selectAttentionType(event.target.value)}
-                    value={attentionTypeId}
-                  >
-                    <option value="">Sin especificar</option>
-                    {attentionTypes.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.name} · {type.durationMinutes} min
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Ej.: RPG, ATM, Kinesiología general. Completa la duración y
-                    el precio automáticamente.
-                  </p>
-                </label>
-              ) : null}
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
-                  Duración
-                </span>
-                <select
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                  onChange={(event) =>
-                    updateField("durationMinutes", Number(event.target.value))
-                  }
-                  value={appointment.durationMinutes}
-                >
-                  {APPOINTMENT_DURATION_OPTIONS.map((minutes) => (
-                    <option key={minutes} value={minutes}>
-                      {minutes} min
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
-                  Modalidad
-                </span>
-                <select
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                  onChange={(event) =>
-                    updateField(
-                      "modality",
-                      event.target.value as NewAppointmentInput["modality"],
-                    )
-                  }
-                  value={appointment.modality}
-                >
-                  <option value="presencial">Presencial</option>
-                  <option value="domicilio">Domicilio</option>
-                  <option value="virtual">Virtual</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
-                  Costo de la sesión
-                </span>
-                <input
-                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                  inputMode="decimal"
-                  min={0}
-                  onChange={(event) =>
-                    setSessionAmount(
-                      event.target.value === ""
-                        ? null
-                        : Number(event.target.value),
-                    )
-                  }
-                  placeholder="0"
-                  type="number"
-                  value={sessionAmount ?? ""}
-                />
-              </label>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {isClinicWorkspace ? (
+                <>
+                  {patientField}
+                  {treatmentField}
+                  {slotProfessionalFilterField}
+                  {attentionTypeField ?? durationField}
+                  {attentionTypeField ? durationField : null}
+                  {simultaneousField}
+                  {clinicSlotsField}
+                  {modalityField}
+                  {costField}
+                </>
+              ) : (
+                <>
+                  {dateField}
+                  {timeField}
+                  {legacyProfessionalField}
+                  {patientField}
+                  {treatmentField}
+                  {attentionTypeField}
+                  {durationField}
+                  {modalityField}
+                  {costField}
+                </>
+              )}
             </div>
 
-            {showSimultaneousToggle ? (
-              <label className="mt-4 flex items-start gap-3 rounded-lg border border-ocean-100 p-4">
-                <input
-                  checked={allowsSimultaneous}
-                  className="mt-0.5 h-4 w-4 rounded border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                  onChange={(event) => setAllowsSimultaneous(event.target.checked)}
-                  type="checkbox"
-                />
-                <span>
-                  <span className="block text-sm font-semibold text-slate-700">
-                    Turno simultáneo
-                  </span>
-                  <span className="mt-0.5 block text-xs text-slate-500">
-                    Permite que otros turnos simultáneos compartan este horario
-                    (hasta {simultaneousCapacity}).
-                  </span>
-                </span>
-              </label>
-            ) : null}
+            {isClinicWorkspace ? null : simultaneousField}
 
             {activeInsuranceProviders.length > 0 || activeArtProviders.length > 0 ? (
               <div className="mt-4 rounded-lg border border-ocean-100 p-4">
@@ -1157,19 +1502,6 @@ export default function NewAppointmentPage() {
             </div>
           </form>
 
-          <div className="mt-6 hidden rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:block">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-ocean-100 text-ocean-700">
-                <CalendarCheck className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="font-bold text-ink">Próxima mejora</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  Mostrar advertencias cuando existan turnos superpuestos.
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
     </main>
