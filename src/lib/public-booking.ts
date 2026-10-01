@@ -134,6 +134,13 @@ const ARGENTINA_HOLIDAYS = new Set<string>([
   "2027-12-25",
 ]);
 
+/** Feriados nacionales cargados en ARGENTINA_HOLIDAYS dentro del rango (YYYY-MM-DD). */
+export function getArgentinaHolidaysInRange(from: string, to: string) {
+  return Array.from(ARGENTINA_HOLIDAYS)
+    .filter((date) => date >= from && date <= to)
+    .sort();
+}
+
 function normalizeTime(value: string) {
   return value.slice(0, 5);
 }
@@ -543,11 +550,25 @@ async function getWorkspaceBlockedDates(
   );
 }
 
+/**
+ * "public": reserva online (no se reserva para hoy ni en feriados).
+ * "staff": turnos que da la clínica desde el dashboard: incluye hoy (solo
+ * horarios que todavía no pasaron) y feriados (la clínica decide si atiende).
+ */
+export type FreeSlotsMode = "public" | "staff";
+
 export async function getFreeSlots(params: {
   admin: SupabaseClient;
+  /**
+   * Si el turno nuevo admite compartir horario con otros simultáneos. Sin
+   * valor se usa la regla de la reserva online
+   * (getPublicBookingAllowsSimultaneous).
+   */
+  allowsSimultaneous?: boolean;
   context: BookingContext;
   durationMinutes: number;
   from: string;
+  mode?: FreeSlotsMode;
   to: string;
 }) {
   const availability = await getAvailabilityRows(params.admin, params.context);
@@ -574,6 +595,11 @@ export async function getFreeSlots(params: {
     1,
     params.context.workspace.max_simultaneous_appointments ?? 1,
   );
+  const mode = params.mode ?? "public";
+  const nowTime = Date.now();
+  const newAllowsSimultaneous =
+    params.allowsSimultaneous ??
+    getPublicBookingAllowsSimultaneous(params.context.workspace);
 
   for (
     let currentDate = fromDate;
@@ -582,8 +608,9 @@ export async function getFreeSlots(params: {
   ) {
     const date = formatDateValue(currentDate);
     if (
-      date <= todayDate ||
-      ARGENTINA_HOLIDAYS.has(date) ||
+      (mode === "public"
+        ? date <= todayDate || ARGENTINA_HOLIDAYS.has(date)
+        : date < todayDate) ||
       blockedDates.has(date)
     ) {
       continue;
@@ -625,6 +652,11 @@ export async function getFreeSlots(params: {
         const end = buildLocalIso(date, startMinutes + params.durationMinutes);
         const startTime = new Date(start).getTime();
         const endTime = new Date(end).getTime();
+
+        // En modo staff entra hoy: se ocultan los horarios que ya pasaron.
+        if (startTime <= nowTime) {
+          continue;
+        }
         const overlapping = bookedAppointments.filter((appointment) =>
           overlaps(
             startTime,
@@ -635,12 +667,14 @@ export async function getFreeSlots(params: {
           ),
         );
         const overlappingCount = overlapping.length;
-        // Libre si no hay superposición, o si con cupo > 1 todos los
-        // superpuestos son simultáneos, del mismo workspace (otro workspace
-        // siempre bloquea, igual que el trigger) y queda lugar en el cupo.
+        // Libre si no hay superposición, o si el turno nuevo es simultáneo,
+        // hay cupo > 1, todos los superpuestos son simultáneos y del mismo
+        // workspace (otro workspace siempre bloquea, igual que el trigger) y
+        // queda lugar en el cupo.
         const isAvailable =
           overlappingCount === 0 ||
-          (workspaceCapacity > 1 &&
+          (newAllowsSimultaneous &&
+            workspaceCapacity > 1 &&
             overlappingCount < workspaceCapacity &&
             overlapping.every(
               (appointment) =>
