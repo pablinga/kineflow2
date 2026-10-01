@@ -589,11 +589,12 @@ export default function WorkspaceSettingsPage() {
         </form>
 
         <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* Por ahora solo clínicas; la tabla no depende del tipo de workspace. */}
-          {activeWorkspace?.type === "CLINICA" ? (
+          {/* Catálogo propio de cada workspace: clínica o particular. */}
+          {activeWorkspace ? (
             <AttentionTypesSection
               canEdit={canEdit}
               capacity={settings?.maxSimultaneousAppointments ?? 1}
+              workspaceType={activeWorkspace.type}
             />
           ) : null}
 
