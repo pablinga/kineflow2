@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 
 export type PickerSlot = {
   date: string;
@@ -47,9 +47,11 @@ export function getMondayOfWeek(dateValue: string) {
   return shiftDateValue(dateValue, day === 0 ? -6 : 1 - day);
 }
 
-function formatColumnDay(dateValue: string) {
+function formatSlotDate(dateValue: string) {
   return new Date(`${dateValue}T12:00:00`).toLocaleDateString("es-AR", {
-    weekday: "short",
+    day: "2-digit",
+    month: "long",
+    weekday: "long",
   });
 }
 
@@ -61,8 +63,8 @@ function formatShortDate(dateValue: string) {
 }
 
 /**
- * Horarios libres de una semana (lunes a domingo): una columna por día con
- * los horarios uno debajo del otro.
+ * Horarios libres por día de una semana (lunes a domingo), con el mismo
+ * criterio visual que la reserva online.
  */
 export function SlotPicker({
   holidays = [],
@@ -78,10 +80,6 @@ export function SlotPicker({
   const currentWeekStart = getMondayOfWeek(toDateValue(new Date()));
   const canGoBack = weekStart > currentWeekStart;
   const holidaySet = useMemo(() => new Set(holidays), [holidays]);
-  const weekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, index) => shiftDateValue(weekStart, index)),
-    [weekStart],
-  );
   const groupedSlots = useMemo(
     () =>
       slots.reduce<Record<string, PickerSlot[]>>((groups, slot) => {
@@ -90,34 +88,6 @@ export function SlotPicker({
       }, {}),
     [slots],
   );
-
-  function renderSlot(slot: PickerSlot) {
-    const isSelected = selected === slot.start;
-    const freeCount = slot.professionals.length;
-
-    return (
-      <button
-        className={
-          isSelected
-            ? "flex min-h-9 w-full flex-col items-center justify-center rounded-lg bg-ocean-600 px-1 py-1 text-sm font-semibold text-white"
-            : "flex min-h-9 w-full flex-col items-center justify-center rounded-lg border border-ocean-100 px-1 py-1 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-        }
-        key={slot.start}
-        onClick={() => onSelect(slot)}
-        title={slot.professionals.map((professional) => professional.name).join(", ")}
-        type="button"
-      >
-        {slot.startTime}
-        {showProfessionalCount ? (
-          <span
-            className={`text-[0.65rem] font-semibold leading-tight ${isSelected ? "text-ocean-100" : "text-slate-500"}`}
-          >
-            {freeCount} {freeCount === 1 ? "libre" : "libres"}
-          </span>
-        ) : null}
-      </button>
-    );
-  }
 
   return (
     <div className="rounded-lg border border-ocean-100 p-4">
@@ -174,58 +144,50 @@ export function SlotPicker({
           </button>
         </div>
       ) : (
-        <>
-          {/* Celular: solo los días con horarios, uno debajo del otro. */}
-          <div className="mt-4 grid gap-3 sm:hidden">
-            {weekDays
-              .filter((date) => (groupedSlots[date] ?? []).length > 0)
-              .map((date) => (
-                <div className="rounded-lg border border-ocean-100 p-3" key={date}>
-                  <p className="text-sm font-bold capitalize text-ink">
-                    {formatColumnDay(date)} {formatShortDate(date)}
-                    {holidaySet.has(date) ? (
-                      <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold normal-case text-amber-800 ring-1 ring-amber-100">
-                        Feriado
-                      </span>
-                    ) : null}
-                  </p>
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {(groupedSlots[date] ?? []).map((slot) => renderSlot(slot))}
-                  </div>
-                </div>
-              ))}
-          </div>
-          {/* Web: una columna por día (lunes a domingo), horarios uno debajo del otro. */}
-          <div className="mt-4 hidden sm:block">
-            <div className="grid grid-cols-7 gap-2">
-              {weekDays.map((date) => {
-                const daySlots = groupedSlots[date] ?? [];
+        <div className="mt-4 grid gap-4">
+          {Object.entries(groupedSlots).map(([date, daySlots]) => (
+            <div className="rounded-lg border border-ocean-100 p-4" key={date}>
+              <p className="text-sm font-bold capitalize text-ink">
+                {formatSlotDate(date)}
+                {holidaySet.has(date) ? (
+                  <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold normal-case text-amber-800 ring-1 ring-amber-100">
+                    Feriado
+                  </span>
+                ) : null}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {daySlots.map((slot) => {
+                  const isSelected = selected === slot.start;
+                  const freeCount = slot.professionals.length;
 
-                return (
-                  <div className="min-w-0 rounded-lg border border-ocean-100 p-2" key={date}>
-                    <p className="text-center text-xs font-bold capitalize text-ink">
-                      {formatColumnDay(date)}
-                    </p>
-                    <p className="text-center text-xs font-semibold text-slate-500">
-                      {formatShortDate(date)}
-                    </p>
-                    {holidaySet.has(date) ? (
-                      <p className="mt-1 rounded-full bg-amber-50 px-1 py-0.5 text-center text-[0.65rem] font-semibold text-amber-800 ring-1 ring-amber-100">
-                        Feriado
-                      </p>
-                    ) : null}
-                    <div className="mt-2 flex flex-col gap-1.5">
-                      {daySlots.length === 0 ? (
-                        <p className="py-2 text-center text-xs text-slate-400">—</p>
+                  return (
+                    <button
+                      className={
+                        isSelected
+                          ? "inline-flex min-h-10 items-center gap-2 rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
+                          : "inline-flex min-h-10 items-center gap-2 rounded-lg border border-ocean-100 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
+                      }
+                      key={slot.start}
+                      onClick={() => onSelect(slot)}
+                      title={slot.professionals.map((professional) => professional.name).join(", ")}
+                      type="button"
+                    >
+                      <Clock className="h-4 w-4" />
+                      {slot.startTime}
+                      {showProfessionalCount ? (
+                        <span
+                          className={`text-xs font-semibold ${isSelected ? "text-ocean-100" : "text-slate-500"}`}
+                        >
+                          · {freeCount} {freeCount === 1 ? "libre" : "libres"}
+                        </span>
                       ) : null}
-                      {daySlots.map((slot) => renderSlot(slot))}
-                    </div>
-                  </div>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        </>
+          ))}
+        </div>
       )}
     </div>
   );
