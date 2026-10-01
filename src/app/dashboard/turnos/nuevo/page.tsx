@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarCheck, Save } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PatientSearchSelect } from "@/components/patients/PatientSearchSelect";
@@ -958,13 +958,20 @@ export default function NewAppointmentPage() {
           </option>
         ))}
       </select>
-      <p className="mt-1 text-sm text-slate-500">
-        Ej.: RPG, ATM, Kinesiología general. Completa la duración y
-        el precio automáticamente.
-      </p>
+      {selectedAttentionType ? (
+        <p className="mt-1 text-sm font-semibold text-slate-600">
+          Duración: {selectedAttentionType.durationMinutes} min
+        </p>
+      ) : (
+        <p className="mt-1 text-sm text-slate-500">
+          Ej.: RPG, ATM, Kinesiología general. Completa la duración y
+          el precio automáticamente.
+        </p>
+      )}
     </label>
   ) : null;
-  const durationField = (
+  // Con tipo de atención elegido, la duración sale del tipo (no se edita acá).
+  const durationField = selectedAttentionType ? null : (
     <label className="block">
       <span className="text-sm font-semibold text-slate-700">
         Duración
@@ -1483,19 +1490,6 @@ export default function NewAppointmentPage() {
             </div>
           </form>
 
-          <div className="mt-6 hidden rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:block">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-ocean-100 text-ocean-700">
-                <CalendarCheck className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="font-bold text-ink">Próxima mejora</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  Mostrar advertencias cuando existan turnos superpuestos.
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
     </main>
