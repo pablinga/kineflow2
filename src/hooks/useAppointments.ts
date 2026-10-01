@@ -22,6 +22,9 @@ export type Appointment = {
   durationMinutes: number;
   /** Si comparte el horario con otros turnos simultáneos (hasta el cupo). */
   allowsSimultaneous: boolean;
+  /** Tipo de atención (catálogo de la clínica) y copia de su nombre al dar el turno. */
+  attentionTypeId: string | null;
+  attentionTypeName: string | null;
   date: string;
   time: string;
   patient: string;
@@ -89,6 +92,9 @@ export type NewAppointmentInput = {
   paymentType?: PaymentType;
   /** Default false. */
   allowsSimultaneous?: boolean;
+  attentionTypeId?: string | null;
+  /** Snapshot del nombre: se conserva aunque el tipo se renombre o desactive. */
+  attentionTypeName?: string | null;
 };
 
 export type NewClinicAppointmentInput = NewAppointmentInput & {
@@ -111,6 +117,8 @@ type AppointmentRow = {
   scheduled_at: string;
   duration_minutes: number;
   allows_simultaneous: boolean | null;
+  attention_type_id: string | null;
+  attention_type_name: string | null;
   modality: AppointmentModality;
   reason: string;
   status: AppointmentStatus | "confirmed" | "completed";
@@ -212,6 +220,8 @@ function mapAppointment(row: AppointmentRow): Appointment {
     scheduledAt: row.scheduled_at,
     durationMinutes: row.duration_minutes,
     allowsSimultaneous: row.allows_simultaneous ?? false,
+    attentionTypeId: row.attention_type_id ?? null,
+    attentionTypeName: row.attention_type_name ?? null,
     date: formatDate(date),
     time: date.toLocaleTimeString("es-AR", {
       hour: "2-digit",
@@ -494,7 +504,7 @@ export function useAppointments(
       let query = supabase
         .from("appointments")
         .select(
-          "id, owner_id, workspace_id, patient_id, scheduled_at, duration_minutes, allows_simultaneous, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, insurance_provider_id, insurance_member_number, art_provider_id, payment_type, payment_status, payment_method, paid_at, payment_notes, signature_path, signed_at, patients(full_name), clinics(name, color), clinic_professionals(color, profiles(full_name)), workspaces(color)",
+          "id, owner_id, workspace_id, patient_id, scheduled_at, duration_minutes, allows_simultaneous, attention_type_id, attention_type_name, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, insurance_provider_id, insurance_member_number, art_provider_id, payment_type, payment_status, payment_method, paid_at, payment_notes, signature_path, signed_at, patients(full_name), clinics(name, color), clinic_professionals(color, profiles(full_name)), workspaces(color)",
         )
         .order("scheduled_at", { ascending: true });
 
@@ -717,6 +727,8 @@ export function useAppointments(
       notes: input.notes || null,
       appointment_origin: "independent",
       allows_simultaneous: input.allowsSimultaneous ?? false,
+      attention_type_id: input.attentionTypeId || null,
+      attention_type_name: input.attentionTypeId ? input.attentionTypeName ?? null : null,
       treatment_id: input.treatmentId || null,
       session_number: input.sessionNumber ?? null,
       session_amount: input.sessionAmount ?? 0,
@@ -748,6 +760,8 @@ export function useAppointments(
       notes: input.notes || null,
       appointment_origin: "clinic",
       allows_simultaneous: input.allowsSimultaneous ?? false,
+      attention_type_id: input.attentionTypeId || null,
+      attention_type_name: input.attentionTypeId ? input.attentionTypeName ?? null : null,
       clinic_id: input.clinicId,
       clinic_professional_id: input.clinicProfessionalId,
       session_amount: input.sessionAmount ?? 0,
@@ -799,14 +813,22 @@ export function useAppointments(
   }
 
   /**
-   * `allowsSimultaneous` es opcional: si no se pasa, el turno conserva su
-   * valor actual (así lo usa la ficha del paciente).
+   * `allowsSimultaneous` y `attentionChanges` son opcionales: si no se pasan,
+   * el turno conserva sus valores actuales (así lo usa la ficha del paciente).
+   * `attentionChanges` cambia el tipo de atención y con él la duración (y el
+   * monto, si se indica).
    */
   async function rescheduleAppointment(
     id: string,
     date: string,
     time: string,
     allowsSimultaneous?: boolean,
+    attentionChanges?: {
+      attentionTypeId: string | null;
+      attentionTypeName: string | null;
+      durationMinutes: number;
+      sessionAmount?: number;
+    },
   ) {
     const supabase = getSupabaseClient();
     const scheduledAt = new Date(`${date}T${time}`).toISOString();
@@ -819,7 +841,8 @@ export function useAppointments(
     if (currentAppointment?.origin === "independent") {
       await validateAppointmentSlot({
         allowsSimultaneous: nextAllowsSimultaneous,
-        durationMinutes: currentAppointment.durationMinutes,
+        durationMinutes:
+          attentionChanges?.durationMinutes ?? currentAppointment.durationMinutes,
         ignoreAppointmentId: id,
         ownerId: currentAppointment.ownerId,
         scheduledAt,
@@ -833,6 +856,18 @@ export function useAppointments(
         ...(allowsSimultaneous === undefined
           ? {}
           : { allows_simultaneous: allowsSimultaneous }),
+        ...(attentionChanges
+          ? {
+              attention_type_id: attentionChanges.attentionTypeId,
+              attention_type_name: attentionChanges.attentionTypeId
+                ? attentionChanges.attentionTypeName
+                : null,
+              duration_minutes: attentionChanges.durationMinutes,
+              ...(attentionChanges.sessionAmount === undefined
+                ? {}
+                : { session_amount: attentionChanges.sessionAmount }),
+            }
+          : {}),
         scheduled_at: scheduledAt,
         status: "rescheduled",
       })

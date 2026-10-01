@@ -18,14 +18,17 @@ import {
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useInsuranceProviders } from "@/hooks/useInsuranceProviders";
 import { useArtProviders } from "@/hooks/useArtProviders";
+import { type AttentionType, useAttentionTypes } from "@/hooks/useAttentionTypes";
 import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useTreatments } from "@/hooks/useTreatments";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
+import { getPrefilledSessionAmount } from "@/lib/attention-pricing";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import {
+  APPOINTMENT_DURATION_OPTIONS,
   DEFAULT_SESSION_DURATION_MINUTES,
   DEFAULT_SESSION_PRICE,
 } from "@/lib/session-defaults";
@@ -142,6 +145,10 @@ export default function NewAppointmentPage() {
   );
   const { providers: artProviders } = useArtProviders();
   const activeArtProviders = artProviders.filter((provider) => provider.active);
+  // Catálogo de la clínica (RPG, ATM, ...): solo activos. Vacío = el formulario
+  // funciona como siempre.
+  const { attentionTypes } = useAttentionTypes();
+  const [attentionTypeId, setAttentionTypeId] = useState("");
   const [sessionAmount, setSessionAmount] = useState<number | null>(null);
   const [paymentType, setPaymentType] = useState<PaymentType>("PARTICULAR");
   const [insuranceProviderId, setInsuranceProviderId] = useState("");
@@ -393,9 +400,12 @@ export default function NewAppointmentPage() {
   // turno se guarda con el default de su tipo (CLINICA simultáneo, PERSONAL
   // exclusivo), para que se comporte igual si después se sube el cupo.
   const showSimultaneousToggle = simultaneousCapacity > 1;
+  const selectedAttentionType =
+    attentionTypes.find((type) => type.id === attentionTypeId) ?? null;
+  // Con el checkbox oculto, el tipo de atención (si hay) define el valor.
   const effectiveAllowsSimultaneous = showSimultaneousToggle
     ? allowsSimultaneous
-    : isClinicWorkspace;
+    : selectedAttentionType?.allowsSimultaneous ?? isClinicWorkspace;
   // Profesional al que se le asigna el turno: el cupo y los choques se
   // cuentan por profesional, igual que el trigger de la base.
   const conflictOwnerId = isClinicWorkspace
@@ -417,32 +427,69 @@ export default function NewAppointmentPage() {
         })
       : null;
 
-  // El precio del prestador (si lo tiene) precarga el monto; sigue editable.
-  function applyProviderPrice(sessionPrice: number | null | undefined) {
-    if (sessionPrice !== null && sessionPrice !== undefined) {
-      setSessionAmount(sessionPrice);
+  // Recalcula el monto con la regla única (src/lib/attention-pricing.ts) cuando
+  // cambia el tipo de pago, el prestador o el tipo de atención.
+  function recalculateSessionAmount(
+    changes: Partial<{
+      artProviderId: string;
+      attentionType: AttentionType | null;
+      insuranceProviderId: string;
+      paymentType: PaymentType;
+    }>,
+  ) {
+    const next = {
+      artProviderId,
+      attentionType: selectedAttentionType,
+      insuranceProviderId,
+      paymentType,
+      ...changes,
+    };
+    const provider =
+      next.paymentType === "OBRA_SOCIAL"
+        ? activeInsuranceProviders.find((item) => item.id === next.insuranceProviderId)
+        : next.paymentType === "ART"
+          ? activeArtProviders.find((item) => item.id === next.artProviderId)
+          : undefined;
+    const amount = getPrefilledSessionAmount({
+      attentionTypePrice: next.attentionType?.price,
+      particularDefaultPrice:
+        activeWorkspace?.defaultSessionPrice ?? DEFAULT_SESSION_PRICE,
+      paymentType: next.paymentType,
+      providerPrice: provider?.sessionPrice,
+    });
+
+    if (amount !== undefined) {
+      setSessionAmount(amount);
     }
   }
 
   function selectPaymentType(nextPaymentType: PaymentType) {
     setPaymentType(nextPaymentType);
+    recalculateSessionAmount({ paymentType: nextPaymentType });
+  }
 
-    if (nextPaymentType === "PARTICULAR") {
-      // Mismo precio por defecto que al abrir el formulario.
-      setSessionAmount(
-        activeWorkspace?.defaultSessionPrice ?? DEFAULT_SESSION_PRICE,
-      );
-    } else if (nextPaymentType === "OBRA_SOCIAL") {
-      applyProviderPrice(
-        activeInsuranceProviders.find((provider) => provider.id === insuranceProviderId)
-          ?.sessionPrice,
-      );
-    } else {
-      applyProviderPrice(
-        activeArtProviders.find((provider) => provider.id === artProviderId)
-          ?.sessionPrice,
-      );
+  // Elegir un tipo de atención precarga duración, simultáneo, monto y motivo;
+  // todo sigue editable. Volver a "Sin especificar" no borra nada: solo deja
+  // de usarse para recalcular.
+  function selectAttentionType(nextId: string) {
+    const nextType = attentionTypes.find((type) => type.id === nextId) ?? null;
+    const previousName = selectedAttentionType?.name ?? "";
+    setAttentionTypeId(nextId);
+
+    if (!nextType) {
+      return;
     }
+
+    setAppointment((current) => ({
+      ...current,
+      durationMinutes: nextType.durationMinutes,
+      reason:
+        !current.reason?.trim() || current.reason === previousName
+          ? nextType.name
+          : current.reason,
+    }));
+    setAllowsSimultaneous(nextType.allowsSimultaneous);
+    recalculateSessionAmount({ attentionType: nextType });
   }
 
   function updateField<Field extends keyof NewAppointmentInput>(
@@ -549,6 +596,8 @@ export default function NewAppointmentPage() {
         await addClinicAppointment({
           ...appointment,
           allowsSimultaneous: effectiveAllowsSimultaneous,
+          attentionTypeId: selectedAttentionType?.id ?? null,
+          attentionTypeName: selectedAttentionType?.name ?? null,
           clinicId: selectedProfessional.clinic_id,
           clinicProfessionalId,
           professionalId: selectedProfessional.professional_id,
@@ -576,6 +625,8 @@ export default function NewAppointmentPage() {
         await addAppointment({
           ...appointment,
           allowsSimultaneous: effectiveAllowsSimultaneous,
+          attentionTypeId: selectedAttentionType?.id ?? null,
+          attentionTypeName: selectedAttentionType?.name ?? null,
           sessionAmount,
           paymentType,
           insuranceProviderId:
@@ -808,6 +859,29 @@ export default function NewAppointmentPage() {
                   </p>
                 ) : null}
               </label>
+              {attentionTypes.length > 0 ? (
+                <label className="block md:col-span-2">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Tipo de atención
+                  </span>
+                  <select
+                    className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                    onChange={(event) => selectAttentionType(event.target.value)}
+                    value={attentionTypeId}
+                  >
+                    <option value="">Sin especificar</option>
+                    {attentionTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.name} · {type.durationMinutes} min
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Ej.: RPG, ATM, Kinesiología general. Completa la duración y
+                    el precio automáticamente.
+                  </p>
+                </label>
+              ) : null}
               <label className="block">
                 <span className="text-sm font-semibold text-slate-700">
                   Duración
@@ -819,9 +893,11 @@ export default function NewAppointmentPage() {
                   }
                   value={appointment.durationMinutes}
                 >
-                  <option value={30}>30 min</option>
-                  <option value={45}>45 min</option>
-                  <option value={60}>60 min</option>
+                  {APPOINTMENT_DURATION_OPTIONS.map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {minutes} min
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="block">
@@ -937,11 +1013,9 @@ export default function NewAppointmentPage() {
                         className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
                         onChange={(event) => {
                           setInsuranceProviderId(event.target.value);
-                          applyProviderPrice(
-                            activeInsuranceProviders.find(
-                              (provider) => provider.id === event.target.value,
-                            )?.sessionPrice,
-                          );
+                          recalculateSessionAmount({
+                            insuranceProviderId: event.target.value,
+                          });
                         }}
                         value={insuranceProviderId}
                       >
@@ -979,11 +1053,9 @@ export default function NewAppointmentPage() {
                         className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
                         onChange={(event) => {
                           setArtProviderId(event.target.value);
-                          applyProviderPrice(
-                            activeArtProviders.find(
-                              (provider) => provider.id === event.target.value,
-                            )?.sessionPrice,
-                          );
+                          recalculateSessionAmount({
+                            artProviderId: event.target.value,
+                          });
                         }}
                         value={artProviderId}
                       >
