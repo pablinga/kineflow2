@@ -7,6 +7,8 @@ const connectionMessage =
 const knownErrorMessages: Array<[RegExp, string]> = [
   [/invalid login credentials/i, "El email o la contraseña no son correctos."],
   [/email not confirmed/i, "Todavía falta confirmar tu email."],
+  // Cuentas de recepción dadas de baja por la clínica (ver /api/reception-members).
+  [/user is banned/i, "Tu acceso a la clínica está desactivado. Contactá al administrador."],
   [/user already registered/i, "Ya existe una cuenta registrada con este email."],
   [/password should be at least 6 characters/i, "La contraseña debe tener al menos 6 caracteres."],
   [/invalid password/i, "La contraseña no cumple con los requisitos."],

@@ -400,8 +400,12 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
             ? profileRow?.organization_name || profileRow?.full_name || ""
             : profileRow?.full_name || "",
       };
+      // Consultorio y recepción trabajan en el workspace de la clínica
+      // (recepción no tiene espacio personal).
       const fallbackType =
-        nextAccountType === "CONSULTORIO" ? "CLINICA" : "PERSONAL";
+        nextAccountType === "CONSULTORIO" || nextAccountType === "RECEPCION"
+          ? "CLINICA"
+          : "PERSONAL";
       let workspaceRows = (workspaceResult.data ?? []) as WorkspaceRow[];
 
       if (

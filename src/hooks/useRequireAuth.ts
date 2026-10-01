@@ -7,7 +7,7 @@ import { useAuthSessionContext } from "@/contexts/AuthSessionContext";
 import { getSupabaseClient } from "@/lib/supabase";
 import { getFriendlyErrorMessage, mapAuthError } from "@/lib/error-messages";
 
-export type AccountType = "KINESIOLOGO" | "CONSULTORIO";
+export type AccountType = "KINESIOLOGO" | "CONSULTORIO" | "RECEPCION";
 export type AuthProfile = {
   accountType: AccountType;
   profileName: string;

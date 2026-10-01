@@ -252,15 +252,20 @@ export default function DashboardPage() {
             title={dashboardTitle}
           />
 
-          <PendingClinicInvitationsBanner
-            actionError={invitationActionError}
-            invitations={pendingInvitations}
-            notice={invitationNotice}
-            onAccept={handleAcceptInvitation}
-            onReject={rejectInvitation}
-          />
+          {/* Una cuenta de recepción no recibe invitaciones: la crea la clínica. */}
+          {accountType === "RECEPCION" ? null : (
+            <>
+              <PendingClinicInvitationsBanner
+                actionError={invitationActionError}
+                invitations={pendingInvitations}
+                notice={invitationNotice}
+                onAccept={handleAcceptInvitation}
+                onReject={rejectInvitation}
+              />
 
-          <PendingReceptionInvitationsBanner />
+              <PendingReceptionInvitationsBanner />
+            </>
+          )}
 
           {!isRecepcion && accessLevel === "TRIAL_ACTIVE" ? (
             <Card
