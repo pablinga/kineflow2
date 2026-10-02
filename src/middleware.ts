@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const allowedOrigins = new Set([
   "https://qa.kineflow.ar",
   "https://kineflow.ar",
+  "https://www.kineflow.ar",
   "https://www.mercadopago.com",
   "https://www.mercadopago.com.ar",
 ]);
@@ -55,5 +56,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: "/:path*",
+  matcher: "/api/:path*",
 };
