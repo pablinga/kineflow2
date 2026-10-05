@@ -12,6 +12,7 @@ import { AdminLogoutButton } from "./AdminLogoutButton";
 export const dynamic = "force-dynamic";
 
 const CHART_WEEKS = 8;
+const RECENT_LOGINS = 10;
 
 type WeekKpis = {
   activated: number;
@@ -38,6 +39,7 @@ type AccountRow = {
   email: string;
   id: string;
   last_activity_at?: string;
+  last_sign_in_at?: string;
   name: string;
 };
 
@@ -90,6 +92,51 @@ function formatDateTime(value: string) {
 function formatShortDate(dateValue: string) {
   const [, month, day] = dateValue.split("-");
   return `${day}/${month}`;
+}
+
+function accountTypeLabel(accountType: string) {
+  if (accountType === "CONSULTORIO") return "Clínica";
+  if (accountType === "RECEPCION") return "Recepción";
+  return "Kinesiólogo";
+}
+
+/**
+ * Últimos ingresos según auth.users.last_sign_in_at: es el último login de
+ * cada usuario (no cada login) y no se actualiza al renovar una sesión abierta.
+ */
+async function getRecentLogins(
+  admin: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+): Promise<AccountRow[]> {
+  const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (error) throw error;
+
+  const recent = data.users
+    .filter((user) => user.last_sign_in_at)
+    .sort((a, b) => (b.last_sign_in_at ?? "").localeCompare(a.last_sign_in_at ?? ""))
+    .slice(0, RECENT_LOGINS);
+
+  if (recent.length === 0) return [];
+
+  const { data: profiles } = await admin
+    .from("profiles")
+    .select("id, account_type, full_name, organization_name")
+    .in(
+      "id",
+      recent.map((user) => user.id),
+    );
+  const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+
+  return recent.map((user) => {
+    const profile = profileById.get(user.id);
+    const email = user.email ?? "";
+    return {
+      account_type: profile?.account_type ?? "",
+      email,
+      id: user.id,
+      last_sign_in_at: user.last_sign_in_at,
+      name: profile?.organization_name?.trim() || profile?.full_name?.trim() || email,
+    };
+  });
 }
 
 function percent(part: number, total: number) {
@@ -175,11 +222,11 @@ function AccountTable({
                       <p className="break-all text-xs text-slate-500">{row.email}</p>
                     ) : null}
                     <p className="text-xs text-slate-500 sm:hidden">
-                      {row.account_type === "CONSULTORIO" ? "Clínica" : "Kinesiólogo"}
+                      {accountTypeLabel(row.account_type)}
                     </p>
                   </td>
                   <td className="hidden py-2 pr-3 text-slate-600 sm:table-cell">
-                    {row.account_type === "CONSULTORIO" ? "Clínica" : "Kinesiólogo"}
+                    {accountTypeLabel(row.account_type)}
                   </td>
                   <td className="py-2 text-right align-top font-semibold text-ink">{valueOf(row)}</td>
                 </tr>
@@ -212,6 +259,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
     ? await admin.rpc("admin_weekly_kpis", { p_end_date: weekStart, p_weeks: CHART_WEEKS })
     : { data: null, error: new Error("Supabase no está configurado.") };
   const kpis = data as AdminKpis | null;
+  const recentLogins = admin ? await getRecentLogins(admin).catch(() => null) : null;
 
   const weeks = kpis?.weeks ?? [];
   const week = weeks[weeks.length - 1];
@@ -408,6 +456,20 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
               valueHeader="Última actividad"
               valueOf={(row) => (row.last_activity_at ? formatDateTime(row.last_activity_at) : "—")}
             />
+          </div>
+
+          <div className="mt-4">
+            {recentLogins ? (
+              <AccountTable
+                emptyText="Todavía no hay ingresos registrados."
+                rows={recentLogins}
+                title="Últimos ingresos"
+                valueHeader="Último login"
+                valueOf={(row) => (row.last_sign_in_at ? formatDateTime(row.last_sign_in_at) : "—")}
+              />
+            ) : (
+              <Alert tone="error">No pudimos cargar los últimos ingresos.</Alert>
+            )}
           </div>
 
           <p className="mt-6 text-xs text-slate-400">
