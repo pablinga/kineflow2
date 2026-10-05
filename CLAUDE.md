@@ -100,3 +100,10 @@ Pendiente posible: "Registrar evolución" también desde Sesiones diarias.
 - Cambiar la contraseña: `node scripts/admin-password-hash.mjs` y reemplazar `ADMIN_PASSWORD_HASH` en Vercel (invalida las sesiones abiertas). No hay recuperación por mail a propósito.
 - Seguridad: cookie firmada HMAC httpOnly/SameSite=strict de 8 h; bloqueo tras 5 fallos en 15 min por IP (50 global) en `admin_login_attempts`; `admin_weekly_kpis()` solo la ejecuta `service_role`.
 - `appointments.booking_source` (`manual` | `public_link` | `public_qr`): la reserva pública lo completa (`?src=qr` → `public_qr`). Los turnos online previos se marcaron por la nota "Reserva creada desde enlace público." — `202609280002`, aplicada en QA y prod.
+
+### Atribución de adquisición (UTM, 2026-10-04)
+
+- First touch en el navegador (`src/lib/attribution.ts` lógica pura + `attribution-client.ts` localStorage, vence a 90 días). `<AttributionCapture />` en el layout raíz; `/registro` registra `signup_started` y manda la atribución en `user_metadata.attribution`.
+- Base (`202610040001_acquisition_attribution.sql`): `user_attribution` (la llena el trigger `on_auth_user_record_attribution`, nunca bloquea el alta; cada usuario lee solo la suya), `acquisition_events` (landing_view / signup_started vía `/api/acquisition/event`, service role) y `outreach_contacts` (envíos por campaña). Solo slugs en los UTM: un valor con "@" o espacios se descarta.
+- Consultas del embudo: `supabase/queries/acquisition-funnel.sql`. Tests: `npm run test:attribution`, `npm run test:attribution:qa` (con `APP_URL` prueba también la API) y `scripts/attribution-e2e.mjs` (Playwright temporal).
+- El Supabase rechaza emails `@example.com` en el signUp público: los tests crean usuarios con la API admin.

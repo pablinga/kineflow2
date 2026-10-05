@@ -37,6 +37,11 @@ import {
 } from "@/lib/legal/terms";
 import { LEGAL_VERSION } from "@/lib/legal/version";
 import { getSupabaseClient } from "@/lib/supabase";
+import {
+  captureAttributionFromLocation,
+  getSignupAttributionMetadata,
+  trackAcquisitionEvent,
+} from "@/lib/attribution-client";
 import { CLINIC_PROFESSIONAL_STATUS } from "@/lib/clinic-professionals";
 import { MIN_PASSWORD_LENGTH, isValidEmail } from "@/lib/auth";
 
@@ -111,6 +116,16 @@ export default function RegisterPage() {
       });
   }, []);
 
+  // Embudo de adquisición: abrir el registro con atribución = signup_started.
+  // Se captura primero porque este efecto corre antes que el del layout (si
+  // alguien entra directo a /registro?utm_...).
+  useEffect(() => {
+    if (captureAttributionFromLocation()) {
+      trackAcquisitionEvent("landing_view");
+      trackAcquisitionEvent("signup_started");
+    }
+  }, []);
+
   async function handleRegister(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -169,6 +184,7 @@ export default function RegisterPage() {
       const isClinicWorkspace =
         initialWorkspaceType === "CLINICA" && !invitationToken;
       const organizationName = clinicName.trim();
+      const attributionMetadata = getSignupAttributionMetadata();
       const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -190,6 +206,9 @@ export default function RegisterPage() {
             legal_accepted_at: legalAcceptedAt,
             legal_version: LEGAL_VERSION,
             terms_accepted_at: legalAcceptedAt,
+            // First touch (UTM) si llegó desde una campaña; lo guarda un
+            // trigger en user_attribution. Sin atribución no se envía.
+            ...(attributionMetadata ? { attribution: attributionMetadata } : {}),
           },
         },
       });
