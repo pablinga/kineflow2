@@ -51,6 +51,11 @@ App de gestión clínica (turnos, pacientes, evoluciones, cobros, reserva públi
 - **Limpieza de datos de prueba**: `auth.admin.deleteUser` falla ("Database error deleting user") si el usuario todavía tiene workspaces/clínicas. Borrar antes turnos → pacientes → `clinic_professionals` → workspaces → clínicas, y recién después los usuarios.
 - **Carga del dashboard**: sesión, workspace y plan se cargan una sola vez en `AuthSessionContext`; `useAccessLevel` comparte la consulta en curso entre componentes. En hooks client-side usar `auth.getSession()` (local) para obtener el id del usuario, no `auth.getUser()` (hace un round-trip al servidor); la RLS valida igual cada consulta.
 - `npm run test` tiene una verificación desactualizada del texto de la landing ("Gestiona tus pacientes, turnos y sesiones") que falla desde el rediseño de la landing; no es una regresión nueva.
+- **Drift QA ↔ prod conocido (previo, no tocado):** en QA no existe `ensure_kinesiologist_personal_workspace` (por eso `/api/workspaces/ensure-personal` falla en QA) y el trigger `ensure_profile_personal_workspace` tiene la lógica inline; `enforce_patient_plan_limit` difiere (QA: límite por workspace; prod: chequeo de solo lectura); `profiles_plan_check` y los triggers `prevent_profile_billing_self_update` / `set_default_plan_values` solo coinciden en QA. Antes de reemplazar una función, comparar la versión live de los dos ambientes.
+- **Regiones:** Supabase prod está en `us-west-1` y QA en `us-east-2`. Las funciones de Vercel corren en `sfo1` (`vercel.json`), también en Preview/QA.
+- **`supabase-js` ≥ 2.117:** la 2.106 devolvía `data.user = null` en signUps que requieren confirmar email (el RPC de invitación a clínica no corría). No bajar de versión. Con email ya existente, Supabase responde un user con `identities: []` (sin error).
+- **Supabase rechaza emails `@example.com`** en el signUp público; los tests crean usuarios con `auth.admin.createUser`.
+- `.env.prod.local` tiene `NEXT_PUBLIC_SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` con placeholders: para tocar prod usar la CLI (`npx supabase db query --project-ref vpibqrsccntykhdeavbk`).
 
 ## Historial
 
@@ -89,10 +94,28 @@ Pendiente posible: "Registrar evolución" también desde Sesiones diarias.
 - **Reporte de sesiones**: columna Hora al lado de Fecha, en la tabla y en el Excel (mismo formato que la agenda).
 - **404 de CSS en prod**: pedidos de bots (ej. AhrefsBot) a assets con hash de deploys anteriores. Es inofensivo; las páginas actuales apuntan a assets que existen. Mejora opcional, no aplicada: `src/middleware.ts` usa `matcher: "/:path*"` y se ejecuta en cada pedido (incluidos los estáticos) aunque solo responde preflights CORS (`OPTIONS`); se podría limitar a `/api/:path*`.
 
+### 2026-09-24 → 2026-10-05 (todo en prod salvo que se indique)
+
+- **Precio por prestador** (`session_price` en obras sociales/ART) y **fechas en hora de Argentina** (`toArgentinaDateValue`, defaults de `evolutions.session_date` / `treatments.started_at` — `202609240002`).
+- **Rol RECEPCION** en clínicas (`202609250001`, fix de recursión RLS `202609280001`): igual que el admin salvo Configuración, Reportes, Ingresos, Equipo y Plan; evoluciones/tratamientos en solo lectura. Rutas bloqueadas en `RoleRouteGuard` / `isPathAllowedForRecepcion`.
+- **Cuentas de recepción con email y contraseña** (`202610010001`, `/api/reception-members`): account_type `RECEPCION`, sin trial ni workspace personal, acceso = el de su clínica (`get_account_access_level`), `app_metadata.reception_workspace_id` = clínica que la creó (solo esa clínica cambia contraseña / bloquea). Baja = ban. `invite-reception` y `reception-invitations` quedan hasta que no haya invitaciones pendientes (en prod había 1: Rehabimed).
+- **QR de reserva online** con logo, una sola descarga (`BookingQrCard`). Los links del QR llevan `?src=qr` → `appointments.booking_source = 'public_qr'`.
+- **Panel admin `/admin`** (ver sección propia) y `booking_source` (`202609280002`).
+- **Turno simultáneo por turno** (`allows_simultaneous`, `202609300001`): un turno exclusivo ocupa el horario solo; los simultáneos conviven hasta el cupo. Con cupo 1 el checkbox no se muestra.
+- **Evaluación kinésica** (`patient_evaluations`, `202609290001`): reemplaza al "tratamiento inicial" del alta; "Crear tratamiento" desde una evaluación (`treatments.evaluation_id`).
+- **Tipos de atención** (`attention_types`, `202610010002`) en clínicas y particulares: precargan duración, precio (regla única en `src/lib/attention-pricing.ts`) y simultáneo; el turno guarda una copia del nombre.
+- **Nuevo turno en clínicas**: paciente primero (preselecciona su profesional), profesional / "Sin preferencia" + tipo de atención, horarios libres de la semana (`/api/appointments/availability`, `getFreeSlots` en modo `staff`: incluye hoy y feriados marcados) y carga manual como excepción. La duración sale del tipo de atención si hay uno elegido.
+- **Mails de invitación** con el mismo diseño que el de confirmación (`src/lib/email-templates.ts`); remitente por defecto `notificaciones@mail.kineflow.ar` (dominio verificado en Resend; `kineflow.ar` raíz no lo está).
+- **Middleware solo en `/api`** (CORS de `OPTIONS`, ahora incluye `https://www.kineflow.ar`) y funciones en `sfo1`.
+- Ocultar Obra social / ART en nuevo turno y reserva online si no hay prestadores activos; varios arreglos de mobile (grillas con `grid-cols-1` para que textos largos no estiren las tarjetas).
+- **Solo en QA** (falta pasar a prod): `supabase-js` 2.117 (arregla la aceptación de invitaciones al registrarse) y la pantalla **"Revisá tu correo"** (`/registro/confirmar`, email por `sessionStorage` `kf_signup_pending`, aviso de email ya registrado, `AuthShell` compartido con el registro).
+
 ### Forma de trabajar del usuario
 
 - Suele pedir "commitealo a qa y luego a main" en el mismo mensaje; en ese caso se hace el merge a `main` sin volver a preguntar.
 - Para cambios visuales chicos prefiere que se commitee sin correr Playwright (interrumpió esas corridas); para cambios que tocan permisos o datos conviene ofrecer la prueba end-to-end antes de commitear.
+- Suele mandar specs largos pegados ("Antes de modificar cada archivo, leelo completo... si algo no coincide, frená"): respetar los pasos de freno, verificar contra la base live y reportar diferencias antes de seguir.
+- Cuando pide "mostrame el diff antes de commitear", esperar su OK; "subilo / mandalo a qa" = commit + push a `qa`; "pasalo a prod" = aplicar migraciones pendientes en prod y después mergear `qa` → `main`.
 
 ### Panel admin de la plataforma (2026-09-28)
 
