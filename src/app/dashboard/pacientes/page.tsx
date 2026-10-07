@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CalendarPlus,
+  FileSpreadsheet,
   FileText,
   LayoutGrid,
   List,
@@ -20,10 +21,13 @@ import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ImportarPacientesModal } from "@/components/patients/ImportarPacientesModal";
 import { NuevoPacienteModal } from "@/components/patients/NuevoPacienteModal";
+import { PatientInsuranceFields } from "@/components/patients/PatientInsuranceFields";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { usePatients, type NewPatientInput, type Patient } from "@/hooks/usePatients";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
+import { useInsuranceProviders } from "@/hooks/useInsuranceProviders";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
@@ -50,6 +54,8 @@ const emptyPatient: NewPatientInput = {
   phone: "",
   email: "",
   condition: "",
+  insuranceMemberNumber: "",
+  insuranceProviderId: "",
 };
 
 type PatientViewMode = "cards" | "list";
@@ -102,11 +108,14 @@ export default function PatientsPage() {
     addPatient,
     disablePatient,
     error,
+    importPatients,
+    listWorkspaceDocumentNumbers,
     loaded,
     activePatientCount,
     pageSize,
     patients,
     reactivatePatient,
+    refreshPatients,
     totalCount,
     updatePatient,
   } = usePatients({
@@ -115,6 +124,7 @@ export default function PatientsPage() {
     search: query,
   });
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
+  const { providers: insuranceProviders } = useInsuranceProviders();
   const {
     accessLevel,
     isReadOnly,
@@ -122,6 +132,8 @@ export default function PatientsPage() {
   } = useAccessLevel();
   const [viewMode, setViewMode] = useState<PatientViewMode>("cards");
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importedCount, setImportedCount] = useState(0);
   const [newPatient, setNewPatient] = useState<NewPatientInput>(emptyPatient);
   const [createInitialEvaluation, setCreateInitialEvaluation] = useState(false);
   const [initialEvaluation, setInitialEvaluation] =
@@ -270,6 +282,53 @@ export default function PatientsPage() {
   const independentPlanMessage =
     "Esta funcionalidad está disponible en KineFlow - Particular. Podés activarlo para gestionar tus pacientes, turnos y cobros propios.";
 
+  // Mismas restricciones para el alta manual y la importación.
+  function getCreatePatientBlockMessage() {
+    if (!canManagePatients) {
+      return "Solo el administrador de la clinica puede crear pacientes.";
+    }
+
+    if (writeBlockMessage) {
+      return writeBlockMessage;
+    }
+
+    if (isReadOnly) {
+      return readOnlyMessage;
+    }
+
+    if (!canCreateCurrentPatient) {
+      return freeLimitReached
+        ? "Activá un plan para seguir agregando pacientes."
+        : clinicPracticeBlocked
+          ? "Para gestionar pacientes necesitás una suscripción activa."
+          : independentPlanMessage;
+    }
+
+    return "";
+  }
+
+  function openCreateModal(open: () => void) {
+    const blockMessage = getCreatePatientBlockMessage();
+
+    if (blockMessage) {
+      setActionError(blockMessage);
+      return;
+    }
+
+    setActionError("");
+    setActionNotice("");
+    open();
+  }
+
+  // Pacientes que todavía permite el plan (mismo criterio que patientLimitBlock).
+  const remainingPatientSlots =
+    activeWorkspace?.type === "CLINICA" ||
+    accessLevel === "TRIAL_ACTIVE" ||
+    plan.limitePacientes === null ||
+    plan.limitePacientes < 0
+      ? null
+      : Math.max(plan.limitePacientes - activePatientCount, 0);
+
   function updateField(field: keyof NewPatientInput, value: string) {
     setNewPatient((current) => ({ ...current, [field]: value }));
   }
@@ -308,6 +367,8 @@ export default function PatientsPage() {
       condition: patient.condition,
       document: patient.document,
       email: patient.email,
+      insuranceMemberNumber: patient.insuranceMemberNumber,
+      insuranceProviderId: patient.insuranceProviderId ?? "",
       name: patient.name,
       phone: patient.phone,
       status: patient.status,
@@ -616,38 +677,35 @@ export default function PatientsPage() {
       <PageContainer>
           <PageHeader
             actions={
+            <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ocean-200 bg-white px-5 py-2.5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() =>
+                openCreateModal(() => {
+                  if (
+                    activeWorkspace?.type === "CLINICA" &&
+                    isWorkspaceStaff(activeWorkspace) &&
+                    clinicProfessionals.length === 0
+                  ) {
+                    setActionError(
+                      "Primero agregá un profesional a la clínica para poder asignarle los pacientes.",
+                    );
+                    return;
+                  }
+
+                  setShowImport(true);
+                })
+              }
+              disabled={Boolean(writeBlockMessage) || !canManagePatients}
+              title={writeBlockMessage ?? undefined}
+              type="button"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Importar desde Excel
+            </button>
             <button
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 disabled:cursor-not-allowed disabled:opacity-60"
-              onClick={() => {
-                if (!canManagePatients) {
-                  setActionError("Solo el administrador de la clinica puede crear pacientes.");
-                  return;
-                }
-
-                if (writeBlockMessage) {
-                  setActionError(writeBlockMessage);
-                  return;
-                }
-
-                if (isReadOnly) {
-                  setActionError(readOnlyMessage);
-                  return;
-                }
-
-                if (!canCreateCurrentPatient) {
-                  setActionError(
-                    freeLimitReached
-                      ? "Activá un plan para seguir agregando pacientes."
-                      : clinicPracticeBlocked
-                        ? "Para gestionar pacientes necesitás una suscripción activa."
-                        : independentPlanMessage,
-                  );
-                  return;
-                }
-
-                setActionError("");
-                setShowForm(true);
-              }}
+              onClick={() => openCreateModal(() => setShowForm(true))}
               disabled={Boolean(writeBlockMessage) || !canManagePatients}
               title={writeBlockMessage ?? undefined}
               type="button"
@@ -655,6 +713,7 @@ export default function PatientsPage() {
               <Plus className="h-4 w-4" />
               Nuevo paciente
             </button>
+            </div>
             }
             description="Cargá pacientes, revisá su historial y agendá nuevos turnos."
             eyebrow="Pacientes"
@@ -722,6 +781,32 @@ export default function PatientsPage() {
             </div>
           ) : null}
 
+          <ImportarPacientesModal
+            clinicProfessionals={
+              activeWorkspace?.type === "CLINICA" && isWorkspaceStaff(activeWorkspace)
+                ? clinicProfessionals
+                : null
+            }
+            importPatients={importPatients}
+            insuranceProviders={insuranceProviders}
+            isOpen={showImport}
+            listWorkspaceDocumentNumbers={listWorkspaceDocumentNumbers}
+            onClose={() => {
+              setShowImport(false);
+
+              if (importedCount > 0) {
+                setActionNotice(
+                  importedCount === 1
+                    ? "Se importó 1 paciente."
+                    : `Se importaron ${importedCount} pacientes.`,
+                );
+                setImportedCount(0);
+                void refreshPatients();
+              }
+            }}
+            onImported={setImportedCount}
+            remainingSlots={remainingPatientSlots}
+          />
           <NuevoPacienteModal
             assignedProfessionalSelect={renderAssignedProfessionalSelect({
               onChange: (value) => updateField("assignedProfessionalId", value),
@@ -731,6 +816,7 @@ export default function PatientsPage() {
             createInitialEvaluation={createInitialEvaluation}
             error={actionError}
             initialEvaluation={initialEvaluation}
+            insuranceProviders={insuranceProviders}
             isOpen={showForm}
             newPatient={newPatient}
             onClose={closeNewPatientModal}
@@ -1065,6 +1151,12 @@ export default function PatientsPage() {
                   value={editPatient.condition}
                 />
               </label>
+              <PatientInsuranceFields
+                memberNumber={editPatient.insuranceMemberNumber ?? ""}
+                onChange={updateEditField}
+                providerId={editPatient.insuranceProviderId ?? ""}
+                providers={insuranceProviders}
+              />
               {renderAssignedProfessionalSelect({
                 onChange: (value) =>
                   updateEditField("assignedProfessionalId", value),
