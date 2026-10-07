@@ -9,6 +9,7 @@ import {
   CalendarPlus,
   ClipboardPlus,
   Edit3,
+  IdCard,
   Mail,
   Phone,
   Plus,
@@ -640,6 +641,19 @@ function PatientDetailPageContent() {
                     <Activity className="h-4 w-4 text-ocean-600" />
                     Profesional: {displayName}
                   </p>
+                  {patient.insuranceProviderName || patient.insuranceMemberNumber ? (
+                    <p className="flex items-center gap-2">
+                      <IdCard className="h-4 w-4 text-ocean-600" />
+                      {[
+                        patient.insuranceProviderName || "Obra social",
+                        patient.insuranceMemberNumber
+                          ? `Afiliado ${patient.insuranceMemberNumber}`
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  ) : null}
                 </div>
               </header>
 

@@ -8,7 +8,9 @@ import {
 } from "react";
 import { Plus, X } from "lucide-react";
 import { EvaluationFields } from "@/components/evaluations/EvaluationFields";
+import { PatientInsuranceFields } from "@/components/patients/PatientInsuranceFields";
 import { FieldLabel } from "@/components/ui/FieldLabel";
+import type { InsuranceProvider } from "@/hooks/useInsuranceProviders";
 import type { NewEvaluationInput } from "@/hooks/usePatientEvaluations";
 import type { NewPatientInput } from "@/hooks/usePatients";
 
@@ -19,6 +21,7 @@ type NuevoPacienteModalProps = {
   createInitialEvaluation: boolean;
   error: string;
   initialEvaluation: NewEvaluationInput;
+  insuranceProviders: InsuranceProvider[];
   isOpen: boolean;
   newPatient: NewPatientInput;
   onClose: () => void;
@@ -47,6 +50,7 @@ export function NuevoPacienteModal({
   createInitialEvaluation,
   error,
   initialEvaluation,
+  insuranceProviders,
   isOpen,
   newPatient,
   onClose,
@@ -216,6 +220,12 @@ export function NuevoPacienteModal({
               value={newPatient.condition}
             />
           </label>
+          <PatientInsuranceFields
+            memberNumber={newPatient.insuranceMemberNumber ?? ""}
+            onChange={onUpdateField}
+            providerId={newPatient.insuranceProviderId ?? ""}
+            providers={insuranceProviders}
+          />
           {assignedProfessionalSelect}
         </div>
 

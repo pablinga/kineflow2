@@ -10,6 +10,7 @@
     "test:rls": "node scripts/rls-isolation-check.mjs",
     "test:flows": "node scripts/core-flows-check.mjs",
     "test:attribution": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/attribution.test.mjs",
+    "test:import": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/patient-import.test.mjs",
     "test:attribution:qa": "node scripts/attribution-check.mjs",
     "lint": "next lint"
   },
@@ -25,7 +26,7 @@
     "react-dom": "^19.2.0",
     "recharts": "^3.10.1",
     "web-push": "^3.6.7",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@types/node": "^22.19.1",

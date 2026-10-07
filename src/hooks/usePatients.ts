@@ -19,6 +19,9 @@ export type Patient = {
   phone: string;
   email: string;
   condition: string;
+  insuranceMemberNumber: string;
+  insuranceProviderId: string | null;
+  insuranceProviderName: string;
   status: PatientStatus;
   progress: string;
   lastSession: string;
@@ -33,8 +36,15 @@ export type NewPatientInput = {
   phone: string;
   email: string;
   condition: string;
+  insuranceMemberNumber?: string;
+  insuranceProviderId?: string;
   status?: PatientStatus;
 };
+
+/** Resultado por fila de importPatients (mismo orden que la entrada). */
+export type PatientImportResult =
+  | { ok: true }
+  | { error: string; ok: false };
 
 type PatientRow = {
   id: string;
@@ -44,6 +54,9 @@ type PatientRow = {
   phone: string | null;
   email: string | null;
   initial_condition: string;
+  insurance_member_number: string | null;
+  insurance_provider_id: string | null;
+  insurance_providers: { name: string } | Array<{ name: string }> | null;
   status: "active" | "inactive";
   clinic_id: string | null;
 };
@@ -132,6 +145,12 @@ function mapPatient(
     phone: row.phone ?? "",
     email: row.email ?? "",
     condition: row.initial_condition,
+    insuranceMemberNumber: row.insurance_member_number ?? "",
+    insuranceProviderId: row.insurance_provider_id,
+    insuranceProviderName:
+      (Array.isArray(row.insurance_providers)
+        ? row.insurance_providers[0]?.name
+        : row.insurance_providers?.name) ?? "",
     status: row.status === "active" ? "Activo" : "Inactivo",
     progress: lastEvolution
       ? formatDate(lastEvolution.session_date)
@@ -152,6 +171,8 @@ function normalizePatientInput(input: NewPatientInput) {
     condition: input.condition.trim(),
     document: input.document.trim(),
     email: input.email.trim(),
+    insuranceMemberNumber: input.insuranceMemberNumber?.trim() ?? "",
+    insuranceProviderId: input.insuranceProviderId?.trim() ?? "",
     name: input.name.trim(),
     phone: input.phone.trim(),
     status: input.status ?? "Activo",
@@ -224,7 +245,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
       let patientQuery = supabase
         .from("patients")
         .select(
-          "id, assigned_professional_id, clinic_id, full_name, document_number, phone, email, initial_condition, status",
+          "id, assigned_professional_id, clinic_id, full_name, document_number, phone, email, initial_condition, insurance_provider_id, insurance_member_number, insurance_providers(name), status",
           { count: "exact" },
         )
         .order("status", { ascending: true })
@@ -488,6 +509,61 @@ export function usePatients(options: UsePatientsOptions = {}) {
     return data as { full_name: string; id: string } | null;
   }
 
+  async function resolvePatientClinicId(userId: string) {
+    const clinicId: string | null = activeWorkspace?.sourceClinicId ?? null;
+
+    if (clinicId || accountType !== "CONSULTORIO") {
+      return clinicId;
+    }
+
+    const supabase = getSupabaseClient();
+    const { data: clinicData, error: clinicError } = await supabase
+      .from("clinics")
+      .select("id")
+      .eq("owner_id", userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (clinicError) {
+      throw new Error(mapSupabaseError(clinicError));
+    }
+
+    const ownClinicId = (clinicData as ClinicIdRow | null)?.id ?? null;
+
+    if (!ownClinicId) {
+      throw new Error("La cuenta consultorio no tiene un consultorio asociado.");
+    }
+
+    return ownClinicId;
+  }
+
+  function buildPatientInsertRow(params: {
+    clinicId: string | null;
+    input: ReturnType<typeof normalizePatientInput>;
+    userId: string;
+    workspaceId: string;
+  }) {
+    const { input } = params;
+
+    return {
+      assigned_professional_id:
+        activeWorkspace?.type === "CLINICA"
+          ? input.assignedProfessionalId || null
+          : null,
+      owner_id: params.userId,
+      workspace_id: params.workspaceId,
+      clinic_id: params.clinicId,
+      full_name: input.name,
+      document_number: input.document,
+      phone: input.phone || null,
+      email: input.email || null,
+      initial_condition: input.condition,
+      insurance_member_number: input.insuranceMemberNumber || null,
+      insurance_provider_id: input.insuranceProviderId || null,
+      status: mapPatientStatusToDb(input.status),
+    };
+  }
+
   async function addPatient(input: NewPatientInput) {
     setError("");
     const normalizedInput = normalizePatientInput(input);
@@ -505,26 +581,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
       throw new Error("No encontramos un espacio de trabajo activo.");
     }
 
-    let clinicId: string | null = activeWorkspace.sourceClinicId;
-
-    if (!clinicId && accountType === "CONSULTORIO") {
-      const { data: clinicData, error: clinicError } = await supabase
-        .from("clinics")
-        .select("id")
-        .eq("owner_id", sessionData.user.id)
-        .limit(1)
-        .maybeSingle();
-
-      if (clinicError) {
-        throw new Error(mapSupabaseError(clinicError));
-      }
-
-      clinicId = ((clinicData as ClinicIdRow | null)?.id ?? null);
-
-      if (!clinicId) {
-        throw new Error("La cuenta consultorio no tiene un consultorio asociado.");
-      }
-    }
+    const clinicId = await resolvePatientClinicId(sessionData.user.id);
 
     const duplicatePatient = await findDuplicatePatient({
       document: normalizedInput.document,
@@ -539,21 +596,14 @@ export function usePatients(options: UsePatientsOptions = {}) {
 
     const { data: insertedPatient, error: insertError } = await supabase
       .from("patients")
-      .insert({
-        assigned_professional_id:
-          activeWorkspace.type === "CLINICA"
-            ? normalizedInput.assignedProfessionalId || null
-            : null,
-        owner_id: sessionData.user.id,
-        workspace_id: activeWorkspace.id,
-        clinic_id: clinicId,
-        full_name: normalizedInput.name,
-        document_number: normalizedInput.document,
-        phone: normalizedInput.phone || null,
-        email: normalizedInput.email || null,
-        initial_condition: normalizedInput.condition,
-        status: mapPatientStatusToDb(normalizedInput.status),
-      })
+      .insert(
+        buildPatientInsertRow({
+          clinicId,
+          input: normalizedInput,
+          userId: sessionData.user.id,
+          workspaceId: activeWorkspace.id,
+        }),
+      )
       .select("id")
       .single();
 
@@ -563,6 +613,102 @@ export function usePatients(options: UsePatientsOptions = {}) {
 
     await loadPatients();
     return (insertedPatient as { id: string }).id;
+  }
+
+  /** DNIs de todos los pacientes del espacio activo (paginado, sin el tope de 1000). */
+  async function listWorkspaceDocumentNumbers() {
+    if (!activeWorkspace?.id) {
+      throw new Error("No encontramos un espacio de trabajo activo.");
+    }
+
+    const supabase = getSupabaseClient();
+    const pageSize = 1000;
+    const documents: Array<{ document: string; name: string }> = [];
+
+    for (let from = 0; ; from += pageSize) {
+      const { data, error: queryError } = await supabase
+        .from("patients")
+        .select("document_number, full_name")
+        .eq("workspace_id", activeWorkspace.id)
+        .order("id", { ascending: true })
+        .range(from, from + pageSize - 1);
+
+      if (queryError) {
+        throw new Error(mapSupabaseError(queryError));
+      }
+
+      const rows = (data ?? []) as Array<{ document_number: string; full_name: string }>;
+      documents.push(
+        ...rows.map((row) => ({ document: row.document_number, name: row.full_name })),
+      );
+
+      if (rows.length < pageSize) {
+        return documents;
+      }
+    }
+  }
+
+  /**
+   * Alta masiva: mismas validaciones que addPatient, pero resuelve usuario y
+   * clínica una sola vez y guarda de a un paciente para que un rechazo de la
+   * base (DNI duplicado, límite del plan) afecte solo a esa fila. Los
+   * duplicados contra la base los filtra antes quien llama.
+   */
+  async function importPatients(
+    inputs: NewPatientInput[],
+    onProgress?: (done: number) => void,
+  ): Promise<PatientImportResult[]> {
+    setError("");
+    const supabase = getSupabaseClient();
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
+    const userId = sessionData.session?.user.id;
+
+    if (sessionError || !userId) {
+      throw new Error("No pudimos identificar al usuario.");
+    }
+
+    if (!activeWorkspace?.id) {
+      throw new Error("No encontramos un espacio de trabajo activo.");
+    }
+
+    const clinicId = await resolvePatientClinicId(userId);
+    const results: PatientImportResult[] = [];
+
+    for (const input of inputs) {
+      try {
+        const normalizedInput = normalizePatientInput(input);
+        assertPatientContact(normalizedInput);
+
+        const { error: insertError } = await supabase
+          .from("patients")
+          .insert(
+            buildPatientInsertRow({
+              clinicId,
+              input: normalizedInput,
+              userId,
+              workspaceId: activeWorkspace.id,
+            }),
+          );
+
+        if (insertError) {
+          throw new Error(mapSupabaseError(insertError));
+        }
+
+        results.push({ ok: true });
+      } catch (importError) {
+        results.push({
+          error: getFriendlyErrorMessage(importError, "No pudimos guardar el paciente."),
+          ok: false,
+        });
+      }
+
+      onProgress?.(results.length);
+    }
+
+    // No recarga la lista acá: mientras carga, la página muestra la pantalla de
+    // carga y desmontaría el resumen. Quien llama usa refreshPatients al cerrar.
+    return results;
   }
 
   async function updatePatient(id: string, input: NewPatientInput) {
@@ -601,6 +747,8 @@ export function usePatients(options: UsePatientsOptions = {}) {
         email: normalizedInput.email || null,
         full_name: normalizedInput.name,
         initial_condition: normalizedInput.condition,
+        insurance_member_number: normalizedInput.insuranceMemberNumber || null,
+        insurance_provider_id: normalizedInput.insuranceProviderId || null,
         phone: normalizedInput.phone || null,
         status: mapPatientStatusToDb(normalizedInput.status),
       })
@@ -674,6 +822,8 @@ export function usePatients(options: UsePatientsOptions = {}) {
     addPatient,
     disablePatient,
     error,
+    importPatients,
+    listWorkspaceDocumentNumbers,
     loaded,
     page,
     pageSize,

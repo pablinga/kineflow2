@@ -145,7 +145,8 @@ export default function NewAppointmentPage() {
     activeTreatments,
     loaded: treatmentsLoaded,
   } = useTreatments(appointment.patientId || undefined);
-  const { providers: insuranceProviders } = useInsuranceProviders();
+  const { loaded: insuranceProvidersLoaded, providers: insuranceProviders } =
+    useInsuranceProviders();
   const activeInsuranceProviders = insuranceProviders.filter(
     (provider) => provider.active,
   );
@@ -168,6 +169,9 @@ export default function NewAppointmentPage() {
     useState("");
   const hasLoadedOnceRef = useRef(false);
   const hasManuallySelectedProfessionalRef = useRef(false);
+  // Paciente para el que ya se precargó la obra social de su ficha, y si se
+  // aplicó (para volver a particular al cambiar a un paciente sin obra social).
+  const insurancePrefillRef = useRef({ applied: false, patientId: "" });
   const hasInitializedWorkspaceDefaultsRef = useRef(false);
   // Clínica: primero el profesional (o "Sin preferencia") y después un horario
   // libre, como en la reserva online. La carga manual queda como excepción.
@@ -319,6 +323,60 @@ export default function NewAppointmentPage() {
     appointment.patientId,
     clinicProfessionals,
     user?.id,
+  ]);
+
+  // Al elegir paciente, precarga la obra social y el afiliado de su ficha.
+  // Todo sigue editable; solo corre una vez por paciente elegido.
+  useEffect(() => {
+    const patientId = appointment.patientId;
+
+    if (
+      !patientId ||
+      !insuranceProvidersLoaded ||
+      insurancePrefillRef.current.patientId === patientId
+    ) {
+      return;
+    }
+
+    const selectedPatient = activePatients.find((patient) => patient.id === patientId);
+
+    if (!selectedPatient) {
+      return;
+    }
+
+    const provider = insuranceProviders.find(
+      (item) => item.active && item.id === selectedPatient.insuranceProviderId,
+    );
+    const previouslyApplied = insurancePrefillRef.current.applied;
+    insurancePrefillRef.current = { applied: Boolean(provider), patientId };
+
+    if (!provider && !previouslyApplied) {
+      return;
+    }
+
+    const nextPaymentType: PaymentType = provider ? "OBRA_SOCIAL" : "PARTICULAR";
+    setPaymentType(nextPaymentType);
+    setInsuranceProviderId(provider?.id ?? "");
+    setInsuranceMemberNumber(provider ? selectedPatient.insuranceMemberNumber : "");
+
+    const amount = getPrefilledSessionAmount({
+      attentionTypePrice: selectedAttentionType?.price,
+      particularDefaultPrice:
+        activeWorkspace?.defaultSessionPrice ?? DEFAULT_SESSION_PRICE,
+      paymentType: nextPaymentType,
+      providerPrice: provider?.sessionPrice,
+    });
+
+    if (amount !== undefined) {
+      setSessionAmount(amount);
+    }
+  }, [
+    activePatients,
+    activeWorkspace?.defaultSessionPrice,
+    appointment.patientId,
+    insuranceProviders,
+    insuranceProvidersLoaded,
+    selectedAttentionType?.price,
   ]);
 
   const pageReady =
