@@ -29,13 +29,13 @@ export function AuthShell({ after, cardClassName = "max-w-3xl", children }: Auth
             KineFlow
           </p>
           <h2 className="mt-4 text-4xl font-bold">
-            Tu practica independiente, ordenada desde el celular.
+            Tu práctica independiente, ordenada desde el celular.
           </h2>
           <div className="mt-8 grid gap-3">
             {[
               "Pacientes, turnos y sesiones",
               "Evolución por tratamiento",
-              "Cobros por sesion",
+              "Cobros por sesión",
             ].map((item) => (
               <div
                 className="rounded-lg border border-white/20 bg-white/10 px-4 py-3 font-semibold"

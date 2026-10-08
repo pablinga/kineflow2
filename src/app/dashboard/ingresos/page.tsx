@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowUpRight, WalletCards } from "lucide-react";
+import { ArrowUpRight, Loader2, WalletCards } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import {
@@ -20,6 +20,7 @@ import { appointmentStatusStyles } from "@/lib/appointment-ui";
 import { formatSessionAmount } from "@/lib/format";
 import { formatCurrency, paymentStatusStyles } from "@/lib/payment-ui";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 
@@ -87,9 +88,11 @@ function IncomePageContent() {
   const [patientSearch, setPatientSearch] = useState(
     () => searchParams.get("paciente") ?? "",
   );
+  const debouncedPatientSearch = useDebouncedValue(patientSearch);
   const [currentPage, setCurrentPage] = useState(1);
   const {
     error: incomeError,
+    initialLoaded: incomeInitialLoaded,
     loaded: incomeLoaded,
     records,
     summary,
@@ -98,7 +101,7 @@ function IncomePageContent() {
     fromDate,
     page: currentPage,
     pageSize: INCOME_PAGE_SIZE,
-    patientSearch,
+    patientSearch: debouncedPatientSearch,
     paymentMethod,
     paymentStatus,
     toDate,
@@ -110,7 +113,7 @@ function IncomePageContent() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [fromDate, patientSearch, paymentMethod, paymentStatus, toDate]);
+  }, [fromDate, debouncedPatientSearch, paymentMethod, paymentStatus, toDate]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -125,13 +128,13 @@ function IncomePageContent() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesion activa. Te estamos llevando al login."
+        message="No hay una sesión activa. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
   }
 
-  if (loading || !incomeLoaded || !planLoaded || !workspaceLoaded) {
+  if (loading || !incomeInitialLoaded || !planLoaded || !workspaceLoaded) {
     return <DashboardLoading />;
   }
 
@@ -155,7 +158,7 @@ function IncomePageContent() {
               Ingresos del consultorio bloqueados
             </h1>
               <p className="mt-2 leading-6 text-amber-800">
-                Para ver ingresos y reportes del consultorio necesitas una
+                Para ver ingresos y reportes del consultorio necesitás una
                 suscripción activa del Plan Consultorio.
             </p>
           </div>
@@ -259,8 +262,14 @@ function IncomePageContent() {
                 </select>
               </label>
               <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
+                <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                   Paciente
+                  {!incomeLoaded || patientSearch !== debouncedPatientSearch ? (
+                    <Loader2
+                      aria-label="Buscando"
+                      className="h-4 w-4 animate-spin text-ocean-500"
+                    />
+                  ) : null}
                 </span>
                 <input
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"

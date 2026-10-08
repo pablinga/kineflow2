@@ -62,10 +62,33 @@ export function NuevoPacienteModal({
 }: NuevoPacienteModalProps) {
   const modalRef = useRef<HTMLFormElement | null>(null);
   const firstInputRef = useRef<HTMLInputElement | null>(null);
-  const onCloseRef = useRef(onClose);
+  // Escape o un clic afuera son fáciles de hacer sin querer: si ya hay datos
+  // cargados se pide confirmación antes de descartarlos. "Cancelar" y la X
+  // cierran directo.
+  const hasChanges =
+    createInitialEvaluation ||
+    [
+      newPatient.name,
+      newPatient.document,
+      newPatient.phone,
+      newPatient.email,
+      newPatient.condition,
+      newPatient.insuranceMemberNumber ?? "",
+    ].some((value) => value.trim() !== "");
+  const requestDismiss = () => {
+    if (
+      hasChanges &&
+      !window.confirm("¿Descartar los datos cargados del paciente?")
+    ) {
+      return;
+    }
+
+    onClose();
+  };
+  const requestDismissRef = useRef(requestDismiss);
 
   useEffect(() => {
-    onCloseRef.current = onClose;
+    requestDismissRef.current = requestDismiss;
   });
 
   useEffect(() => {
@@ -80,7 +103,7 @@ export function NuevoPacienteModal({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        onCloseRef.current();
+        requestDismissRef.current();
         return;
       }
 
@@ -130,7 +153,7 @@ export function NuevoPacienteModal({
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-3 py-3 sm:items-center sm:px-4 sm:py-6"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
-          onClose();
+          requestDismiss();
         }
       }}
       role="dialog"

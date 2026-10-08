@@ -48,7 +48,7 @@ export default function PlansPage() {
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesion activa. Te estamos llevando al login."
+        message="No hay una sesión activa. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );
@@ -108,7 +108,7 @@ export default function PlansPage() {
     }
 
     if (planId === "FREE") {
-      setCheckoutMessage("Ya podes empezar gratis desde tu cuenta actual.");
+      setCheckoutMessage("Ya podés empezar gratis desde tu cuenta actual.");
       return;
     }
 
@@ -116,7 +116,7 @@ export default function PlansPage() {
 
     try {
       if (planId !== "INDEPENDIENTE" && planId !== "CONSULTORIO") {
-        throw new Error("Este plan todavia no tiene checkout configurado.");
+        throw new Error("Este plan todavía no tiene checkout configurado.");
       }
 
       const supabase = getSupabaseClient();
@@ -124,7 +124,7 @@ export default function PlansPage() {
       const accessToken = data.session?.access_token;
 
       if (!accessToken) {
-        throw new Error("Necesitas iniciar sesion para activar un plan.");
+        throw new Error("Necesitás iniciar sesión para activar un plan.");
       }
 
       const response = await fetch("/api/billing/create-subscription", {
@@ -172,7 +172,7 @@ export default function PlansPage() {
       const accessToken = data.session?.access_token;
 
       if (!accessToken) {
-        throw new Error("Necesitas iniciar sesion para solicitar la baja.");
+        throw new Error("Necesitás iniciar sesión para solicitar la baja.");
       }
 
       const response = await fetch("/api/subscriptions/cancel", {
@@ -295,7 +295,7 @@ export default function PlansPage() {
               <p className="mt-1 text-sm leading-6 text-emerald-800">
                 {plan.estadoPlan === "ACTIVO"
                   ? "Tu suscripción está activa."
-                  : "Estado: pendiente de confirmacion de Mercado Pago."}
+                  : "Estado: pendiente de confirmación de Mercado Pago."}
               </p>
               <button
                 className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg border border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-100"
@@ -331,7 +331,7 @@ export default function PlansPage() {
 
           {cancelReference ? (
             <section className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 sm:mt-6">
-              Baja registrada. Referencia de gestion: {cancelReference}
+              Baja registrada. Referencia de gestión: {cancelReference}
             </section>
           ) : null}
 
@@ -448,7 +448,7 @@ export default function PlansPage() {
             <h2 className="text-xl font-bold text-ink">Cancelar suscripción</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
               Vamos a solicitar la baja de {currentPlanName} en Mercado Pago y
-              registrar la gestion en KineFlow. Vas a recibir una referencia de
+              registrar la gestión en KineFlow. Vas a recibir una referencia de
               baja al finalizar.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">

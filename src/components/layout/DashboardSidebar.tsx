@@ -72,7 +72,7 @@ const navigation = {
     },
     { href: "/dashboard/ingresos", label: "Ingresos", icon: DollarSign },
     { href: "/dashboard/reportes", label: "Reportes", icon: FileBarChart },
-    { href: "/dashboard/configuracion", label: "Configuracion", icon: Settings },
+    { href: "/dashboard/configuracion", label: "Configuración", icon: Settings },
     { href: "/dashboard/planes", label: "Plan", icon: CreditCard },
   ],
   CONSULTORIO: [
@@ -92,7 +92,7 @@ const navigation = {
     },
     { href: "/dashboard/ingresos", label: "Ingresos", icon: DollarSign },
     { href: "/dashboard/reportes", label: "Reportes", icon: FileBarChart },
-    { href: "/dashboard/configuracion", label: "Configuracion", icon: Settings },
+    { href: "/dashboard/configuracion", label: "Configuración", icon: Settings },
     { href: "/dashboard/planes", label: "Plan", icon: CreditCard },
   ],
 } satisfies Record<
@@ -287,7 +287,7 @@ export function DashboardSidebar() {
         <div className="flex items-center gap-1">
           <SessionDefaultsNotificationBell />
           <button
-            aria-label="Abrir navegacion"
+            aria-label="Abrir navegación"
             className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-ocean-100 text-slate-700 transition-colors duration-150 ease-out hover:bg-ocean-50 active:scale-95"
             onClick={() => setOpen(true)}
             type="button"
@@ -308,7 +308,7 @@ export function DashboardSidebar() {
               <SessionDefaultsNotificationBell />
             </span>
             <button
-              aria-label="Cerrar navegacion"
+              aria-label="Cerrar navegación"
               className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 transition-colors duration-150 ease-out hover:bg-ocean-50 active:scale-95 lg:hidden"
               onClick={() => setOpen(false)}
               type="button"
@@ -429,7 +429,7 @@ export function DashboardSidebar() {
       ) : null}
       {open ? (
         <button
-          aria-label="Cerrar navegacion"
+          aria-label="Cerrar navegación"
           className="fixed inset-0 z-40 bg-ink/70 backdrop-blur-sm transition-opacity duration-200 lg:hidden"
           onClick={() => setOpen(false)}
           type="button"

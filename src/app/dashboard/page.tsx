@@ -152,8 +152,9 @@ export default function DashboardPage() {
     ? "Equipo, pacientes, agenda e ingresos de la clínica en un solo lugar."
     : "Pacientes, turnos, evoluciones y cobros en un solo lugar.";
   const upcomingAppointments = summary.upcomingAppointments;
-  const actionRequired = summary.actionRequired;
-  const paymentActionRequired = summary.paymentActionRequired;
+  // Totales reales: las listas del resumen vienen limitadas.
+  const actionRequiredCount = summary.actionRequiredCount;
+  const pendingPaymentCount = summary.pendingPaymentCount;
   const quickAccessItems = [
     {
       label: "Nuevo paciente",
@@ -195,7 +196,7 @@ export default function DashboardPage() {
       detail:
         summary.appointmentsTodayCount === 0
           ? "Sin turnos para hoy"
-          : "Agenda del dia",
+          : "Agenda del día",
     },
     {
       label: "Pacientes activos",
@@ -205,9 +206,9 @@ export default function DashboardPage() {
     },
     {
       label: "Cobros pendientes",
-      value: String(paymentActionRequired.length),
+      value: String(pendingPaymentCount),
       detail:
-        paymentActionRequired.length === 0
+        pendingPaymentCount === 0
           ? "Todo al día"
           : "Requieren seguimiento",
     },
@@ -248,7 +249,7 @@ export default function DashboardPage() {
               </>
             }
             description={dashboardDescription}
-            eyebrow="Dashboard"
+            eyebrow="Inicio"
             title={dashboardTitle}
           />
 
@@ -368,7 +369,7 @@ export default function DashboardPage() {
                   <p className="mt-1 text-sm leading-6 text-emerald-800">
                     {plan.estadoPlan === "ACTIVO"
                       ? "Tu suscripción está activa."
-                      : "Estado: pendiente de confirmacion de Mercado Pago."}
+                      : "Estado: pendiente de confirmación de Mercado Pago."}
                   </p>
                 </div>
               </div>
@@ -477,14 +478,14 @@ export default function DashboardPage() {
               <Card variant="default" padding="md">
                 <h2 className="text-lg font-bold text-ink">Requieren acción</h2>
                 <div className="mt-4 space-y-3">
-                  {actionRequired.length > 0 ? (
+                  {actionRequiredCount > 0 ? (
                     <Link
                       className="block rounded-lg border border-amber-100 bg-amber-50 p-3 transition hover:bg-amber-100"
                       href="/dashboard/turnos"
                     >
                       <p className="text-sm font-semibold text-amber-800">
-                        {actionRequired.length}{" "}
-                        {actionRequired.length === 1
+                        {actionRequiredCount}{" "}
+                        {actionRequiredCount === 1
                           ? "turno sin registrar asistencia"
                           : "turnos sin registrar asistencia"}
                       </p>
@@ -493,14 +494,14 @@ export default function DashboardPage() {
                       </p>
                     </Link>
                   ) : null}
-                  {paymentActionRequired.length > 0 ? (
+                  {pendingPaymentCount > 0 ? (
                     <Link
                       className="block rounded-lg border border-amber-100 bg-amber-50 p-3 transition hover:bg-amber-100"
                       href={isRecepcion ? "/dashboard/turnos" : "/dashboard/ingresos"}
                     >
                       <p className="text-sm font-semibold text-amber-800">
-                        {paymentActionRequired.length}{" "}
-                        {paymentActionRequired.length === 1
+                        {pendingPaymentCount}{" "}
+                        {pendingPaymentCount === 1
                           ? "cobro pendiente"
                           : "cobros pendientes"}
                       </p>
@@ -509,8 +510,8 @@ export default function DashboardPage() {
                       </p>
                     </Link>
                   ) : null}                </div>
-                {actionRequired.length === 0 &&
-                paymentActionRequired.length === 0 ? (
+                {actionRequiredCount === 0 &&
+                pendingPaymentCount === 0 ? (
                   <p className="mt-4 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-4 text-sm text-slate-600">
                     No hay alertas pendientes.
                   </p>

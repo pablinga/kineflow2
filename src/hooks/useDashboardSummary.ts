@@ -86,6 +86,8 @@ export type DashboardAppointment = {
 
 export type DashboardSummary = {
   actionRequired: DashboardAppointment[];
+  /** Total real (la lista actionRequired viene limitada). */
+  actionRequiredCount: number;
   activePatientCount: number;
   appointmentsTodayCount: number;
   monthIncome: number;
@@ -98,6 +100,7 @@ export type DashboardSummary = {
 
 const emptySummary: DashboardSummary = {
   actionRequired: [],
+  actionRequiredCount: 0,
   activePatientCount: 0,
   appointmentsTodayCount: 0,
   monthIncome: 0,
@@ -371,6 +374,7 @@ export function useDashboardSummary() {
           .from("appointments")
           .select(
             "id, patient_id, scheduled_at, duration_minutes, modality, status, session_amount, payment_status, payment_method, paid_at, payment_notes, patients(full_name)",
+            { count: "exact" },
           )
           .eq("status", "pending")
           .lt("scheduled_at", now.toISOString())
@@ -382,6 +386,7 @@ export function useDashboardSummary() {
           .from("appointments")
           .select(
             "id, patient_id, scheduled_at, duration_minutes, modality, status, session_amount, payment_status, payment_method, paid_at, payment_notes, patients(full_name)",
+            { count: "exact" },
           )
           .in("status", ["attended", "completed"])
           .eq("payment_status", "pending")
@@ -452,6 +457,8 @@ export function useDashboardSummary() {
         actionRequired: (
           (actionRequiredResult.data ?? []) as unknown as DashboardAppointmentRow[]
         ).map(mapAppointment),
+        actionRequiredCount:
+          actionRequiredResult.count ?? actionRequiredResult.data?.length ?? 0,
         activePatientCount: activePatientCountResult?.count ?? 0,
         appointmentsTodayCount: appointmentsTodayResult.count ?? 0,
         monthIncome: sumAmounts((monthIncomeResult.data ?? []) as AmountRow[]),
@@ -459,7 +466,8 @@ export function useDashboardSummary() {
         pendingPaymentAmount: sumAmounts(
           (pendingPaymentAmountResult.data ?? []) as AmountRow[],
         ),
-        pendingPaymentCount: paymentActionRequired.length,
+        pendingPaymentCount:
+          paymentActionRequiredResult.count ?? paymentActionRequired.length,
         recentPatients: (
           (recentPatientsResult?.data ?? []) as DashboardPatientRow[]
         ).map(mapPatient),
