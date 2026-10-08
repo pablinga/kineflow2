@@ -22,6 +22,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { PwaInstallButton } from "@/components/PwaInstallButton";
 import { SessionDefaultsNotificationBell } from "@/components/layout/SessionDefaultsNotificationBell";
 import { getSupabaseClient } from "@/lib/supabase";
 import {
@@ -375,6 +376,7 @@ export function DashboardSidebar() {
               );
             })}
           </nav>
+          <PwaInstallButton className="mt-1 lg:hidden" source="menu" />
           <button
             className={`mt-5 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold transition disabled:cursor-wait disabled:opacity-80 lg:mt-8 ${
               loggingOut
