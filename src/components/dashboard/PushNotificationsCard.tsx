@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Bell, BellOff } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { detectStandalone } from "@/lib/pwa-install";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type PushState =
@@ -32,13 +33,6 @@ function urlBase64ToUint8Array(base64String: string) {
 
 function isIos() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-}
-
-function isStandalone() {
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
 }
 
 function isPushSupported() {
@@ -96,7 +90,7 @@ export function PushNotificationsCard() {
     }
 
     if (!isPushSupported()) {
-      setState(isIos() && !isStandalone() ? "ios-install" : "unsupported");
+      setState(isIos() && !detectStandalone() ? "ios-install" : "unsupported");
       return;
     }
 

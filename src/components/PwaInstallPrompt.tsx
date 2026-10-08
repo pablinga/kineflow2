@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, Share2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-};
+import { usePwaInstall } from "@/hooks/usePwaInstall";
+import { promptPwaInstall, trackPwaEvent } from "@/lib/pwa-install";
 
 const DISMISSED_STORAGE_KEY = "pwa_install_dismissed_at";
 const DISMISS_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
@@ -20,72 +17,45 @@ function wasRecentlyDismissed() {
   );
 }
 
-function isStandalone() {
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
-}
-
-function isIosSafari() {
-  const userAgent = navigator.userAgent;
-  const isIos = /iPhone|iPad|iPod/.test(userAgent);
-  const isSafari = /Safari/.test(userAgent) && !/CriOS|FxiOS|EdgiOS/.test(userAgent);
-  const hasMsStream = Boolean((window as Window & { MSStream?: unknown }).MSStream);
-
-  return isIos && isSafari && !hasMsStream;
-}
-
+/**
+ * Aviso automático de instalación (dashboard). El cooldown de 7 días aplica
+ * solo a este aviso: cerrarlo no descarta el evento, que sigue disponible
+ * para el botón permanente del menú (PwaInstallButton).
+ */
 export function PwaInstallPrompt() {
-  const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
-  const [mode, setMode] = useState<"browser" | "ios" | null>(null);
+  const { canPrompt, installed, platform, ready, standalone } = usePwaInstall();
+  const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
-    if (isStandalone() || wasRecentlyDismissed()) {
-      return;
+    try {
+      setDismissed(wasRecentlyDismissed());
+    } catch {
+      setDismissed(false);
     }
-
-    if (isIosSafari()) {
-      setMode("ios");
-    }
-
-    function handleBeforeInstallPrompt(event: Event) {
-      event.preventDefault();
-      deferredPromptRef.current = event as BeforeInstallPromptEvent;
-      setMode("browser");
-    }
-
-    function handleAppInstalled() {
-      deferredPromptRef.current = null;
-      setMode(null);
-    }
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("appinstalled", handleAppInstalled);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      window.removeEventListener("appinstalled", handleAppInstalled);
-    };
   }, []);
 
+  const mode: "browser" | "ios" | null =
+    !ready || standalone || installed || dismissed
+      ? null
+      : canPrompt
+        ? "browser"
+        : platform === "ios-safari"
+          ? "ios"
+          : null;
+
   async function installApp() {
-    const promptEvent = deferredPromptRef.current;
-
-    if (!promptEvent) {
-      return;
-    }
-
-    await promptEvent.prompt();
-    await promptEvent.userChoice;
-    deferredPromptRef.current = null;
-    setMode(null);
+    trackPwaEvent("pwa_install_click", { platform, source: "banner" });
+    await promptPwaInstall();
   }
 
   function dismissPrompt() {
-    window.localStorage.setItem(DISMISSED_STORAGE_KEY, String(Date.now()));
-    deferredPromptRef.current = null;
-    setMode(null);
+    try {
+      window.localStorage.setItem(DISMISSED_STORAGE_KEY, String(Date.now()));
+    } catch {
+      // Sin almacenamiento el aviso solo se oculta en esta visita.
+    }
+
+    setDismissed(true);
   }
 
   if (!mode) {

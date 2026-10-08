@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail } from "lucide-react";
 import { LegalLinks } from "@/components/layout/LegalLinks";
+import { PwaInstallButton } from "@/components/PwaInstallButton";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
@@ -189,6 +190,7 @@ export default function LoginPage() {
               {ACCESS_CLOSED_MESSAGE}
             </Alert>
           ) : null}
+          <PwaInstallButton className="mt-4" source="login" />
           <LegalLinks className="mt-6 justify-center text-xs text-slate-500" />
         </div>
       </section>

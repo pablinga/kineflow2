@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AttributionCapture } from "@/components/analytics/AttributionCapture";
+import { PwaInstallCapture } from "@/components/PwaInstallCapture";
 import "./globals.css";
 
 const inter = Inter({
@@ -43,6 +44,7 @@ export default function RootLayout({
         <Analytics />
         <SpeedInsights />
         <AttributionCapture />
+        <PwaInstallCapture />
       </body>
     </html>
   );
