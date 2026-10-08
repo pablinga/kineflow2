@@ -8,7 +8,10 @@ import {
   appointmentSignatureBucketName,
   getAppointmentSignaturePath,
 } from "@/lib/appointment-signatures";
-import { appointmentStatusLabels } from "@/lib/appointment-ui";
+import {
+  type AppointmentStatusCode,
+  appointmentStatusLabels,
+} from "@/lib/appointment-ui";
 import { useActiveClinic } from "@/hooks/useActiveClinic";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -31,6 +34,8 @@ export type Appointment = {
   reason: string;
   conflictWarning: string | null;
   status: string;
+  /** Estado tal como está en la base (para poder deshacer un cambio). */
+  rawStatus: AppointmentStatusCode;
   modality: string;
   duration: string;
   origin: AppointmentOrigin;
@@ -232,6 +237,7 @@ function mapAppointment(row: AppointmentRow): Appointment {
     reason: row.reason,
     conflictWarning: null,
     status: appointmentStatusLabels[row.status],
+    rawStatus: row.status,
     modality: modalityLabels[row.modality],
     duration: `${row.duration_minutes} min`,
     origin,
@@ -479,6 +485,9 @@ export function useAppointments(
   );
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // Solo la primera carga bloquea la pantalla; las recargas después de marcar
+  // asistencia o cobrar no desmontan la agenda (ni el aviso de "Deshacer").
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const [error, setError] = useState("");
   const unified = options.unified ?? false;
   const workspaceIdsKey = workspaces.map((workspace) => workspace.id).join(",");
@@ -584,6 +593,7 @@ export function useAppointments(
     } finally {
       if (!signal?.aborted) {
         setLoaded(true);
+        setInitialLoaded(true);
       }
     }
   }, [
@@ -781,7 +791,7 @@ export function useAppointments(
 
   async function updateAppointmentStatus(
     id: string,
-    status: AppointmentStatus,
+    status: AppointmentStatus | "confirmed",
   ): Promise<{ treatmentCompleted?: { totalSessions: number } | null }> {
     const supabase = getSupabaseClient();
     const { data: sessionData, error: sessionError } =
@@ -1017,6 +1027,7 @@ export function useAppointments(
     addClinicAppointment,
     appointments,
     error,
+    initialLoaded,
     loaded,
     rescheduleAppointment,
     refreshAppointments: loadAppointments,

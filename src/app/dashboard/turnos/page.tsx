@@ -8,6 +8,7 @@ import {
   ClipboardList,
   ChevronLeft,
   ChevronRight,
+  ClipboardSignature,
   DollarSign,
   Filter,
   MoreVertical,
@@ -20,14 +21,19 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FieldLabel } from "@/components/ui/FieldLabel";
+import { UndoToast } from "@/components/ui/UndoToast";
+import { AppointmentPaymentModal } from "@/components/turnos/AppointmentPaymentModal";
+import { SignaturePad } from "@/components/turnos/SignaturePad";
 import {
   type Appointment,
   type AppointmentPaymentInput,
   type AppointmentStatus,
-  type PaymentMethod,
-  paymentMethodLabels,
   useAppointments,
 } from "@/hooks/useAppointments";
+import {
+  isFutureAppointment,
+  useAttendanceActions,
+} from "@/hooks/useAttendanceActions";
 import {
   appointmentStatusStyles,
   getAppointmentDisplayStatus,
@@ -66,6 +72,12 @@ type PendingAction = {
 };
 
 type CalendarView = "month" | "week" | "day";
+
+const AGENDA_VIEW_STORAGE_KEY = "kineflow.agenda.view";
+
+function isCalendarView(value: unknown): value is CalendarView {
+  return value === "month" || value === "week" || value === "day";
+}
 
 type DayDetail = {
   appointments: Appointment[];
@@ -459,10 +471,6 @@ function DayDetailPanel({
   );
 }
 
-function isFutureAppointment(appointment: Appointment) {
-  return new Date(appointment.scheduledAt).getTime() > Date.now();
-}
-
 function actionToneClass(tone: PendingAction["tone"]) {
   if (tone === "green") {
     return "bg-emerald-600 hover:bg-emerald-700";
@@ -528,8 +536,9 @@ export default function AppointmentsPage() {
   const {
     appointments,
     error,
-    loaded,
+    initialLoaded,
     rescheduleAppointment,
+    saveAppointmentSignature,
     updateAppointmentPayment,
     updateAppointmentStatus,
   } = useAppointments(undefined, {
@@ -561,17 +570,69 @@ export default function AppointmentsPage() {
   const { attentionTypes } = useAttentionTypes();
   const { providers: insuranceProviders } = useInsuranceProviders();
   const { providers: artProviders } = useArtProviders();
-  const [paymentForm, setPaymentForm] = useState<AppointmentPaymentInput>({
-    amount: 0,
-    paymentMethod: "",
-    paymentNotes: "",
-  });
+  const [signingAppointment, setSigningAppointment] =
+    useState<Appointment | null>(null);
   const [view, setView] = useState<CalendarView>("month");
   const [calendarDate, setCalendarDate] = useState(() => new Date());
   const [selectedMobileDay, setSelectedMobileDay] =
     useState<DayDetail | null>(null);
   const [originFilter, setOriginFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const attendance = useAttendanceActions({
+    getWriteBlockMessage: (appointment) =>
+      isReadOnly && !isProfessionalClinicAppointment(appointment)
+        ? "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes."
+        : null,
+    isProfessionalClinicAppointment,
+    // Después de "Asistió" se abre el cobro, así no quedan sesiones sin cobrar.
+    onAttended: (appointment) => {
+      if (
+        !isProfessionalClinicAppointment(appointment) &&
+        isPatientPaidAppointment(appointment) &&
+        appointment.paymentStatus === "pending"
+      ) {
+        openPaymentModal(appointment);
+      }
+    },
+    onUndone: (appointment) => {
+      setEditingPayment((current) =>
+        current?.id === appointment.id ? null : current,
+      );
+    },
+    updateAppointmentStatus,
+  });
+
+  // Vista inicial: ?vista=dia (link "Ver agenda de hoy"), la última elegida o,
+  // en el celular, el día (el mes en pantalla chica solo muestra puntos).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    let storedView: string | null = null;
+
+    try {
+      storedView = window.localStorage.getItem(AGENDA_VIEW_STORAGE_KEY);
+    } catch {
+      storedView = null;
+    }
+
+    if (params.get("vista") === "dia") {
+      setView("day");
+      setCalendarDate(new Date());
+    } else if (isCalendarView(storedView)) {
+      setView(storedView);
+    } else if (!window.matchMedia("(min-width: 1024px)").matches) {
+      setView("day");
+    }
+  }, []);
+
+  function changeView(nextView: CalendarView) {
+    setView(nextView);
+
+    try {
+      window.localStorage.setItem(AGENDA_VIEW_STORAGE_KEY, nextView);
+    } catch {
+      // Sin almacenamiento la vista solo dura esta visita.
+    }
+  }
 
   const clinicOptions = useMemo(
     () =>
@@ -791,7 +852,6 @@ export default function AppointmentsPage() {
       }),
     [filteredAppointments, calendarDate],
   );
-  const visibleAppointments = mobileDays.flatMap((day) => day.appointments);
   const visibleRangeLabel =
     view === "month"
       ? calendarDate.toLocaleDateString("es-AR", {
@@ -911,26 +971,20 @@ export default function AppointmentsPage() {
 
     setActionsAppointment(null);
     setEditingPayment(appointment);
-    setPaymentForm({
-      amount: appointment.amount,
-      paymentMethod: appointment.paymentMethod,
-      paymentNotes: appointment.paymentNotes,
-    });
   }
 
   function openStatusModal(appointment: Appointment, status: AppointmentStatus) {
-    if (
-      ["attended", "no_show"].includes(status) &&
-      isFutureAppointment(appointment)
-    ) {
-      setActionsAppointment(null);
-      setActionError(
-        "No se puede registrar asistencia o ausencia en un turno futuro.",
-      );
+    setActionsAppointment(null);
+    setActionError("");
+    setActionNotice("");
+
+    // Asistió / No asistió se registran en un toque y se pueden deshacer;
+    // solo cancelar pide confirmación.
+    if (status === "attended" || status === "no_show") {
+      void attendance.markAttendance(appointment, status);
       return;
     }
 
-    setActionsAppointment(null);
     askForStatusChange(appointment, status);
   }
 
@@ -949,7 +1003,7 @@ export default function AppointmentsPage() {
 
   if (
     loading ||
-    !loaded ||
+    !initialLoaded ||
     !accessLoaded ||
     !planLoaded ||
     !patientsLoaded ||
@@ -1130,9 +1184,7 @@ export default function AppointmentsPage() {
     }
   }
 
-  async function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+  async function handlePaymentSubmit(paymentForm: AppointmentPaymentInput) {
     if (!editingPayment) {
       return;
     }
@@ -1164,7 +1216,8 @@ export default function AppointmentsPage() {
   }
 
   function renderActionItems(appointment: Appointment) {
-    const disabled = updatingId === appointment.id;
+    const disabled =
+      updatingId === appointment.id || attendance.updatingId === appointment.id;
     const clinicAppointment = isProfessionalClinicAppointment(appointment);
     const writeDisabled = disabled || (isReadOnly && !clinicAppointment);
     const futureAttendanceDisabled = isFutureAppointment(appointment);
@@ -1224,6 +1277,30 @@ export default function AppointmentsPage() {
           {appointment.paymentStatus === "pending" ? "Registrar cobro" : "Editar cobro"}
         </button>
         ) : null}
+        {appointment.signaturePath ? (
+          <p className="flex items-center gap-2 px-3 py-2.5 text-sm font-semibold text-emerald-700">
+            <ClipboardSignature className="h-4 w-4" />
+            Planilla firmada
+          </p>
+        ) : (
+          <button
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50 disabled:opacity-60"
+            disabled={writeDisabled || futureAttendanceDisabled}
+            onClick={() => {
+              setActionsAppointment(null);
+              setSigningAppointment(appointment);
+            }}
+            title={
+              futureAttendanceDisabled
+                ? "Disponible cuando llegue el horario del turno"
+                : undefined
+            }
+            type="button"
+          >
+            <ClipboardSignature className="h-4 w-4" />
+            Firmar planilla
+          </button>
+        )}
         <button
           className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50 disabled:opacity-60"
           disabled={writeDisabled}
@@ -1285,6 +1362,11 @@ export default function AppointmentsPage() {
                 {appointment.attentionTypeName}
               </p>
             ) : null}
+            {activeWorkspace?.type === "CLINICA" ? (
+              <p className="mt-0.5 min-w-0 truncate text-[0.68rem] font-medium text-slate-500">
+                {appointment.professionalName ?? "Sin profesional asignado"}
+              </p>
+            ) : null}
           </div>
           <span
             className={`w-fit shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[0.62rem] font-semibold leading-none ${
@@ -1336,14 +1418,22 @@ export default function AppointmentsPage() {
             </span>
           ) : (
             <>
-              <span
-                className={`w-fit rounded-full px-2 py-1 text-[0.62rem] font-semibold ${
-                  paymentStatusStyles[appointment.paymentStatusLabel] ??
-                  "bg-slate-100 text-slate-700"
-                }`}
-              >
-                {appointment.paymentStatusLabel}
-              </span>
+              {/* El cobro importa recién cuando asistió; antes era un segundo
+                  "Pendiente" al lado del de asistencia. */}
+              {isAttended ? (
+                <span
+                  className={`w-fit rounded-full px-2 py-1 text-[0.62rem] font-semibold ${
+                    appointment.paymentStatus === "pending"
+                      ? "bg-amber-50 text-amber-800 ring-1 ring-amber-200"
+                      : paymentStatusStyles[appointment.paymentStatusLabel] ??
+                        "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {appointment.paymentStatus === "pending"
+                    ? "Sin cobrar"
+                    : appointment.paymentStatusLabel}
+                </span>
+              ) : null}
               <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[0.62rem] font-semibold text-slate-600">
                 {formatSessionAmount(appointment.amount)}
               </span>
@@ -1361,8 +1451,16 @@ export default function AppointmentsPage() {
           {canMarkAttended ? (
             <button
               className="inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-emerald-600 px-2 text-[0.68rem] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-              disabled={isFutureAppointment(appointment)}
+              disabled={
+                isFutureAppointment(appointment) ||
+                attendance.updatingId === appointment.id
+              }
               onClick={() => openStatusModal(appointment, "attended")}
+              title={
+                isFutureAppointment(appointment)
+                  ? "Disponible cuando llegue el horario del turno"
+                  : undefined
+              }
               type="button"
             >
               Marcar asistió
@@ -1594,7 +1692,7 @@ export default function AppointmentsPage() {
                         : "text-slate-700 hover:bg-ocean-50"
                     }`}
                     key={value}
-                    onClick={() => setView(value as CalendarView)}
+                    onClick={() => changeView(value as CalendarView)}
                     type="button"
                   >
                     {label}
@@ -1647,7 +1745,19 @@ export default function AppointmentsPage() {
               ) : null}
               </>
             }
-            description={<>{visibleRangeLabel}</>}
+            description={
+              view === "day" ? (
+                <>
+                  {/* En el celular la vista Día muestra un solo día. */}
+                  <span className="capitalize lg:hidden">
+                    {compactDayLabel(calendarDate)} · {formatDate(calendarDate)}
+                  </span>
+                  <span className="hidden lg:inline">{visibleRangeLabel}</span>
+                </>
+              ) : (
+                visibleRangeLabel
+              )
+            }
             eyebrow="Turnos"
             title="Agenda"
           />
@@ -1691,9 +1801,9 @@ export default function AppointmentsPage() {
             </section>
           ) : null}
 
-          {error || actionError ? (
+          {error || actionError || attendance.error ? (
             <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 sm:mt-6">
-              {actionError || error}
+              {attendance.error || actionError || error}
             </p>
           ) : null}
 
@@ -1767,17 +1877,6 @@ export default function AppointmentsPage() {
           {view === "month" ? renderMonthView() : null}
           {view === "week" ? renderWeekView() : null}
 
-          {view === "day" && visibleAppointments.length === 0 ? (
-            <div className="mt-4 rounded-lg border border-dashed border-ocean-200 bg-white p-5 text-center shadow-card sm:mt-6 sm:p-8">
-              <p className="font-semibold text-ink">
-                No hay turnos para estos días.
-              </p>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-                Usá Nuevo turno para programar sesiones.
-              </p>
-            </div>
-          ) : null}
-
           {view === "day" ? (
             <section className="mt-4 sm:mt-6">
               <div className="grid gap-4 lg:grid-cols-3">
@@ -1810,7 +1909,7 @@ export default function AppointmentsPage() {
                       {day.appointments.length === 0 ? (
                         <div className="rounded-lg border border-dashed border-ocean-100 bg-ocean-50 p-4 text-center">
                           <p className="text-sm font-medium text-slate-500">
-                            No hay turnos para este dia.
+                            No hay turnos para este día.
                           </p>
                         </div>
                       ) : null}
@@ -2055,91 +2154,46 @@ export default function AppointmentsPage() {
           ) : null}
 
           {editingPayment ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4 py-6">
-              <form
-                className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
-                onSubmit={handlePaymentSubmit}
-              >
-                <h2 className="text-lg font-bold text-ink">Editar cobro</h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  {editingPayment.patient} · {editingPayment.date} ·{" "}
-                  {editingPayment.time}
-                </p>
-
-                <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                  <label className="block">
-                    <FieldLabel required>Monto</FieldLabel>
-                    <input
-                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-                      min={0}
-                      onChange={(event) =>
-                        setPaymentForm((current) => ({
-                          ...current,
-                          amount: Number(event.target.value),
-                        }))
-                      }
-                      required
-                      step="100"
-                      type="number"
-                      value={paymentForm.amount}
-                    />
-                  </label>
-                  <label className="block">
-                    <FieldLabel required>Medio de pago</FieldLabel>
-                    <select
-                      className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) =>
-                        setPaymentForm((current) => ({
-                          ...current,
-                          paymentMethod: event.target.value as PaymentMethod | "",
-                        }))
-                      }
-                      required
-                      value={paymentForm.paymentMethod}
-                    >
-                      <option value="">Seleccionar medio</option>
-                      {Object.entries(paymentMethodLabels).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <label className="mt-4 block">
-                  <span className="text-sm font-semibold text-slate-700">
-                    Observación de pago
-                  </span>
-                  <textarea
-                    className="mt-2 min-h-24 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
-                    onChange={(event) =>
-                      setPaymentForm((current) => ({
-                        ...current,
-                        paymentNotes: event.target.value,
-                      }))
-                    }
-                    value={paymentForm.paymentNotes}
-                  />
-                </label>
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-                  <button
-                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-                    onClick={() => setEditingPayment(null)}
-                    type="button"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 text-sm font-semibold text-white transition hover:bg-ocean-700 disabled:opacity-60"
-                    disabled={updatingId === editingPayment.id}
-                    type="submit"
-                  >
-                    Guardar cobro
-                  </button>
-                </div>
-              </form>
-            </div>
+            <AppointmentPaymentModal
+              appointment={editingPayment}
+              key={editingPayment.id}
+              onCancel={() => setEditingPayment(null)}
+              onSubmit={handlePaymentSubmit}
+              saving={updatingId === editingPayment.id}
+            />
           ) : null}
+
+          {signingAppointment ? (
+            <SignaturePad
+              onCancel={() => setSigningAppointment(null)}
+              onSave={async (blob) => {
+                const signedAppointment = signingAppointment;
+
+                await saveAppointmentSignature(signedAppointment, blob);
+                setSigningAppointment(null);
+                setActionNotice("Planilla firmada");
+
+                // Firmar la planilla confirma la asistencia.
+                if (signedAppointment.rawStatus !== "attended") {
+                  await attendance.markAttendance(signedAppointment, "attended");
+                }
+              }}
+              patientName={signingAppointment.patient}
+            />
+          ) : null}
+
+          {attendance.lastChange ? (
+            <UndoToast
+              message={attendance.lastChange.message}
+              onClose={attendance.dismissChange}
+              onUndo={
+                attendance.lastChange.previousStatus
+                  ? attendance.undoLastChange
+                  : undefined
+              }
+            />
+          ) : null
+}
       </PageContainer>
     </main>
   );

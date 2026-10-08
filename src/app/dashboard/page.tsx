@@ -4,24 +4,19 @@ import Link from "next/link";
 import {
   ArrowUpRight,
   CalendarPlus,
-  ClipboardPlus,
   CreditCard,
   DollarSign,
-  UserRound,
   Search,
   UsersRound,
 } from "lucide-react";
 import { PendingClinicInvitationsBanner } from "@/components/dashboard/PendingClinicInvitationsBanner";
 import { PendingReceptionInvitationsBanner } from "@/components/dashboard/PendingReceptionInvitationsBanner";
+import { TodayAgendaCard } from "@/components/dashboard/TodayAgendaCard";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
-import {
-  appointmentStatusStyles,
-} from "@/lib/appointment-ui";
-import { paymentStatusStyles } from "@/lib/payment-ui";
 import { getPlanDisplayName, getTrialCountdownLabel } from "@/lib/plans";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
@@ -31,44 +26,6 @@ import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 import { usePendingClinicInvitations } from "@/hooks/usePendingClinicInvitations";
 import { isRecepcionWorkspace } from "@/lib/workspace-permissions";
-
-function getAttendanceBadgeLabel(status: string) {
-  return status === "Pendiente" ? "Pendiente asistencia" : status;
-}
-
-function getAttendanceBadgeClass(status: string) {
-  if (status === "Pendiente") {
-    return "bg-slate-100 text-slate-700 ring-1 ring-slate-200";
-  }
-
-  return appointmentStatusStyles[status] ?? "bg-sky-50 text-sky-700";
-}
-
-function getAppointmentDisplayStatus(appointment: { scheduledAt: string; status: string }) {
-  return appointment.status === "Pendiente" &&
-    new Date(appointment.scheduledAt).getTime() < Date.now()
-    ? "Sin registrar asistencia"
-    : appointment.status;
-}
-
-function getPaymentBadge(appointment: { amount: number; paymentStatus: string; paymentStatusLabel: string }) {
-  if (appointment.paymentStatus === "pending") {
-    return {
-      className:
-        appointment.amount > 0
-          ? "bg-amber-50 text-amber-800 ring-1 ring-amber-200"
-          : "bg-orange-50 text-orange-800 ring-1 ring-orange-200",
-      label: appointment.amount > 0 ? "Pendiente de cobro" : "Sin cobrar",
-    };
-  }
-
-  return {
-    className:
-      paymentStatusStyles[appointment.paymentStatusLabel] ??
-      "bg-slate-100 text-slate-700",
-    label: appointment.paymentStatusLabel,
-  };
-}
 
 export default function DashboardPage() {
   const { accountType, authError, displayName, loading, redirecting, user } =
@@ -151,7 +108,6 @@ export default function DashboardPage() {
     : isClinicWorkspace
     ? "Equipo, pacientes, agenda e ingresos de la clínica en un solo lugar."
     : "Pacientes, turnos, evoluciones y cobros en un solo lugar.";
-  const upcomingAppointments = summary.upcomingAppointments;
   // Totales reales: las listas del resumen vienen limitadas.
   const actionRequiredCount = summary.actionRequiredCount;
   const pendingPaymentCount = summary.pendingPaymentCount;
@@ -161,20 +117,6 @@ export default function DashboardPage() {
       href: "/dashboard/pacientes?nuevo=1",
       icon: UsersRound,
     },
-    {
-      label: "Nuevo turno",
-      href: "/dashboard/turnos/nuevo",
-      icon: CalendarPlus,
-    },
-    ...(isRecepcion
-      ? []
-      : [
-          {
-            label: "Registrar evolución",
-            href: "/dashboard/pacientes",
-            icon: ClipboardPlus,
-          },
-        ]),
     ...(isRecepcion ||
     (effectiveAccountType === "KINESIOLOGO" &&
       plan.plan !== "INDEPENDIENTE" &&
@@ -190,14 +132,6 @@ export default function DashboardPage() {
   ];
 
   const summaryCards = [
-    {
-      label: "Turnos de hoy",
-      value: String(summary.appointmentsTodayCount),
-      detail:
-        summary.appointmentsTodayCount === 0
-          ? "Sin turnos para hoy"
-          : "Agenda del día",
-    },
     {
       label: "Pacientes activos",
       value: String(summary.activePatientCount),
@@ -382,7 +316,7 @@ export default function DashboardPage() {
             </Card>
           ) : null}
 
-          <section className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-3">
+          <section className="mt-4 grid grid-cols-2 gap-3 sm:mt-6">
             {summaryCards.map((card) => (
               <Card as="article" variant="default" padding="sm" key={card.label}>
                 <p className="text-sm font-medium text-slate-500">
@@ -399,80 +333,7 @@ export default function DashboardPage() {
           </section>
 
           <section className="mt-4 grid items-start gap-4 xl:grid-cols-[1.6fr_0.8fr] sm:mt-6 sm:gap-6">
-            <Card variant="default" padding="md">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-bold text-ink">Próximos turnos</h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Ordenados por fecha y hora.
-                  </p>
-                </div>
-                <Link
-                  className="text-sm font-semibold text-ocean-700"
-                  href="/dashboard/turnos"
-                >
-                  Ver agenda
-                </Link>
-              </div>
-              <div className="mt-4 divide-y divide-ocean-100">
-                {upcomingAppointments.map((appointment) => {
-                  const status = getAppointmentDisplayStatus(appointment);
-                  const paymentBadge = getPaymentBadge(appointment);
-
-                  return (
-                    <div
-                      className="grid gap-3 py-4 md:grid-cols-[7rem_5rem_1fr_auto] md:items-center"
-                      key={appointment.id}
-                    >
-                      <p className="text-sm font-semibold text-slate-600">
-                        {appointment.date}
-                      </p>
-                      <p className="whitespace-nowrap text-sm font-bold text-ocean-800">
-                        {appointment.time}
-                      </p>
-                      <div>
-                        <Link
-                          className="font-semibold text-ink underline-offset-4 transition hover:text-ocean-700 hover:underline"
-                          href={`/dashboard/pacientes/${appointment.patientId}`}
-                          prefetch={false}
-                        >
-                          {appointment.patient}
-                        </Link>
-                        <p className="mt-1 text-sm text-slate-500">
-                          {appointment.modality}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`rounded-full px-3 py-1 text-sm font-semibold ${
-                            getAttendanceBadgeClass(status)
-                          }`}
-                          title="Estado de asistencia"
-                        >
-                          <span className="inline-flex items-center gap-1.5">
-                            <UserRound className="h-3.5 w-3.5" />
-                            {getAttendanceBadgeLabel(status)}
-                          </span>
-                        </span>
-                        <span
-                          className={`rounded-full px-3 py-1 text-sm font-semibold ${paymentBadge.className}`}
-                          title="Estado de cobro"
-                        >
-                          {paymentBadge.label}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {upcomingAppointments.length === 0 ? (
-                <Card variant="dashed" padding="lg" className="mt-5 text-center">
-                  <p className="font-semibold text-ink">
-                    No hay próximos turnos registrados.
-                  </p>
-                </Card>
-              ) : null}
-            </Card>
+            <TodayAgendaCard readOnlyMessage={isReadOnly ? readOnlyMessage : null} />
 
             <div className="space-y-6">
               <Card variant="default" padding="md">

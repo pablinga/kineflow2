@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
       body: buildBody(userAppointments),
       tag: `daily-agenda-${today}`,
       title: "Tus turnos de hoy",
-      url: "/dashboard/turnos/hoy",
+      url: "/dashboard/turnos?vista=dia",
     });
 
     if (result.sent === 0) {
