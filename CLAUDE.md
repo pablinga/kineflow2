@@ -40,6 +40,7 @@ App de gestión clínica (turnos, pacientes, evoluciones, cobros, reserva públi
 - Para probar flujos reales contra QA: crear datos de prueba con un script Node descartable usando el service-role client (`SUPABASE_SERVICE_ROLE_KEY` de `.env.qa.local`), ejercitar la app real (dev server o llamadas directas a los endpoints), y **limpiar los datos de prueba al final** (borrar usuarios/pacientes/turnos creados). Ver `scripts/core-flows-check.mjs` y `scripts/rls-isolation-check.mjs` como referencia de patrón.
 - Para verificación visual/UI: instalar Playwright temporalmente (`npm install --no-save playwright && npx playwright install chromium`), tomar capturas o interactuar, y después `npm uninstall playwright` — no debe quedar como dependencia del proyecto.
 - Scripts de test permanentes: `npm run test`, `npm run test:rls`, `npm run test:flows`.
+- Tests unitarios puros (sin red): `npm run test:attribution`, `npm run test:import`, `npm run test:pwa`. Para correrlos todos juntos usar `node --test` sin argumentos: `node --test tests/` no funciona en Node 22 (toma `tests/` como archivo).
 
 ## Cosas a tener en cuenta
 
@@ -116,6 +117,18 @@ Pendiente posible: "Registrar evolución" también desde Sesiones diarias.
 - Para cambios visuales chicos prefiere que se commitee sin correr Playwright (interrumpió esas corridas); para cambios que tocan permisos o datos conviene ofrecer la prueba end-to-end antes de commitear.
 - Suele mandar specs largos pegados ("Antes de modificar cada archivo, leelo completo... si algo no coincide, frená"): respetar los pasos de freno, verificar contra la base live y reportar diferencias antes de seguir.
 - Cuando pide "mostrame el diff antes de commitear", esperar su OK; "subilo / mandalo a qa" = commit + push a `qa`; "pasalo a prod" = aplicar migraciones pendientes en prod y después mergear `qa` → `main`.
+
+### Instalación de la PWA desde el celular (2026-10-08, en prod)
+
+- Botón permanente "Instalar KineFlow" en el menú hamburguesa del dashboard (no en la barra inferior, que tiene 4 columnas fijas) y link discreto en `/login`. Solo en mobile (Android, iOS, navegadores internos de apps); se oculta en escritorio, en modo standalone y después de `appinstalled`.
+- Arquitectura: `src/lib/pwa-platform.ts` (detección pura: `getInstallPlatform` → `android` | `ios-safari` | `ios-other` | `in-app` | `desktop` | `unsupported`; iPad con UA de Mac se detecta por `maxTouchPoints > 1`; mobile vs. escritorio combina UA con `pointer: coarse`), `src/lib/pwa-install.ts` (store único: los listeners de `beforeinstallprompt` / `appinstalled` se registran una sola vez desde `PwaInstallCapture` en el layout raíz, para no perder el evento si se entra por `/login`), hook `usePwaInstall`, `PwaInstallButton` y `PwaInstallInstructionsModal` (montado con portal en `document.body`: el `aside` del menú tiene `transform` y confinaría un `fixed`).
+- El evento de instalación se usa una sola vez: si el usuario cancela se descarta y el botón pasa a mostrar instrucciones manuales. Nunca se afirma que se instaló sin `appinstalled`.
+- El aviso automático (`PwaInstallPrompt`, solo en el dashboard) conserva el cooldown de 7 días (`pwa_install_dismissed_at`); "Ahora no" ya no descarta el evento, así el botón del menú lo sigue usando. En escritorio el aviso sigue como antes.
+- Instrucciones por plataforma: Android sin evento (menú ⋮ / Samsung Internet), iOS Safari (iPhone/iPad), Chrome/Edge iOS (Compartir, requiere iOS 16.4+), Firefox iOS y otros → abrir en Safari, Instagram/Facebook/Messenger → "Abrir en el navegador" + copiar link.
+- Medición con `@vercel/analytics`: `pwa_install_click` (`platform`, `source`: `menu` | `login` | `banner`) y `pwa_installed`.
+- Como el evento se captura en todas las páginas con `preventDefault`, la mini barra de instalación de Chrome ya no aparece tampoco en la landing.
+- Probado con Playwright y UAs emulados (evento simulado); falta prueba en dispositivos reales. `PushNotificationsCard` usa `detectStandalone()` de `pwa-install.ts`.
+- En los contenedores de Claude Code en la nube `npm ci` falla porque la red bloquea `cdn.sheetjs.com` (dependencia `xlsx`); para correr tsc/lint/tests se instaló con `xlsx@0.18.5` del registry de npm sin commitear `package.json` / lock.
 
 ### Panel admin de la plataforma (2026-09-28)
 
