@@ -437,13 +437,18 @@ export default function NewAppointmentPage() {
 
   // Profesional por el que se piden horarios: en el rol KINESIOLOGO de una
   // clínica es siempre el propio; para el staff, el filtro elegido.
-  const slotQueryProfessional =
-    activeWorkspace?.type === "CLINICA" && activeWorkspace.role === "KINESIOLOGO"
+  // En el espacio particular los horarios libres salen de los días y horarios
+  // de Reservas online del propio kinesiólogo (el endpoint ignora el id).
+  const isPersonalWorkspace = activeWorkspace?.type === "PERSONAL";
+  const slotQueryProfessional = isPersonalWorkspace
+    ? "self"
+    : activeWorkspace?.type === "CLINICA" && activeWorkspace.role === "KINESIOLOGO"
       ? selectedClinicProfessionalId
       : slotProfessionalFilter;
   const slotQueryDuration = appointment.durationMinutes;
   const slotsEnabled =
-    activeWorkspace?.type === "CLINICA" && Boolean(activeWorkspaceId && slotQueryProfessional);
+    (activeWorkspace?.type === "CLINICA" || isPersonalWorkspace) &&
+    Boolean(activeWorkspaceId && slotQueryProfessional);
 
   useEffect(() => {
     selectedSlotRef.current = {
@@ -511,10 +516,11 @@ export default function NewAppointmentPage() {
           !nextSlots.some(
             (slot) =>
               slot.start === current.start &&
-              slot.professionals.some(
-                (professional) =>
-                  professional.clinicProfessionalId === current.professionalId,
-              ),
+              (isPersonalWorkspace ||
+                slot.professionals.some(
+                  (professional) =>
+                    professional.clinicProfessionalId === current.professionalId,
+                )),
           )
         ) {
           setSelectedSlotStart("");
@@ -545,6 +551,7 @@ export default function NewAppointmentPage() {
   }, [
     activeWorkspaceId,
     effectiveAllowsSimultaneous,
+    isPersonalWorkspace,
     slotQueryDuration,
     slotQueryProfessional,
     slotWeekStart,
@@ -825,6 +832,13 @@ export default function NewAppointmentPage() {
 
         if (independentPracticeBlocked) {
           setError(independentPlanMessage);
+          return;
+        }
+
+        if (!appointment.date || !appointment.time) {
+          setError(
+            "Elegí un horario disponible o cargá la fecha y hora manualmente.",
+          );
           return;
         }
 
@@ -1152,6 +1166,12 @@ export default function NewAppointmentPage() {
     slot: PickerSlot,
     professional: PickerSlot["professionals"][number] = slot.professionals[0],
   ) {
+    if (isPersonalWorkspace) {
+      setSelectedSlotStart(slot.start);
+      setAppointment((current) => ({ ...current, date: slot.date, time: slot.startTime }));
+      return;
+    }
+
     if (!professional) {
       return;
     }
@@ -1266,6 +1286,62 @@ export default function NewAppointmentPage() {
     </div>
   );
 
+  const personalSlotsField = (
+    <div className="md:col-span-2">
+      {slotsError ? (
+        <Alert className="mb-3" tone="error">
+          {slotsError} Podés cargar la fecha y hora manualmente.
+        </Alert>
+      ) : null}
+      <SlotPicker
+        holidays={slotHolidays}
+        loading={slotsLoading}
+        onSelect={(slot) => selectSlot(slot)}
+        onWeekChange={setSlotWeekStart}
+        selected={selectedSlotStart || null}
+        slots={availableSlots}
+        weekStart={slotWeekStart}
+      />
+      <p className="mt-2 text-xs text-slate-500">
+        Los horarios libres salen de tus días y horarios de{" "}
+        <Link
+          className="font-semibold text-ocean-700 underline-offset-4 hover:underline"
+          href="/dashboard/disponibilidad"
+          prefetch={false}
+        >
+          Reservas online
+        </Link>
+        . Para otro horario, cargalo manualmente.
+      </p>
+      {selectedSlot ? (
+        <p className="mt-3 rounded-lg bg-ocean-50 px-3 py-2 text-sm font-semibold text-ocean-900">
+          {new Date(`${selectedSlot.date}T12:00:00`).toLocaleDateString("es-AR", {
+            day: "2-digit",
+            month: "long",
+            weekday: "long",
+          })}{" "}
+          a las {selectedSlot.startTime}
+        </p>
+      ) : null}
+      <button
+        className="mt-3 text-sm font-semibold text-ocean-700 underline-offset-4 hover:underline"
+        onClick={() => {
+          setManualDateEntry((current) => !current);
+          setSelectedSlotStart("");
+        }}
+        type="button"
+      >
+        {manualDateEntry ? "Ocultar carga manual" : "Cargar fecha y hora manualmente"}
+      </button>
+      {manualDateEntry ? (
+        <div className="mt-3 grid grid-cols-1 gap-4 rounded-lg border border-ocean-100 p-4 md:grid-cols-2">
+          {dateField}
+          {timeField}
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
@@ -1356,13 +1432,13 @@ export default function NewAppointmentPage() {
                 </>
               ) : (
                 <>
-                  {dateField}
-                  {timeField}
-                  {legacyProfessionalField}
+                  {/* Paciente primero y después el horario, igual que en la
+                      clínica. */}
                   {patientField}
                   {treatmentField}
                   {attentionTypeField}
                   {durationField}
+                  {personalSlotsField}
                   {modalityField}
                   {costField}
                 </>

@@ -179,8 +179,18 @@ function IncomePageContent() {
                 Control económico
               </h1>
               <p className="mt-2 text-slate-600">
-                Seguimiento simple de cobros por sesión.
+                Lo que cobraste y lo que falta cobrar a tus pacientes.
               </p>
+              {/* Ingresos = cobros a pacientes; Reportes = sesiones para
+                  rendir a obras sociales y ART (con N° de afiliado y Excel). */}
+              <Link
+                className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-ocean-700 underline-offset-4 hover:underline"
+                href="/dashboard/reportes"
+                prefetch={false}
+              >
+                Reporte mensual para obras sociales y ART (Excel)
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
             </div>
             <div className="rounded-lg bg-emerald-50 px-4 py-3">
               <p className="text-sm font-semibold text-emerald-700">

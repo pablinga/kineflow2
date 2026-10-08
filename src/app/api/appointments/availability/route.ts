@@ -14,15 +14,18 @@ import {
 } from "@/lib/supabase-server";
 
 /**
- * Horarios libres para que el staff de una clínica dé un turno desde el
- * dashboard (misma lógica que la reserva online, en modo "staff").
+ * Horarios libres para dar un turno desde el dashboard (misma lógica que la
+ * reserva online, en modo "staff"): el staff de una clínica, o el kinesiólogo
+ * en su espacio particular (según sus horarios de Reservas online).
  *
- * GET ?workspaceId&professionalId (clinic_professional id o "any")&from&to
- *     &durationMinutes&allowsSimultaneous=true|false
+ * GET ?workspaceId&professionalId (clinic_professional id o "any"; en el
+ *     espacio particular se ignora)&from&to&durationMinutes
+ *     &allowsSimultaneous=true|false
  *
  * Respuesta: { durationMinutes, holidays, slots: [{ date, start, end,
  * startTime, endTime, professionals: [{ clinicProfessionalId, professionalId,
- * name }] }] }. Nunca devuelve datos de pacientes.
+ * name }] }] } (en el espacio particular, professionals vacío). Nunca
+ * devuelve datos de pacientes.
  */
 
 const LOG_PREFIX = "[appointments:availability]";
@@ -101,23 +104,60 @@ export async function GET(request: NextRequest) {
     return jsonError("No pudimos calcular la disponibilidad.", 500);
   }
 
-  const { data: isStaff, error: staffError } = await supabase.rpc("is_workspace_staff", {
-    target_workspace_id: workspaceId,
-  });
-
-  if (staffError) {
-    console.error(`${LOG_PREFIX} staff check failed`, { code: staffError.code });
-    return jsonError("No pudimos validar tus permisos.", 500);
-  }
-
-  if (!isStaff) {
-    return jsonError("No tenés permisos para dar turnos en esta clínica.", 403);
-  }
-
   try {
     const workspace = await getWorkspace(admin, workspaceId);
 
-    if (!workspace || workspace.type !== "CLINICA") {
+    if (!workspace) {
+      return jsonError("No encontramos el espacio de trabajo.", 404);
+    }
+
+    // Espacio particular: solo su dueño, con sus propios horarios.
+    if (workspace.type === "PERSONAL") {
+      if (!workspace.owner_id || workspace.owner_id !== userData.user.id) {
+        return jsonError("No tenés permisos para dar turnos en este espacio.", 403);
+      }
+
+      const context = await resolveBookingContext(admin, workspaceId, workspace.owner_id);
+
+      if (!context) {
+        return jsonError("No pudimos calcular la disponibilidad.", 500);
+      }
+
+      const durationMinutes = normalizeDuration(
+        searchParams.get("durationMinutes"),
+        workspace.default_session_duration_minutes,
+      );
+      const freeSlots = await getFreeSlots({
+        admin,
+        allowsSimultaneous,
+        context,
+        durationMinutes,
+        from,
+        mode: "staff",
+        to,
+      });
+
+      return NextResponse.json({
+        durationMinutes,
+        holidays: getArgentinaHolidaysInRange(from, to),
+        slots: freeSlots.map((slot) => ({ ...slot, professionals: [] })),
+      });
+    }
+
+    const { data: isStaff, error: staffError } = await supabase.rpc("is_workspace_staff", {
+      target_workspace_id: workspaceId,
+    });
+
+    if (staffError) {
+      console.error(`${LOG_PREFIX} staff check failed`, { code: staffError.code });
+      return jsonError("No pudimos validar tus permisos.", 500);
+    }
+
+    if (!isStaff) {
+      return jsonError("No tenés permisos para dar turnos en esta clínica.", 403);
+    }
+
+    if (workspace.type !== "CLINICA") {
       return jsonError("La disponibilidad por profesional solo está disponible para clínicas.", 400);
     }
 
