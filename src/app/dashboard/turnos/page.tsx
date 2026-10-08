@@ -1418,9 +1418,9 @@ export default function AppointmentsPage() {
             </span>
           ) : (
             <>
-              {/* El cobro importa recién cuando asistió; antes era un segundo
-                  "Pendiente" al lado del de asistencia. */}
-              {isAttended ? (
+              {/* El cobro se muestra cuando asistió (o si ya se cobró); antes
+                  era un segundo "Pendiente" al lado del de asistencia. */}
+              {isAttended || appointment.paymentStatus !== "pending" ? (
                 <span
                   className={`w-fit rounded-full px-2 py-1 text-[0.62rem] font-semibold ${
                     appointment.paymentStatus === "pending"

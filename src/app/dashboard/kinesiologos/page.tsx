@@ -8,6 +8,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   Trash2,
   UserX,
@@ -542,14 +543,43 @@ export default function ClinicKinesiologistsPage() {
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
 
+  // Los dados de baja van al final, uno por email, y solo si no volvió a estar
+  // activo o invitado (ahí "Reactivar" no tendría sentido).
+  const teamKinesiologists = useMemo(() => {
+    const currentEmails = new Set(
+      kinesiologists
+        .filter((item) => item.status !== "inactive")
+        .map((item) => item.email.toLowerCase()),
+    );
+    const seenInactiveEmails = new Set<string>();
+    const inactive = kinesiologists.filter((item) => {
+      const emailKey = item.email.toLowerCase();
+
+      if (
+        item.status !== "inactive" ||
+        currentEmails.has(emailKey) ||
+        seenInactiveEmails.has(emailKey)
+      ) {
+        return false;
+      }
+
+      seenInactiveEmails.add(emailKey);
+      return true;
+    });
+
+    return [
+      ...kinesiologists.filter((item) => item.status !== "inactive"),
+      ...inactive,
+    ];
+  }, [kinesiologists]);
   const filteredKinesiologists = useMemo(() => {
     const normalized = query.trim().toLowerCase();
 
     if (!normalized) {
-      return kinesiologists;
+      return teamKinesiologists;
     }
 
-    return kinesiologists.filter((item) =>
+    return teamKinesiologists.filter((item) =>
       [
         item.lastName,
         item.firstName,
@@ -562,7 +592,7 @@ export default function ClinicKinesiologistsPage() {
         .toLowerCase()
         .includes(normalized),
     );
-  }, [kinesiologists, query]);
+  }, [teamKinesiologists, query]);
 
   // Aviso push al profesional; si falla no bloquea el alta.
   function notifyClinicInvitation(clinicProfessionalId: string) {
@@ -636,6 +666,35 @@ export default function ClinicKinesiologistsPage() {
     setAvailability([]);
   }
 
+  /**
+   * Alta o reactivación por email (mismo camino: si había un vínculo dado de
+   * baja, se reactiva). Si tiene cuenta queda activo; si no, se le envía la
+   * invitación. Los horarios solo se reemplazan si se pasan.
+   */
+  async function linkProfessionalByEmail(
+    targetEmail: string,
+    newAvailability?: KinesiologistAvailabilityInput[],
+  ) {
+    const lookup = await findByEmail(targetEmail);
+    const linkId = await createOrReactivateInvitation(lookup);
+
+    if (newAvailability) {
+      await saveAvailability(linkId, newAvailability);
+    }
+
+    notifyClinicInvitation(linkId);
+
+    if (lookup.exists) {
+      return "Profesional vinculado como activo.";
+    }
+
+    const skipped = await sendInvitation(linkId, lookup.email);
+
+    return skipped
+      ? "No encontramos una cuenta con este email y no pudimos enviar la invitación. Pedile que se registre en KineFlow con este email."
+      : "No encontramos una cuenta con este email: le enviamos una invitación.";
+  }
+
   async function handleAddKinesiologist(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving("add");
@@ -643,28 +702,14 @@ export default function ClinicKinesiologistsPage() {
     setMessage("");
 
     try {
-      const lookup = await findByEmail(email);
-      const linkId = await createOrReactivateInvitation(lookup);
+      const targetEmail = email;
       const pendingAvailability = availability;
 
       setEmail("");
       setAvailability([]);
       setModalOpen(false);
 
-      await saveAvailability(linkId, pendingAvailability);
-      notifyClinicInvitation(linkId);
-
-      if (lookup.exists) {
-        setMessage("Profesional vinculado como activo.");
-      } else {
-        const skipped = await sendInvitation(linkId, lookup.email);
-        setMessage(
-          skipped
-            ? "No encontramos una cuenta asociada a este email. Se enviará una invitación. El email quedó preparado en logs porque Resend no está configurado."
-            : "No encontramos una cuenta asociada a este email. Se enviará una invitación.",
-        );
-      }
-
+      setMessage(await linkProfessionalByEmail(targetEmail, pendingAvailability));
       await refreshKinesiologists();
     } catch (addError) {
       setActionError(
@@ -684,7 +729,7 @@ export default function ClinicKinesiologistsPage() {
       const skipped = await sendInvitation(id, targetEmail);
       setMessage(
         skipped
-          ? "Invitación preparada en logs porque Resend no está configurado."
+          ? "No pudimos enviar el email de invitación. Pedile que se registre en KineFlow con este email."
           : "Invitación reenviada correctamente.",
       );
     } catch (resendError) {
@@ -762,33 +807,27 @@ export default function ClinicKinesiologistsPage() {
     }
   }
 
-  async function handleUnlink(id: string) {
-    if (
-      !window.confirm(
-        "¿Querés desvincular este profesional de la clínica? No se borrará su usuario ni la información histórica.",
-      )
-    ) {
-      return;
-    }
-
-    setSaving(id);
+  async function handleReactivate(item: ClinicKinesiologist) {
+    setSaving(item.id);
     setActionError("");
     setMessage("");
 
     try {
-      await unlinkKinesiologist(id);
-      setMessage("Profesional desvinculado de la clínica.");
-    } catch (unlinkError) {
+      // Conserva los horarios que tenía cargados.
+      setMessage(await linkProfessionalByEmail(item.email));
+      await refreshKinesiologists();
+    } catch (reactivateError) {
       setActionError(
         getFriendlyErrorMessage(
-          unlinkError,
-          "No pudimos desvincular al profesional.",
+          reactivateError,
+          "No pudimos reactivar al profesional.",
         ),
       );
     } finally {
       setSaving("");
     }
   }
+
 
   function handleOpenEditSettings(item: ClinicKinesiologist) {
     setEditingSettingsKinesiologist(item);
@@ -838,11 +877,18 @@ export default function ClinicKinesiologistsPage() {
     }
   }
 
+  // Una sola acción de baja: en un profesional activo lo da de baja; en uno
+  // pendiente cancela la invitación. No borra su usuario ni la historia.
   async function handleRemoveKinesiologist(item: ClinicKinesiologist) {
     const displayName = item.name || item.email;
+    const isPending = item.status === "pending";
 
     if (
-      !window.confirm(`¿Seguro que querés quitar a ${displayName} del equipo?`)
+      !window.confirm(
+        isPending
+          ? `¿Cancelar la invitación a ${displayName}?`
+          : `¿Dar de baja a ${displayName} del equipo? No se borra su usuario ni la información histórica, y lo podés reactivar después.`,
+      )
     ) {
       return;
     }
@@ -852,8 +898,13 @@ export default function ClinicKinesiologistsPage() {
     setMessage("");
 
     try {
-      await removeKinesiologist(item.id);
-      setMessage("Profesional quitado del equipo.");
+      if (isPending) {
+        await unlinkKinesiologist(item.id);
+        setMessage("Invitación cancelada.");
+      } else {
+        await removeKinesiologist(item.id);
+        setMessage("Profesional dado de baja del equipo.");
+      }
     } catch (removeError) {
       setActionError(
         getFriendlyErrorMessage(
@@ -864,6 +915,76 @@ export default function ClinicKinesiologistsPage() {
     } finally {
       setSaving("");
     }
+  }
+
+  function renderProfessionalActions(item: ClinicKinesiologist) {
+    const busy = saving === item.id;
+    const iconButton =
+      "inline-flex h-10 w-10 items-center justify-center rounded-lg transition disabled:opacity-50";
+
+    return (
+      <>
+        {item.status === "active" ? (
+          <button
+            aria-label="Editar horarios"
+            className={`${iconButton} text-ocean-700 hover:bg-ocean-50`}
+            disabled={busy}
+            onClick={() => handleEditAvailability(item)}
+            title="Editar horarios"
+            type="button"
+          >
+            <Clock className="h-4 w-4" />
+          </button>
+        ) : null}
+        {item.status === "pending" ? (
+          <button
+            aria-label="Reenviar invitación"
+            className={`${iconButton} text-ocean-700 hover:bg-ocean-50`}
+            disabled={busy}
+            onClick={() => handleResend(item.id, item.email)}
+            title="Reenviar invitación"
+            type="button"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        ) : null}
+        {canManage && item.status === "active" ? (
+          <button
+            aria-label="Editar"
+            className={`${iconButton} text-slate-600 hover:bg-slate-100 hover:text-slate-900`}
+            disabled={busy}
+            onClick={() => handleOpenEditSettings(item)}
+            title="Editar"
+            type="button"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+        ) : null}
+        {canManage && item.status !== "inactive" ? (
+          <button
+            aria-label={item.status === "pending" ? "Cancelar invitación" : "Dar de baja"}
+            className={`${iconButton} text-red-600 hover:bg-red-50`}
+            disabled={busy}
+            onClick={() => handleRemoveKinesiologist(item)}
+            title={item.status === "pending" ? "Cancelar invitación" : "Dar de baja"}
+            type="button"
+          >
+            <UserX className="h-4 w-4" />
+          </button>
+        ) : null}
+        {canManage && item.status === "inactive" ? (
+          <button
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:opacity-50"
+            disabled={busy}
+            onClick={() => handleReactivate(item)}
+            type="button"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Reactivar
+          </button>
+        ) : null}
+      </>
+    );
   }
 
   if (authError) {
@@ -940,7 +1061,41 @@ export default function ClinicKinesiologistsPage() {
 
           <div className="mt-5 overflow-hidden rounded-lg border border-ocean-100 bg-white shadow-card">
             {filteredKinesiologists.length > 0 ? (
-              <div className="overflow-x-auto">
+              <>
+              {/* Celular: tarjetas, sin scroll horizontal hasta las acciones. */}
+              <ul className="divide-y divide-ocean-100 md:hidden">
+                {filteredKinesiologists.map((item) => (
+                  <li className="p-4" key={item.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-ink">
+                          {[item.firstName || item.name, item.lastName]
+                            .filter(Boolean)
+                            .join(" ") || item.email}
+                        </p>
+                        <p className="truncate text-sm text-slate-600">
+                          {item.email}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {getKinesiologistRoleLabel(item.role)}
+                          {item.licenseNumber ? ` · Mat. ${item.licenseNumber}` : ""}
+                        </p>
+                      </div>
+                      <span
+                        className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusClasses(
+                          item.status,
+                        )}`}
+                      >
+                        {getKinesiologistStatusLabel(item.status)}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap justify-end gap-1">
+                      {renderProfessionalActions(item)}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto md:block">
                 <table className="min-w-full divide-y divide-ocean-100 text-left text-sm">
                   <thead className="bg-ocean-50 text-xs font-bold uppercase text-slate-500">
                     <tr>
@@ -982,64 +1137,7 @@ export default function ClinicKinesiologistsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex justify-end gap-1">
-                            {item.status === "active" ? (
-                              <button
-                                aria-label="Editar horarios"
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-ocean-700 transition hover:bg-ocean-50"
-                                disabled={saving === item.id}
-                                onClick={() => handleEditAvailability(item)}
-                                title="Editar horarios"
-                                type="button"
-                              >
-                                <Clock className="h-4 w-4" />
-                              </button>
-                            ) : null}
-                            {item.status === "pending" ? (
-                              <button
-                                aria-label="Reenviar invitación"
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-ocean-700 transition hover:bg-ocean-50"
-                                disabled={saving === item.id}
-                                onClick={() => handleResend(item.id, item.email)}
-                                title="Reenviar invitación"
-                                type="button"
-                              >
-                                <RefreshCw className="h-4 w-4" />
-                              </button>
-                            ) : null}
-                            {canManage && item.status === "active" ? (
-                              <button
-                                aria-label="Editar"
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-                                disabled={saving === item.id}
-                                onClick={() => handleOpenEditSettings(item)}
-                                title="Editar"
-                                type="button"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                            ) : null}
-                            {canManage && item.status === "active" ? (
-                              <button
-                                aria-label="Quitar del equipo"
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50"
-                                disabled={saving === item.id}
-                                onClick={() => handleRemoveKinesiologist(item)}
-                                title="Quitar del equipo"
-                                type="button"
-                              >
-                                <UserX className="h-4 w-4" />
-                              </button>
-                            ) : null}
-                            <button
-                              aria-label="Desvincular"
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50"
-                              disabled={saving === item.id}
-                              onClick={() => handleUnlink(item.id)}
-                              title="Desvincular"
-                              type="button"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            {renderProfessionalActions(item)}
                           </div>
                         </td>
                       </tr>
@@ -1047,6 +1145,7 @@ export default function ClinicKinesiologistsPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             ) : (
               <div className="p-8 text-center">
                 <UsersRound className="mx-auto h-10 w-10 text-ocean-500" />

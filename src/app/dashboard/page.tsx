@@ -17,6 +17,7 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
+import { formatCurrency } from "@/lib/format";
 import { getPlanDisplayName, getTrialCountdownLabel } from "@/lib/plans";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
@@ -111,16 +112,20 @@ export default function DashboardPage() {
   // Totales reales: las listas del resumen vienen limitadas.
   const actionRequiredCount = summary.actionRequiredCount;
   const pendingPaymentCount = summary.pendingPaymentCount;
+  // Mismas reglas que el menú para ver Ingresos.
+  const canSeeIncome = !(
+    isRecepcion ||
+    (effectiveAccountType === "KINESIOLOGO" &&
+      plan.plan !== "INDEPENDIENTE" &&
+      accessLevel !== "TRIAL_ACTIVE")
+  );
   const quickAccessItems = [
     {
       label: "Nuevo paciente",
       href: "/dashboard/pacientes?nuevo=1",
       icon: UsersRound,
     },
-    ...(isRecepcion ||
-    (effectiveAccountType === "KINESIOLOGO" &&
-      plan.plan !== "INDEPENDIENTE" &&
-      accessLevel !== "TRIAL_ACTIVE")
+    ...(!canSeeIncome
       ? []
       : [
           {
@@ -138,14 +143,23 @@ export default function DashboardPage() {
       detail:
         summary.activePatientCount === 0 ? "Sin pacientes cargados" : "En seguimiento",
     },
-    {
-      label: "Cobros pendientes",
-      value: String(pendingPaymentCount),
-      detail:
-        pendingPaymentCount === 0
-          ? "Todo al día"
-          : "Requieren seguimiento",
-    },
+    // Los cobros pendientes ya están en "Requieren acción"; acá va lo cobrado.
+    ...(canSeeIncome
+      ? [
+          {
+            label: "Cobrado este mes",
+            value: formatCurrency(summary.monthIncome),
+            detail:
+              pendingPaymentCount > 0
+                ? `${pendingPaymentCount} ${
+                    pendingPaymentCount === 1
+                      ? "cobro pendiente"
+                      : "cobros pendientes"
+                  }`
+                : "Todo al día",
+          },
+        ]
+      : []),
   ];
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
@@ -316,7 +330,11 @@ export default function DashboardPage() {
             </Card>
           ) : null}
 
-          <section className="mt-4 grid grid-cols-2 gap-3 sm:mt-6">
+          <section
+            className={`mt-4 grid gap-3 sm:mt-6 ${
+              summaryCards.length > 1 ? "grid-cols-2" : "grid-cols-1"
+            }`}
+          >
             {summaryCards.map((card) => (
               <Card as="article" variant="default" padding="sm" key={card.label}>
                 <p className="text-sm font-medium text-slate-500">

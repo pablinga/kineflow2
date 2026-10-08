@@ -195,7 +195,7 @@ function mapAvailabilityRows(
 export function getKinesiologistStatusLabel(status: ClinicKinesiologistStatus) {
   const labels: Record<ClinicKinesiologistStatus, string> = {
     active: "Activo",
-    inactive: "Desvinculado",
+    inactive: "Dado de baja",
     pending: "Invitación pendiente",
   };
 
@@ -238,9 +238,11 @@ export function useClinicKinesiologists() {
           "id, professional_email, professional_id, role, status, invited_at, color, can_register_evolutions, can_view_assigned_patients, profiles(full_name, email, license_number)",
         )
         .eq("clinic_id", clinicId)
+        // También los dados de baja, para poder reactivarlos desde Equipo.
         .in("status", [
           CLINIC_PROFESSIONAL_STATUS.pending,
           CLINIC_PROFESSIONAL_STATUS.active,
+          CLINIC_PROFESSIONAL_STATUS.inactive,
         ])
         .order("invited_at", { ascending: false });
 

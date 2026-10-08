@@ -143,6 +143,10 @@ function PatientDetailPageContent() {
   >("idle");
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+  // Pestañas solo en pantallas chicas: en escritorio se ve todo en columnas.
+  const [fileTab, setFileTab] = useState<"sesiones" | "turnos" | "clinica">(
+    "sesiones",
+  );
   const [paymentRequest, setPaymentRequest] = useState<{
     appointmentId: string;
     key: number;
@@ -865,6 +869,8 @@ function PatientDetailPageContent() {
                         : "border-ocean-200 text-ocean-800 hover:bg-ocean-50"
                     }`}
                       onClick={() => {
+                        setFileTab("turnos");
+
                         if (oldestPendingPaymentAppointment) {
                           setPaymentRequest({
                             appointmentId: oldestPendingPaymentAppointment.id,
@@ -873,9 +879,11 @@ function PatientDetailPageContent() {
                           return;
                         }
 
-                        document
-                          .getElementById("historial-turnos")
-                          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        window.setTimeout(() => {
+                          document
+                            .getElementById("historial-turnos")
+                            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }, 0);
                       }}
                       title={
                         oldestPendingPaymentAppointment
@@ -915,8 +923,41 @@ function PatientDetailPageContent() {
                 </section>
               ) : null}
 
-              <section className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:mt-6 sm:gap-6">
-                <aside className="space-y-4">
+              <nav
+                aria-label="Secciones de la ficha"
+                className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ocean-100 bg-white p-1 shadow-sm xl:hidden"
+              >
+                {(
+                  [
+                    ["sesiones", `Evoluciones (${evolutions.length})`],
+                    ["turnos", `Turnos y cobros (${appointments.length})`],
+                    ["clinica", "Evaluación y tratamientos"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    aria-current={fileTab === value ? "page" : undefined}
+                    className={`inline-flex min-h-10 shrink-0 items-center rounded-md px-3 text-sm font-semibold transition ${
+                      fileTab === value
+                        ? "bg-ocean-600 text-white"
+                        : "text-slate-700 hover:bg-ocean-50"
+                    }`}
+                    key={value}
+                    onClick={() => setFileTab(value)}
+                    type="button"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </nav>
+
+              <section
+                className={`mt-4 grid-cols-1 gap-4 xl:grid xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:mt-6 sm:gap-6 ${
+                  fileTab === "turnos" ? "hidden" : "grid"
+                }`}
+              >
+                <aside
+                  className={`space-y-4 ${fileTab === "clinica" ? "block" : "hidden"} xl:block`}
+                >
                   {/* Atributo hidden (no la clase): space-y lo saltea y no desplaza a Tratamientos. */}
                   <section hidden>
                     <h2 className="text-lg font-bold text-ink">
@@ -1040,7 +1081,9 @@ function PatientDetailPageContent() {
                   </section>
                 </aside>
 
-                <div className="space-y-6">
+                <div
+                  className={`space-y-6 ${fileTab === "sesiones" ? "block" : "hidden"} xl:block`}
+                >
                   <section className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:p-5">
                     <div className="flex items-center justify-between gap-3">
                       <h2 className="text-lg font-bold text-ink">
@@ -1087,6 +1130,9 @@ function PatientDetailPageContent() {
                 </div>
               </section>
 
+              <div
+                className={`${fileTab === "turnos" ? "block" : "hidden"} xl:block`}
+              >
               <div id="historial-turnos" className="scroll-mt-20" />
               <PatientAppointmentHistory
                 appointments={appointments}
@@ -1138,6 +1184,7 @@ function PatientDetailPageContent() {
                 readOnlyMessage={readOnlyMessage}
                 showProfessional={activeWorkspace?.type === "CLINICA"}
               />
+              </div>
               </>
             </>
           ) : (

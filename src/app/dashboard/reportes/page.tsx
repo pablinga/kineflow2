@@ -118,8 +118,8 @@ function SessionsReportPageContent() {
                 Reporte mensual de sesiones
               </h1>
               <p className="mt-2 text-slate-600">
-                Filtrá las sesiones del mes por tipo de pago y exportalas a
-                Excel.
+                Las sesiones del mes con obra social o ART y N° de afiliado,
+                para rendir a cada prestador. Exportalas a Excel.
               </p>
             </div>
             <Button
@@ -245,7 +245,40 @@ function SessionsReportPageContent() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Celular: una tarjeta por sesión en lugar de la tabla ancha. */}
+            <ul className="divide-y divide-ocean-100 md:hidden">
+              {rows.map((row, index) => (
+                <li
+                  className="px-5 py-4 text-sm"
+                  key={`${row.date}-${row.time}-${row.patient}-${index}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-ink">
+                        {row.patient}
+                      </p>
+                      <p className="text-slate-600">
+                        {row.date} · {row.time}
+                        {hideProfessional || !row.professional
+                          ? ""
+                          : ` · ${row.professional}`}
+                      </p>
+                    </div>
+                    <p className="shrink-0 font-bold text-ink">
+                      {formatCurrency(row.amount)}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-slate-600">
+                    {row.paymentType}
+                    {row.provider ? ` · ${row.provider}` : ""}
+                    {row.memberNumber ? ` · Afiliado ${row.memberNumber}` : ""}
+                    {` · ${row.status}`}
+                  </p>
+                </li>
+              ))}
+            </ul>
+
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[56rem] text-left text-sm">
                 <thead className="bg-ocean-50 text-slate-600">
                   <tr>

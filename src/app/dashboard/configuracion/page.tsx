@@ -11,6 +11,7 @@ import {
   Timer,
   Trash2,
 } from "lucide-react";
+import Link from "next/link";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
@@ -112,6 +113,17 @@ function formatDate(dateValue: string) {
   });
 }
 
+// Configuración agrupada por tema: antes era una sola página larga que
+// mezclaba datos del espacio, catálogos, agenda y el dispositivo.
+const CONFIG_SECTIONS = [
+  { id: "general", label: "General" },
+  { id: "atencion", label: "Atención y coberturas" },
+  { id: "agenda", label: "Agenda" },
+  { id: "notificaciones", label: "Notificaciones" },
+] as const;
+
+type ConfigSection = (typeof CONFIG_SECTIONS)[number]["id"];
+
 export default function WorkspaceSettingsPage() {
   const { authError, loading, redirecting } = useRequireAuth();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
@@ -146,6 +158,21 @@ export default function WorkspaceSettingsPage() {
     loaded: blockedDatesLoaded,
   } = useWorkspaceBlockedDates();
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [section, setSection] = useState<ConfigSection>("general");
+
+  // Permite entrar directo a una pestaña: /dashboard/configuracion#agenda.
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "");
+
+    if (CONFIG_SECTIONS.some((item) => item.id === hash)) {
+      setSection(hash as ConfigSection);
+    }
+  }, []);
+
+  function selectSection(next: ConfigSection) {
+    setSection(next);
+    window.history.replaceState(null, "", `#${next}`);
+  }
   const [blockedDateForm, setBlockedDateForm] = useState({
     blockedDate: "",
     reason: "",
@@ -413,7 +440,38 @@ export default function WorkspaceSettingsPage() {
           title="Tu espacio de trabajo"
         />
 
-        <PushNotificationsCard />
+        <nav
+          aria-label="Secciones de configuración"
+          className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ocean-100 bg-white p-1 shadow-sm"
+        >
+          {CONFIG_SECTIONS.map((item) => (
+            <button
+              aria-current={section === item.id ? "page" : undefined}
+              className={`inline-flex min-h-10 shrink-0 items-center rounded-md px-4 text-sm font-semibold transition ${
+                section === item.id
+                  ? "bg-ocean-600 text-white"
+                  : "text-slate-700 hover:bg-ocean-50"
+              }`}
+              key={item.id}
+              onClick={() => selectSection(item.id)}
+              type="button"
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        {/* Arriba, para que se vean al guardar desde cualquier pestaña. */}
+        {combinedError ? (
+          <Alert className="mt-4" tone="error">
+            {combinedError}
+          </Alert>
+        ) : null}
+        {message ? (
+          <Alert className="mt-4" tone="success">
+            {message}
+          </Alert>
+        ) : null}
 
         {!canManage ? (
           <Alert className="mt-4" tone="warning" title="Solo lectura">
@@ -429,7 +487,13 @@ export default function WorkspaceSettingsPage() {
           </Alert>
         ) : null}
 
-        <form className="mt-4 grid gap-4 lg:grid-cols-2" onSubmit={handleSaveSettings}>
+        <form
+          // Con la clase grid, el atributo hidden no alcanza para ocultarlo.
+          className={`mt-4 gap-4 lg:grid-cols-2 ${
+            section === "general" ? "grid" : "hidden"
+          }`}
+          onSubmit={handleSaveSettings}
+        >
           <section className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
@@ -588,7 +652,11 @@ export default function WorkspaceSettingsPage() {
           ) : null}
         </form>
 
-        <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section
+          className={`mt-4 grid-cols-1 gap-4 lg:grid-cols-2 ${
+            section === "atencion" ? "grid" : "hidden"
+          }`}
+        >
           {/* Catálogo propio de cada workspace: clínica o particular. */}
           {activeWorkspace ? (
             <AttentionTypesSection
@@ -840,13 +908,28 @@ export default function WorkspaceSettingsPage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6 lg:col-span-2">
+        </section>
+
+        <section className="mt-4" hidden={section !== "agenda"}>
+          <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6">
             <div className="flex items-center gap-3">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
                 <CalendarOff className="h-5 w-5" />
               </span>
               <h2 className="text-xl font-bold text-ink">Días bloqueados</h2>
             </div>
+            <p className="mt-2 text-sm text-slate-600">
+              Los días bloqueados no se ofrecen en la reserva online. Los días y
+              horarios de atención se configuran en{" "}
+              <Link
+                className="font-semibold text-ocean-700 underline-offset-4 hover:underline"
+                href="/dashboard/disponibilidad"
+                prefetch={false}
+              >
+                Reservas online
+              </Link>
+              .
+            </p>
 
             <form className="mt-5 flex gap-2 sm:gap-3" onSubmit={handleAddBlockedDate}>
               <input
@@ -935,16 +1018,9 @@ export default function WorkspaceSettingsPage() {
           </div>
         </section>
 
-        {combinedError ? (
-          <Alert className="mt-4" tone="error">
-            {combinedError}
-          </Alert>
-        ) : null}
-        {message ? (
-          <Alert className="mt-4" tone="success">
-            {message}
-          </Alert>
-        ) : null}
+        <div hidden={section !== "notificaciones"}>
+          <PushNotificationsCard />
+        </div>
       </PageContainer>
     </main>
   );

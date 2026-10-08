@@ -183,14 +183,24 @@ export function PatientAppointmentHistory({
                       <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-800 ring-1 ring-sky-200">
                         {getCoverageLabel(appointment)}
                       </span>
-                    ) : (
+                    ) : status === "Asistió" || appointment.paymentStatus !== "pending" ? (
+                      // El cobro se muestra cuando asistió (o si ya se cobró);
+                      // antes era un segundo "Pendiente" en cada turno.
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          paymentStatusStyles[appointment.paymentStatusLabel] ??
-                          "bg-slate-100 text-slate-700"
+                          appointment.paymentStatus === "pending"
+                            ? "bg-amber-50 text-amber-800 ring-1 ring-amber-200"
+                            : paymentStatusStyles[appointment.paymentStatusLabel] ??
+                              "bg-slate-100 text-slate-700"
                         }`}
                       >
-                        {appointment.paymentStatusLabel} ·{" "}
+                        {appointment.paymentStatus === "pending"
+                          ? "Sin cobrar"
+                          : appointment.paymentStatusLabel}{" "}
+                        · {formatCurrency(appointment.amount)}
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
                         {formatCurrency(appointment.amount)}
                       </span>
                     )}

@@ -91,7 +91,6 @@ export type DashboardSummary = {
   activePatientCount: number;
   monthIncome: number;
   paymentActionRequired: DashboardAppointment[];
-  pendingPaymentAmount: number;
   pendingPaymentCount: number;
   recentPatients: DashboardPatient[];
 };
@@ -102,7 +101,6 @@ const emptySummary: DashboardSummary = {
   activePatientCount: 0,
   monthIncome: 0,
   paymentActionRequired: [],
-  pendingPaymentAmount: 0,
   pendingPaymentCount: 0,
   recentPatients: [],
 };
@@ -360,13 +358,6 @@ export function useDashboardSummary() {
           .order("scheduled_at", { ascending: false })
           .limit(8),
       );
-      const pendingPaymentAmountQuery = applyAppointmentScope(
-        supabase
-          .from("appointments")
-          .select("session_amount")
-          .eq("payment_status", "pending")
-          .gt("session_amount", 0),
-      );
       const monthIncomeQuery = applyAppointmentScope(
         supabase
           .from("appointments")
@@ -377,20 +368,18 @@ export function useDashboardSummary() {
           ),
       );
 
-      queryCount += canViewPatients ? 6 : 4;
+      queryCount += canViewPatients ? 5 : 3;
       const [
         activePatientCountResult,
         recentPatientsResult,
         actionRequiredResult,
         paymentActionRequiredResult,
-        pendingPaymentAmountResult,
         monthIncomeResult,
       ] = await Promise.all([
         activePatientCountQuery,
         recentPatientsQuery,
         actionRequiredQuery,
         paymentActionRequiredQuery,
-        pendingPaymentAmountQuery,
         monthIncomeQuery,
       ]);
 
@@ -399,7 +388,6 @@ export function useDashboardSummary() {
         recentPatientsResult?.error,
         actionRequiredResult.error,
         paymentActionRequiredResult.error,
-        pendingPaymentAmountResult.error,
         monthIncomeResult.error,
       ].filter(Boolean);
 
@@ -420,9 +408,6 @@ export function useDashboardSummary() {
         activePatientCount: activePatientCountResult?.count ?? 0,
         monthIncome: sumAmounts((monthIncomeResult.data ?? []) as AmountRow[]),
         paymentActionRequired,
-        pendingPaymentAmount: sumAmounts(
-          (pendingPaymentAmountResult.data ?? []) as AmountRow[],
-        ),
         pendingPaymentCount:
           paymentActionRequiredResult.count ?? paymentActionRequired.length,
         recentPatients: (
