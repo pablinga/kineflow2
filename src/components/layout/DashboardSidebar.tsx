@@ -7,7 +7,6 @@ import {
   Building2,
   CalendarClock,
   CalendarDays,
-  ClipboardList,
   CreditCard,
   ChevronsUpDown,
   DollarSign,
@@ -56,11 +55,6 @@ const navigation = {
     { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
     {
-      href: "/dashboard/turnos/hoy",
-      label: "Asistencia de sesiones",
-      icon: ClipboardList,
-    },
-    {
       href: "/dashboard/disponibilidad",
       label: "Reservas online",
       icon: CalendarClock,
@@ -80,11 +74,6 @@ const navigation = {
     { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
     { href: "/dashboard/equipo", label: "Equipo", icon: UsersRound },
     { href: "/dashboard/turnos", label: "Agenda", icon: CalendarDays },
-    {
-      href: "/dashboard/turnos/hoy",
-      label: "Asistencia de sesiones",
-      icon: ClipboardList,
-    },
     {
       href: "/dashboard/disponibilidad",
       label: "Reservas online",
@@ -158,7 +147,6 @@ export function DashboardSidebar() {
         "/dashboard",
         "/dashboard/turnos",
         "/dashboard/pacientes",
-        "/dashboard/turnos/hoy",
       ]
     : effectiveAccountType === "CONSULTORIO"
       ? [
@@ -403,7 +391,11 @@ export function DashboardSidebar() {
       </aside>
       {visibleMobileNavigation.length > 0 ? (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ocean-100 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-soft backdrop-blur lg:hidden">
-          <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
+          <div
+            className={`mx-auto grid max-w-lg gap-1 ${
+              visibleMobileNavigation.length === 3 ? "grid-cols-3" : "grid-cols-4"
+            }`}
+          >
             {visibleMobileNavigation.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);

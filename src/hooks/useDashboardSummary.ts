@@ -89,26 +89,22 @@ export type DashboardSummary = {
   /** Total real (la lista actionRequired viene limitada). */
   actionRequiredCount: number;
   activePatientCount: number;
-  appointmentsTodayCount: number;
   monthIncome: number;
   paymentActionRequired: DashboardAppointment[];
   pendingPaymentAmount: number;
   pendingPaymentCount: number;
   recentPatients: DashboardPatient[];
-  upcomingAppointments: DashboardAppointment[];
 };
 
 const emptySummary: DashboardSummary = {
   actionRequired: [],
   actionRequiredCount: 0,
   activePatientCount: 0,
-  appointmentsTodayCount: 0,
   monthIncome: 0,
   paymentActionRequired: [],
   pendingPaymentAmount: 0,
   pendingPaymentCount: 0,
   recentPatients: [],
-  upcomingAppointments: [],
 };
 
 const modalityLabels: Record<DashboardAppointmentRow["modality"], string> = {
@@ -147,18 +143,6 @@ function debugDashboard(message: string, details?: unknown) {
   }
 
   console.debug(message, details ?? "");
-}
-
-function startOfDay(date: Date) {
-  const next = new Date(date);
-  next.setHours(0, 0, 0, 0);
-  return next;
-}
-
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
 }
 
 function startOfMonth(date: Date) {
@@ -265,8 +249,6 @@ export function useDashboardSummary() {
       const supabase = getSupabaseClient();
       const userId = user.id;
       const now = new Date();
-      const todayStart = startOfDay(now);
-      const tomorrowStart = addDays(todayStart, 1);
       const monthStart = startOfMonth(now);
       const monthEnd = endOfMonth(now);
       const workspaceId = activeWorkspace.id;
@@ -351,24 +333,6 @@ export function useDashboardSummary() {
           )
         : null;
 
-      const appointmentsTodayQuery = applyAppointmentScope(
-        supabase
-          .from("appointments")
-          .select("id", { count: "exact", head: true })
-          .gte("scheduled_at", todayStart.toISOString())
-          .lt("scheduled_at", tomorrowStart.toISOString()),
-      );
-      const upcomingAppointmentsQuery = applyAppointmentScope(
-        supabase
-          .from("appointments")
-          .select(
-            "id, patient_id, scheduled_at, duration_minutes, modality, status, session_amount, payment_status, payment_method, paid_at, payment_notes, patients(full_name)",
-          )
-          .in("status", ["pending", "confirmed", "rescheduled"])
-          .gte("scheduled_at", now.toISOString())
-          .order("scheduled_at", { ascending: true })
-          .limit(6),
-      );
       const actionRequiredQuery = applyAppointmentScope(
         supabase
           .from("appointments")
@@ -413,12 +377,10 @@ export function useDashboardSummary() {
           ),
       );
 
-      queryCount += canViewPatients ? 8 : 6;
+      queryCount += canViewPatients ? 6 : 4;
       const [
         activePatientCountResult,
         recentPatientsResult,
-        appointmentsTodayResult,
-        upcomingAppointmentsResult,
         actionRequiredResult,
         paymentActionRequiredResult,
         pendingPaymentAmountResult,
@@ -426,8 +388,6 @@ export function useDashboardSummary() {
       ] = await Promise.all([
         activePatientCountQuery,
         recentPatientsQuery,
-        appointmentsTodayQuery,
-        upcomingAppointmentsQuery,
         actionRequiredQuery,
         paymentActionRequiredQuery,
         pendingPaymentAmountQuery,
@@ -437,8 +397,6 @@ export function useDashboardSummary() {
       const possibleErrors = [
         activePatientCountResult?.error,
         recentPatientsResult?.error,
-        appointmentsTodayResult.error,
-        upcomingAppointmentsResult.error,
         actionRequiredResult.error,
         paymentActionRequiredResult.error,
         pendingPaymentAmountResult.error,
@@ -460,7 +418,6 @@ export function useDashboardSummary() {
         actionRequiredCount:
           actionRequiredResult.count ?? actionRequiredResult.data?.length ?? 0,
         activePatientCount: activePatientCountResult?.count ?? 0,
-        appointmentsTodayCount: appointmentsTodayResult.count ?? 0,
         monthIncome: sumAmounts((monthIncomeResult.data ?? []) as AmountRow[]),
         paymentActionRequired,
         pendingPaymentAmount: sumAmounts(
@@ -471,9 +428,6 @@ export function useDashboardSummary() {
         recentPatients: (
           (recentPatientsResult?.data ?? []) as DashboardPatientRow[]
         ).map(mapPatient),
-        upcomingAppointments: (
-          (upcomingAppointmentsResult.data ?? []) as unknown as DashboardAppointmentRow[]
-        ).map(mapAppointment),
       });
 
       if (process.env.NODE_ENV === "development") {

@@ -91,7 +91,7 @@ function PatientDetailPageContent() {
   const {
     appointments,
     error: appointmentsError,
-    loaded: appointmentsLoaded,
+    initialLoaded: appointmentsLoaded,
     markAppointmentUnpaid,
     rescheduleAppointment,
     updateAppointmentPayment,
