@@ -41,7 +41,7 @@ export default function MyClinicsPage() {
   if (!clinicsEnabled) {
     return (
       <DashboardLoading
-        message="Esta funcionalidad estara disponible en una etapa posterior."
+        message="Esta funcionalidad estará disponible en una etapa posterior."
         title="Redirigiendo..."
       />
     );
@@ -90,7 +90,7 @@ export default function MyClinicsPage() {
               Mis consultorios
             </p>
             <h1 className="mt-1 text-3xl font-bold text-ink">
-              Vínculos e invitaciónes
+              Vínculos e invitaciones
             </h1>
             <p className="mt-2 text-slate-600">
               Revisá consultorios asociados, horarios asignados y colores de

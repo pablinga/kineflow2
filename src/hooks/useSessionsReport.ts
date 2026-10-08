@@ -133,6 +133,9 @@ export function useSessionsReport(options: UseSessionsReportOptions) {
   const { user } = useRequireAuth();
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // Solo la primera carga bloquea la página; las siguientes (búsqueda,
+  // filtros) actualizan la lista sin desmontar los inputs.
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const [error, setError] = useState("");
 
   const loadReport = useCallback(
@@ -265,6 +268,7 @@ export function useSessionsReport(options: UseSessionsReportOptions) {
       } finally {
         if (!signal?.aborted) {
           setLoaded(true);
+          setInitialLoaded(true);
         }
       }
     },
@@ -292,6 +296,7 @@ export function useSessionsReport(options: UseSessionsReportOptions) {
 
   return {
     error,
+    initialLoaded,
     loaded,
     refreshReport: loadReport,
     rows,

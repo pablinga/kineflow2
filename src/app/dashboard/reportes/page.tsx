@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import * as XLSX from "xlsx";
-import { FileBarChart } from "lucide-react";
+import { FileBarChart, Loader2 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { Button } from "@/components/ui/Button";
@@ -72,7 +72,12 @@ function SessionsReportPageContent() {
     (provider) => provider.active,
   );
   const activeArtProviders = artProviders.filter((provider) => provider.active);
-  const { error: reportError, loaded: reportLoaded, rows } = useSessionsReport({
+  const {
+    error: reportError,
+    initialLoaded: reportInitialLoaded,
+    loaded: reportLoaded,
+    rows,
+  } = useSessionsReport({
     month,
     paymentType,
     providerId,
@@ -97,7 +102,7 @@ function SessionsReportPageContent() {
     );
   }
 
-  if (loading || !workspaceLoaded || !reportLoaded) {
+  if (loading || !workspaceLoaded || !reportInitialLoaded) {
     return <DashboardLoading />;
   }
 
@@ -135,8 +140,14 @@ function SessionsReportPageContent() {
           <section className="mt-6 rounded-lg border border-ocean-100 bg-white p-5 shadow-card">
             <div className="grid gap-4 md:grid-cols-3">
               <label className="block">
-                <span className="text-sm font-semibold text-slate-700">
+                <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                   Mes
+                  {!reportLoaded ? (
+                    <Loader2
+                      aria-label="Actualizando"
+                      className="h-4 w-4 animate-spin text-ocean-500"
+                    />
+                  ) : null}
                 </span>
                 <input
                   className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"

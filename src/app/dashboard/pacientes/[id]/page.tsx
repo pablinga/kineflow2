@@ -143,6 +143,10 @@ function PatientDetailPageContent() {
   >("idle");
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+  const [paymentRequest, setPaymentRequest] = useState<{
+    appointmentId: string;
+    key: number;
+  } | null>(null);
   const [assignmentActionError, setAssignmentActionError] = useState("");
   const [assignmentUpdatingId, setAssignmentUpdatingId] = useState("");
   const [evolutionModalOpen, setEvolutionModalOpen] = useState(false);
@@ -181,6 +185,21 @@ function PatientDetailPageContent() {
         isPatientPaidAppointment(appointment),
     )
     .reduce((total, appointment) => total + appointment.amount, 0);
+  // "Registrar cobro" abre el cobro del turno impago más antiguo que el
+  // usuario puede cobrar (no los de clínica vistos por el profesional).
+  const oldestPendingPaymentAppointment = [...appointments]
+    .filter(
+      (appointment) =>
+        appointment.paymentStatus === "pending" &&
+        appointment.status !== "Cancelado" &&
+        isPatientPaidAppointment(appointment) &&
+        !(appointment.origin === "clinic" && activeWorkspace?.type !== "CLINICA"),
+    )
+    .sort(
+      (left, right) =>
+        new Date(left.scheduledAt).getTime() -
+        new Date(right.scheduledAt).getTime(),
+    )[0];
   const lastPaidAppointment = [...appointments]
     .filter((appointment) => appointment.paymentStatus === "paid")
     .sort(
@@ -208,7 +227,7 @@ function PatientDetailPageContent() {
         ...current,
         appointmentId: appointment.id,
         treatmentId: appointment.treatmentId ?? "",
-        sessionDate: appointment.scheduledAt.slice(0, 10),
+        sessionDate: toArgentinaDateValue(new Date(appointment.scheduledAt)),
       }));
       setEvolutionModalOpen(true);
     }
@@ -369,7 +388,7 @@ function PatientDetailPageContent() {
       const invalidAttachment = treatmentAttachments.find((item) => item.error);
 
       if (invalidAttachment) {
-        setActionError("Revisa los archivos marcados antes de continuar.");
+        setActionError("Revisá los archivos marcados antes de continuar.");
         return;
       }
 
@@ -392,7 +411,7 @@ function PatientDetailPageContent() {
               .join(", ")}.`,
           );
         } else {
-          setActionSuccess("Tratamiento creado con documentacion adjunta.");
+          setActionSuccess("Tratamiento creado con documentación adjunta.");
         }
       } else {
         setActionSuccess("Tratamiento creado correctamente.");
@@ -572,7 +591,7 @@ function PatientDetailPageContent() {
       setAssignmentActionError(
         getFriendlyErrorMessage(
           unassignError,
-          "No pudimos quitar la asignacion.",
+          "No pudimos quitar la asignación.",
         ),
       );
     } finally {
@@ -621,7 +640,10 @@ function PatientDetailPageContent() {
                     </span>
                     <Link
                       className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-200 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 sm:px-4"
-                      href="/dashboard/pacientes"
+                      href={`/dashboard/pacientes?${new URLSearchParams({
+                        buscar: patient.document || patient.name,
+                        editar: patient.id,
+                      }).toString()}`}
                     >
                       <Edit3 className="h-4 w-4" />
                       Editar
@@ -662,10 +684,10 @@ function PatientDetailPageContent() {
                   <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                     <div>
                       <h2 className="text-lg font-bold text-ink">
-                        Kinesiologos asignados
+                        Kinesiólogos asignados
                       </h2>
                       <p className="mt-1 text-sm text-slate-500">
-                        Defini que profesionales pueden ver la historia clinica
+                        Definí qué profesionales pueden ver la historia clínica
                         y cargar evoluciones.
                       </p>
                     </div>
@@ -738,7 +760,7 @@ function PatientDetailPageContent() {
                             {updating
                               ? "Actualizando..."
                               : assigned
-                                ? "Quitar asignacion"
+                                ? "Quitar asignación"
                                 : "Asignar paciente"}
                           </button>
                         </article>
@@ -836,17 +858,35 @@ function PatientDetailPageContent() {
                       Registrar cobro
                     </button>
                   ) : (
-                    <Link
+                    <button
                       className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
                       totalPending > 0
                         ? "border-amber-200 text-amber-800 hover:bg-amber-50"
                         : "border-ocean-200 text-ocean-800 hover:bg-ocean-50"
                     }`}
-                      href={`/dashboard/ingresos?paciente=${encodeURIComponent(patient.name)}`}
+                      onClick={() => {
+                        if (oldestPendingPaymentAppointment) {
+                          setPaymentRequest({
+                            appointmentId: oldestPendingPaymentAppointment.id,
+                            key: Date.now(),
+                          });
+                          return;
+                        }
+
+                        document
+                          .getElementById("historial-turnos")
+                          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}
+                      title={
+                        oldestPendingPaymentAppointment
+                          ? undefined
+                          : "No hay turnos pendientes de cobro"
+                      }
+                      type="button"
                     >
                       <WalletCards className="h-4 w-4" />
                       Registrar cobro
-                    </Link>
+                    </button>
                   )}
                 </div>
               </section>
@@ -1047,6 +1087,7 @@ function PatientDetailPageContent() {
                 </div>
               </section>
 
+              <div id="historial-turnos" className="scroll-mt-20" />
               <PatientAppointmentHistory
                 appointments={appointments}
                 isProfessionalClinicAppointment={(appointment) =>
@@ -1093,6 +1134,7 @@ function PatientDetailPageContent() {
                     );
                   }
                 }}
+                paymentRequest={paymentRequest}
                 readOnlyMessage={readOnlyMessage}
                 showProfessional={activeWorkspace?.type === "CLINICA"}
               />
@@ -1292,6 +1334,15 @@ function PatientDetailPageContent() {
                             activeTreatmentForEvolution?.id ??
                             "",
                         );
+                        // La fecha de la evolución es la del turno elegido.
+                        if (selectedAppointment) {
+                          updateField(
+                            "sessionDate",
+                            toArgentinaDateValue(
+                              new Date(selectedAppointment.scheduledAt),
+                            ),
+                          );
+                        }
                       }}
                       value={evolution.appointmentId}
                     >
@@ -1441,8 +1492,8 @@ function PatientDetailPageContent() {
                 <h2 className="text-lg font-bold text-ink">Cancelar turno</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   El turno de {patient?.name} del {canceling.date} a las{" "}
-                  {canceling.time} dejara de aparecer como turno activo. Esta
-                  accion no borra el historial.
+                  {canceling.time} dejará de aparecer como turno activo. Esta
+                  acción no borra el historial.
                 </p>
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
                   <button

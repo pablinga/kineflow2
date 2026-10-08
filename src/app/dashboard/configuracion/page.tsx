@@ -693,6 +693,10 @@ export default function WorkspaceSettingsPage() {
                       className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-100 text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
                       disabled={!canEdit}
                       onClick={async () => {
+                        if (!window.confirm(`¿Eliminar la obra social "${provider.name}"?`)) {
+                          return;
+                        }
+
                         try {
                           await deleteProvider(provider.id);
                           setMessage("Obra social eliminada.");
@@ -810,6 +814,10 @@ export default function WorkspaceSettingsPage() {
                       className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-100 text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
                       disabled={!canEdit}
                       onClick={async () => {
+                        if (!window.confirm(`¿Eliminar la ART "${provider.name}"?`)) {
+                          return;
+                        }
+
                         try {
                           await deleteArtProvider(provider.id);
                           setMessage("ART eliminada.");
@@ -901,6 +909,10 @@ export default function WorkspaceSettingsPage() {
                     className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-100 text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
                     disabled={!canEdit}
                     onClick={async () => {
+                      if (!window.confirm(`¿Desbloquear el ${formatDate(item.blockedDate)}?`)) {
+                        return;
+                      }
+
                       try {
                         await deleteBlockedDate(item.id);
                         setMessage("Día bloqueado eliminado.");

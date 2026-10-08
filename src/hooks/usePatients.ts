@@ -210,6 +210,9 @@ export function usePatients(options: UsePatientsOptions = {}) {
   const [activePatientCount, setActivePatientCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  // Solo la primera carga bloquea la página; las siguientes (búsqueda,
+  // filtros) actualizan la lista sin desmontar los inputs.
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const [error, setError] = useState("");
   const page = Math.max(options.page ?? 1, 1);
   const pageSize = options.pageSize ?? null;
@@ -446,6 +449,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
     } finally {
       if (!signal?.aborted) {
         setLoaded(true);
+        setInitialLoaded(true);
       }
     }
   }, [
@@ -824,6 +828,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
     error,
     importPatients,
     listWorkspaceDocumentNumbers,
+    initialLoaded,
     loaded,
     page,
     pageSize,

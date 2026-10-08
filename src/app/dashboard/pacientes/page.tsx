@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   CalendarPlus,
   FileSpreadsheet,
   FileText,
   LayoutGrid,
   List,
+  Loader2,
   Mail,
   Phone,
   Pencil,
@@ -27,6 +29,7 @@ import { PatientInsuranceFields } from "@/components/patients/PatientInsuranceFi
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { usePatients, type NewPatientInput, type Patient } from "@/hooks/usePatients";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useInsuranceProviders } from "@/hooks/useInsuranceProviders";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
@@ -100,15 +103,18 @@ function getPatientInitials(name: string) {
 
 export default function PatientsPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
+  const router = useRouter();
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const canEvaluatePatients = !isRecepcionWorkspace(activeWorkspace);
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query);
   const [currentPage, setCurrentPage] = useState(1);
   const {
     addPatient,
     disablePatient,
     error,
     importPatients,
+    initialLoaded,
     listWorkspaceDocumentNumbers,
     loaded,
     activePatientCount,
@@ -121,7 +127,7 @@ export default function PatientsPage() {
   } = usePatients({
     page: currentPage,
     pageSize: PATIENTS_PAGE_SIZE,
-    search: query,
+    search: debouncedQuery,
   });
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const { providers: insuranceProviders } = useInsuranceProviders();
@@ -139,6 +145,14 @@ export default function PatientsPage() {
   const [initialEvaluation, setInitialEvaluation] =
     useState<NewEvaluationInput>(createEmptyEvaluation);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  // "Editar" desde la ficha llega con ?editar=<id>&buscar=<DNI o nombre>: se
+  // filtra la lista por ese paciente, se abre la edición y al cerrar se vuelve
+  // a la ficha.
+  const [pendingEdit, setPendingEdit] = useState<{
+    patientId: string;
+    search: string;
+  } | null>(null);
+  const [returnToPatientId, setReturnToPatientId] = useState<string | null>(null);
   const [editPatient, setEditPatient] = useState<NewPatientInput>(emptyPatient);
   const [clinicProfessionals, setClinicProfessionals] = useState<
     ClinicProfessionalOption[]
@@ -168,6 +182,16 @@ export default function PatientsPage() {
       setShowForm(true);
     }
 
+    const editPatientId = params.get("editar");
+
+    if (editPatientId) {
+      const search = params.get("buscar") ?? "";
+
+      setPendingEdit({ patientId: editPatientId, search });
+      setReturnToPatientId(editPatientId);
+      setQuery(search);
+    }
+
     if (storedViewMode === "list" || storedViewMode === "cards") {
       setViewMode(storedViewMode);
     }
@@ -176,6 +200,25 @@ export default function PatientsPage() {
   useEffect(() => {
     window.localStorage.setItem("kineflow.patients.view", viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    if (!pendingEdit || !loaded || debouncedQuery !== pendingEdit.search) {
+      return;
+    }
+
+    const patient = patients.find((item) => item.id === pendingEdit.patientId);
+
+    setPendingEdit(null);
+
+    if (patient) {
+      openEditPatient(patient);
+    } else {
+      setReturnToPatientId(null);
+      setActionError("No encontramos el paciente para editar.");
+    }
+    // openEditPatient no cambia entre renders en lo que importa acá.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery, loaded, patients, pendingEdit]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -240,7 +283,7 @@ export default function PatientsPage() {
     );
   }
 
-  if (loading || !loaded || !accessLoaded || !planLoaded || !workspaceLoaded) {
+  if (loading || !initialLoaded || !accessLoaded || !planLoaded || !workspaceLoaded) {
     return <DashboardLoading />;
   }
 
@@ -285,7 +328,7 @@ export default function PatientsPage() {
   // Mismas restricciones para el alta manual y la importación.
   function getCreatePatientBlockMessage() {
     if (!canManagePatients) {
-      return "Solo el administrador de la clinica puede crear pacientes.";
+      return "Solo el administrador de la clínica puede crear pacientes.";
     }
 
     if (writeBlockMessage) {
@@ -359,6 +402,14 @@ export default function PatientsPage() {
     return "";
   }
 
+  function closeEditPatient() {
+    setEditingPatient(null);
+
+    if (returnToPatientId) {
+      router.push(`/dashboard/pacientes/${returnToPatientId}`);
+    }
+  }
+
   function openEditPatient(patient: Patient) {
     setEditingPatient(patient);
     setActionError("");
@@ -401,7 +452,7 @@ export default function PatientsPage() {
       }
 
       if (!canManagePatients) {
-        setActionError("Solo el administrador de la clinica puede crear pacientes.");
+        setActionError("Solo el administrador de la clínica puede crear pacientes.");
         return;
       }
 
@@ -491,7 +542,7 @@ export default function PatientsPage() {
       }
 
       await updatePatient(editingPatient.id, editPatient);
-      setEditingPatient(null);
+      closeEditPatient();
       setActionNotice("Paciente actualizado correctamente");
     } catch (submitError) {
       setActionError(
@@ -618,7 +669,7 @@ export default function PatientsPage() {
             disabled
             title={
               patient.status === "Inactivo"
-                ? "Reactiv? el paciente para crear turnos."
+                ? "Reactivá el paciente para crear turnos."
                 : writeBlockMessage ?? undefined
             }
             type="button"
@@ -841,6 +892,12 @@ export default function PatientsPage() {
                 type="search"
                 value={query}
               />
+              {!loaded || query !== debouncedQuery ? (
+                <Loader2
+                  aria-label="Buscando"
+                  className="h-4 w-4 shrink-0 animate-spin text-ocean-500"
+                />
+              ) : null}
               </label>
               <div className="grid grid-cols-2 rounded-lg border border-ocean-100 bg-white p-1">
                 <button
@@ -853,7 +910,7 @@ export default function PatientsPage() {
                   type="button"
                 >
                   <LayoutGrid className="h-4 w-4" />
-                  Cards
+                  Tarjetas
                 </button>
                 <button
                   className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition ${
@@ -894,7 +951,7 @@ export default function PatientsPage() {
                     <div className="overflow-visible rounded-lg border border-ocean-100 bg-white shadow-card">
                       {group.patients.length === 0 ? (
                         <p className="px-4 py-4 text-sm text-slate-500">
-                          Sin pacientes en esta seccion.
+                          Sin pacientes en esta sección.
                         </p>
                       ) : (
                         group.patients.map((patient) => (
@@ -1166,7 +1223,7 @@ export default function PatientsPage() {
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
                 className="inline-flex min-h-11 items-center justify-center rounded-lg border border-ocean-200 px-5 py-2.5 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-                onClick={() => setEditingPatient(null)}
+                onClick={closeEditPatient}
                 type="button"
               >
                 Cancelar

@@ -842,7 +842,7 @@ export default function ClinicKinesiologistsPage() {
     const displayName = item.name || item.email;
 
     if (
-      !window.confirm(`¿Seguro que queres quitar a ${displayName} del equipo?`)
+      !window.confirm(`¿Seguro que querés quitar a ${displayName} del equipo?`)
     ) {
       return;
     }

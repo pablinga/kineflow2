@@ -355,7 +355,7 @@ function DayDetailPanel({
             </p>
           </div>
           <button
-            aria-label="Cerrar detalle de dia"
+            aria-label="Cerrar detalle del día"
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-ocean-100 text-slate-500 transition hover:bg-ocean-50"
             onClick={onClose}
             type="button"
@@ -752,10 +752,23 @@ export default function AppointmentsPage() {
     () => Array.from({ length: 7 }, (_, index) => addDays(startOfWeek(calendarDate), index)),
     [calendarDate],
   );
-  const timeSlots = useMemo(
-    () => Array.from({ length: 13 }, (_, index) => 8 + index),
-    [],
-  );
+  // De 8 a 20 h por defecto, ampliado si en la semana hay turnos fuera de ese
+  // rango (si no, un turno a las 7:00 o a las 21:00 no aparecía).
+  const timeSlots = useMemo(() => {
+    const weekStart = weekDays[0];
+    const weekEnd = addDays(weekStart, 7);
+    const hours = filteredAppointments
+      .map((appointment) => new Date(appointment.scheduledAt))
+      .filter((date) => date >= weekStart && date < weekEnd)
+      .map((date) => date.getHours());
+    const firstHour = Math.min(8, ...hours);
+    const lastHour = Math.max(20, ...hours);
+
+    return Array.from(
+      { length: lastHour - firstHour + 1 },
+      (_, index) => firstHour + index,
+    );
+  }, [filteredAppointments, weekDays]);
   const mobileDays = useMemo(
     () =>
       [-1, 0, 1].map((offset) => {
@@ -1464,7 +1477,7 @@ export default function AppointmentsPage() {
                   ))}
                   {dayAppointments.length > 3 ? (
                     <p className="px-2 text-xs font-semibold text-slate-500">
-                      +{dayAppointments.length - 3} mas
+                      +{dayAppointments.length - 3} más
                     </p>
                   ) : null}
                 </div>
@@ -1757,10 +1770,10 @@ export default function AppointmentsPage() {
           {view === "day" && visibleAppointments.length === 0 ? (
             <div className="mt-4 rounded-lg border border-dashed border-ocean-200 bg-white p-5 text-center shadow-card sm:mt-6 sm:p-8">
               <p className="font-semibold text-ink">
-                No hay turnos para estos dias.
+                No hay turnos para estos días.
               </p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-                Usa Nuevo turno para programar sesiones.
+                Usá Nuevo turno para programar sesiones.
               </p>
             </div>
           ) : null}

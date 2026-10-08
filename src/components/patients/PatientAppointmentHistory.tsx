@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, RotateCcw, Wallet, XCircle } from "lucide-react";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import {
@@ -38,6 +38,11 @@ type PatientAppointmentHistoryProps = {
   showProfessional: boolean;
   /** Turno de clínica visto por el profesional: solo registra asistencia. */
   isProfessionalClinicAppointment: (appointment: Appointment) => boolean;
+  /**
+   * Pedido externo de abrir el cobro de un turno (botón "Registrar cobro" de la
+   * ficha). `key` cambia en cada pedido para poder repetir el mismo turno.
+   */
+  paymentRequest?: { appointmentId: string; key: number } | null;
 };
 
 function isFuture(appointment: Appointment) {
@@ -51,6 +56,7 @@ export function PatientAppointmentHistory({
   onMarkUnpaid,
   onPayment,
   onStatusChange,
+  paymentRequest,
   readOnlyMessage,
   showProfessional,
 }: PatientAppointmentHistoryProps) {
@@ -95,6 +101,22 @@ export function PatientAppointmentHistory({
       paymentNotes: appointment.paymentNotes,
     });
   }
+
+  useEffect(() => {
+    if (!paymentRequest) {
+      return;
+    }
+
+    const appointment = appointments.find(
+      (item) => item.id === paymentRequest.appointmentId,
+    );
+
+    if (appointment) {
+      openPayment(appointment);
+    }
+    // Solo reacciona a un pedido nuevo, no a cambios de la lista.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentRequest?.key]);
 
   async function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

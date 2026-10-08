@@ -163,7 +163,7 @@ export default function RegisterPage() {
       }
 
       if (initialWorkspaceType === "CLINICA" && !clinicName.trim()) {
-        setError("Completa el nombre del consultorio o clinica.");
+        setError("Completá el nombre del consultorio o clínica.");
         return;
       }
 
@@ -405,7 +405,7 @@ export default function RegisterPage() {
               Términos y Condiciones
             </h2>
             <p className="mt-1 text-xs font-semibold text-slate-500">
-              Ultima actualizacion: {termsLastUpdated}
+              Última actualización: {termsLastUpdated}
             </p>
           </div>
           <button

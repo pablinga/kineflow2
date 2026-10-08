@@ -937,7 +937,14 @@ export default function NewAppointmentPage() {
       />
       {activePatients.length === 0 ? (
         <p className="mt-2 text-sm text-amber-700">
-          Primero carga un paciente activo para asignarle un turno.
+          Primero cargá un paciente activo para asignarle un turno.{" "}
+          <Link
+            className="font-semibold text-ocean-700 underline"
+            href="/dashboard/pacientes?nuevo=1"
+            prefetch={false}
+          >
+            Cargar paciente
+          </Link>
         </p>
       ) : null}
       {preselectedPatient ? (
@@ -1502,9 +1509,11 @@ export default function NewAppointmentPage() {
 
             {appointmentConflict?.kind === "exclusive" ? (
               <p className="mt-4 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 sm:mt-5">
-                {appointmentConflict.reason === "new_exclusive"
-                  ? "Ya hay un turno en ese horario. Si esta sesión se puede superponer, marcala como turno simultáneo."
-                  : "En ese horario hay un turno que no admite simultáneos."}
+                {appointmentConflict.reason !== "new_exclusive"
+                  ? "En ese horario hay un turno que no admite simultáneos."
+                  : showSimultaneousToggle
+                    ? "Ya hay un turno en ese horario. Si esta sesión se puede superponer, marcala como turno simultáneo."
+                    : "Ya tenés un turno en ese horario. Elegí otro horario o, si atendés a más de un paciente a la vez, subí el cupo de turnos simultáneos en Configuración."}
               </p>
             ) : appointmentConflict?.kind === "capacity" ? (
               <p className="mt-4 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 sm:mt-5">

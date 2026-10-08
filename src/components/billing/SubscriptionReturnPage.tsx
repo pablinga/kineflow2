@@ -51,18 +51,18 @@ const copyByKind = {
   error: {
     icon: AlertCircle,
     title: "No pudimos confirmar la suscripción",
-    text: "El pago no se completo o Mercado Pago no pudo autorizarlo. Podes volver a intentar desde Plan.",
+    text: "El pago no se completó o Mercado Pago no pudo autorizarlo. Podés volver a intentar desde Plan.",
     tone: "text-red-600",
   },
   pending: {
     icon: Clock3,
-    title: "Suscripcion pendiente",
+    title: "Suscripción pendiente",
     text: "Mercado Pago todavía está procesando la suscripción. Cuando se confirme, el webhook va a activar tu plan.",
     tone: "text-amber-600",
   },
   success: {
     icon: CheckCircle2,
-    title: "Suscripcion recibida",
+    title: "Suscripción recibida",
     text: "Estamos confirmando tu suscripción. Esto puede demorar unos segundos.",
     tone: "text-emerald-600",
   },
@@ -255,7 +255,7 @@ export function SubscriptionReturnPage({
   if (redirecting) {
     return (
       <DashboardLoading
-        message="No hay una sesion activa. Te estamos llevando al login."
+        message="No hay una sesión activa. Te estamos llevando al login."
         title="Redirigiendo..."
       />
     );

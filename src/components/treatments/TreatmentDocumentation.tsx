@@ -58,12 +58,12 @@ export function TreatmentDocumentation({
     setFormError("");
 
     if (selectedFiles.length === 0) {
-      setFormError("Selecciona al menos un archivo para adjuntar.");
+      setFormError("Seleccioná al menos un archivo para adjuntar.");
       return;
     }
 
     if (hasInvalidFiles) {
-      setFormError("Revisa los archivos marcados antes de continuar.");
+      setFormError("Revisá los archivos marcados antes de continuar.");
       return;
     }
 
@@ -92,7 +92,7 @@ export function TreatmentDocumentation({
       return;
     }
 
-    if (!window.confirm(`Queres eliminar "${file.originalName}"?`)) {
+    if (!window.confirm(`¿Querés eliminar "${file.originalName}"?`)) {
       return;
     }
 

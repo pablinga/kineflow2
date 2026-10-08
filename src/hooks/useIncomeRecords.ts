@@ -270,6 +270,9 @@ export function useIncomeRecords(options: UseIncomeRecordsOptions) {
   const [summary, setSummary] = useState<IncomeSummary>(emptySummary);
   const [totalCount, setTotalCount] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  // Solo la primera carga bloquea la página; las siguientes (búsqueda,
+  // filtros) actualizan la lista sin desmontar los inputs.
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const [error, setError] = useState("");
 
   const loadIncome = useCallback(
@@ -370,6 +373,7 @@ export function useIncomeRecords(options: UseIncomeRecordsOptions) {
       } finally {
         if (!signal?.aborted) {
           setLoaded(true);
+          setInitialLoaded(true);
         }
       }
     },
@@ -401,6 +405,7 @@ export function useIncomeRecords(options: UseIncomeRecordsOptions) {
 
   return {
     error,
+    initialLoaded,
     loaded,
     records,
     refreshIncome: loadIncome,
