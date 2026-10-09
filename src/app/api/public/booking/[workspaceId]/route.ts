@@ -14,11 +14,17 @@ import {
 import { DEFAULT_SESSION_PRICE } from "@/lib/session-defaults";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { formatPhoneToE164, isWhatsAppNotificationsEnabled } from "@/lib/whatsapp";
 import {
-  formatPhoneToE164,
-  isWhatsAppNotificationsEnabled,
-  sendWhatsAppMessage,
-} from "@/lib/whatsapp";
+  decideAppointmentConfirmation,
+  formatAppointmentDateTime,
+} from "@/lib/appointment-confirmation-rules";
+import {
+  THROTTLED_CONFIRMATION_MESSAGE,
+  isWhatsAppSendThrottled,
+  sendAppointmentConfirmation,
+  trackAppointmentNotification,
+} from "@/lib/appointment-notifications";
 
 type RouteContext = {
   params: Promise<{ workspaceId: string }>;
@@ -53,8 +59,6 @@ const RATE_LIMIT_WINDOW_MINUTES = 10;
 const RATE_LIMIT_MAX_ATTEMPTS = 8;
 const PHONE_RATE_LIMIT_WINDOW_MINUTES = 60;
 const PHONE_RATE_LIMIT_MAX_ATTEMPTS = 5;
-const WHATSAPP_SEND_WINDOW_MINUTES = 1440;
-const WHATSAPP_SEND_MAX = 2;
 
 const MAX_LENGTHS = {
   documentNumber: 20,
@@ -90,50 +94,6 @@ function getFullName(body: BookingRequestBody) {
     normalizeText(body.fullName) ||
     `${normalizeText(body.firstName)} ${normalizeText(body.lastName)}`.trim()
   );
-}
-
-function formatAppointmentDateTime(scheduledAt: string) {
-  const start = new Date(scheduledAt);
-
-  return {
-    date: start.toLocaleDateString("es-AR", {
-      day: "2-digit",
-      month: "long",
-      timeZone: "America/Argentina/Buenos_Aires",
-      weekday: "long",
-      year: "numeric",
-    }),
-    time: start.toLocaleTimeString("es-AR", {
-      hour: "2-digit",
-      hour12: false,
-      minute: "2-digit",
-      timeZone: "America/Argentina/Buenos_Aires",
-    }),
-  };
-}
-
-async function trackAppointmentNotification(params: {
-  admin: NonNullable<ReturnType<typeof getSupabaseAdminClient>>;
-  appointmentId: string;
-  errorMessage?: string;
-  patientId: string;
-  providerMessageId?: string | null;
-  status: "sent" | "failed";
-}) {
-  const { error } = await params.admin.from("appointment_notifications").insert({
-    appointment_id: params.appointmentId,
-    error_message: params.errorMessage,
-    notification_type: "confirmation",
-    patient_id: params.patientId,
-    provider: "twilio",
-    provider_message_id: params.providerMessageId,
-    sent_at: params.status === "sent" ? new Date().toISOString() : null,
-    status: params.status,
-  });
-
-  if (error) {
-    console.error("appointment notification tracking failed", error);
-  }
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
@@ -483,69 +443,36 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const appointmentId = (appointment as { id: string }).id;
     const appointmentDateTime = formatAppointmentDateTime(scheduledAt);
 
-    let isSendThrottled = false;
+    // El límite se consulta con o sin consentimiento, como antes de mover
+    // esta lógica a appointment-notifications.
+    const isSendThrottled = patient.phone_e164
+      ? await isWhatsAppSendThrottled(admin, patient.phone_e164, bookingContext.workspace.id)
+      : false;
+    const confirmation = decideAppointmentConfirmation({
+      alreadyConfirmed: false,
+      enabled: isWhatsAppNotificationsEnabled(),
+      minLeadMinutes: null,
+      now: Date.now(),
+      patient,
+      scheduledAt,
+      throttled: isSendThrottled,
+    });
 
-    if (patient.phone_e164) {
-      const { data: sendThrottled, error: sendThrottleError } = await admin.rpc(
-        "check_whatsapp_send_throttle",
-        {
-          p_phone_e164: patient.phone_e164,
-          p_workspace_id: bookingContext.workspace.id,
-          p_window_minutes: WHATSAPP_SEND_WINDOW_MINUTES,
-          p_max_sends: WHATSAPP_SEND_MAX,
-        },
-      );
-
-      if (sendThrottleError) {
-        console.error("whatsapp send throttle check failed", sendThrottleError);
-      } else {
-        isSendThrottled = Boolean(sendThrottled);
-      }
-    }
-
-    if (
-      isWhatsAppNotificationsEnabled() &&
-      patient.whatsapp_consent &&
-      patient.phone_e164 &&
-      !isSendThrottled
-    ) {
-      try {
-        const message = await sendWhatsAppMessage({
-          to: patient.phone_e164,
-          templateName: "confirmacion_turno",
-          templateLanguageCode: "es_AR",
-          templateParams: [
-            fullName,
-            bookingContext.professional.name,
-            appointmentDateTime.date,
-            appointmentDateTime.time,
-          ],
-        });
-
-        await trackAppointmentNotification({
-          admin,
-          appointmentId,
-          patientId: patient.id,
-          providerMessageId: message.sid,
-          status: "sent",
-        });
-      } catch (whatsappError) {
-        await trackAppointmentNotification({
-          admin,
-          appointmentId,
-          errorMessage:
-            whatsappError instanceof Error
-              ? whatsappError.message
-              : "No pudimos enviar el WhatsApp.",
-          patientId: patient.id,
-          status: "failed",
-        });
-      }
+    if (confirmation.send && patient.phone_e164) {
+      await sendAppointmentConfirmation({
+        admin,
+        appointmentId,
+        patientId: patient.id,
+        patientName: fullName,
+        phoneE164: patient.phone_e164,
+        professionalName: bookingContext.professional.name,
+        scheduledAt,
+      });
     } else if (isSendThrottled) {
       await trackAppointmentNotification({
         admin,
         appointmentId,
-        errorMessage: "Envío omitido: límite de notificaciones por teléfono alcanzado.",
+        errorMessage: THROTTLED_CONFIRMATION_MESSAGE,
         patientId: patient.id,
         status: "failed",
       });

@@ -469,6 +469,37 @@ export function getWorkspaceCapacityMap(
   );
 }
 
+/**
+ * Pide la confirmación por WhatsApp del turno recién creado (solo se manda si
+ * el paciente la aceptó y el turno es futuro: ver
+ * /api/appointments/confirm-notification). No bloquea ni hace fallar el alta.
+ */
+function requestAppointmentConfirmation(appointmentId: string) {
+  void (async () => {
+    const { data } = await getSupabaseClient().auth.getSession();
+    const accessToken = data.session?.access_token;
+
+    if (!accessToken) {
+      return;
+    }
+
+    await fetch("/api/appointments/confirm-notification", {
+      body: JSON.stringify({ appointmentId }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      keepalive: true,
+      method: "POST",
+    });
+  })().catch((confirmationError) => {
+    console.warn(
+      "[appointments] confirmation request failed",
+      confirmationError instanceof Error ? confirmationError.message : confirmationError,
+    );
+  });
+}
+
 export function useAppointments(
   patientId?: string,
   options: { unified?: boolean } = {},
@@ -726,7 +757,7 @@ export function useAppointments(
       workspaceId: activeWorkspace.id,
     });
 
-    const { error: insertError } = await supabase.from("appointments").insert({
+    const { data: inserted, error: insertError } = await supabase.from("appointments").insert({
       owner_id: sessionData.user.id,
       workspace_id: activeWorkspace.id,
       patient_id: input.patientId,
@@ -747,19 +778,20 @@ export function useAppointments(
       art_provider_id: input.artProviderId ?? null,
       payment_type: input.paymentType ?? "PARTICULAR",
       status: "pending",
-    });
+    }).select("id").single();
 
     if (insertError) {
       throw new Error(mapSupabaseError(insertError));
     }
 
+    requestAppointmentConfirmation((inserted as { id: string }).id);
     await loadAppointments();
   }
 
   async function addClinicAppointment(input: NewClinicAppointmentInput) {
     const scheduledAt = new Date(`${input.date}T${input.time}`).toISOString();
     const supabase = getSupabaseClient();
-    const { error: insertError } = await supabase.from("appointments").insert({
+    const { data: inserted, error: insertError } = await supabase.from("appointments").insert({
       owner_id: input.professionalId,
       workspace_id: activeWorkspace?.id ?? null,
       patient_id: input.patientId,
@@ -780,12 +812,13 @@ export function useAppointments(
       art_provider_id: input.artProviderId ?? null,
       payment_type: input.paymentType ?? "PARTICULAR",
       status: "pending",
-    });
+    }).select("id").single();
 
     if (insertError) {
       throw new Error(mapSupabaseError(insertError));
     }
 
+    requestAppointmentConfirmation((inserted as { id: string }).id);
     await loadAppointments();
   }
 

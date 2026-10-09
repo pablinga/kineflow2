@@ -752,8 +752,9 @@ export default function PublicBookingPage({ params }: PageProps) {
                         type="checkbox"
                       />
                       <span>
-                        Quiero recibir la confirmacion y recordatorios de mi turno
-                        por WhatsApp
+                        {workspace?.type === "CLINICA"
+                          ? "Quiero recibir por WhatsApp la confirmación y los recordatorios de mis turnos en este centro."
+                          : "Quiero recibir por WhatsApp la confirmación y los recordatorios de mis turnos con este profesional."}
                       </span>
                     </label>
                   ) : null}

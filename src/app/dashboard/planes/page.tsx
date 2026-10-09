@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, Clock, Star } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { LegalLinks } from "@/components/layout/LegalLinks";
+import { Alert } from "@/components/ui/Alert";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
@@ -40,6 +41,46 @@ export default function PlansPage() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelReference, setCancelReference] = useState("");
+  const [stalePendingPlan, setStalePendingPlan] = useState<CommercialPlan | null>(null);
+
+  // Checkout iniciado hace más de 24 h que Mercado Pago no confirmó (por
+  // ejemplo, si el usuario cerró la pantalla de pago).
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadStalePendingSubscription() {
+      const supabase = getSupabaseClient();
+      const { data } = await supabase.auth.getSession();
+      const userId = data.session?.user.id;
+
+      if (!userId) {
+        return;
+      }
+
+      const { data: pending } = await supabase
+        .from("subscriptions")
+        .select("plans(code)")
+        .eq("account_id", userId)
+        .eq("status", "PENDING_PAYMENT")
+        .lt("updated_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const plans = (pending as { plans?: { code?: string } | Array<{ code?: string }> } | null)
+        ?.plans;
+      const code = (Array.isArray(plans) ? plans[0] : plans)?.code;
+
+      if (mounted && (code === "INDEPENDIENTE" || code === "CONSULTORIO")) {
+        setStalePendingPlan(code);
+      }
+    }
+
+    void loadStalePendingSubscription();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   if (authError) {
     return <DashboardLoading error={authError} />;
@@ -208,6 +249,29 @@ export default function PlansPage() {
             eyebrow="Plan"
             title="Plan / Suscripción"
           />
+
+          {stalePendingPlan && accessLevel !== "PAID_ACTIVE" ? (
+            <Alert className="mt-4 sm:mt-6" tone="warning">
+              <p className="font-bold">Tu activación está pendiente</p>
+              <p className="mt-1">
+                Empezaste a activar {getPlanDisplayName(stalePendingPlan)}, pero Mercado Pago
+                todavía no confirmó el pago. Si no lo terminaste, podés intentarlo de nuevo.
+                ¿Ya pagaste? Escribinos a{" "}
+                <a className="font-semibold underline" href="mailto:contacto@kineflow.ar">
+                  contacto@kineflow.ar
+                </a>
+                .
+              </p>
+              <button
+                className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white transition hover:bg-ocean-700 disabled:opacity-60"
+                disabled={checkoutLoading === stalePendingPlan}
+                onClick={() => handleCheckout(stalePendingPlan)}
+                type="button"
+              >
+                {checkoutLoading === stalePendingPlan ? "Preparando..." : "Reintentar pago"}
+              </button>
+            </Alert>
+          ) : null}
 
           {isTrialActive ? (
             <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:mt-6">

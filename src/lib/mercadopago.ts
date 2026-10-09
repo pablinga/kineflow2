@@ -1,16 +1,18 @@
 import type { CommercialPlan } from "@/lib/plans";
 
-const MERCADOPAGO_API_URL = "https://api.mercadopago.com";
+export {
+  mapMercadoPagoStatus,
+  mapSubscriptionStatusToProfileStatus,
+  type SubscriptionStatus,
+} from "@/lib/mercadopago-status";
+
+// La URL de la API se puede cambiar solo fuera de producción (pruebas contra
+// un mock local).
+const MERCADOPAGO_API_URL =
+  (process.env.NODE_ENV !== "production" && process.env.MERCADOPAGO_API_URL?.trim()) ||
+  "https://api.mercadopago.com";
 const MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL =
   "https://www.mercadopago.com.ar/subscriptions/checkout";
-
-export type SubscriptionStatus =
-  | "PENDING_PAYMENT"
-  | "ACTIVE"
-  | "PAUSED"
-  | "CANCELLED"
-  | "PAST_DUE"
-  | "EXPIRED";
 
 export type MercadoPagoPreapproval = {
   id: string;
@@ -153,48 +155,6 @@ export function getMercadoPagoSubscriptionCheckoutUrl(
 
 export function getMercadoPagoCheckoutInitPoint(initPoint: string) {
   return initPoint;
-}
-
-export function mapMercadoPagoStatus(status?: string): SubscriptionStatus {
-  if (status === "authorized" || status === "active" || status === "approved") {
-    return "ACTIVE";
-  }
-
-  if (status === "paused") {
-    return "PAUSED";
-  }
-
-  if (status === "canceled" || status === "cancelled") {
-    return "CANCELLED";
-  }
-
-  if (status === "expired") {
-    return "EXPIRED";
-  }
-
-  if (status === "pending") {
-    return "PENDING_PAYMENT";
-  }
-
-  return "PAST_DUE";
-}
-
-export function mapSubscriptionStatusToProfileStatus(
-  status: SubscriptionStatus,
-) {
-  if (status === "ACTIVE") {
-    return "ACTIVO";
-  }
-
-  if (status === "CANCELLED") {
-    return "CANCELADO";
-  }
-
-  if (status === "PAUSED" || status === "PAST_DUE" || status === "EXPIRED") {
-    return "VENCIDO";
-  }
-
-  return "PENDIENTE";
 }
 
 export async function getMercadoPagoSubscription(subscriptionId: string) {

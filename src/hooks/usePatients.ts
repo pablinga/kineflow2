@@ -7,6 +7,8 @@ import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages"
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { isStaffMembership } from "@/lib/workspace-permissions";
+import { normalizeDocumentNumber } from "@/lib/document-number";
+import { hasPhoneNumberChanged } from "@/lib/phone";
 
 export type PatientStatus = "Activo" | "Inactivo";
 
@@ -23,6 +25,8 @@ export type Patient = {
   insuranceProviderId: string | null;
   insuranceProviderName: string;
   status: PatientStatus;
+  /** Aceptó los recordatorios por WhatsApp (reserva online) y tiene número válido. */
+  whatsappRemindersActive: boolean;
   progress: string;
   lastSession: string;
   nextAppointment: string;
@@ -59,6 +63,8 @@ type PatientRow = {
   insurance_providers: { name: string } | Array<{ name: string }> | null;
   status: "active" | "inactive";
   clinic_id: string | null;
+  phone_e164: string | null;
+  whatsapp_consent: boolean | null;
 };
 
 type ClinicIdRow = {
@@ -152,6 +158,7 @@ function mapPatient(
         ? row.insurance_providers[0]?.name
         : row.insurance_providers?.name) ?? "",
     status: row.status === "active" ? "Activo" : "Inactivo",
+    whatsappRemindersActive: Boolean(row.whatsapp_consent && row.phone_e164),
     progress: lastEvolution
       ? formatDate(lastEvolution.session_date)
       : "Sin evolución registrada",
@@ -169,7 +176,7 @@ function normalizePatientInput(input: NewPatientInput) {
   return {
     assignedProfessionalId: input.assignedProfessionalId?.trim() ?? "",
     condition: input.condition.trim(),
-    document: input.document.trim(),
+    document: normalizeDocumentNumber(input.document),
     email: input.email.trim(),
     insuranceMemberNumber: input.insuranceMemberNumber?.trim() ?? "",
     insuranceProviderId: input.insuranceProviderId?.trim() ?? "",
@@ -179,7 +186,11 @@ function normalizePatientInput(input: NewPatientInput) {
   };
 }
 
-function assertPatientContact(input: ReturnType<typeof normalizePatientInput>) {
+function assertPatientInput(input: ReturnType<typeof normalizePatientInput>) {
+  if (!input.document) {
+    throw new Error("Ingresá un DNI válido (solo números)");
+  }
+
   if (!input.phone && !input.email) {
     throw new Error("Ingresá al menos un medio de contacto (teléfono o email)");
   }
@@ -248,7 +259,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
       let patientQuery = supabase
         .from("patients")
         .select(
-          "id, assigned_professional_id, clinic_id, full_name, document_number, phone, email, initial_condition, insurance_provider_id, insurance_member_number, insurance_providers(name), status",
+          "id, assigned_professional_id, clinic_id, full_name, document_number, phone, email, initial_condition, insurance_provider_id, insurance_member_number, insurance_providers(name), status, phone_e164, whatsapp_consent",
           { count: "exact" },
         )
         .order("status", { ascending: true })
@@ -330,9 +341,11 @@ export function usePatients(options: UsePatientsOptions = {}) {
       const normalizedSearch = search.toLowerCase().replace(/[,%]/g, " ").trim();
 
       if (normalizedSearch) {
+        // El DNI se guarda solo con dígitos: "32.456" también encuentra 32456789.
+        const documentSearch = normalizeDocumentNumber(normalizedSearch) || normalizedSearch;
         const searchFilters = [
           `full_name.ilike.%${normalizedSearch}%`,
-          `document_number.ilike.%${normalizedSearch}%`,
+          `document_number.ilike.%${documentSearch}%`,
           `initial_condition.ilike.%${normalizedSearch}%`,
           `email.ilike.%${normalizedSearch}%`,
           `phone.ilike.%${normalizedSearch}%`,
@@ -571,7 +584,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
   async function addPatient(input: NewPatientInput) {
     setError("");
     const normalizedInput = normalizePatientInput(input);
-    assertPatientContact(normalizedInput);
+    assertPatientInput(normalizedInput);
 
     const supabase = getSupabaseClient();
     const { data: sessionData, error: sessionError } =
@@ -682,7 +695,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
     for (const input of inputs) {
       try {
         const normalizedInput = normalizePatientInput(input);
-        assertPatientContact(normalizedInput);
+        assertPatientInput(normalizedInput);
 
         const { error: insertError } = await supabase
           .from("patients")
@@ -718,7 +731,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
   async function updatePatient(id: string, input: NewPatientInput) {
     setError("");
     const normalizedInput = normalizePatientInput(input);
-    assertPatientContact(normalizedInput);
+    assertPatientInput(normalizedInput);
 
     const supabase = getSupabaseClient();
     const { data: sessionData, error: sessionError } =
@@ -740,9 +753,31 @@ export function usePatients(options: UsePatientsOptions = {}) {
       );
     }
 
+    const { data: previousPatient, error: previousPatientError } = await supabase
+      .from("patients")
+      .select("phone")
+      .eq("workspace_id", activeWorkspace?.id ?? "")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (previousPatientError) {
+      throw new Error(mapSupabaseError(previousPatientError));
+    }
+
+    // Si cambia el número (no solo el formato), el consentimiento de WhatsApp
+    // era para el número anterior: se borra y el paciente lo vuelve a dar al
+    // reservar por el link.
+    const phoneChanged = hasPhoneNumberChanged(
+      (previousPatient as { phone: string | null } | null)?.phone,
+      normalizedInput.phone,
+    );
+
     const { error: updateError } = await supabase
       .from("patients")
       .update({
+        ...(phoneChanged
+          ? { phone_e164: null, whatsapp_consent: false, whatsapp_consent_at: null }
+          : {}),
         assigned_professional_id:
           activeWorkspace?.type === "CLINICA"
             ? normalizedInput.assignedProfessionalId || null

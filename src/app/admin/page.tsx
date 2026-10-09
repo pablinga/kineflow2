@@ -101,6 +101,23 @@ function accountTypeLabel(accountType: string) {
 }
 
 /**
+ * Suscripciones que iniciaron el checkout hace más de 3 días y Mercado Pago no
+ * confirmó (abandono o webhook que no se pudo asociar: ver
+ * scripts/reconcile-mercadopago-subscriptions.mjs).
+ */
+async function getStalePendingSubscriptionCount(
+  admin: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+) {
+  const { count, error } = await admin
+    .from("subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "PENDING_PAYMENT")
+    .lt("updated_at", new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/**
  * Últimos ingresos según auth.users.last_sign_in_at: es el último login de
  * cada usuario (no cada login) y no se actualiza al renovar una sesión abierta.
  */
@@ -260,6 +277,9 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
     : { data: null, error: new Error("Supabase no está configurado.") };
   const kpis = data as AdminKpis | null;
   const recentLogins = admin ? await getRecentLogins(admin).catch(() => null) : null;
+  const stalePendingSubscriptions = admin
+    ? await getStalePendingSubscriptionCount(admin).catch(() => null)
+    : null;
 
   const weeks = kpis?.weeks ?? [];
   const week = weeks[weeks.length - 1];
@@ -335,6 +355,13 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
               previous={previous?.subscriptions_new}
               value={week.subscriptions_new}
             />
+            {stalePendingSubscriptions !== null ? (
+              <KpiCard
+                detail="Iniciaron el pago hace más de 3 días y Mercado Pago no lo confirmó"
+                label="Pagos pendientes"
+                value={stalePendingSubscriptions}
+              />
+            ) : null}
           </div>
 
           <h2 className="mt-8 text-sm font-bold uppercase tracking-wide text-slate-500">Uso</h2>

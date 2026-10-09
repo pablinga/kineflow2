@@ -207,9 +207,7 @@ function formatArgentinaDateValue(date: Date) {
   return `${values.get("year")}-${values.get("month")}-${values.get("day")}`;
 }
 
-export function normalizeDocumentNumber(value: string) {
-  return value.replace(/\D/g, "");
-}
+export { normalizeDocumentNumber } from "@/lib/document-number";
 
 export function normalizeDuration(
   value: unknown,

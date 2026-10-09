@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getMercadoPagoSubscription } from "@/lib/mercadopago";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
-import { processMercadoPagoSubscriptionForWebhook } from "@/app/api/webhooks/mercadopago/route";
+import { processMercadoPagoSubscriptionForWebhook } from "@/lib/mercadopago-webhook";
 
 type WebhookTestBody = {
   preapproval_id?: string;
@@ -36,8 +36,6 @@ export async function POST(request: Request) {
     const providerSubscription = await getMercadoPagoSubscription(preapprovalId);
 
     console.info("[mercadopago:webhook-test] Preapproval loaded", {
-      externalReference: providerSubscription.external_reference ?? null,
-      payerEmail: providerSubscription.payer_email ?? null,
       preapproval_id: providerSubscription.id,
       status: providerSubscription.status ?? null,
     });
@@ -54,7 +52,6 @@ export async function POST(request: Request) {
 
     const processingResult = await processMercadoPagoSubscriptionForWebhook({
       admin,
-      eventId: `webhook-test:${providerSubscription.id}`,
       providerSubscription,
     });
 

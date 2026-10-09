@@ -6,6 +6,8 @@
  * duplicado, límite del plan) se aplican igual al guardar.
  */
 
+import { documentNumberHasLetters, normalizeDocumentNumber } from "./document-number.ts";
+
 export type ImportField =
   | "name"
   | "firstName"
@@ -216,11 +218,8 @@ function cleanCell(value: unknown) {
     .trim();
 }
 
-/** DNI: sin puntos, espacios ni guiones. Un número de Excel como 32456789.0 queda en 32456789. */
-export function normalizeDocument(value: unknown) {
-  const text = cleanCell(value).replace(/\.0+$/, "");
-  return text.replace(/[\s.\-_/]/g, "").toUpperCase();
-}
+/** DNI en su forma canónica (solo dígitos), la misma que el alta manual y la reserva online. */
+export const normalizeDocument = normalizeDocumentNumber;
 
 export function normalizeEmail(value: unknown) {
   return cleanCell(value).replace(/\s/g, "").toLowerCase();
@@ -356,7 +355,8 @@ export function buildImportRows(params: {
       .filter(Boolean)
       .join(" ");
     const name = fullName || splitName;
-    const document = normalizeDocument(value("document"));
+    const rawDocument = cleanCell(value("document"));
+    const document = normalizeDocument(rawDocument);
     const email = normalizeEmail(value("email"));
     const phone = normalizePhone(value("phone"));
     const insuranceText = cleanCell(value("insuranceProvider"));
@@ -370,9 +370,15 @@ export function buildImportRows(params: {
     }
 
     if (!document) {
-      errors.push("Falta el DNI.");
-    } else if (!/^\d{6,9}$/.test(document)) {
-      warnings.push(`El DNI "${document}" tiene un formato poco común.`);
+      errors.push(rawDocument ? `El DNI "${rawDocument}" no tiene números.` : "Falta el DNI.");
+    } else {
+      if (documentNumberHasLetters(rawDocument)) {
+        warnings.push(`El DNI "${rawDocument}" tiene letras: se guarda solo con los números (${document}).`);
+      }
+
+      if (!/^\d{6,9}$/.test(document)) {
+        warnings.push(`El DNI "${document}" tiene un formato poco común.`);
+      }
     }
 
     if (email && !EMAIL_PATTERN.test(email)) {

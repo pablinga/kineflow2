@@ -159,3 +159,10 @@ Revisión de UX del dashboard en tres bloques (commits `4420409`, `b9b8297`, `01
 - Base (`202610040001_acquisition_attribution.sql`): `user_attribution` (la llena el trigger `on_auth_user_record_attribution`, nunca bloquea el alta; cada usuario lee solo la suya), `acquisition_events` (landing_view / signup_started vía `/api/acquisition/event`, service role) y `outreach_contacts` (envíos por campaña). Solo slugs en los UTM: un valor con "@" o espacios se descarta.
 - Consultas del embudo: `supabase/queries/acquisition-funnel.sql`. Tests: `npm run test:attribution`, `npm run test:attribution:qa` (con `APP_URL` prueba también la API) y `scripts/attribution-e2e.mjs` (Playwright temporal).
 - El Supabase rechaza emails `@example.com` en el signUp público: los tests crean usuarios con la API admin.
+
+### Confirmación por WhatsApp de turnos cargados por el profesional (2026-10-09, solo en QA)
+
+- Al crear un turno desde la agenda (`addAppointment` / `addClinicAppointment`, único camino: `turnos/nuevo`, de a un turno), el hook pide el id con `.select("id").single()` y llama sin esperar a `POST /api/appointments/confirm-notification`. Permisos como crear el turno: particular → su dueño; clínica → staff (ADMIN o RECEPCION), no el profesional del equipo.
+- Reglas (`decideAppointmentConfirmation` en `src/lib/appointment-confirmation-rules.ts`, pura y testeada): WhatsApp habilitado, `whatsapp_consent` y `phone_e164` del paciente, turno al menos 30 min en el futuro (los históricos nunca disparan mensajes), sin una confirmación `sent` previa y throttle por teléfono (si lo supera queda `failed` con el mismo mensaje que la reserva online).
+- Envío y registro compartidos con la reserva online en `src/lib/appointment-notifications.ts` (plantilla `confirmacion_turno`). `appointment_notifications.notification_type` distingue `confirmation` de `reminder`; el cron solo deduplica por `reminder` + `sent`, así que la confirmación no suprime el recordatorio de 24 h.
+- `appointment_notifications` tiene RLS sin policies (solo service role): mostrar el estado del envío en la UI requeriría una policy nueva.

@@ -1,7 +1,9 @@
+import type { MercadoPagoPreapproval } from "@/lib/mercadopago";
 import {
-  mapMercadoPagoStatus,
-  type MercadoPagoPreapproval,
-} from "@/lib/mercadopago";
+  buildSubscriptionStatusUpdate,
+  mapSubscriptionStatusToProfileStatus,
+  type ExistingSubscriptionState,
+} from "@/lib/mercadopago-status";
 import { sendSubscriptionActivatedEmail } from "@/lib/email";
 import type { CommercialPlan } from "@/lib/plans";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
@@ -27,124 +29,110 @@ function getSupabaseErrorLog(error: SupabaseErrorLike | null) {
   };
 }
 
-function mapToStoredSubscriptionStatus(status: ReturnType<typeof mapMercadoPagoStatus>) {
-  if (status === "ACTIVE") {
-    return "ACTIVE";
-  }
-
-  if (status === "CANCELLED") {
-    return "CANCELLED";
-  }
-
-  return "FREE";
-}
-
 export async function applyMercadoPagoSubscriptionToAccount(params: {
   accountId: string;
   accountType: "KINESIOLOGO" | "CONSULTORIO";
   admin: SupabaseAdminClient;
   planCode: CommercialPlan;
   providerSubscription: MercadoPagoPreapproval;
+  /** Fila a actualizar. Sin id se busca por cuenta + workspace. */
+  subscriptionId?: string | null;
   workspaceId?: string | null;
 }) {
   const { accountId, accountType, admin, planCode, providerSubscription, workspaceId } =
     params;
-  const internalStatus = mapMercadoPagoStatus(providerSubscription.status);
-  const effectivePlanCode = internalStatus === "ACTIVE" ? planCode : "FREE";
-  const storedStatus = mapToStoredSubscriptionStatus(internalStatus);
   const now = new Date().toISOString();
-  const periodStart = internalStatus === "ACTIVE" ? now : null;
-  const periodEnd = providerSubscription.next_payment_date ?? null;
-  const cancelledAt = storedStatus === "CANCELLED" ? now : null;
-  const activatedAt = storedStatus === "ACTIVE" ? now : null;
 
   const { data: planRow, error: planError } = await admin
     .from("plans")
     .select("id")
-    .eq("code", effectivePlanCode)
+    .eq("code", planCode)
     .maybeSingle();
 
   if (planError || !planRow?.id) {
     console.error("[billing:apply-subscription] Supabase plan lookup failed", {
       accountId,
-      planCode: effectivePlanCode,
+      planCode,
       supabaseError: getSupabaseErrorLog(planError),
     });
 
     throw new Error("No encontramos el plan interno para actualizar la cuenta.");
   }
 
-  const subscriptionPayload: Record<string, unknown> = {
+  let existingQuery = admin
+    .from("subscriptions")
+    .select("id, status, activated_at, canceled_at, current_period_start");
+
+  if (params.subscriptionId) {
+    existingQuery = existingQuery.eq("id", params.subscriptionId);
+  } else {
+    existingQuery = existingQuery.eq("account_id", accountId);
+    // .eq(col, null) no matchea NULL en PostgREST: hace falta .is().
+    existingQuery = workspaceId
+      ? existingQuery.eq("workspace_id", workspaceId)
+      : existingQuery.is("workspace_id", null);
+  }
+
+  const { data: existingSubscription, error: existingError } =
+    await existingQuery.maybeSingle();
+
+  if (existingError) {
+    console.error("[billing:apply-subscription] Subscription lookup failed", {
+      accountId,
+      supabaseError: getSupabaseErrorLog(existingError),
+    });
+
+    throw new Error("No pudimos leer la suscripción en Supabase.");
+  }
+
+  const existing = existingSubscription as
+    | ({ id: string } & NonNullable<ExistingSubscriptionState>)
+    | null;
+  const statusUpdate = buildSubscriptionStatusUpdate(providerSubscription, existing, now);
+  const subscriptionPayload = {
+    ...statusUpdate,
     account_id: accountId,
     account_type: accountType,
-    activated_at: activatedAt,
     cancel_at_period_end: false,
-    canceled_at: cancelledAt,
     cancellation_reason: null,
     cancellation_reference: null,
-    current_period_end: periodEnd,
-    current_period_start: periodStart,
+    // Se guarda el plan pedido aunque todavía no esté activo: el acceso lo
+    // decide el estado (get_account_access_level solo mira ACTIVE).
     plan_id: planRow.id,
     provider: "mercadopago",
-    provider_status: providerSubscription.status ?? null,
-    provider_subscription_id: providerSubscription.id,
-    status: storedStatus,
     updated_at: now,
     workspace_id: workspaceId ?? null,
   };
 
-  console.info("[billing:apply-subscription] Applying Mercado Pago status", {
-    accountId,
-    effectivePlanCode,
-    internalStatus,
-    planCode,
-    providerStatus: providerSubscription.status,
-    providerSubscriptionId: providerSubscription.id,
-    storedStatus,
-    workspaceId: workspaceId ?? null,
-  });
+  const { error: saveError } = existing
+    ? await admin.from("subscriptions").update(subscriptionPayload).eq("id", existing.id)
+    : await admin.from("subscriptions").insert(subscriptionPayload);
 
-  const { data: existingSubscription } = await admin
-    .from("subscriptions")
-    .select("id, status")
-    .eq("account_id", accountId)
-    .eq("workspace_id", workspaceId ?? null)
-    .maybeSingle();
-
-  const { error: subscriptionUpsertError } = await admin
-    .from("subscriptions")
-    .upsert(subscriptionPayload, { onConflict: "account_id,workspace_id" });
-
-  if (subscriptionUpsertError) {
-    console.error("[billing:apply-subscription] Supabase subscription upsert failed", {
+  if (saveError) {
+    console.error("[billing:apply-subscription] Supabase subscription save failed", {
       accountId,
-      effectivePlanCode,
-      internalStatus,
       planCode,
       providerSubscriptionId: providerSubscription.id,
-      storedStatus,
-      supabaseError: getSupabaseErrorLog(subscriptionUpsertError),
+      status: statusUpdate.status,
+      supabaseError: getSupabaseErrorLog(saveError),
     });
 
     throw new Error(
-      `No pudimos actualizar la suscripción en Supabase: ${subscriptionUpsertError.message}`,
+      `No pudimos actualizar la suscripción en Supabase: ${saveError.message}`,
     );
   }
 
-  console.info("[billing:apply-subscription] Supabase subscription upserted", {
+  console.info("[billing:apply-subscription] Subscription saved", {
     accountId,
-    action:
-      storedStatus === "ACTIVE"
-        ? "activated_independiente"
-        : `set_${storedStatus.toLowerCase()}`,
-    internalStatus,
-    planCode: effectivePlanCode,
-    providerStatus: providerSubscription.status,
+    planCode,
+    previousStatus: existing?.status ?? null,
+    providerStatus: providerSubscription.status ?? null,
     providerSubscriptionId: providerSubscription.id,
-    storedStatus,
+    status: statusUpdate.status,
+    subscriptionId: existing?.id ?? null,
   });
 
-  if (storedStatus === "ACTIVE" && existingSubscription?.status !== "ACTIVE") {
+  if (statusUpdate.status === "ACTIVE" && existing?.status !== "ACTIVE") {
     const { data: profile } = await admin
       .from("profiles")
       .select("email, full_name")
@@ -157,8 +145,8 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
         fullName: (profile as { full_name?: string | null } | null)?.full_name,
       },
       {
-        activatedAt: activatedAt ?? now,
-        currentPeriodEnd: periodEnd,
+        activatedAt: statusUpdate.activated_at ?? now,
+        currentPeriodEnd: statusUpdate.current_period_end,
         provider: "mercadopago",
         providerSubscription,
       },
@@ -166,9 +154,9 @@ export async function applyMercadoPagoSubscriptionToAccount(params: {
   }
 
   return {
-    internalStatus,
-    profileStatus: storedStatus === "ACTIVE" ? "ACTIVO" : "CANCELADO",
+    internalStatus: statusUpdate.status,
+    profileStatus: mapSubscriptionStatusToProfileStatus(statusUpdate.status),
     providerStatus: providerSubscription.status ?? null,
-    storedStatus,
+    storedStatus: statusUpdate.status,
   };
 }
