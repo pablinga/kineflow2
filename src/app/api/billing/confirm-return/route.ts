@@ -142,15 +142,20 @@ export async function POST(request: Request) {
           parsed?.workspaceId ??
           null;
 
-        await applyMercadoPagoSubscriptionToAccount({
-          accountId: user.id,
-          accountType:
-            planCode === "CONSULTORIO" ? "CONSULTORIO" : "KINESIOLOGO",
-          admin,
-          planCode,
-          providerSubscription,
-          workspaceId: resolvedWorkspaceId,
-        });
+        // Sin fila pendiente ni referencia propia no hay plan que activar.
+        if (planCode !== "FREE") {
+          await applyMercadoPagoSubscriptionToAccount({
+            accountId: user.id,
+            accountType:
+              planCode === "CONSULTORIO" ? "CONSULTORIO" : "KINESIOLOGO",
+            admin,
+            planCode,
+            providerSubscription,
+            subscriptionId:
+              (pendingSubscription as { id?: string } | null)?.id ?? null,
+            workspaceId: resolvedWorkspaceId,
+          });
+        }
       } else if (!belongsToUser) {
         console.warn("[billing:confirm-return] Preapproval does not belong to user", {
           externalReference: providerSubscription.external_reference ?? null,

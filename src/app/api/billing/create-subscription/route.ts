@@ -145,6 +145,9 @@ export async function POST(request: Request) {
   }
 
   const pendingSubscriptionUpdatedAt = new Date().toISOString();
+  // Se guarda en la fila para que el webhook y la reconciliación la encuentren
+  // (Mercado Pago puede devolverla en la preapproval).
+  const externalReference = `${user.id}:${planId}:${workspaceId ?? "account"}:${crypto.randomUUID()}`;
   const { error: pendingSubscriptionError } = await admin
     .from("subscriptions")
     .upsert(
@@ -152,6 +155,7 @@ export async function POST(request: Request) {
         account_id: user.id,
         account_type:
           planId === "CONSULTORIO" ? "CONSULTORIO" : "KINESIOLOGO",
+        external_reference: externalReference,
         plan_id: planRow.id,
         provider: "mercadopago",
         status: "PENDING_PAYMENT",
@@ -175,7 +179,6 @@ export async function POST(request: Request) {
   }
 
   const returnUrls = getSubscriptionReturnUrls();
-  const externalReference = `${user.id}:${planId}:${workspaceId ?? "account"}:${crypto.randomUUID()}`;
   const checkoutUrl = getMercadoPagoSubscriptionCheckoutUrl(planId, {
     backUrl: returnUrls.success,
     externalReference,
