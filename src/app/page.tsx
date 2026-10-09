@@ -71,7 +71,7 @@ const whatsappBenefits = [
   {
     icon: Clock,
     title: "Ahorrá tiempo",
-    text: "La confirmación y el recordatorio se envían solos.",
+    text: "La confirmación y el recordatorio se envían solos a quienes los aceptan.",
   },
   {
     icon: MessageCircle,
@@ -89,7 +89,7 @@ const howItWorks = [
   {
     icon: CalendarDays,
     title: "Cargá pacientes y turnos",
-    text: "Sumá tu agenda y tus fichas de pacientes a KineFlow.",
+    text: "Importá tus pacientes desde Excel o CSV y sumá tu agenda a KineFlow.",
   },
   {
     icon: TrendingUp,
@@ -150,7 +150,8 @@ export default async function Home({
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
               Agenda, pacientes, evoluciones, cobros y recordatorios
-              automáticos por WhatsApp. Todo en un solo lugar.
+              automáticos por WhatsApp a los pacientes que los aceptan.
+              Todo en un solo lugar.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               {showAuthLinks ? (
@@ -310,7 +311,8 @@ export default async function Home({
                 Menos ausencias. KineFlow recuerda los turnos por vos.
               </h2>
               <p className="mt-4 max-w-lg leading-7 text-slate-600">
-                KineFlow envía automáticamente la confirmación y el
+                Cuando el paciente reserva por tu link y acepta recibirlos,
+                KineFlow le envía automáticamente la confirmación y el
                 recordatorio del turno por WhatsApp para que vos no tengas
                 que hacerlo.
               </p>

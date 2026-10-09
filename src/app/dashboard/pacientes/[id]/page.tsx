@@ -11,6 +11,7 @@ import {
   Edit3,
   IdCard,
   Mail,
+  MessageCircle,
   Phone,
   Plus,
   Save,
@@ -43,6 +44,7 @@ import {
 } from "@/lib/appointment-ui";
 import { formatCurrency, isPatientPaidAppointment } from "@/lib/payment-ui";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { isWhatsAppNotificationsEnabled } from "@/lib/whatsapp";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
@@ -678,6 +680,14 @@ function PatientDetailPageContent() {
                       ]
                         .filter(Boolean)
                         .join(" · ")}
+                    </p>
+                  ) : null}
+                  {isWhatsAppNotificationsEnabled() ? (
+                    <p className="flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4 text-ocean-600" />
+                      {patient.whatsappRemindersActive
+                        ? "Recordatorios por WhatsApp: activos"
+                        : "Recordatorios por WhatsApp: pendientes. El paciente los activa al reservar por tu link."}
                     </p>
                   ) : null}
                 </div>

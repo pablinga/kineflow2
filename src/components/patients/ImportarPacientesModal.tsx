@@ -459,6 +459,10 @@ export function ImportarPacientesModal({
               <li>Nombre y DNI son obligatorios, y al menos un teléfono o email.</li>
               <li>Los datos que falten quedan vacíos y los podés completar después.</li>
               <li>
+                Los recordatorios por WhatsApp se activan cuando el paciente reserva por tu link y
+                los acepta.
+              </li>
+              <li>
                 El archivo se lee en tu navegador: no se sube ni se guarda, solo se cargan los
                 pacientes.
               </li>
