@@ -160,9 +160,17 @@ Revisión de UX del dashboard en tres bloques (commits `4420409`, `b9b8297`, `01
 - Consultas del embudo: `supabase/queries/acquisition-funnel.sql`. Tests: `npm run test:attribution`, `npm run test:attribution:qa` (con `APP_URL` prueba también la API) y `scripts/attribution-e2e.mjs` (Playwright temporal).
 - El Supabase rechaza emails `@example.com` en el signUp público: los tests crean usuarios con la API admin.
 
-### Confirmación por WhatsApp de turnos cargados por el profesional (2026-10-09, solo en QA)
+### Confirmación por WhatsApp de turnos cargados por el profesional (2026-10-09, en prod)
 
 - Al crear un turno desde la agenda (`addAppointment` / `addClinicAppointment`, único camino: `turnos/nuevo`, de a un turno), el hook pide el id con `.select("id").single()` y llama sin esperar a `POST /api/appointments/confirm-notification`. Permisos como crear el turno: particular → su dueño; clínica → staff (ADMIN o RECEPCION), no el profesional del equipo.
 - Reglas (`decideAppointmentConfirmation` en `src/lib/appointment-confirmation-rules.ts`, pura y testeada): WhatsApp habilitado, `whatsapp_consent` y `phone_e164` del paciente, turno al menos 30 min en el futuro (los históricos nunca disparan mensajes), sin una confirmación `sent` previa y throttle por teléfono (si lo supera queda `failed` con el mismo mensaje que la reserva online).
 - Envío y registro compartidos con la reserva online en `src/lib/appointment-notifications.ts` (plantilla `confirmacion_turno`). `appointment_notifications.notification_type` distingue `confirmation` de `reminder`; el cron solo deduplica por `reminder` + `sent`, así que la confirmación no suprime el recordatorio de 24 h.
 - `appointment_notifications` tiene RLS sin policies (solo service role): mostrar el estado del envío en la UI requeriría una policy nueva.
+
+### Mercado Pago y DNI (2026-10-09, en prod; migraciones 202610090001 y 202610090002 aplicadas en QA y prod)
+
+- **Webhook de Mercado Pago:** la URL del panel tiene que ser `https://www.kineflow.ar/api/mercadopago/webhook` (con www: `kineflow.ar` responde 308 y Mercado Pago no sigue redirecciones; por eso `payment_events` estuvo vacía hasta el 2026-10-09). Handler único en `src/lib/mercadopago-webhook.ts`; `/api/webhooks/mercadopago` y `/api/billing/webhook` son alias que se loguean con su ruta (candidatos a borrar). Firma inválida → 401 y fila `rejected` en `payment_events` (columna `status`).
+- La fila se resuelve por `provider_subscription_id`, `subscriptions.external_reference` (se guarda al crear el checkout), referencia parseada o, si Mercado Pago devuelve la referencia fija del plan (`KINEPART`/`KINEINDEP`/`KINECONSU`), email del pagador contra la fila `PENDING_PAYMENT`. Sin verificar todavía con el sandbox si Mercado Pago conserva nuestra `external_reference`.
+- Reconciliación manual: `scripts/reconcile-mercadopago-subscriptions.mjs` (dry-run por defecto). `/dashboard/planes` avisa si hay un pago pendiente de más de 24 h; `/admin` muestra los de más de 3 días.
+- Pendiente de seguridad: en `confirm-return`, `belongsToUser` acepta preapprovals sin `payer_email` o con referencia fija del plan (cualquiera que conozca el id podría asociarla a su cuenta).
+- **DNI canónico:** solo dígitos (`src/lib/document-number.ts`) en alta, edición, importación y reserva online. `scripts/normalize-patient-documents.mjs` normaliza los existentes (dry-run por defecto). Cambiar el número de teléfono de un paciente resetea su consentimiento de WhatsApp.
