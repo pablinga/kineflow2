@@ -22,6 +22,7 @@ import { FieldLabel } from "@/components/ui/FieldLabel";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { weekdayLabels } from "@/hooks/useClinicLinks";
+import { getPublicBookingLink } from "@/lib/activation-checklist";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -96,11 +97,8 @@ export default function IndependentAvailabilityPage() {
   const canManageAvailability =
     accountType === "KINESIOLOGO" && activeWorkspace?.type === "PERSONAL";
   const canViewClinicLink = activeWorkspace?.type === "CLINICA";
-  const appBaseUrl = (
-    process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://kineflow.ar"
-  ).replace(/\/$/, "");
   const publicBookingLink = activeWorkspace
-    ? `${appBaseUrl}/reservar/${activeWorkspace.id}`
+    ? getPublicBookingLink(activeWorkspace.id, process.env.NEXT_PUBLIC_APP_URL)
     : "";
   const sortedAvailability = useMemo(
     () =>
@@ -248,6 +246,17 @@ export default function IndependentAvailabilityPage() {
     try {
       await navigator.clipboard.writeText(publicBookingLink);
       setMessage("Link copiado.");
+      // Completa el paso "Compartir tu link de reservas" del checklist del
+      // Inicio (solo la primera vez).
+      if (user) {
+        void getSupabaseClient()
+          .from("profiles")
+          .update({ booking_link_shared_at: new Date().toISOString() })
+          .eq("id", user.id)
+          .is("booking_link_shared_at", null)
+          // El builder de supabase-js solo ejecuta al hacer then.
+          .then(() => undefined);
+      }
     } catch (copyError) {
       setError(
         getFriendlyErrorMessage(copyError, "No pudimos copiar el link."),

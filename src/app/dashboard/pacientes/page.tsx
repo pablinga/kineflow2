@@ -182,6 +182,11 @@ export default function PatientsPage() {
       setShowForm(true);
     }
 
+    // Desde el checklist del Inicio ("Importar Excel").
+    if (params.get("importar") === "1") {
+      setShowImport(true);
+    }
+
     const editPatientId = params.get("editar");
 
     if (editPatientId) {
