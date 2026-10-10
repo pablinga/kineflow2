@@ -6,7 +6,6 @@ import {
   Bar,
   BarChart,
   Cell,
-  LabelList,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -40,6 +39,83 @@ const ATTENDANCE_COLORS = {
 };
 const INCOME_CURRENT = "#0F55DC";
 const INCOME_PAST = "#B8CFFF";
+const INCOME_EMPTY = "#DCE8FF";
+
+// Recharts hace foco en el SVG al tocarlo y el navegador le dibuja un
+// recuadro negro: se saca (la información está también en texto).
+const chartFocusReset =
+  "[&_.recharts-wrapper]:outline-none [&_svg]:outline-none [&_*:focus]:outline-none";
+
+type ChartTooltipProps = {
+  active?: boolean;
+  label?: unknown;
+  payload?: Array<{
+    name?: unknown;
+    payload?: { weekStart?: string; amount?: number; label?: string; value?: number };
+    value?: unknown;
+  }>;
+};
+
+/** Tooltip con el estilo de las tarjetas (sirve para barras y anillo). */
+function ChartTooltip({ active, payload }: ChartTooltipProps) {
+  const item = payload?.[0];
+
+  if (!active || !item?.payload) {
+    return null;
+  }
+
+  const data = item.payload;
+  const title = data.weekStart
+    ? `Semana del ${formatShortDay(data.weekStart)}`
+    : String(data.label ?? item.name ?? "");
+  const value = data.weekStart
+    ? formatCurrency(Number(data.amount ?? 0))
+    : String(data.value ?? item.value ?? "");
+
+  return (
+    <div className="rounded-xl border border-ocean-100 bg-white px-3 py-2 text-sm shadow-card">
+      <p className="font-medium text-slate-600">{title}</p>
+      <p className="font-extrabold text-ink">{value}</p>
+    </div>
+  );
+}
+
+type IncomeBarProps = {
+  height: number;
+  payload: { amount: number; current: boolean };
+  width: number;
+  x: number;
+  y: number;
+};
+
+function IncomeBar({ height, payload, width, x, y }: IncomeBarProps) {
+  const radius = Math.min(4, width / 2, height);
+  const fill = payload.current
+    ? INCOME_CURRENT
+    : payload.amount > 0
+      ? INCOME_PAST
+      : INCOME_EMPTY;
+  // Rectángulo con las esquinas de arriba redondeadas, apoyado en la base.
+  const path = `M${x},${y + height} L${x},${y + radius} Q${x},${y} ${x + radius},${y} L${x + width - radius},${y} Q${x + width},${y} ${x + width},${y + radius} L${x + width},${y + height} Z`;
+
+  return (
+    <g>
+      <path d={path} fill={fill} />
+      {payload.current && payload.amount > 0 ? (
+        <text
+          fill="#0D1B2A"
+          fontSize={12}
+          fontWeight={700}
+          textAnchor="end"
+          x={x + width}
+          y={y - 6}
+        >
+          {formatCompactCurrency(payload.amount)}
+        </text>
+      ) : null}
+    </g>
+  );
+}
 
 function KpiTile({
   children,
@@ -154,7 +230,7 @@ export function AttendanceCard({ stats }: { stats: DashboardHomeStats }) {
         Asistencia del mes
       </h2>
       <div className="mt-3 flex items-center gap-5">
-        <div className="relative h-36 w-36 shrink-0">
+        <div className={`relative h-36 w-36 shrink-0 ${chartFocusReset}`}>
           <ResponsiveContainer height="100%" width="100%">
             <PieChart>
               <Pie
@@ -174,10 +250,7 @@ export function AttendanceCard({ stats }: { stats: DashboardHomeStats }) {
                     <Cell fill={slice.color} key={slice.label} />
                   ))}
               </Pie>
-              <Tooltip
-                formatter={(value, name) => [String(value ?? 0), String(name ?? "")]}
-                wrapperStyle={{ zIndex: 10 }}
-              />
+              <Tooltip content={<ChartTooltip />} wrapperStyle={{ zIndex: 10 }} />
             </PieChart>
           </ResponsiveContainer>
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
@@ -233,7 +306,7 @@ export function WeeklyIncomeCard({ stats }: { stats: DashboardHomeStats }) {
       <h2 className="text-lg font-bold text-ink" id="weekly-income-title">
         Ingresos por semana
       </h2>
-      <div className="mt-3 h-40">
+      <div className={`mt-3 h-40 ${chartFocusReset}`}>
         <ResponsiveContainer height="100%" width="100%">
           <BarChart
             barCategoryGap={2}
@@ -268,48 +341,17 @@ export function WeeklyIncomeCard({ stats }: { stats: DashboardHomeStats }) {
               tickLine={false}
             />
             <Tooltip
-              cursor={{ fill: "#EEF4FF" }}
-              formatter={(value) => [formatCurrency(Number(value ?? 0)), "Cobrado"]}
-              labelFormatter={(label) => `Semana del ${formatShortDay(String(label))}`}
+              content={<ChartTooltip />}
+              cursor={false}
             />
-            <Bar dataKey="amount" isAnimationActive={false} radius={[4, 4, 0, 0]}>
-              {weeks.map((week) => (
-                <Cell
-                  fill={week.current ? INCOME_CURRENT : INCOME_PAST}
-                  key={week.weekStart}
-                />
-              ))}
-              {/* Solo la semana actual lleva su monto encima. */}
-              <LabelList
-                dataKey="amount"
-                content={(props) => {
-                  const { index, value, x, y, width } = props as {
-                    index: number;
-                    value: number;
-                    width: number;
-                    x: number;
-                    y: number;
-                  };
-
-                  if (index !== lastIndex) {
-                    return null;
-                  }
-
-                  return (
-                    <text
-                      fill="#0D1B2A"
-                      fontSize={12}
-                      fontWeight={700}
-                      textAnchor="middle"
-                      x={x + width / 2}
-                      y={y - 6}
-                    >
-                      {formatCompactCurrency(Number(value))}
-                    </text>
-                  );
-                }}
-              />
-            </Bar>
+            {/* Las semanas en $0 se ven como una rayita (minPointSize) para que
+                se lean las 8; la actual lleva su monto encima. */}
+            <Bar
+              dataKey="amount"
+              isAnimationActive={false}
+              minPointSize={3}
+              shape={(props: unknown) => <IncomeBar {...(props as IncomeBarProps)} />}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
