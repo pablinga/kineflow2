@@ -12,6 +12,7 @@
     "test:attribution": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/attribution.test.mjs",
     "test:import": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/patient-import.test.mjs",
     "test:pwa": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/pwa-platform.test.mjs",
+    "test:activation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/activation-checklist.test.mjs",
     "test:attribution:qa": "node scripts/attribution-check.mjs",
     "lint": "next lint"
   },

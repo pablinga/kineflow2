@@ -9,6 +9,7 @@ import {
   Search,
   UsersRound,
 } from "lucide-react";
+import { ActivationChecklist } from "@/components/dashboard/ActivationChecklist";
 import { PendingClinicInvitationsBanner } from "@/components/dashboard/PendingClinicInvitationsBanner";
 import { PendingReceptionInvitationsBanner } from "@/components/dashboard/PendingReceptionInvitationsBanner";
 import { TodayAgendaCard } from "@/components/dashboard/TodayAgendaCard";
@@ -25,6 +26,14 @@ import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
+import { useActivationChecklist } from "@/hooks/useActivationChecklist";
+import {
+  getActivationChecklistMode,
+  getActivationGreeting,
+  getActivationSteps,
+  getPublicBookingLink,
+  getSupportWhatsAppUrl,
+} from "@/lib/activation-checklist";
 import { usePendingClinicInvitations } from "@/hooks/usePendingClinicInvitations";
 import { isRecepcionWorkspace } from "@/lib/workspace-permissions";
 
@@ -48,6 +57,14 @@ export default function DashboardPage() {
     loaded: dashboardLoaded,
     summary,
   } = useDashboardSummary();
+  // Recepción y profesionales del equipo nunca ven el checklist: ni se consulta.
+  const checklistEnabled =
+    workspaceLoaded &&
+    ((accountType === "KINESIOLOGO" && activeWorkspace?.type === "PERSONAL") ||
+      (accountType === "CONSULTORIO" &&
+        activeWorkspace?.type === "CLINICA" &&
+        activeWorkspace.role === "ADMIN"));
+  const activation = useActivationChecklist(checklistEnabled);
   const {
     acceptInvitation,
     actionError: invitationActionError,
@@ -79,7 +96,8 @@ export default function DashboardPage() {
     !dashboardLoaded ||
     !accessLoaded ||
     !planLoaded ||
-    !workspaceLoaded
+    !workspaceLoaded ||
+    !activation.loaded
   ) {
     return <DashboardLoading />;
   }
@@ -101,10 +119,56 @@ export default function DashboardPage() {
   const readOnlyMessage =
     "Tu período de prueba gratuita venció. Activá un plan para seguir gestionando pacientes.";
   const writeBlockMessage = isReadOnly ? readOnlyMessage : patientLimitBlock;
-  const dashboardTitle = isClinicWorkspace
+  const activationSteps = getActivationSteps(activation.facts);
+  const baseChecklistMode = getActivationChecklistMode({
+    accountType,
+    dismissedAt: activation.dismissedAt,
+    hasAttendedAppointment: activation.hasAttendedAppointment,
+    steps: activationSteps,
+    workspaceRole: activeWorkspace?.role ?? null,
+    workspaceType: activeWorkspace?.type ?? null,
+  });
+  // Si acaba de completar el último paso, se queda al 100% con el cierre.
+  const checklistMode =
+    baseChecklistMode === "hidden" &&
+    activation.sharedThisVisit &&
+    !activation.dismissedAt
+      ? activation.hasAttendedAppointment
+        ? "compact"
+        : "full"
+      : baseChecklistMode;
+  const isNewAccount = checklistMode === "full";
+  const activationChecklist =
+    checklistMode === "hidden" || !activeWorkspace ? null : (
+      <ActivationChecklist
+        availabilityHref={
+          isClinicWorkspace ? "/dashboard/equipo" : "/dashboard/disponibilidad"
+        }
+        bookingLink={getPublicBookingLink(
+          activeWorkspace.id,
+          process.env.NEXT_PUBLIC_APP_URL,
+        )}
+        error={activation.error}
+        mode={checklistMode}
+        onDismiss={activation.dismiss}
+        onFinish={activation.finishSharedCelebration}
+        onLinkShared={activation.markBookingLinkShared}
+        steps={activationSteps}
+        supportWhatsAppUrl={getSupportWhatsAppUrl(
+          process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP,
+          "Hola, quiero que me ayuden a cargar mis pacientes en KineFlow.",
+        )}
+        writeBlockMessage={writeBlockMessage}
+      />
+    );
+  const dashboardTitle = isNewAccount
+    ? getActivationGreeting(displayName)
+    : isClinicWorkspace
     ? `Panel de ${activeWorkspace.name}`
     : `Hola, ${displayName}`;
-  const dashboardDescription = isRecepcion
+  const dashboardDescription = isNewAccount
+    ? "Dejá tu consultorio listo en unos 10 minutos."
+    : isRecepcion
     ? "Pacientes, agenda y asistencia de la clínica en un solo lugar."
     : isClinicWorkspace
     ? "Equipo, pacientes, agenda e ingresos de la clínica en un solo lugar."
@@ -167,6 +231,8 @@ export default function DashboardPage() {
       <PageContainer>
           <PageHeader
             actions={
+              // Cuenta nueva: el checklist ya trae las acciones que tocan.
+              isNewAccount ? undefined : (
               <>
               <Link
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ocean-200 bg-white px-5 py-2.5 text-sm font-semibold text-ocean-800 transition hover:border-ocean-300 hover:bg-ocean-50"
@@ -195,6 +261,7 @@ export default function DashboardPage() {
                 </Link>
               )}
               </>
+              )
             }
             description={dashboardDescription}
             eyebrow="Inicio"
@@ -215,6 +282,10 @@ export default function DashboardPage() {
               <PendingReceptionInvitationsBanner />
             </>
           )}
+
+          {activationChecklist ? (
+            <div className="mt-4 sm:mt-6">{activationChecklist}</div>
+          ) : null}
 
           {!isRecepcion && accessLevel === "TRIAL_ACTIVE" ? (
             <Card
@@ -330,6 +401,8 @@ export default function DashboardPage() {
             </Card>
           ) : null}
 
+          {isNewAccount ? null : (
+          <>
           <section
             className={`mt-4 grid gap-3 sm:mt-6 ${
               summaryCards.length > 1 ? "grid-cols-2" : "grid-cols-1"
@@ -444,6 +517,8 @@ export default function DashboardPage() {
               </Card>
             </div>
           </section>
+          </>
+          )}
       </PageContainer>
     </main>
   );
