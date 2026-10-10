@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { CheckCircle2, Loader2, Wallet, XCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, Loader2, Share2, Wallet, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { UndoToast } from "@/components/ui/UndoToast";
 import { AppointmentPaymentModal } from "@/components/turnos/AppointmentPaymentModal";
@@ -21,7 +21,12 @@ import {
   appointmentStatusStyles,
   getAppointmentDisplayStatus,
 } from "@/lib/appointment-ui";
+import {
+  isAppointmentInProgress,
+  pickTodayAppointments,
+} from "@/lib/dashboard-home";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
+import { shareBookingLink } from "@/lib/share-booking-link";
 import {
   formatCurrency,
   getCoverageLabel,
@@ -41,16 +46,34 @@ function isToday(value: string) {
 }
 
 type TodayAgendaCardProps = {
+  /** Link público de reservas para el estado sin turnos, o null si no aplica. */
+  bookingLink?: string | null;
+  /** Se llama después de compartir/copiar el link (marca del checklist). */
+  onBookingLinkShared?: () => Promise<void> | void;
   /** Mensaje de solo lectura, o null si puede registrar asistencia y cobros. */
   readOnlyMessage: string | null;
 };
 
 /**
- * Agenda de hoy en Inicio: todos los turnos del día (también los que ya
- * pasaron) con Asistió / No asistió / Cobrar en la misma fila. Usa las mismas
- * reglas que la Agenda (useAttendanceActions) y carga sin bloquear la página.
+ * Agenda de hoy en Inicio: los próximos 3 turnos del día (primero los que ya
+ * empezaron sin asistencia registrada) con Asistió / No asistió / Cobrar en la
+ * misma fila y "+N turnos más tarde". Usa las mismas reglas que la Agenda
+ * (useAttendanceActions) y carga sin bloquear la página.
  */
-export function TodayAgendaCard({ readOnlyMessage }: TodayAgendaCardProps) {
+export function TodayAgendaCard({
+  bookingLink = null,
+  onBookingLinkShared,
+  readOnlyMessage,
+}: TodayAgendaCardProps) {
+  const [now, setNow] = useState(() => new Date());
+  const [shareNotice, setShareNotice] = useState("");
+
+  // "Ahora" y la lista se actualizan solos cada minuto.
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+
+    return () => window.clearInterval(timer);
+  }, []);
   const { accountType } = useRequireAuth();
   const { activeWorkspace } = useActiveWorkspace();
   const {
@@ -99,6 +122,31 @@ export function TodayAgendaCard({ readOnlyMessage }: TodayAgendaCardProps) {
         ),
     [appointments],
   );
+  const { laterLabel, visible: visibleAppointments } = useMemo(
+    () => pickTodayAppointments(todayAppointments, now),
+    [now, todayAppointments],
+  );
+
+  async function handleShareLink() {
+    if (!bookingLink) {
+      return;
+    }
+
+    setShareNotice("");
+
+    try {
+      const result = await shareBookingLink(bookingLink);
+
+      if (result === "cancelled") {
+        return;
+      }
+
+      setShareNotice(result === "copied" ? "Link copiado." : "");
+      await onBookingLinkShared?.();
+    } catch {
+      setShareNotice(`Copiá tu link: ${bookingLink}`);
+    }
+  }
 
   async function handlePaymentSubmit(input: AppointmentPaymentInput) {
     if (!paying) {
@@ -126,16 +174,17 @@ export function TodayAgendaCard({ readOnlyMessage }: TodayAgendaCardProps) {
     <Card variant="default" padding="md">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-ink">Hoy</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            {!loaded
-              ? "Cargando turnos..."
-              : todayAppointments.length === 0
-                ? "Sin turnos para hoy."
-                : `${todayAppointments.length} ${
-                    todayAppointments.length === 1 ? "turno" : "turnos"
-                  }`}
-          </p>
+          <h2 className="text-lg font-bold text-ink">
+            Hoy
+            {loaded && todayAppointments.length > 0
+              ? ` · ${todayAppointments.length} ${
+                  todayAppointments.length === 1 ? "turno" : "turnos"
+                }`
+              : ""}
+          </h2>
+          {!loaded ? (
+            <p className="mt-1 text-sm text-slate-600">Cargando turnos...</p>
+          ) : null}
         </div>
         <Link
           className="text-sm font-semibold text-ocean-700"
@@ -158,7 +207,33 @@ export function TodayAgendaCard({ readOnlyMessage }: TodayAgendaCardProps) {
         </div>
       ) : (
         <div className="mt-4 divide-y divide-ocean-100">
-          {todayAppointments.map((appointment) => {
+          {todayAppointments.length === 0 ? (
+            <div className="py-2">
+              <p className="font-semibold text-ink">Hoy no tenés turnos</p>
+              {bookingLink ? (
+                <>
+                  <button
+                    className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+                    onClick={() => void handleShareLink()}
+                    type="button"
+                  >
+                    <Share2 aria-hidden className="h-4 w-4" />
+                    Compartir link de reservas
+                  </button>
+                  {shareNotice ? (
+                    <p className="mt-2 break-all text-sm font-semibold text-emerald-800" role="status">
+                      {shareNotice}
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          ) : visibleAppointments.length === 0 ? (
+            <p className="py-2 text-sm text-slate-600">
+              Ya registraste todos los turnos de hoy.
+            </p>
+          ) : null}
+          {visibleAppointments.map((appointment) => {
             const status = getAppointmentDisplayStatus(appointment);
             const future = isFutureAppointment(appointment);
             const busy = attendance.updatingId === appointment.id;
@@ -166,6 +241,10 @@ export function TodayAgendaCard({ readOnlyMessage }: TodayAgendaCardProps) {
             const attended = status === "Asistió";
             const showAttendanceActions =
               !future && status !== "Asistió" && status !== "No asistió";
+            const inProgress = isAppointmentInProgress(appointment, now);
+            const detail = appointment.sessionNumber
+              ? `Sesión ${appointment.sessionNumber}`
+              : appointment.attentionTypeName;
 
             return (
               <div
@@ -190,7 +269,15 @@ export function TodayAgendaCard({ readOnlyMessage }: TodayAgendaCardProps) {
                         {appointment.patient}
                       </Link>
                     )}
+                    {detail ? (
+                      <p className="truncate text-sm text-slate-600">{detail}</p>
+                    ) : null}
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      {inProgress ? (
+                        <span className="rounded-full bg-ocean-600 px-2 py-0.5 text-xs font-semibold text-white">
+                          Ahora
+                        </span>
+                      ) : null}
                       {appointment.origin === "clinic" ? (
                         <span
                           className="rounded-full px-2 py-0.5 text-xs font-semibold text-white"
@@ -281,6 +368,17 @@ export function TodayAgendaCard({ readOnlyMessage }: TodayAgendaCardProps) {
           })}
         </div>
       )}
+
+      {loaded && laterLabel ? (
+        <Link
+          className="mt-1 flex min-h-11 items-center justify-between border-t border-ocean-100 pt-3 text-sm font-semibold text-ocean-700"
+          href="/dashboard/turnos?vista=dia"
+          prefetch={false}
+        >
+          <span className="text-slate-700">{laterLabel}</span>
+          Ver agenda
+        </Link>
+      ) : null}
 
       {paying ? (
         <AppointmentPaymentModal

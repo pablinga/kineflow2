@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  CalendarPlus,
-  CreditCard,
-  DollarSign,
-  Search,
-  UsersRound,
-} from "lucide-react";
+import { CalendarPlus, CreditCard, Search } from "lucide-react";
 import { ActivationChecklist } from "@/components/dashboard/ActivationChecklist";
+import {
+  AttendanceCard,
+  HomeKpiGrid,
+  KineflowMonthCard,
+  ResolveCard,
+  WeeklyIncomeCard,
+} from "@/components/dashboard/DashboardHomeSections";
 import { PendingClinicInvitationsBanner } from "@/components/dashboard/PendingClinicInvitationsBanner";
 import { PendingReceptionInvitationsBanner } from "@/components/dashboard/PendingReceptionInvitationsBanner";
 import { TodayAgendaCard } from "@/components/dashboard/TodayAgendaCard";
@@ -18,7 +18,7 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
-import { formatCurrency } from "@/lib/format";
+import { formatLongDate, getResolveRows } from "@/lib/dashboard-home";
 import { getPlanDisplayName, getTrialCountdownLabel } from "@/lib/plans";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
@@ -27,6 +27,7 @@ import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 import { useActivationChecklist } from "@/hooks/useActivationChecklist";
+import { useDashboardHome } from "@/hooks/useDashboardHome";
 import {
   getActivationChecklistMode,
   getActivationGreeting,
@@ -65,6 +66,12 @@ export default function DashboardPage() {
         activeWorkspace?.type === "CLINICA" &&
         activeWorkspace.role === "ADMIN"));
   const activation = useActivationChecklist(checklistEnabled);
+  // Indicadores: cargan sin bloquear la página.
+  const {
+    error: homeError,
+    remindersSent: homeRemindersSent,
+    stats: homeStats,
+  } = useDashboardHome(workspaceLoaded);
   const {
     acceptInvitation,
     actionError: invitationActionError,
@@ -173,9 +180,6 @@ export default function DashboardPage() {
     : isClinicWorkspace
     ? "Equipo, pacientes, agenda e ingresos de la clínica en un solo lugar."
     : "Pacientes, turnos, evoluciones y cobros en un solo lugar.";
-  // Totales reales: las listas del resumen vienen limitadas.
-  const actionRequiredCount = summary.actionRequiredCount;
-  const pendingPaymentCount = summary.pendingPaymentCount;
   // Mismas reglas que el menú para ver Ingresos.
   const canSeeIncome = !(
     isRecepcion ||
@@ -183,48 +187,20 @@ export default function DashboardPage() {
       plan.plan !== "INDEPENDIENTE" &&
       accessLevel !== "TRIAL_ACTIVE")
   );
-  const quickAccessItems = [
-    {
-      label: "Nuevo paciente",
-      href: "/dashboard/pacientes?nuevo=1",
-      icon: UsersRound,
-    },
-    ...(!canSeeIncome
-      ? []
-      : [
-          {
-            label: "Ver ingresos",
-            href: "/dashboard/ingresos",
-            icon: DollarSign,
-          },
-        ]),
-  ];
-
-  const summaryCards = [
-    {
-      label: "Pacientes activos",
-      value: String(summary.activePatientCount),
-      detail:
-        summary.activePatientCount === 0 ? "Sin pacientes cargados" : "En seguimiento",
-    },
-    // Los cobros pendientes ya están en "Requieren acción"; acá va lo cobrado.
-    ...(canSeeIncome
-      ? [
-          {
-            label: "Cobrado este mes",
-            value: formatCurrency(summary.monthIncome),
-            detail:
-              pendingPaymentCount > 0
-                ? `${pendingPaymentCount} ${
-                    pendingPaymentCount === 1
-                      ? "cobro pendiente"
-                      : "cobros pendientes"
-                  }`
-                : "Todo al día",
-          },
-        ]
-      : []),
-  ];
+  const resolveRows = homeStats
+    ? getResolveRows({
+        includeEvolutions: !isRecepcion,
+        patientsWithoutNextAppointment: homeStats.patientsWithoutNextAppointment,
+        paymentsHref: isRecepcion ? "/dashboard/turnos" : "/dashboard/ingresos",
+        pendingPayments: homeStats.pendingPaymentCount,
+        sessionsWithoutEvolution: homeStats.sessionsWithoutEvolution,
+        unregisteredAttendance: homeStats.unregisteredAttendance,
+      })
+    : [];
+  const bookingLink =
+    activeWorkspace && (activeWorkspace.type === "PERSONAL" || !isRecepcion)
+      ? getPublicBookingLink(activeWorkspace.id, process.env.NEXT_PUBLIC_APP_URL)
+      : null;
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
       <DashboardSidebar />
@@ -264,7 +240,7 @@ export default function DashboardPage() {
               )
             }
             description={dashboardDescription}
-            eyebrow="Inicio"
+            eyebrow={isNewAccount ? "Inicio" : formatLongDate(new Date())}
             title={dashboardTitle}
           />
 
@@ -402,122 +378,40 @@ export default function DashboardPage() {
           ) : null}
 
           {isNewAccount ? null : (
-          <>
-          <section
-            className={`mt-4 grid gap-3 sm:mt-6 ${
-              summaryCards.length > 1 ? "grid-cols-2" : "grid-cols-1"
-            }`}
-          >
-            {summaryCards.map((card) => (
-              <Card as="article" variant="default" padding="sm" key={card.label}>
-                <p className="text-sm font-medium text-slate-500">
-                  {card.label}
-                </p>
-                <p className="mt-2 text-2xl font-bold text-ink">
-                  {card.value}
-                </p>
-                <p className="mt-3 text-sm font-medium text-ocean-700">
-                  {card.detail}
-                </p>
-              </Card>
-            ))}
-          </section>
+            <div className="mt-4 grid items-start gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+              <div className="lg:col-span-2 xl:order-1 xl:col-span-2">
+                <TodayAgendaCard
+                  bookingLink={bookingLink}
+                  onBookingLinkShared={
+                    checklistEnabled ? activation.markBookingLinkShared : undefined
+                  }
+                  readOnlyMessage={isReadOnly ? readOnlyMessage : null}
+                />
+              </div>
 
-          <section className="mt-4 grid items-start gap-4 xl:grid-cols-[1.6fr_0.8fr] sm:mt-6 sm:gap-6">
-            <TodayAgendaCard readOnlyMessage={isReadOnly ? readOnlyMessage : null} />
+              {homeError ? (
+                <Card
+                  as="section"
+                  variant="danger"
+                  className="text-sm font-semibold text-rose-700 lg:col-span-2 xl:col-span-3"
+                >
+                  <p>{homeError}</p>
+                </Card>
+              ) : null}
 
-            <div className="space-y-6">
-              <Card variant="default" padding="md">
-                <h2 className="text-lg font-bold text-ink">Requieren acción</h2>
-                <div className="mt-4 space-y-3">
-                  {actionRequiredCount > 0 ? (
-                    <Link
-                      className="block rounded-lg border border-amber-100 bg-amber-50 p-3 transition hover:bg-amber-100"
-                      href="/dashboard/turnos"
-                    >
-                      <p className="text-sm font-semibold text-amber-800">
-                        {actionRequiredCount}{" "}
-                        {actionRequiredCount === 1
-                          ? "turno sin registrar asistencia"
-                          : "turnos sin registrar asistencia"}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-ocean-700">
-                        Revisar
-                      </p>
-                    </Link>
-                  ) : null}
-                  {pendingPaymentCount > 0 ? (
-                    <Link
-                      className="block rounded-lg border border-amber-100 bg-amber-50 p-3 transition hover:bg-amber-100"
-                      href={isRecepcion ? "/dashboard/turnos" : "/dashboard/ingresos"}
-                    >
-                      <p className="text-sm font-semibold text-amber-800">
-                        {pendingPaymentCount}{" "}
-                        {pendingPaymentCount === 1
-                          ? "cobro pendiente"
-                          : "cobros pendientes"}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-ocean-700">
-                        Revisar
-                      </p>
-                    </Link>
-                  ) : null}                </div>
-                {actionRequiredCount === 0 &&
-                pendingPaymentCount === 0 ? (
-                  <p className="mt-4 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-4 text-sm text-slate-600">
-                    No hay alertas pendientes.
-                  </p>
-                ) : null}
-              </Card>
-
-              <Card variant="default" padding="md">
-                <h2 className="text-lg font-bold text-ink">Accesos rápidos</h2>
-                <div className="mt-4 grid gap-2">
-                  {quickAccessItems.map((item) => {
-                    const Icon = item.icon;
-                    const blockedByWriteAccess =
-                      Boolean(writeBlockMessage) &&
-                      (item.href === "/dashboard/pacientes?nuevo=1" ||
-                        item.href === "/dashboard/turnos/nuevo" ||
-                        item.href === "/dashboard/pacientes");
-
-                    if (blockedByWriteAccess) {
-                      return (
-                        <button
-                          className="flex min-h-11 cursor-not-allowed items-center justify-between rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-400"
-                          disabled
-                          key={item.label}
-                          title={writeBlockMessage ?? undefined}
-                          type="button"
-                        >
-                          <span className="flex items-center gap-2">
-                            <Icon className="h-4 w-4 text-slate-400" />
-                            {item.label}
-                          </span>
-                          <ArrowUpRight className="h-4 w-4 text-slate-300" />
-                        </button>
-                      );
-                    }
-
-                    return (
-                      <Link
-                        className="flex min-h-11 items-center justify-between rounded-lg border border-ocean-100 px-3 text-sm font-semibold text-slate-700 transition hover:border-ocean-200 hover:bg-ocean-50"
-                        href={item.href}
-                        key={item.label}
-                      >
-                        <span className="flex items-center gap-2">
-                          <Icon className="h-4 w-4 text-ocean-600" />
-                          {item.label}
-                        </span>
-                        <ArrowUpRight className="h-4 w-4 text-slate-400" />
-                      </Link>
-                    );
-                  })}
-                </div>
-              </Card>
+              {homeStats ? (
+                <>
+                  <HomeKpiGrid canSeeIncome={canSeeIncome} stats={homeStats} />
+                  <AttendanceCard stats={homeStats} />
+                  {canSeeIncome ? <WeeklyIncomeCard stats={homeStats} /> : null}
+                  <ResolveCard rows={resolveRows} />
+                  <KineflowMonthCard
+                    onlineBookings={homeStats.monthOnlineBookings}
+                    remindersSent={homeRemindersSent}
+                  />
+                </>
+              ) : null}
             </div>
-          </section>
-          </>
           )}
       </PageContainer>
     </main>

@@ -10,6 +10,12 @@ import {
   type ActivationStepId,
 } from "@/lib/activation-checklist";
 import { MAX_IMPORT_ROWS } from "@/lib/patient-import";
+import {
+  canUseWebShare,
+  copyBookingLink,
+  shareBookingLink,
+  type ShareBookingLinkResult,
+} from "@/lib/share-booking-link";
 
 type ActivationChecklistProps = {
   availabilityHref: string;
@@ -71,8 +77,7 @@ export function ActivationChecklist({
   const [busy, setBusy] = useState(false);
   const progress = getActivationProgress(steps);
   const firstPendingId = getFirstPendingStepId(steps);
-  const canShare =
-    typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const canShare = canUseWebShare();
 
   async function registerShare() {
     try {
@@ -83,39 +88,30 @@ export function ActivationChecklist({
     }
   }
 
-  async function handleCopy() {
+  async function runShare(action: () => Promise<ShareBookingLinkResult>) {
     setNotice("");
     setActionError("");
 
     try {
-      await navigator.clipboard.writeText(bookingLink);
-      setNotice("Link copiado. Pegalo en tu WhatsApp o en tu Instagram.");
+      const result = await action();
+
+      if (result === "cancelled") {
+        return;
+      }
+
+      setNotice(
+        result === "copied"
+          ? "Link copiado. Pegalo en tu WhatsApp o en tu Instagram."
+          : "¡Listo! Ya compartiste tu link.",
+      );
       await registerShare();
     } catch {
       setActionError("No pudimos copiar el link. Copialo a mano: " + bookingLink);
     }
   }
 
-  async function handleShare() {
-    setNotice("");
-    setActionError("");
-
-    try {
-      await navigator.share({
-        text: "Reservá tu turno online:",
-        title: "Reservá tu turno",
-        url: bookingLink,
-      });
-      await registerShare();
-    } catch (shareError) {
-      // Cerrar la hoja de compartir no es un error ni cuenta como compartido.
-      if (shareError instanceof DOMException && shareError.name === "AbortError") {
-        return;
-      }
-
-      await handleCopy();
-    }
-  }
+  const handleCopy = () => runShare(() => copyBookingLink(bookingLink));
+  const handleShare = () => runShare(() => shareBookingLink(bookingLink));
 
   async function handleDismiss() {
     setBusy(true);
