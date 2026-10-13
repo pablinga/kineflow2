@@ -290,7 +290,15 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       <header className="flex items-center justify-between gap-4">
         <Logo compact />
-        <AdminLogoutButton />
+        <div className="flex items-center gap-2">
+          <Link
+            className="inline-flex min-h-11 items-center rounded-lg border border-ocean-100 bg-white px-4 text-sm font-semibold text-ocean-800 hover:bg-ocean-50"
+            href="/admin/contenido"
+          >
+            Contenido
+          </Link>
+          <AdminLogoutButton />
+        </div>
       </header>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

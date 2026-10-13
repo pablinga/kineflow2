@@ -20,6 +20,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // El publicador de contenido lee la tipografía, el logo y las capturas con
+  // fs al generar las imágenes: hay que incluirlos en las funciones.
+  outputFileTracingIncludes: {
+    "/api/admin/content": ["./src/assets/social/**", "./public/images/landing/**"],
+    "/api/admin/content/drafts": ["./src/assets/social/**", "./public/images/landing/**"],
+    "/api/admin/content/preview": ["./src/assets/social/**", "./public/images/landing/**"],
+  },
   async headers() {
     return [
       {
