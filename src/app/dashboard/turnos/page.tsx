@@ -61,6 +61,7 @@ import { DEFAULT_SESSION_PRICE } from "@/lib/session-defaults";
 import { useAttentionTypes } from "@/hooks/useAttentionTypes";
 import { useInsuranceProviders } from "@/hooks/useInsuranceProviders";
 import { useArtProviders } from "@/hooks/useArtProviders";
+import { useCanSeeAmounts } from "@/hooks/useCanSeeAmounts";
 
 type PendingAction = {
   appointment: Appointment;
@@ -505,6 +506,7 @@ export default function AppointmentsPage() {
     loaded: workspaceLoaded,
     workspaces,
   } = useActiveWorkspace();
+  const canSeeAmounts = useCanSeeAmounts();
   // Tipo y cupo del workspace de cada turno (en la agenda unificada del
   // kinesiólogo conviven turnos de su espacio particular y de clínicas).
   function getAppointmentWorkspace(appointment: Appointment) {
@@ -1434,9 +1436,11 @@ export default function AppointmentsPage() {
                     : appointment.paymentStatusLabel}
                 </span>
               ) : null}
-              <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[0.62rem] font-semibold text-slate-600">
-                {formatSessionAmount(appointment.amount)}
-              </span>
+              {canSeeAmounts ? (
+                <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[0.62rem] font-semibold text-slate-600">
+                  {formatSessionAmount(appointment.amount)}
+                </span>
+              ) : null}
             </>
           )}
         </div>

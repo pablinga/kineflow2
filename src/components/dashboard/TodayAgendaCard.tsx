@@ -33,6 +33,7 @@ import {
   isPatientPaidAppointment,
   paymentStatusStyles,
 } from "@/lib/payment-ui";
+import { useCanSeeAmounts } from "@/hooks/useCanSeeAmounts";
 
 function isToday(value: string) {
   const date = new Date(value);
@@ -76,6 +77,7 @@ export function TodayAgendaCard({
   }, []);
   const { accountType } = useRequireAuth();
   const { activeWorkspace } = useActiveWorkspace();
+  const canSeeAmounts = useCanSeeAmounts();
   const {
     appointments,
     error: appointmentsError,
@@ -308,7 +310,9 @@ export function TodayAgendaCard({
                             }`}
                           >
                             {appointment.paymentStatus === "pending"
-                              ? `Sin cobrar · ${formatCurrency(appointment.amount)}`
+                              ? canSeeAmounts
+                                ? `Sin cobrar · ${formatCurrency(appointment.amount)}`
+                                : "Sin cobrar"
                               : appointment.paymentStatusLabel}
                           </span>
                         ) : (

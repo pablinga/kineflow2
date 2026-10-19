@@ -8,6 +8,7 @@ import {
   type PaymentMethod,
   paymentMethodLabels,
 } from "@/hooks/useAppointments";
+import { useCanSeeAmounts } from "@/hooks/useCanSeeAmounts";
 
 type AppointmentPaymentModalProps = {
   appointment: Appointment;
@@ -26,6 +27,7 @@ export function AppointmentPaymentModal({
   onSubmit,
   saving,
 }: AppointmentPaymentModalProps) {
+  const canSeeAmounts = useCanSeeAmounts();
   const [paymentForm, setPaymentForm] = useState<AppointmentPaymentInput>({
     amount: appointment.amount,
     paymentMethod: appointment.paymentMethod,
@@ -50,7 +52,9 @@ export function AppointmentPaymentModal({
           {appointment.patient} · {appointment.date} · {appointment.time}
         </p>
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div className={`mt-5 grid gap-4 ${canSeeAmounts ? "sm:grid-cols-2" : ""}`}>
+          {/* Recepción no ve montos: se guarda el monto del turno. */}
+          {canSeeAmounts ? (
           <label className="block">
             <FieldLabel required>Monto</FieldLabel>
             <input
@@ -68,6 +72,7 @@ export function AppointmentPaymentModal({
               value={paymentForm.amount}
             />
           </label>
+          ) : null}
           <label className="block">
             <FieldLabel required>Medio de pago</FieldLabel>
             <select

@@ -7,6 +7,7 @@ import type { Appointment } from "@/hooks/useAppointments";
 import type { Treatment, TreatmentStatus } from "@/hooks/useTreatments";
 import { getAppointmentDisplayStatus } from "@/lib/appointment-ui";
 import { formatCurrency } from "@/lib/payment-ui";
+import { useCanSeeAmounts } from "@/hooks/useCanSeeAmounts";
 
 const treatmentStatusStyles: Record<TreatmentStatus, string> = {
   ABANDONADO: "bg-slate-100 text-slate-700",
@@ -66,6 +67,7 @@ export function TreatmentList({
   readOnlyMessage,
   treatments,
 }: TreatmentListProps) {
+  const canSeeAmounts = useCanSeeAmounts();
   const [detailId, setDetailId] = useState("");
   const [updating, setUpdating] = useState(false);
   // Los tratamientos en curso primero; después, el resto en el orden original.
@@ -232,8 +234,8 @@ export function TreatmentList({
                       </span>
                       <span className="text-slate-500">
                         {getAppointmentDisplayStatus(appointment)} ·{" "}
-                        {appointment.paymentStatusLabel} ·{" "}
-                        {formatCurrency(appointment.amount)}
+                        {appointment.paymentStatusLabel}
+                        {canSeeAmounts ? ` · ${formatCurrency(appointment.amount)}` : ""}
                       </span>
                       <span className="text-ocean-700">
                         {evolutionDate ? `Evolución ${evolutionDate}` : "Sin evolución"}

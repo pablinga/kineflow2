@@ -40,6 +40,7 @@ import {
 } from "@/lib/session-defaults";
 import { isWorkspaceStaff } from "@/lib/workspace-permissions";
 import { toArgentinaDateValue } from "@/lib/dates";
+import { useCanSeeAmounts } from "@/hooks/useCanSeeAmounts";
 
 type ClinicProfessionalOption = {
   id: string;
@@ -121,6 +122,8 @@ export default function NewAppointmentPage() {
     loaded: workspaceLoaded,
     workspaces,
   } = useActiveWorkspace();
+  // Recepción no ve montos: el valor sale del tipo de atención o del default.
+  const canSeeAmounts = useCanSeeAmounts();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const { accessLevel, isReadOnly, loaded: accessLoaded } = useAccessLevel();
   const { addAppointment, addClinicAppointment, appointments } = useAppointments(
@@ -1428,7 +1431,7 @@ export default function NewAppointmentPage() {
                   {simultaneousField}
                   {clinicSlotsField}
                   {modalityField}
-                  {costField}
+                  {canSeeAmounts ? costField : null}
                 </>
               ) : (
                 <>
@@ -1440,7 +1443,7 @@ export default function NewAppointmentPage() {
                   {durationField}
                   {personalSlotsField}
                   {modalityField}
-                  {costField}
+                  {canSeeAmounts ? costField : null}
                 </>
               )}
             </div>

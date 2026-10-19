@@ -793,7 +793,7 @@ function PatientDetailPageContent() {
               ) : null}
 
               <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5">
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className={`grid gap-3 ${isRecepcion ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
                   <div className="rounded-lg bg-slate-50 p-3">
                     <p className="text-xs font-bold uppercase text-slate-600">
                       Sesiones
@@ -812,6 +812,8 @@ function PatientDetailPageContent() {
                       {lastVisit?.date ?? "Sin visitas"}
                     </p>
                   </div>
+                  {/* Recepción no ve montos. */}
+                  {isRecepcion ? null : (
                   <div
                     className={`rounded-lg p-3 ${
                       totalPending > 0 ? "bg-amber-50" : "bg-slate-50"
@@ -828,6 +830,7 @@ function PatientDetailPageContent() {
                       {formatCurrency(totalPending)}
                     </p>
                   </div>
+                  )}
                 </div>
                 <div className="mt-4 grid gap-2 sm:grid-cols-3">
                   {writeBlockMessage ? (
