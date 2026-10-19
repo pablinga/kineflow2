@@ -348,7 +348,7 @@ function DayDetailPanel({
   return (
     <div
       aria-modal="true"
-      className="fixed inset-0 z-40 flex items-end bg-ink/40 px-3 pb-3 pt-10 sm:px-4 sm:py-6 md:items-center md:justify-center"
+      className="fixed inset-0 z-50 flex items-end bg-ink/40 px-3 pb-3 pt-10 sm:px-4 sm:py-6 md:items-center md:justify-center"
       onClick={onClose}
       role="dialog"
     >
