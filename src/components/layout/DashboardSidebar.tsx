@@ -273,7 +273,7 @@ export function DashboardSidebar() {
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-ocean-100 bg-white px-4 py-3 lg:hidden">
         <Logo compact />
         <div className="flex items-center gap-1">
-          <SessionDefaultsNotificationBell />
+          {isRecepcion ? null : <SessionDefaultsNotificationBell />}
           <button
             aria-label="Abrir navegación"
             className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-ocean-100 text-slate-700 transition-colors duration-150 ease-out hover:bg-ocean-50 active:scale-95"
@@ -293,7 +293,7 @@ export function DashboardSidebar() {
           <Logo showSlogan />
           <div className="flex items-center gap-1">
             <span className="hidden lg:block">
-              <SessionDefaultsNotificationBell />
+              {isRecepcion ? null : <SessionDefaultsNotificationBell />}
             </span>
             <button
               aria-label="Cerrar navegación"

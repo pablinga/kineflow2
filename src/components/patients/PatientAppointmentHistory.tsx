@@ -17,6 +17,7 @@ import {
   isPatientPaidAppointment,
   paymentStatusStyles,
 } from "@/lib/payment-ui";
+import { useCanSeeAmounts } from "@/hooks/useCanSeeAmounts";
 
 const INITIAL_VISIBLE = 10;
 
@@ -58,6 +59,7 @@ export function PatientAppointmentHistory({
   readOnlyMessage,
   showProfessional,
 }: PatientAppointmentHistoryProps) {
+  const canSeeAmounts = useCanSeeAmounts();
   const [showAll, setShowAll] = useState(false);
   const [updatingId, setUpdatingId] = useState("");
   const [paying, setPaying] = useState<Appointment | null>(null);
@@ -196,14 +198,14 @@ export function PatientAppointmentHistory({
                       >
                         {appointment.paymentStatus === "pending"
                           ? "Sin cobrar"
-                          : appointment.paymentStatusLabel}{" "}
-                        · {formatCurrency(appointment.amount)}
+                          : appointment.paymentStatusLabel}
+                        {canSeeAmounts ? ` · ${formatCurrency(appointment.amount)}` : ""}
                       </span>
-                    ) : (
+                    ) : canSeeAmounts ? (
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
                         {formatCurrency(appointment.amount)}
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </div>
 
