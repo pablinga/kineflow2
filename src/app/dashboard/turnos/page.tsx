@@ -1,6 +1,7 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   CalendarPlus,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
+import { ClinicAgenda } from "@/components/turnos/ClinicAgenda";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { FieldLabel } from "@/components/ui/FieldLabel";
@@ -56,6 +58,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { CLINIC_PROFESSIONAL_STATUS } from "@/lib/clinic-professionals";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
 import { toArgentinaDateValue } from "@/lib/dates";
+import { isWorkspaceStaff } from "@/lib/workspace-permissions";
 import { getPrefilledSessionAmount } from "@/lib/attention-pricing";
 import { DEFAULT_SESSION_PRICE } from "@/lib/session-defaults";
 import { useAttentionTypes } from "@/hooks/useAttentionTypes";
@@ -499,7 +502,39 @@ function formatShortAvailability(availability: ClinicAvailability[]) {
     .join(", ");
 }
 
+/**
+ * Agenda: el staff de una clínica (admin y recepción) usa "Dar turno"
+ * (ClinicAgenda); el resto, y quien pide ?vista=anterior, la agenda de
+ * siempre.
+ */
 export default function AppointmentsPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <AgendaRouter />
+    </Suspense>
+  );
+}
+
+function AgendaRouter() {
+  const { activeWorkspace, loaded } = useActiveWorkspace();
+  const legacyRequested = useSearchParams().get("vista") === "anterior";
+
+  if (!loaded) {
+    return <DashboardLoading />;
+  }
+
+  if (
+    !legacyRequested &&
+    activeWorkspace?.type === "CLINICA" &&
+    isWorkspaceStaff(activeWorkspace)
+  ) {
+    return <ClinicAgenda />;
+  }
+
+  return <LegacyAppointmentsPage />;
+}
+
+function LegacyAppointmentsPage() {
   const { accountType, authError, loading, redirecting } = useRequireAuth();
   const {
     activeWorkspace,
@@ -1683,6 +1718,15 @@ export default function AppointmentsPage() {
           <PageHeader
             actions={
               <>
+              {activeWorkspace?.type === "CLINICA" && isWorkspaceStaff(activeWorkspace) ? (
+                <Link
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg px-3 text-sm font-semibold text-ocean-700 hover:bg-ocean-50"
+                  href="/dashboard/turnos"
+                  prefetch={false}
+                >
+                  Vista nueva
+                </Link>
+              ) : null}
               <div className="grid grid-cols-3 rounded-lg border border-ocean-100 bg-white p-1">
                 {[
                   ["month", "Mes"],

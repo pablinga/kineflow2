@@ -15,6 +15,7 @@
     "test:activation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/activation-checklist.test.mjs",
     "test:dashboard": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/dashboard-home.test.mjs",
     "test:content": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/content-publisher.test.mjs",
+    "test:agenda": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/clinic-agenda.test.mjs",
     "test:attribution:qa": "node scripts/attribution-check.mjs",
     "lint": "next lint"
   },
