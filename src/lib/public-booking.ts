@@ -416,6 +416,76 @@ export async function resolveBookingContext(
   };
 }
 
+/**
+ * Contextos de reserva de todos los profesionales activos del workspace con
+ * una sola consulta (resolveBookingContext vuelve a leer el workspace y el
+ * profesional por cada uno). Mismo criterio que resolveBookingContext.
+ */
+export async function getWorkspaceBookingContexts(
+  admin: SupabaseClient,
+  workspace: PublicBookingWorkspace,
+): Promise<BookingContext[]> {
+  if (workspace.type === "PERSONAL") {
+    if (!workspace.owner_id) {
+      return [];
+    }
+
+    const [professional] = await getPublicProfessionals(admin, workspace);
+
+    return professional
+      ? [
+          {
+            clinicId: null,
+            clinicProfessionalId: null,
+            origin: "independent",
+            ownerId: workspace.owner_id,
+            professional,
+            workspace,
+          },
+        ]
+      : [];
+  }
+
+  if (!workspace.source_clinic_id) {
+    return [];
+  }
+
+  const { data, error } = await admin
+    .from("clinic_professionals")
+    .select("id, professional_id, professional_email, profiles(full_name)")
+    .eq("clinic_id", workspace.source_clinic_id)
+    .eq("status", "active")
+    .not("professional_id", "is", null)
+    .order("professional_email", { ascending: true });
+
+  if (error) {
+    throw new Error("No pudimos cargar los profesionales.");
+  }
+
+  const clinicId = workspace.source_clinic_id;
+
+  return ((data ?? []) as ClinicProfessionalRow[]).flatMap((professional) =>
+    professional.professional_id
+      ? [
+          {
+            clinicId,
+            clinicProfessionalId: professional.id,
+            origin: "clinic" as const,
+            ownerId: professional.professional_id,
+            professional: {
+              id: professional.id,
+              name:
+                getProfileName(professional.profiles) ??
+                professional.professional_email.split("@")[0] ??
+                "Profesional",
+            },
+            workspace,
+          },
+        ]
+      : [],
+  );
+}
+
 export async function findAnyAvailableBookingContext(params: {
   admin: SupabaseClient;
   durationMinutes: number;
@@ -569,8 +639,8 @@ export async function getFreeSlots(params: {
   mode?: FreeSlotsMode;
   to: string;
 }) {
-  const availability = await getAvailabilityRows(params.admin, params.context);
-  const [bookedAppointments, blockedDates] = await Promise.all([
+  const [availability, bookedAppointments, blockedDates] = await Promise.all([
+    getAvailabilityRows(params.admin, params.context),
     getBookedAppointments(
       params.admin,
       params.context,

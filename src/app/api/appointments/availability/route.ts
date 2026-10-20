@@ -3,10 +3,9 @@ import {
   ANY_PROFESSIONAL_ID,
   getArgentinaHolidaysInRange,
   getFreeSlots,
-  getPublicProfessionals,
   getWorkspace,
+  getWorkspaceBookingContexts,
   normalizeDuration,
-  resolveBookingContext,
 } from "@/lib/public-booking";
 import {
   getSupabaseAdminClient,
@@ -65,12 +64,6 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = getSupabaseServerClient(accessToken);
-  const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
-
-  if (userError || !userData.user) {
-    return jsonError("No pudimos validar la sesión.", 401);
-  }
-
   const { searchParams } = request.nextUrl;
   const workspaceId = searchParams.get("workspaceId")?.trim() ?? "";
   const professionalId = searchParams.get("professionalId")?.trim() ?? "";
@@ -105,7 +98,26 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const workspace = await getWorkspace(admin, workspaceId);
+    // Cada consulta cruza de la función a la base: las que no dependen entre
+    // sí salen juntas. El workspace se lee junto con la sesión, pero no se usa
+    // ni se devuelve nada hasta validarla.
+    const [{ data: userData, error: userError }, workspaceResult] = await Promise.all([
+      supabase.auth.getUser(accessToken),
+      getWorkspace(admin, workspaceId).then(
+        (value) => ({ error: null, value }),
+        (error: unknown) => ({ error, value: null }),
+      ),
+    ]);
+
+    if (userError || !userData.user) {
+      return jsonError("No pudimos validar la sesión.", 401);
+    }
+
+    if (workspaceResult.error) {
+      throw workspaceResult.error;
+    }
+
+    const workspace = workspaceResult.value;
 
     if (!workspace) {
       return jsonError("No encontramos el espacio de trabajo.", 404);
@@ -117,7 +129,7 @@ export async function GET(request: NextRequest) {
         return jsonError("No tenés permisos para dar turnos en este espacio.", 403);
       }
 
-      const context = await resolveBookingContext(admin, workspaceId, workspace.owner_id);
+      const [context] = await getWorkspaceBookingContexts(admin, workspace);
 
       if (!context) {
         return jsonError("No pudimos calcular la disponibilidad.", 500);
@@ -144,9 +156,10 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const { data: isStaff, error: staffError } = await supabase.rpc("is_workspace_staff", {
-      target_workspace_id: workspaceId,
-    });
+    const [{ data: isStaff, error: staffError }, contexts] = await Promise.all([
+      supabase.rpc("is_workspace_staff", { target_workspace_id: workspaceId }),
+      getWorkspaceBookingContexts(admin, workspace),
+    ]);
 
     if (staffError) {
       console.error(`${LOG_PREFIX} staff check failed`, { code: staffError.code });
@@ -165,41 +178,40 @@ export async function GET(request: NextRequest) {
       searchParams.get("durationMinutes"),
       workspace.default_session_duration_minutes,
     );
-    const professionals = await getPublicProfessionals(admin, workspace);
     const targets =
       professionalId === ANY_PROFESSIONAL_ID
-        ? professionals
-        : professionals.filter((professional) => professional.id === professionalId);
+        ? contexts
+        : contexts.filter((context) => context.clinicProfessionalId === professionalId);
 
     if (professionalId !== ANY_PROFESSIONAL_ID && targets.length === 0) {
       return jsonError("No encontramos ese profesional en la clínica.", 404);
     }
 
     const slotsByStart = new Map<string, StaffSlot>();
+    // Todos los profesionales en paralelo; el armado sigue el orden de la
+    // lista para que la respuesta no dependa de cuál termina primero.
+    const freeSlotsByTarget = await Promise.all(
+      targets.map((context) =>
+        getFreeSlots({
+          admin,
+          allowsSimultaneous,
+          context,
+          durationMinutes,
+          from,
+          mode: "staff",
+          to,
+        }),
+      ),
+    );
 
-    for (const target of targets) {
-      const context = await resolveBookingContext(admin, workspaceId, target.id);
-
-      if (!context?.clinicProfessionalId) {
-        continue;
-      }
-
+    targets.forEach((context, index) => {
       const professional: StaffProfessional = {
-        clinicProfessionalId: context.clinicProfessionalId,
+        clinicProfessionalId: context.clinicProfessionalId ?? context.professional.id,
         name: context.professional.name,
         professionalId: context.ownerId,
       };
-      const freeSlots = await getFreeSlots({
-        admin,
-        allowsSimultaneous,
-        context,
-        durationMinutes,
-        from,
-        mode: "staff",
-        to,
-      });
 
-      for (const slot of freeSlots) {
+      for (const slot of freeSlotsByTarget[index]) {
         const existing = slotsByStart.get(slot.start);
 
         if (existing) {
@@ -208,7 +220,7 @@ export async function GET(request: NextRequest) {
           slotsByStart.set(slot.start, { ...slot, professionals: [professional] });
         }
       }
-    }
+    });
 
     const slots = Array.from(slotsByStart.values()).sort(
       (left, right) => new Date(left.start).getTime() - new Date(right.start).getTime(),
