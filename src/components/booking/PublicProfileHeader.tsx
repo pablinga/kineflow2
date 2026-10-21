@@ -2,6 +2,7 @@ import { BadgeCheck, Home, MapPin, ShieldCheck } from "lucide-react";
 import {
   type PublicProfileView,
   getInsuranceSummary,
+  getLocalityText,
   getProfileDisplayName,
   treatmentLabel,
 } from "@/lib/public-profile";
@@ -20,7 +21,9 @@ type PublicProfileHeaderProps = {
 export function PublicProfileHeader({ headingLevel = "h1", profile }: PublicProfileHeaderProps) {
   const Heading = headingLevel;
   const insurance = getInsuranceSummary(profile);
-  const location = [profile.publicAddress.trim(), profile.city.trim()].filter(Boolean).join(", ");
+  const location = [profile.publicAddress.trim(), getLocalityText(profile.locality)]
+    .filter(Boolean)
+    .join(", ");
   const license = profile.type === "PERSONAL" ? profile.licenseNumber.trim() : "";
 
   return (

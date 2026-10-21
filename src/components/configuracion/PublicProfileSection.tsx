@@ -9,7 +9,11 @@ import { FieldLabel } from "@/components/ui/FieldLabel";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useInsuranceProviders } from "@/hooks/useInsuranceProviders";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-import { useWorkspacePublicProfile } from "@/hooks/useWorkspacePublicProfile";
+import {
+  type SelectedLocality,
+  useWorkspacePublicProfile,
+} from "@/hooks/useWorkspacePublicProfile";
+import { LocalityPicker } from "@/components/configuracion/LocalityPicker";
 import { getPublicBookingLink } from "@/lib/activation-checklist";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import {
@@ -42,6 +46,7 @@ export function PublicProfileSection({ canEdit }: PublicProfileSectionProps) {
   const profile = useWorkspacePublicProfile();
   const [form, setForm] = useState<PublicProfileFields>(EMPTY_PROFILE_FIELDS);
   const [listed, setListed] = useState(false);
+  const [locality, setLocality] = useState<SelectedLocality | null>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState("");
@@ -51,8 +56,9 @@ export function PublicProfileSection({ canEdit }: PublicProfileSectionProps) {
     if (profile.loaded) {
       setForm(profile.fields);
       setListed(profile.listedInDirectory);
+      setLocality(profile.locality);
     }
-  }, [profile.fields, profile.listedInDirectory, profile.loaded]);
+  }, [profile.fields, profile.listedInDirectory, profile.loaded, profile.locality]);
 
   const editable = canEdit && profile.isOwner;
   const isClinic = activeWorkspace?.type === "CLINICA";
@@ -63,11 +69,12 @@ export function PublicProfileSection({ canEdit }: PublicProfileSectionProps) {
     () => ({
       ...form,
       insuranceProviders: providers.filter((item) => item.active).map((item) => item.name),
+      locality,
       name: isClinic ? activeWorkspace?.name ?? "" : profile.ownerName || activeWorkspace?.name || "",
       type: isClinic ? ("CLINICA" as const) : ("PERSONAL" as const),
       workspaceId: activeWorkspace?.id ?? "",
     }),
-    [activeWorkspace?.id, activeWorkspace?.name, form, isClinic, profile.ownerName, providers],
+    [activeWorkspace?.id, activeWorkspace?.name, form, isClinic, locality, profile.ownerName, providers],
   );
 
   function update<Field extends keyof PublicProfileFields>(field: Field, value: PublicProfileFields[Field]) {
@@ -228,17 +235,18 @@ export function PublicProfileSection({ canEdit }: PublicProfileSectionProps) {
         </label>
 
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="block">
+          {/* div y no label: el campo cambia entre buscador y localidad elegida. */}
+          <div className="block">
             <FieldLabel>Ciudad</FieldLabel>
-            <input
-              className={inputClassName}
+            <LocalityPicker
               disabled={!editable}
-              maxLength={PROFILE_LIMITS.city}
-              onChange={(event) => update("city", event.target.value)}
-              placeholder="Ej.: Rosario"
-              value={form.city}
+              onChange={(next) => {
+                setLocality(next);
+                update("localityId", next?.id ?? "");
+              }}
+              value={locality}
             />
-          </label>
+          </div>
           {!isClinic ? (
             <label className="block">
               <FieldLabel>Matrícula (opcional)</FieldLabel>
