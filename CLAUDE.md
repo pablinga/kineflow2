@@ -206,3 +206,13 @@ Revisión de UX del dashboard en tres bloques (commits `4420409`, `b9b8297`, `01
 - **Agenda:** el modal de turnos del día (vista Mes) quedaba tapado por el menú lateral en escritorio (modal `z-40` vs. sidebar `z-50`). Ahora el modal usa `z-50` y el sidebar `lg:z-30` (el drawer mobile sigue en `z-50`).
 - **Recepción no ve montos** (`useCanSeeAmounts`): ficha del paciente (recuadro Pendiente, historial y tratamientos), chip de la Agenda, "Hoy" del Inicio, campo Monto del formulario de cobro (registra el cobro con el monto del turno), "Costo de la sesión" en Nuevo turno y la campanita de precios por defecto. Es solo de interfaz: los montos siguen llegando en las respuestas de la API (RLS sin cambios).
 
+
+### Perfil público en la página de reservas (2026-10-21, en QA)
+
+- `/reservar/[workspaceId]` ahora es de servidor (`page.tsx`: metadatos, JSON-LD, cabecera y pie); la reserva sigue igual en `BookingClient.tsx` (mismas protecciones). El link sigue siendo el uuid del espacio (sin slug, decisión del usuario).
+- Perfil por espacio: kinesiólogo particular (`Physician`) o clínica (`MedicalClinic`). Tabla `workspace_public_profiles` (`202610210001`, aplicada en QA, **falta prod**): tratamientos de lista cerrada, bio ≤ 400, ciudad, dirección visible, matrícula, a domicilio, texto de obras sociales y `listed_in_directory` (opt-in, false por defecto; `listed_in_directory_at` lo fija un trigger). Anónimo lee solo las columnas del perfil (grant por columna); solo el dueño (`workspaces.owner_id`) inserta/edita. Las obras sociales mostradas son los prestadores activos + el texto libre.
+- Lógica pura en `src/lib/public-profile.ts` (`npm run test:profile`). Perfil sin bio ni tratamientos → `noindex` (el link funciona igual). Cabecera compartida `PublicProfileHeader` (página, vista previa de Configuración y ejemplo de la landing).
+- Configuración → pestaña "Perfil público" (`#perfil`) con vista previa y "Copiar link" (marca `booking_link_shared_at`).
+- Eventos `profile_view` (una vez por sesión y perfil) y `profile_footer_click` en `acquisition_events` con `utm_source=perfil`, `utm_campaign=perfil_publico`, `utm_content=<workspaceId>`; la API rechaza eventos de perfil con otra atribución. Pie: `/?utm_source=perfil&utm_medium=footer&utm_campaign=perfil_publico`.
+- Landing: sección `#buscador` ("Aparecé en el buscador de KineFlow"). Todavía no hay buscador: solo se guarda el consentimiento.
+- E2E: `scripts/public-profile-e2e.mjs` (levanta su propio Supabase falso en 54331 con permisos por columna y RLS mínima).

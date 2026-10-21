@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_SESSION_DURATION_MINUTES } from "@/lib/session-defaults";
+import { normalizeProfileFields, type PublicProfileView } from "@/lib/public-profile";
 
 export type WorkspaceType = "PERSONAL" | "CLINICA";
 
@@ -791,4 +792,67 @@ export async function isSlotAvailable(params: {
   });
 
   return slots.some((slot) => slot.start === scheduledAt.toISOString());
+}
+
+type PublicProfileRow = {
+  bio: string | null;
+  city: string | null;
+  home_visits: boolean;
+  insurance_notes: string | null;
+  license_number: string | null;
+  public_address: string | null;
+  treatments: string[] | null;
+};
+
+/**
+ * Perfil público del espacio (cabecera de /reservar/[workspaceId]). El perfil
+ * se lee con la clave anónima: la base solo le deja ver las columnas del
+ * perfil (ni el consentimiento del buscador ni nada de pacientes). Nombre y
+ * obras sociales salen de lo que la reserva online ya muestra.
+ */
+export async function getPublicProfileView(
+  admin: SupabaseClient,
+  anon: SupabaseClient,
+  workspace: PublicBookingWorkspace,
+): Promise<PublicProfileView> {
+  const [{ data: profileRow, error: profileError }, professionals, insuranceProviders] =
+    await Promise.all([
+      anon
+        .from("workspace_public_profiles")
+        .select(
+          "treatments, insurance_notes, home_visits, bio, public_address, city, license_number",
+        )
+        .eq("workspace_id", workspace.id)
+        .maybeSingle(),
+      workspace.type === "PERSONAL"
+        ? getPublicProfessionals(admin, workspace)
+        : Promise.resolve([]),
+      getActiveInsuranceProviders(admin, workspace.id),
+    ]);
+
+  if (profileError) {
+    throw new Error("No pudimos cargar el perfil.");
+  }
+
+  const row = profileRow as PublicProfileRow | null;
+  const fields = normalizeProfileFields({
+    bio: row?.bio,
+    city: row?.city,
+    homeVisits: row?.home_visits,
+    insuranceNotes: row?.insurance_notes,
+    licenseNumber: row?.license_number,
+    publicAddress: row?.public_address,
+    treatments: row?.treatments,
+  });
+
+  return {
+    ...fields,
+    insuranceProviders: insuranceProviders.map((provider) => provider.name),
+    name:
+      workspace.type === "PERSONAL"
+        ? professionals[0]?.name || workspace.name
+        : workspace.name,
+    type: workspace.type,
+    workspaceId: workspace.id,
+  };
 }

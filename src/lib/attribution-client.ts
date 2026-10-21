@@ -3,6 +3,8 @@
 import {
   type AcquisitionEventType,
   type Attribution,
+  type ProfileEventType,
+  buildProfileEventAttribution,
   isAttributionExpired,
   parseAttributionFromSearch,
   resolveFirstTouch,
@@ -114,6 +116,56 @@ export function trackAcquisitionEvent(eventType: AcquisitionEventType) {
   }
 
   writeJson(SENT_EVENTS_KEY, [...sentEvents.slice(-20), eventKey]);
+
+  void fetch("/api/acquisition/event", {
+    body: JSON.stringify({ attribution, eventType, visitorId }),
+    headers: { "Content-Type": "application/json" },
+    keepalive: true,
+    method: "POST",
+  }).catch(() => {
+    // El tracking nunca debe afectar la navegación.
+  });
+}
+
+const PROFILE_VIEWS_KEY = "kineflow.profile.views.v1";
+
+/**
+ * Eventos del perfil público (vista y clic en el pie). No toca la atribución
+ * first-touch guardada: si el visitante sigue a la landing, los UTM del link
+ * del pie se capturan ahí como siempre. La vista cuenta una vez por sesión del
+ * navegador y perfil.
+ */
+export function trackProfileEvent(eventType: ProfileEventType, workspaceId: string) {
+  const visitorId = getVisitorId();
+  const attribution = buildProfileEventAttribution({
+    eventType,
+    landingPage: window.location.pathname,
+    ownHost: window.location.host,
+    referrer: document.referrer,
+    workspaceId,
+  });
+
+  if (!visitorId || !attribution) {
+    return;
+  }
+
+  if (eventType === "profile_view") {
+    try {
+      const raw = window.sessionStorage.getItem(PROFILE_VIEWS_KEY);
+      const seen = raw ? (JSON.parse(raw) as string[]) : [];
+
+      if (seen.includes(workspaceId)) {
+        return;
+      }
+
+      window.sessionStorage.setItem(
+        PROFILE_VIEWS_KEY,
+        JSON.stringify([...seen.slice(-20), workspaceId]),
+      );
+    } catch {
+      // Sin sessionStorage se registra igual.
+    }
+  }
 
   void fetch("/api/acquisition/event", {
     body: JSON.stringify({ attribution, eventType, visitorId }),
