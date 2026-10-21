@@ -17,7 +17,6 @@ export type ProfileTreatmentId = (typeof PROFILE_TREATMENTS)[number]["id"];
 
 export const PROFILE_LIMITS = {
   bio: 400,
-  city: 80,
   insuranceNotes: 300,
   licenseNumber: 40,
   publicAddress: 200,
@@ -26,18 +25,29 @@ export const PROFILE_LIMITS = {
 /** Campos editables del perfil (lo que se guarda en workspace_public_profiles). */
 export type PublicProfileFields = {
   bio: string;
-  city: string;
   homeVisits: boolean;
   insuranceNotes: string;
   licenseNumber: string;
+  /** Id de ar_localities (maestro Georef/INDEC); "" = sin ciudad. */
+  localityId: string;
   publicAddress: string;
   treatments: ProfileTreatmentId[];
+};
+
+/** Localidad del maestro, para mostrar. */
+export type ProfileLocality = {
+  /** Nombre corto para títulos ("CABA"). */
+  displayName: string;
+  /** Nombre completo ("Ciudad Autónoma de Buenos Aires"). */
+  name: string;
+  province: string;
 };
 
 /** Lo que muestra la página pública. */
 export type PublicProfileView = PublicProfileFields & {
   /** Obras sociales activas del espacio (las mismas del formulario de reserva). */
   insuranceProviders: string[];
+  locality: ProfileLocality | null;
   name: string;
   type: "PERSONAL" | "CLINICA";
   workspaceId: string;
@@ -45,13 +55,15 @@ export type PublicProfileView = PublicProfileFields & {
 
 export const EMPTY_PROFILE_FIELDS: PublicProfileFields = {
   bio: "",
-  city: "",
   homeVisits: false,
   insuranceNotes: "",
   licenseNumber: "",
+  localityId: "",
   publicAddress: "",
   treatments: [],
 };
+
+const LOCALITY_ID_PATTERN = /^\d{6,12}$/;
 
 const TREATMENT_IDS = new Set<string>(PROFILE_TREATMENTS.map((item) => item.id));
 
@@ -78,10 +90,13 @@ function clean(value: unknown, max: number) {
 export function normalizeProfileFields(value: Partial<Record<keyof PublicProfileFields, unknown>>): PublicProfileFields {
   return {
     bio: clean(value.bio, PROFILE_LIMITS.bio),
-    city: clean(value.city, PROFILE_LIMITS.city),
     homeVisits: value.homeVisits === true,
     insuranceNotes: clean(value.insuranceNotes, PROFILE_LIMITS.insuranceNotes),
     licenseNumber: clean(value.licenseNumber, PROFILE_LIMITS.licenseNumber),
+    localityId:
+      typeof value.localityId === "string" && LOCALITY_ID_PATTERN.test(value.localityId.trim())
+        ? value.localityId.trim()
+        : "",
     publicAddress: clean(value.publicAddress, PROFILE_LIMITS.publicAddress),
     treatments: normalizeTreatments(value.treatments),
   };
@@ -107,10 +122,21 @@ export function getProfileDisplayName(profile: Pick<PublicProfileView, "name" | 
 }
 
 /** Title: "Lic. Nombre — Kinesiología en Ciudad" (sin ciudad, sin "en ..."). */
-export function getProfileTitle(profile: Pick<PublicProfileView, "city" | "name" | "type">) {
-  const city = profile.city.trim();
+export function getProfileTitle(profile: Pick<PublicProfileView, "locality" | "name" | "type">) {
+  const city = profile.locality?.displayName.trim() ?? "";
 
   return `${getProfileDisplayName(profile)} — Kinesiología${city ? ` en ${city}` : ""}`;
+}
+
+/** "Rosario, Santa Fe" / "CABA" para mostrar debajo del nombre. */
+export function getLocalityText(locality: ProfileLocality | null) {
+  if (!locality) {
+    return "";
+  }
+
+  return locality.displayName === "CABA" || locality.name === locality.province
+    ? locality.name
+    : `${locality.name}, ${locality.province}`;
 }
 
 function joinWithY(items: string[]) {
@@ -136,7 +162,7 @@ export function getProfileDescription(profile: PublicProfileView) {
   });
   const parts = [
     `Kinesiología${treatments.length ? `: ${joinWithY(treatments)}` : ""}`,
-    profile.city.trim() ? `en ${profile.city.trim()}` : "",
+    profile.locality ? `en ${profile.locality.displayName}` : "",
     profile.homeVisits ? "con atención a domicilio" : "",
   ].filter(Boolean);
 
@@ -154,7 +180,7 @@ export function getInsuranceSummary(profile: Pick<PublicProfileView, "insuranceN
  */
 export function buildProfileJsonLd(profile: PublicProfileView, pageUrl: string) {
   const address = profile.publicAddress.trim();
-  const city = profile.city.trim();
+  const locality = profile.locality;
   const treatments = profile.treatments.map(treatmentLabel);
 
   return {
@@ -164,17 +190,17 @@ export function buildProfileJsonLd(profile: PublicProfileView, pageUrl: string) 
     medicalSpecialty: "Physiotherapy",
     name: getProfileDisplayName(profile),
     url: pageUrl,
-    ...(address || city
+    ...(address || locality
       ? {
           address: {
             "@type": "PostalAddress",
             addressCountry: "AR",
-            ...(city ? { addressLocality: city } : {}),
+            ...(locality ? { addressLocality: locality.name, addressRegion: locality.province } : {}),
             ...(address ? { streetAddress: address } : {}),
           },
         }
       : {}),
-    ...(city ? { areaServed: city } : {}),
+    ...(locality ? { areaServed: locality.name } : {}),
     ...(treatments.length
       ? { availableService: treatments.map((name) => ({ "@type": "MedicalTherapy", name })) }
       : {}),

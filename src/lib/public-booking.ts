@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_SESSION_DURATION_MINUTES } from "@/lib/session-defaults";
-import { normalizeProfileFields, type PublicProfileView } from "@/lib/public-profile";
+import {
+  type ProfileLocality,
+  type PublicProfileView,
+  normalizeProfileFields,
+} from "@/lib/public-profile";
 
 export type WorkspaceType = "PERSONAL" | "CLINICA";
 
@@ -796,13 +800,40 @@ export async function isSlotAvailable(params: {
 
 type PublicProfileRow = {
   bio: string | null;
-  city: string | null;
   home_visits: boolean;
   insurance_notes: string | null;
   license_number: string | null;
+  locality_id: string | null;
   public_address: string | null;
   treatments: string[] | null;
 };
+
+type LocalityRow = {
+  display_name: string;
+  name: string;
+  province_name: string;
+};
+
+/** Localidad del maestro (datos abiertos: se lee con la clave anónima). */
+export async function getProfileLocality(
+  anon: SupabaseClient,
+  localityId: string,
+): Promise<ProfileLocality | null> {
+  if (!localityId) {
+    return null;
+  }
+
+  const { data } = await anon
+    .from("ar_localities")
+    .select("name, display_name, province_name")
+    .eq("id", localityId)
+    .maybeSingle();
+  const row = data as LocalityRow | null;
+
+  return row
+    ? { displayName: row.display_name, name: row.name, province: row.province_name }
+    : null;
+}
 
 /**
  * Perfil público del espacio (cabecera de /reservar/[workspaceId]). El perfil
@@ -820,7 +851,7 @@ export async function getPublicProfileView(
       anon
         .from("workspace_public_profiles")
         .select(
-          "treatments, insurance_notes, home_visits, bio, public_address, city, license_number",
+          "treatments, insurance_notes, home_visits, bio, public_address, locality_id, license_number",
         )
         .eq("workspace_id", workspace.id)
         .maybeSingle(),
@@ -837,10 +868,10 @@ export async function getPublicProfileView(
   const row = profileRow as PublicProfileRow | null;
   const fields = normalizeProfileFields({
     bio: row?.bio,
-    city: row?.city,
     homeVisits: row?.home_visits,
     insuranceNotes: row?.insurance_notes,
     licenseNumber: row?.license_number,
+    localityId: row?.locality_id,
     publicAddress: row?.public_address,
     treatments: row?.treatments,
   });
@@ -848,6 +879,7 @@ export async function getPublicProfileView(
   return {
     ...fields,
     insuranceProviders: insuranceProviders.map((provider) => provider.name),
+    locality: await getProfileLocality(anon, fields.localityId),
     name:
       workspace.type === "PERSONAL"
         ? professionals[0]?.name || workspace.name

@@ -33,7 +33,7 @@ const PATIENT_SECRETS = ["Paciente Secreto", "30999888", "1155550000", "secreto@
 
 const ANON_PROFILE_COLUMNS = new Set([
   "workspace_id", "treatments", "insurance_notes", "home_visits", "bio",
-  "public_address", "city", "license_number",
+  "public_address", "locality_id", "license_number",
 ]);
 
 const workspaceBase = {
@@ -45,6 +45,11 @@ const workspaceBase = {
 function seed() {
   return {
     acquisition_events: [],
+    ar_localities: [
+      { display_name: "Rosario", id: "82084270", label: "Rosario, Santa Fe", name: "Rosario", province_name: "Santa Fe", search_text: "rosario" },
+      { display_name: "Rosales", id: "14182090", label: "Rosales, Córdoba", name: "Rosales", province_name: "Córdoba", search_text: "rosales" },
+      { display_name: "CABA", id: "02014010", label: "Ciudad Autónoma de Buenos Aires (CABA)", name: "Ciudad Autónoma de Buenos Aires", province_name: "Ciudad Autónoma de Buenos Aires", search_text: "ciudad autonoma de buenos aires caba capital federal" },
+    ],
     appointments: [{ id: "ap1", patient_id: "pa1", workspace_id: W_FULL, owner_id: OWNER, scheduled_at: "2026-10-22T13:00:00Z", status: "pending" }],
     clinic_professionals: [],
     independent_availability: [],
@@ -63,7 +68,7 @@ function seed() {
       { role: "ADMIN", status: "accepted", user_id: NEW_OWNER, workspace_id: W_NEW },
     ],
     workspace_public_profiles: [{
-      bio: "Kinesióloga deportiva. Trabajo con ejercicio terapéutico.", city: "Rosario", home_visits: true,
+      bio: "Kinesióloga deportiva. Trabajo con ejercicio terapéutico.", locality_id: "82084270", home_visits: true,
       insurance_notes: "Reintegros de prepagas", license_number: "MP 1234", listed_in_directory: false, listed_in_directory_at: null,
       public_address: "Corrientes 123", treatments: ["deportiva", "rpg"], workspace_id: W_FULL,
     }],
@@ -130,7 +135,13 @@ function topLevelColumns(select) {
 function project(rows, select) {
   if (!select || select === "*") return rows;
   const columns = topLevelColumns(select);
-  return rows.map((row) => Object.fromEntries(columns.map((column) => [column, row[column] ?? null])));
+  return rows.map((row) => Object.fromEntries(columns.map((column) => [
+    column,
+    // Embed por FK: ar_localities(...) desde locality_id.
+    column === "ar_localities"
+      ? tables.ar_localities.find((locality) => locality.id === row.locality_id) ?? null
+      : row[column] ?? null,
+  ])));
 }
 
 function send(res, status, body, headers = {}) {
@@ -159,6 +170,11 @@ const server = createServer(async (req, res) => {
   if (url.pathname.startsWith("/auth/v1/")) return send(res, 200, session(OWNER));
   if (url.pathname.startsWith("/rest/v1/rpc/")) {
     const fn = url.pathname.split("/").pop();
+    if (fn === "search_ar_localities") {
+      const query = String(JSON.parse(body || "{}").query ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      const found = query.length < 3 ? [] : tables.ar_localities.filter((row) => row.search_text.split(" ").some((word) => word.startsWith(query)));
+      return send(res, 200, found.map(({ display_name, id, label, province_name }) => ({ display_name, id, label, province_name })));
+    }
     return send(res, 200, fn === "get_account_access_level" ? "PAID_ACTIVE" : null);
   }
 
@@ -176,8 +192,9 @@ const server = createServer(async (req, res) => {
       return send(res, 401, { code: "42501", message: `permission denied for column` });
     }
   }
-  // Sin sesión no se leen tablas con datos de pacientes ni del espacio.
-  if (role === "anon" && table !== "workspace_public_profiles") {
+  // Sin sesión no se leen tablas con datos de pacientes ni del espacio
+  // (el maestro de localidades es público).
+  if (role === "anon" && !["workspace_public_profiles", "ar_localities"].includes(table)) {
     return send(res, 200, single ? null : []);
   }
 
@@ -281,7 +298,8 @@ try {
     const jsonLd = JSON.parse(await page.locator('script[type="application/ld+json"]').textContent());
     assert.equal(jsonLd["@type"], "Physician");
     assert.equal(jsonLd.address.addressLocality, "Rosario");
-    for (const text of ["Deportiva", "RPG", "Atiende a domicilio", "Matrícula MP 1234", "Corrientes 123, Rosario", "OSDE · Reintegros de prepagas"]) {
+    assert.equal(jsonLd.address.addressRegion, "Santa Fe");
+    for (const text of ["Deportiva", "RPG", "Atiende a domicilio", "Matrícula MP 1234", "Corrientes 123, Rosario, Santa Fe", "OSDE · Reintegros de prepagas"]) {
       await page.getByText(text, { exact: false }).first().waitFor();
     }
     assert.equal(await page.getByText("Inactiva").count(), 0, "muestra una obra social inactiva");
@@ -369,7 +387,16 @@ try {
     assert.equal(await page.getByPlaceholder("Calle y número, o solo el barrio").inputValue(), "San Martín 50");
     await page.getByRole("button", { name: "RPG" }).click();
     await page.getByPlaceholder(/Contá tu experiencia/).fill("Kinesiólogo respiratorio.");
-    await page.getByPlaceholder("Ej.: Rosario").fill("Santa Fe");
+    // Ciudad: sugerencias desde 3 letras; no se guarda texto libre.
+    const cityInput = page.getByRole("combobox");
+    await cityInput.fill("ro");
+    await page.waitForTimeout(600);
+    assert.equal(await page.getByRole("option").count(), 0, "sugiere con menos de 3 letras");
+    await cityInput.fill("ros");
+    await page.getByRole("option", { name: "Rosario, Santa Fe" }).waitFor();
+    await page.screenshot({ fullPage: true, path: `${SHOTS}/configuracion-ciudad.png` });
+    await page.getByRole("option", { name: "Rosario, Santa Fe" }).click();
+    await page.getByText("San Martín 50, Rosario, Santa Fe").waitFor();
     await page.getByRole("heading", { level: 2, name: "Lic. Pedro Nuevo" }).waitFor();
     await page.screenshot({ fullPage: true, path: `${SHOTS}/configuracion-perfil.png` });
     await page.getByRole("button", { name: "Guardar perfil" }).click();
@@ -377,7 +404,8 @@ try {
     const saved = tables.workspace_public_profiles.find((row) => row.workspace_id === W_NEW);
     assert.equal(saved.listed_in_directory, false);
     assert.deepEqual(saved.treatments, ["rpg"]);
-    assert.equal(saved.city, "Santa Fe");
+    assert.equal(saved.locality_id, "82084270");
+    assert.equal(saved.city, null);
     assert.equal(saved.license_number, "MN 5555");
     log("Configuración: opt-in en false por defecto, guarda el perfil y la vista previa");
     await context.close();

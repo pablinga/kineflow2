@@ -6,35 +6,61 @@ import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { mapSupabaseError } from "@/lib/error-messages";
 import {
   EMPTY_PROFILE_FIELDS,
+  type ProfileLocality,
   type PublicProfileFields,
   normalizeProfileFields,
 } from "@/lib/public-profile";
 import { getSupabaseClient } from "@/lib/supabase";
 
+type LocalityEmbed = {
+  display_name: string;
+  label: string;
+  name: string;
+  province_name: string;
+};
+
 type ProfileRow = {
+  ar_localities: LocalityEmbed | LocalityEmbed[] | null;
   bio: string | null;
-  city: string | null;
   home_visits: boolean;
   insurance_notes: string | null;
   license_number: string | null;
   listed_in_directory: boolean;
+  locality_id: string | null;
   public_address: string | null;
   treatments: string[] | null;
 };
 
+/** Localidad elegida, con el texto de la lista para mostrar en el campo. */
+export type SelectedLocality = ProfileLocality & { id: string; label: string };
+
 const PROFILE_COLUMNS =
-  "treatments, insurance_notes, home_visits, bio, public_address, city, license_number, listed_in_directory";
+  "treatments, insurance_notes, home_visits, bio, public_address, locality_id, license_number, listed_in_directory, ar_localities(name, display_name, province_name, label)";
 
 function fromRow(row: ProfileRow) {
   return normalizeProfileFields({
     bio: row.bio,
-    city: row.city,
     homeVisits: row.home_visits,
     insuranceNotes: row.insurance_notes,
     licenseNumber: row.license_number,
+    localityId: row.locality_id,
     publicAddress: row.public_address,
     treatments: row.treatments,
   });
+}
+
+function localityFromRow(row: ProfileRow): SelectedLocality | null {
+  const embed = Array.isArray(row.ar_localities) ? row.ar_localities[0] : row.ar_localities;
+
+  return row.locality_id && embed
+    ? {
+        displayName: embed.display_name,
+        id: row.locality_id,
+        label: embed.label,
+        name: embed.name,
+        province: embed.province_name,
+      }
+    : null;
 }
 
 /**
@@ -47,6 +73,7 @@ export function useWorkspacePublicProfile() {
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const [fields, setFields] = useState<PublicProfileFields>(EMPTY_PROFILE_FIELDS);
   const [listedInDirectory, setListedInDirectory] = useState(false);
+  const [locality, setLocality] = useState<SelectedLocality | null>(null);
   const [exists, setExists] = useState(false);
   const [ownerName, setOwnerName] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -95,6 +122,7 @@ export function useWorkspacePublicProfile() {
         setOwnerName(owner?.full_name?.trim() ?? "");
         setExists(Boolean(row));
         setListedInDirectory(row?.listed_in_directory ?? false);
+        setLocality(row ? localityFromRow(row) : null);
         setFields(
           row
             ? fromRow(row)
@@ -133,10 +161,11 @@ export function useWorkspacePublicProfile() {
         .upsert(
           {
             bio: normalized.bio || null,
-            city: normalized.city || null,
+            city: null,
             home_visits: normalized.homeVisits,
             insurance_notes: normalized.insuranceNotes || null,
             license_number: normalized.licenseNumber || null,
+            locality_id: normalized.localityId || null,
             listed_in_directory: nextListed,
             public_address: normalized.publicAddress || null,
             treatments: normalized.treatments,
@@ -154,6 +183,7 @@ export function useWorkspacePublicProfile() {
       const row = data as ProfileRow;
       setFields(fromRow(row));
       setListedInDirectory(row.listed_in_directory);
+      setLocality(localityFromRow(row));
       setExists(true);
     },
     [workspaceId],
@@ -166,6 +196,7 @@ export function useWorkspacePublicProfile() {
     isOwner,
     listedInDirectory,
     loaded,
+    locality,
     ownerName,
     save,
   };

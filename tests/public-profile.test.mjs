@@ -9,6 +9,7 @@ import {
   buildProfileJsonLd,
   getProfileDescription,
   getProfileDisplayName,
+  getLocalityText,
   getProfileFooterUrl,
   getProfileTitle,
   isProfileEmpty,
@@ -21,22 +22,26 @@ function test(name, fn) {
   console.log(`ok - ${name}`);
 }
 
+const ROSARIO = { displayName: "Rosario", name: "Rosario", province: "Santa Fe" };
+const CABA = { displayName: "CABA", name: "Ciudad Autónoma de Buenos Aires", province: "Ciudad Autónoma de Buenos Aires" };
+
 const base = {
   ...EMPTY_PROFILE_FIELDS,
   insuranceProviders: [],
+  locality: null,
   name: "Juan Pérez",
   type: "PERSONAL",
   workspaceId: "3f2a9c1e-1111-4222-8333-444455556666",
 };
 
 test("título con Lic. y ciudad, sin ciudad y para clínicas", () => {
-  assert.equal(getProfileTitle({ ...base, city: "Rosario" }), "Lic. Juan Pérez — Kinesiología en Rosario");
+  assert.equal(getProfileTitle({ ...base, locality: ROSARIO }), "Lic. Juan Pérez — Kinesiología en Rosario");
   assert.equal(getProfileTitle(base), "Lic. Juan Pérez — Kinesiología");
   assert.equal(getProfileDisplayName({ ...base, name: "Lic. Ana Gómez" }), "Lic. Ana Gómez");
   assert.equal(getProfileDisplayName({ ...base, name: "Licenciada Ana Gómez" }), "Licenciada Ana Gómez");
   assert.equal(
-    getProfileTitle({ ...base, city: "Córdoba", name: "Centro Kine Sur", type: "CLINICA" }),
-    "Centro Kine Sur — Kinesiología en Córdoba",
+    getProfileTitle({ ...base, locality: CABA, name: "Centro Kine Sur", type: "CLINICA" }),
+    "Centro Kine Sur — Kinesiología en CABA",
   );
 });
 
@@ -48,12 +53,13 @@ test("tratamientos: solo la lista cerrada, sin repetidos y en orden", () => {
 test("normaliza y recorta los campos", () => {
   const fields = normalizeProfileFields({
     bio: ` ${"a".repeat(500)} `,
-    city: "  Rosario ",
+    localityId: " 82084270 ",
     homeVisits: "true",
     treatments: ["deportiva"],
   });
   assert.equal(fields.bio.length, 400);
-  assert.equal(fields.city, "Rosario");
+  assert.equal(fields.localityId, "82084270");
+  assert.equal(normalizeProfileFields({ localityId: "Rosario" }).localityId, "");
   assert.equal(fields.homeVisits, false);
   assert.equal(fields.licenseNumber, "");
 });
@@ -69,7 +75,7 @@ test("descripción: bio recortada o resumen armado", () => {
   assert.equal(getProfileDescription({ ...base, bio: "Kine deportivo." }), "Kine deportivo.");
   assert.ok(getProfileDescription({ ...base, bio: "x".repeat(300) }).length <= 160);
   assert.equal(
-    getProfileDescription({ ...base, city: "Rosario", homeVisits: true, treatments: ["rpg", "atm", "deportiva"] }),
+    getProfileDescription({ ...base, locality: ROSARIO, homeVisits: true, treatments: ["rpg", "atm", "deportiva"] }),
     "Kinesiología: RPG, ATM y deportiva en Rosario con atención a domicilio. Reservá tu turno online.",
   );
   assert.equal(getProfileDescription(base), "Kinesiología. Reservá tu turno online.");
@@ -78,12 +84,13 @@ test("descripción: bio recortada o resumen armado", () => {
 test("JSON-LD: Physician para particulares y MedicalClinic para clínicas", () => {
   const url = "https://kineflow.ar/reservar/x";
   const personal = buildProfileJsonLd(
-    { ...base, city: "Rosario", licenseNumber: "MP 1", publicAddress: "Corrientes 123", treatments: ["rpg"] },
+    { ...base, licenseNumber: "MP 1", locality: ROSARIO, publicAddress: "Corrientes 123", treatments: ["rpg"] },
     url,
   );
   assert.equal(personal["@type"], "Physician");
   assert.equal(personal.name, "Lic. Juan Pérez");
   assert.equal(personal.address.addressLocality, "Rosario");
+  assert.equal(personal.address.addressRegion, "Santa Fe");
   assert.equal(personal.identifier, "MP 1");
   assert.deepEqual(personal.availableService, [{ "@type": "MedicalTherapy", name: "RPG" }]);
 
@@ -129,4 +136,11 @@ test("eventos del perfil con su propia atribución", () => {
     buildProfileEventAttribution({ eventType: "profile_view", landingPage: "/reservar/x", workspaceId: "a@b" }),
     null,
   );
+});
+
+test("texto de la localidad para mostrar", () => {
+  assert.equal(getLocalityText(ROSARIO), "Rosario, Santa Fe");
+  assert.equal(getLocalityText(CABA), "Ciudad Autónoma de Buenos Aires");
+  assert.equal(getLocalityText({ displayName: "Córdoba", name: "Córdoba", province: "Córdoba" }), "Córdoba");
+  assert.equal(getLocalityText(null), "");
 });

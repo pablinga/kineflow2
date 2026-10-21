@@ -148,11 +148,12 @@ const directoryBenefits = [
 // Perfil de ejemplo para la landing (mismo componente que la página pública).
 const sampleProfile: PublicProfileView = {
   bio: "Kinesióloga con 10 años de experiencia en rehabilitación deportiva y traumatológica. Trabajo con ejercicio terapéutico y seguimiento sesión a sesión.",
-  city: "Rosario",
   homeVisits: true,
   insuranceNotes: "",
   insuranceProviders: ["OSDE", "Swiss Medical", "IAPOS"],
   licenseNumber: "MP 1234",
+  locality: { displayName: "Rosario", name: "Rosario", province: "Santa Fe" },
+  localityId: "82084270",
   name: "Laura Gómez",
   publicAddress: "",
   treatments: ["deportiva", "traumatologia", "rpg"],
