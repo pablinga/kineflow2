@@ -187,8 +187,59 @@ export function resolveFirstTouch(
   return incoming;
 }
 
-export const ACQUISITION_EVENT_TYPES = ["landing_view", "signup_started"] as const;
+export const ACQUISITION_EVENT_TYPES = [
+  "landing_view",
+  "signup_started",
+  "profile_view",
+  "profile_footer_click",
+] as const;
 export type AcquisitionEventType = (typeof ACQUISITION_EVENT_TYPES)[number];
+export type ProfileEventType = Extract<AcquisitionEventType, `profile_${string}`>;
+
+export function isProfileEventType(value: unknown): value is ProfileEventType {
+  return value === "profile_view" || value === "profile_footer_click";
+}
+
+/**
+ * Atribución de los eventos del perfil público: no depende de UTM previos.
+ * utm_content = id del espacio (un uuid es un slug válido), así se puede
+ * contar por perfil sin guardar datos del visitante.
+ */
+export function buildProfileEventAttribution(params: {
+  eventType: ProfileEventType;
+  landingPage: string;
+  now?: Date;
+  ownHost?: string;
+  referrer?: string | null;
+  workspaceId: string;
+}): Attribution | null {
+  const content = sanitizeUtmValue(params.workspaceId);
+
+  if (!content) {
+    return null;
+  }
+
+  return {
+    first_visited_at: (params.now ?? new Date()).toISOString(),
+    landing_page: sanitizeLandingPage(params.landingPage),
+    referrer: sanitizeReferrer(params.referrer, params.ownHost),
+    utm_campaign: "perfil_publico",
+    utm_content: content,
+    utm_medium: params.eventType === "profile_view" ? "view" : "footer",
+    utm_source: "perfil",
+    utm_term: null,
+  };
+}
+
+/** Un evento del perfil solo vale con la atribución propia del perfil. */
+export function isValidProfileEventAttribution(attribution: Attribution) {
+  return (
+    attribution.utm_source === "perfil" &&
+    attribution.utm_campaign === "perfil_publico" &&
+    Boolean(attribution.utm_content) &&
+    attribution.landing_page.startsWith("/reservar/")
+  );
+}
 
 export function isAcquisitionEventType(value: unknown): value is AcquisitionEventType {
   return (

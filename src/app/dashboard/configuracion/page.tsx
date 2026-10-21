@@ -21,6 +21,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PushNotificationsCard } from "@/components/dashboard/PushNotificationsCard";
 import { AttentionTypesSection } from "@/components/configuracion/AttentionTypesSection";
+import { PublicProfileSection } from "@/components/configuracion/PublicProfileSection";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { formatCurrency } from "@/lib/format";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
@@ -120,6 +121,7 @@ const CONFIG_SECTIONS = [
   { id: "atencion", label: "Atención y coberturas" },
   { id: "agenda", label: "Agenda" },
   { id: "notificaciones", label: "Notificaciones" },
+  { id: "perfil", label: "Perfil público" },
 ] as const;
 
 type ConfigSection = (typeof CONFIG_SECTIONS)[number]["id"];
@@ -1021,6 +1023,12 @@ export default function WorkspaceSettingsPage() {
         <div hidden={section !== "notificaciones"}>
           <PushNotificationsCard />
         </div>
+
+        {section === "perfil" ? (
+          <div className="mt-4">
+            <PublicProfileSection canEdit={canEdit} />
+          </div>
+        ) : null}
       </PageContainer>
     </main>
   );

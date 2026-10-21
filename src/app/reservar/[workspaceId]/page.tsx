@@ -1,796 +1,113 @@
-"use client";
-
-import { use, useCallback, useEffect, useMemo, useState } from "react";
-import {
-  CalendarDays,
-  CheckCircle,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  UserRound,
-} from "lucide-react";
-import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
+import type { Metadata } from "next";
+import { cache } from "react";
 import { Logo } from "@/components/ui/Logo";
-import { TurnstileWidget } from "@/components/TurnstileWidget";
-import { DEFAULT_SESSION_DURATION_MINUTES } from "@/lib/session-defaults";
-import { isWhatsAppNotificationsEnabled } from "@/lib/whatsapp";
+import { PublicProfileFooter } from "@/components/booking/PublicProfileFooter";
+import { PublicProfileHeader } from "@/components/booking/PublicProfileHeader";
+import { getPublicProfileView, getWorkspace } from "@/lib/public-booking";
+import {
+  buildProfileJsonLd,
+  getProfileDescription,
+  getProfileTitle,
+  isProfileEmpty,
+} from "@/lib/public-profile";
+import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase-server";
+import { BookingClient } from "./BookingClient";
 
 type PageProps = {
   params: Promise<{ workspaceId: string }>;
 };
 
-type Workspace = {
-  address: string | null;
-  defaultSessionDurationMinutes: number | null;
-  defaultSessionPrice: number | null;
-  email: string | null;
-  id: string;
-  name: string;
-  phone: string | null;
-  type: "PERSONAL" | "CLINICA";
-};
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type Professional = {
-  id: string;
-  name: string;
-};
-
-type InsuranceProvider = {
-  id: string;
-  name: string;
-};
-
-type ArtProvider = {
-  id: string;
-  name: string;
-};
-
-type PaymentType = "PARTICULAR" | "OBRA_SOCIAL" | "ART";
-
-type FreeSlot = {
-  date: string;
-  end: string;
-  endTime: string;
-  start: string;
-  startTime: string;
-};
-
-type Confirmation = {
-  date: string;
-  durationMinutes: number;
-  professionalName: string;
-  time: string;
-};
-
-const DEFAULT_DURATION_MINUTES = DEFAULT_SESSION_DURATION_MINUTES;
-const ANY_PROFESSIONAL_ID = "any";
-
-function toDateValue(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+function getBaseUrl() {
+  return (process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://kineflow.ar").replace(/\/$/, "");
 }
 
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function formatSlotDate(dateValue: string) {
-  return new Date(`${dateValue}T12:00:00`).toLocaleDateString("es-AR", {
-    day: "2-digit",
-    month: "long",
-    weekday: "long",
-  });
-}
-
-function formatShortDate(dateValue: string) {
-  return new Date(`${dateValue}T12:00:00`).toLocaleDateString("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-  });
-}
-
-function getMondayOfWeek(dateValue: string) {
-  const date = new Date(`${dateValue}T12:00:00`);
-  const day = date.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-
-  return toDateValue(addDays(date, diffToMonday));
-}
-
-function capitalizeFirst(text: string) {
-  return text.length > 0 ? text[0].toUpperCase() + text.slice(1) : text;
-}
-
-function getErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof Error) {
-    return error.message;
+/**
+ * Perfil público del espacio. Si no se puede cargar (link inválido, base
+ * caída) devuelve null y la página muestra solo la reserva, como antes.
+ * cache() evita leerlo dos veces (metadatos y página).
+ */
+const loadProfile = cache(async (workspaceId: string) => {
+  if (!UUID_PATTERN.test(workspaceId)) {
+    return null;
   }
 
-  return fallback;
+  const admin = getSupabaseAdminClient();
+
+  if (!admin) {
+    return null;
+  }
+
+  try {
+    const workspace = await getWorkspace(admin, workspaceId);
+
+    return workspace
+      ? await getPublicProfileView(admin, getSupabaseServerClient(), workspace)
+      : null;
+  } catch (error) {
+    console.error("[public-profile] load failed", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
+    return null;
+  }
+});
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { workspaceId } = await params;
+  const profile = await loadProfile(workspaceId);
+
+  if (!profile) {
+    return { robots: { follow: false, index: false }, title: "Reservá tu turno | KineFlow" };
+  }
+
+  const title = getProfileTitle(profile);
+  const description = getProfileDescription(profile);
+  const url = `${getBaseUrl()}/reservar/${profile.workspaceId}`;
+
+  return {
+    alternates: { canonical: url },
+    description,
+    openGraph: {
+      description,
+      locale: "es_AR",
+      siteName: "KineFlow",
+      title,
+      type: "profile",
+      url,
+    },
+    // Un perfil sin bio ni tratamientos no se indexa (el link funciona igual).
+    robots: isProfileEmpty(profile) ? { follow: true, index: false } : { follow: true, index: true },
+    title,
+    twitter: { card: "summary", description, title },
+  };
 }
 
-export default function PublicBookingPage({ params }: PageProps) {
-  const { workspaceId } = use(params);
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
-  const [professionals, setProfessionals] = useState<Professional[]>([]);
-  const [insuranceProviders, setInsuranceProviders] = useState<
-    InsuranceProvider[]
-  >([]);
-  const [artProviders, setArtProviders] = useState<ArtProvider[]>([]);
-  const [professionalId, setProfessionalId] = useState("");
-  const [fromDate, setFromDate] = useState(() =>
-    getMondayOfWeek(toDateValue(new Date())),
-  );
-  const [slots, setSlots] = useState<FreeSlot[]>([]);
-  const [availabilityMessage, setAvailabilityMessage] = useState("");
-  const [selectedSlot, setSelectedSlot] = useState<FreeSlot | null>(null);
-  const [form, setForm] = useState({
-    artProviderId: "",
-    company: "",
-    documentNumber: "",
-    email: "",
-    firstName: "",
-    insuranceMemberNumber: "",
-    insuranceProviderId: "",
-    lastName: "",
-    phone: "",
-    whatsappConsent: false,
-  });
-  const [paymentType, setPaymentType] = useState<PaymentType>("PARTICULAR");
-  const [loadingProfessionals, setLoadingProfessionals] = useState(true);
-  const [loadingSlots, setLoadingSlots] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
-  const [turnstileToken, setTurnstileToken] = useState("");
-
-  useEffect(() => {
-    async function loadProfessionals() {
-      if (!workspaceId) {
-        return;
-      }
-
-      setLoadingProfessionals(true);
-      setError("");
-
-      try {
-        const response = await fetch(
-          `/api/public/booking/${encodeURIComponent(workspaceId)}/professionals`,
-        );
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || "No pudimos cargar la agenda.");
-        }
-
-        const nextProfessionals = (result.professionals ?? []) as Professional[];
-
-        setWorkspace(result.workspace as Workspace);
-        setProfessionals(nextProfessionals);
-        setInsuranceProviders(
-          (result.insuranceProviders ?? []) as InsuranceProvider[],
-        );
-        setArtProviders((result.artProviders ?? []) as ArtProvider[]);
-        const nextWorkspace = result.workspace as Workspace;
-        setProfessionalId(
-          (current) =>
-            current ||
-            (nextWorkspace.type === "CLINICA"
-              ? ANY_PROFESSIONAL_ID
-              : nextProfessionals[0]?.id || ""),
-        );
-      } catch (loadError) {
-        setError(getErrorMessage(loadError, "No pudimos cargar la agenda."));
-      } finally {
-        setLoadingProfessionals(false);
-      }
-    }
-
-    loadProfessionals();
-  }, [workspaceId]);
-
-  const durationMinutes =
-    workspace?.defaultSessionDurationMinutes ?? DEFAULT_DURATION_MINUTES;
-  const todayDate = toDateValue(new Date());
-  const toDate = useMemo(
-    () => toDateValue(addDays(new Date(`${fromDate}T12:00:00`), 4)),
-    [fromDate],
-  );
-  const previousWeekEnd = toDateValue(
-    addDays(new Date(`${fromDate}T12:00:00`), -1),
-  );
-  const canGoToPreviousWeek = previousWeekEnd >= todayDate;
-  const weekRangeLabel = `${formatShortDate(fromDate)} al ${formatShortDate(toDate)}`;
-
-  const loadAvailability = useCallback(async () => {
-    if (!workspaceId || !professionalId) {
-      setAvailabilityMessage("");
-      setSlots([]);
-      return;
-    }
-
-    setLoadingSlots(true);
-    setAvailabilityMessage("");
-    setSelectedSlot(null);
-    setError("");
-
-    try {
-      const query = new URLSearchParams({
-        durationMinutes: String(durationMinutes),
-        from: fromDate,
-        professionalId,
-        to: toDate,
-      });
-      const response = await fetch(
-        `/api/public/booking/${encodeURIComponent(
-          workspaceId,
-        )}/availability?${query.toString()}`,
-      );
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "No pudimos cargar los horarios.");
-      }
-
-      setSlots((result.slots ?? []) as FreeSlot[]);
-      setAvailabilityMessage(
-        typeof result.message === "string" ? result.message : "",
-      );
-    } catch (loadError) {
-      setError(getErrorMessage(loadError, "No pudimos cargar los horarios."));
-      setAvailabilityMessage("");
-      setSlots([]);
-    } finally {
-      setLoadingSlots(false);
-    }
-  }, [durationMinutes, fromDate, professionalId, toDate, workspaceId]);
-
-  useEffect(() => {
-    loadAvailability();
-  }, [loadAvailability]);
-
-  const groupedSlots = useMemo(() => {
-    return slots.reduce<Record<string, FreeSlot[]>>((groups, slot) => {
-      groups[slot.date] = [...(groups[slot.date] ?? []), slot];
-      return groups;
-    }, {});
-  }, [slots]);
-
-  const selectedProfessional = professionals.find(
-    (professional) => professional.id === professionalId,
-  );
-  const bookingTitle = loadingProfessionals
-    ? "Cargando..."
-    : workspace?.type === "PERSONAL" && professionals[0]?.name
-      ? `Reservá un turno con ${professionals[0].name}`
-      : workspace?.name ?? "KineFlow";
-
-  const rescheduleContact = workspace?.phone || workspace?.email || "";
-
-  function goToPreviousWeek() {
-    if (!canGoToPreviousWeek) {
-      return;
-    }
-
-    setFromDate((current) =>
-      getMondayOfWeek(
-        toDateValue(addDays(new Date(`${current}T12:00:00`), -7)),
-      ),
-    );
-  }
-
-  function goToNextWeek() {
-    setFromDate((current) =>
-      getMondayOfWeek(
-        toDateValue(addDays(new Date(`${current}T12:00:00`), 7)),
-      ),
-    );
-  }
-
-  async function submitBooking(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!selectedSlot) {
-      setError("Elegí un horario para reservar.");
-      return;
-    }
-
-    setSaving(true);
-    setError("");
-
-    try {
-      const response = await fetch(
-        `/api/public/booking/${encodeURIComponent(workspaceId)}`,
-        {
-          body: JSON.stringify({
-            artProviderId: paymentType === "ART" ? form.artProviderId : "",
-            company: form.company,
-            documentNumber: form.documentNumber,
-            durationMinutes,
-            email: form.email,
-            firstName: form.firstName,
-            insuranceMemberNumber:
-              paymentType === "OBRA_SOCIAL" || paymentType === "ART"
-                ? form.insuranceMemberNumber
-                : "",
-            insuranceProviderId:
-              paymentType === "OBRA_SOCIAL" ? form.insuranceProviderId : "",
-            lastName: form.lastName,
-            phone: form.phone,
-            professionalId,
-            scheduledAt: selectedSlot.start,
-            // El QR de Disponibilidad abre el enlace con ?src=qr.
-            source:
-              new URLSearchParams(window.location.search).get("src") === "qr"
-                ? "qr"
-                : "link",
-            turnstileToken,
-            whatsappConsent: form.whatsappConsent,
-          }),
-          headers: { "Content-Type": "application/json" },
-          method: "POST",
-        },
-      );
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "No pudimos reservar el turno.");
-      }
-
-      setConfirmation(result.appointment as Confirmation);
-    } catch (saveError) {
-      setError(getErrorMessage(saveError, "No pudimos reservar el turno."));
-      setTurnstileToken("");
-      await loadAvailability();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  if (confirmation) {
-    return (
-      <main className="min-h-screen bg-ocean-50 px-4 py-8">
-        <section className="mx-auto w-full max-w-2xl rounded-lg border border-ocean-100 bg-white p-6 shadow-soft">
-          <Logo showSlogan />
-          <div className="mt-8 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-            <CheckCircle className="h-7 w-7" />
-          </div>
-          <h1 className="mt-5 text-3xl font-bold text-ink">Turno reservado</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Tu reserva quedó registrada. No hace falta que hagas nada más.
-          </p>
-          <div className="mt-6 rounded-lg border border-ocean-100 bg-ocean-50 p-4 text-sm text-ocean-900">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              Profesional
-            </p>
-            <p className="mt-1 font-bold">{confirmation.professionalName}</p>
-            <p className="mt-2">{capitalizeFirst(confirmation.date)}</p>
-            <p className="mt-1">
-              {confirmation.time} · {confirmation.durationMinutes} minutos
-            </p>
-            {workspace?.address ? (
-              <p className="mt-2">📍 {workspace.address}</p>
-            ) : null}
-            {rescheduleContact ? (
-              <p className="mt-4 text-slate-700">
-                Para reprogramar o cancelar, comunicate al {rescheduleContact}.
-              </p>
-            ) : null}
-          </div>
-        </section>
-      </main>
-    );
-  }
+export default async function PublicBookingPage({ params }: PageProps) {
+  const { workspaceId } = await params;
+  const profile = await loadProfile(workspaceId);
+  const jsonLd = profile
+    ? JSON.stringify(
+        buildProfileJsonLd(profile, `${getBaseUrl()}/reservar/${profile.workspaceId}`),
+      ).replace(/</g, "\\u003c")
+    : null;
 
   return (
-    <main className="min-h-screen bg-ocean-50 px-4 py-8">
-      <section className="mx-auto w-full max-w-5xl">
-        <div className="rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6">
-          <Logo showSlogan />
-          <div className="mt-8">
-            <p className="text-sm font-semibold text-ocean-700">
-              Reserva de turno
-            </p>
-            <h1 className="mt-1 text-3xl font-bold text-ink">
-              {bookingTitle}
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Elegí un horario disponible y completá tus datos para confirmar.
-            </p>
-          </div>
-
-          {error ? (
-            <Alert className="mt-6" tone="error">
-              {error}
-            </Alert>
-          ) : null}
-
-          {loadingProfessionals ? (
-            <div className="mt-6 rounded-lg bg-ocean-50 p-5 text-sm font-semibold text-ocean-800">
-              Cargando agenda...
-            </div>
-          ) : (
-            <form className="mt-6 grid gap-6 lg:grid-cols-[1fr_24rem]" onSubmit={submitBooking}>
-              <div className="space-y-6">
-                {workspace?.type === "CLINICA" ? (
-                  <section>
-                    <div className="flex items-center gap-2 text-sm font-bold text-ink">
-                      <UserRound className="h-4 w-4 text-ocean-600" />
-                      Profesional
-                    </div>
-                    <select
-                      className="mt-3 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) => setProfessionalId(event.target.value)}
-                      value={professionalId}
-                    >
-                      <option value={ANY_PROFESSIONAL_ID}>Sin preferencia</option>
-                      {professionals.map((professional) => (
-                        <option key={professional.id} value={professional.id}>
-                          {professional.name}
-                        </option>
-                      ))}
-                    </select>
-                    {professionalId === ANY_PROFESSIONAL_ID ? (
-                      <p className="mt-2 text-sm font-semibold text-ocean-800">
-                        Se asignará el primer profesional disponible en el
-                        horario que elijas.
-                      </p>
-                    ) : selectedProfessional ? (
-                      <p className="mt-2 text-sm font-semibold text-ocean-800">
-                        Profesional seleccionado: {selectedProfessional.name}
-                      </p>
-                    ) : null}
-                  </section>
-                ) : null}
-
-                <section>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 text-sm font-bold text-ink">
-                        <CalendarDays className="h-4 w-4 text-ocean-600" />
-                        Día y horario
-                      </div>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Mostramos únicamente franjas libres.
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:items-end">
-                      <p className="text-sm font-bold text-ink">
-                        {weekRangeLabel}
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-100 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50 disabled:cursor-not-allowed disabled:opacity-50"
-                          disabled={!canGoToPreviousWeek}
-                          onClick={goToPreviousWeek}
-                          type="button"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                          Anterior
-                        </button>
-                        <button
-                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ocean-100 px-3 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-                          onClick={goToNextWeek}
-                          type="button"
-                        >
-                          Siguiente
-                          <ChevronRight className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {loadingSlots ? (
-                    <div className="mt-4 rounded-lg bg-ocean-50 p-5 text-sm font-semibold text-ocean-800">
-                      Buscando horarios...
-                    </div>
-                  ) : slots.length === 0 ? (
-                    <div className="mt-4 rounded-lg border border-dashed border-ocean-200 bg-ocean-50 p-5 text-sm font-semibold text-ocean-800">
-                      {availabilityMessage || "No hay horarios disponibles en este rango."}
-                    </div>
-                  ) : (
-                    <div className="mt-4 grid gap-4">
-                      {Object.entries(groupedSlots).map(([date, daySlots]) => (
-                        <div key={date} className="rounded-lg border border-ocean-100 p-4">
-                          <p className="text-sm font-bold capitalize text-ink">
-                            {formatSlotDate(date)}
-                          </p>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {daySlots.map((slot) => {
-                              const selected = selectedSlot?.start === slot.start;
-
-                              return (
-                                <button
-                                  className={
-                                    selected
-                                      ? "inline-flex min-h-10 items-center gap-2 rounded-lg bg-ocean-600 px-4 text-sm font-semibold text-white"
-                                      : "inline-flex min-h-10 items-center gap-2 rounded-lg border border-ocean-100 px-4 text-sm font-semibold text-ocean-800 transition hover:bg-ocean-50"
-                                  }
-                                  key={slot.start}
-                                  onClick={() => setSelectedSlot(slot)}
-                                  type="button"
-                                >
-                                  <Clock className="h-4 w-4" />
-                                  {slot.startTime}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              </div>
-
-              <aside className="rounded-lg border border-ocean-100 bg-ocean-50 p-4">
-                <h2 className="text-lg font-bold text-ink">Tus datos</h2>
-                {selectedSlot ? (
-                  <p className="mt-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-ocean-900">
-                    {formatSlotDate(selectedSlot.date)} a las {selectedSlot.startTime}
-                  </p>
-                ) : (
-                  <p className="mt-2 text-sm text-slate-600">
-                    Primero elegí un horario disponible.
-                  </p>
-                )}
-
-                <div className="mt-4 hidden">
-                  <label htmlFor="company">Empresa</label>
-                  <input
-                    autoComplete="off"
-                    id="company"
-                    name="company"
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        company: event.target.value,
-                      }))
-                    }
-                    tabIndex={-1}
-                    value={form.company}
-                  />
-                </div>
-
-                <div className="mt-4 grid gap-3">
-                  <input
-                    className="min-h-11 rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        documentNumber: event.target.value,
-                      }))
-                    }
-                    placeholder="DNI"
-                    required
-                    value={form.documentNumber}
-                  />
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                    <input
-                      className="min-h-11 rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          firstName: event.target.value,
-                        }))
-                      }
-                      placeholder="Nombre"
-                      required
-                      value={form.firstName}
-                    />
-                    <input
-                      className="min-h-11 rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          lastName: event.target.value,
-                        }))
-                      }
-                      placeholder="Apellido"
-                      required
-                      value={form.lastName}
-                    />
-                  </div>
-                  <input
-                    className="min-h-11 rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        email: event.target.value,
-                      }))
-                    }
-                    placeholder="Email"
-                    type="email"
-                    value={form.email}
-                  />
-                  <input
-                    className="min-h-11 rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        phone: event.target.value,
-                      }))
-                    }
-                    placeholder="Teléfono"
-                    required
-                    value={form.phone}
-                  />
-                  {insuranceProviders.length > 0 || artProviders.length > 0 ? (
-                    <div className="rounded-lg border border-ocean-100 bg-white p-3">
-                      <span className="text-sm font-semibold text-slate-700">
-                        ¿Cómo pagás la sesión?
-                      </span>
-                      <div className="mt-2 flex gap-4">
-                        <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                          <input
-                            checked={paymentType === "PARTICULAR"}
-                            className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                            name="paymentType"
-                            onChange={() => setPaymentType("PARTICULAR")}
-                            type="radio"
-                          />
-                          Particular
-                        </label>
-                        {insuranceProviders.length > 0 ? (
-                          <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                            <input
-                              checked={paymentType === "OBRA_SOCIAL"}
-                              className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                              name="paymentType"
-                              onChange={() => setPaymentType("OBRA_SOCIAL")}
-                              type="radio"
-                            />
-                            Obra social
-                          </label>
-                        ) : null}
-                        {artProviders.length > 0 ? (
-                          <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                            <input
-                              checked={paymentType === "ART"}
-                              className="h-4 w-4 border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                              name="paymentType"
-                              onChange={() => setPaymentType("ART")}
-                              type="radio"
-                            />
-                            ART
-                          </label>
-                        ) : null}
-                      </div>
-
-                      {paymentType === "OBRA_SOCIAL" ? (
-                        <div className="mt-3 grid gap-3">
-                          <select
-                            className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                            onChange={(event) =>
-                              setForm((current) => ({
-                                ...current,
-                                insuranceProviderId: event.target.value,
-                              }))
-                            }
-                            value={form.insuranceProviderId}
-                          >
-                            <option value="">Seleccioná tu obra social</option>
-                            {insuranceProviders.map((provider) => (
-                              <option key={provider.id} value={provider.id}>
-                                {provider.name}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                            onChange={(event) =>
-                              setForm((current) => ({
-                                ...current,
-                                insuranceMemberNumber: event.target.value,
-                              }))
-                            }
-                            placeholder="Número de afiliado"
-                            required={Boolean(form.insuranceProviderId)}
-                            value={form.insuranceMemberNumber}
-                          />
-                        </div>
-                      ) : null}
-
-                      {paymentType === "ART" ? (
-                        <div className="mt-3 grid gap-3">
-                          <select
-                            className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                            onChange={(event) =>
-                              setForm((current) => ({
-                                ...current,
-                                artProviderId: event.target.value,
-                              }))
-                            }
-                            value={form.artProviderId}
-                          >
-                            <option value="">Seleccioná tu ART</option>
-                            {artProviders.map((provider) => (
-                              <option key={provider.id} value={provider.id}>
-                                {provider.name}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            className="min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-                            onChange={(event) =>
-                              setForm((current) => ({
-                                ...current,
-                                insuranceMemberNumber: event.target.value,
-                              }))
-                            }
-                            placeholder="Número de afiliado/credencial ART"
-                            required={Boolean(form.artProviderId)}
-                            value={form.insuranceMemberNumber}
-                          />
-                        </div>
-                      ) : null}
-
-                      {paymentType === "PARTICULAR" ? (
-                        <p className="mt-2 text-sm text-slate-600">
-                          Duración de la sesión: {durationMinutes} minutos
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {isWhatsAppNotificationsEnabled() ? (
-                    <label className="flex items-start gap-3 rounded-lg border border-ocean-100 bg-white p-3 text-sm font-semibold leading-5 text-slate-700">
-                      <input
-                        checked={form.whatsappConsent}
-                        className="mt-1 h-4 w-4 rounded border-ocean-200 text-ocean-600 focus:ring-ocean-400"
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            whatsappConsent: event.target.checked,
-                          }))
-                        }
-                        type="checkbox"
-                      />
-                      <span>
-                        {workspace?.type === "CLINICA"
-                          ? "Quiero recibir por WhatsApp la confirmación y los recordatorios de mis turnos en este centro."
-                          : "Quiero recibir por WhatsApp la confirmación y los recordatorios de mis turnos con este profesional."}
-                      </span>
-                    </label>
-                  ) : null}
-                </div>
-
-                {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? (
-                  <div className="mt-4 flex justify-center">
-                    <TurnstileWidget
-                      onExpire={() => setTurnstileToken("")}
-                      onVerify={setTurnstileToken}
-                      siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-                    />
-                  </div>
-                ) : null}
-
-                <Button
-                  className="mt-5 w-full"
-                  disabled={
-                    saving ||
-                    !selectedSlot ||
-                    (!selectedProfessional &&
-                      professionalId !== ANY_PROFESSIONAL_ID) ||
-                    professionals.length === 0 ||
-                    (Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) &&
-                      !turnstileToken)
-                  }
-                  type="submit"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  {saving ? "Reservando..." : "Confirmar turno"}
-                </Button>
-              </aside>
-            </form>
-          )}
+    <main className="min-h-screen bg-ocean-50 px-4 py-6 sm:py-8">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+        <div className="px-1">
+          <Logo />
         </div>
-      </section>
+        {profile ? <PublicProfileHeader profile={profile} /> : null}
+        <BookingClient workspaceId={workspaceId} />
+        <PublicProfileFooter workspaceId={workspaceId} />
+      </div>
+      {jsonLd ? (
+        <script
+          dangerouslySetInnerHTML={{ __html: jsonLd }}
+          type="application/ld+json"
+        />
+      ) : null}
     </main>
   );
 }

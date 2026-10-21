@@ -10,6 +10,9 @@ import {
   Instagram,
   Mail,
   MessageCircle,
+  Search,
+  ShieldCheck,
+  Stethoscope,
   TrendingUp,
   UserPlus,
   UsersRound,
@@ -19,6 +22,8 @@ import { redirect } from "next/navigation";
 import { LegalLinks } from "@/components/layout/LegalLinks";
 import { PublicNavbar } from "@/components/layout/PublicNavbar";
 import { LinkButton } from "@/components/ui/Button";
+import { PublicProfileHeader } from "@/components/booking/PublicProfileHeader";
+import type { PublicProfileView } from "@/lib/public-profile";
 import {
   getVisiblePlansForMvp,
   plans as commercialPlans,
@@ -121,6 +126,39 @@ const productScreenshots = [
 
 const instagramUrl = "https://www.instagram.com/kineflow.ar/";
 const contactEmail = "contacto@kineflow.ar";
+
+const directoryBenefits = [
+  {
+    icon: Stethoscope,
+    title: "Tu perfil profesional",
+    text: "Tratamientos, matrícula, dirección y si atendés a domicilio, en la misma página donde te reservan.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Obras sociales a la vista",
+    text: "Las que cargás en KineFlow se muestran solas, junto con tus aclaraciones.",
+  },
+  {
+    icon: CalendarClock,
+    title: "Turnos libres en tiempo real",
+    text: "Debajo del perfil, el paciente ve tus horarios disponibles y reserva sin escribirte.",
+  },
+];
+
+// Perfil de ejemplo para la landing (mismo componente que la página pública).
+const sampleProfile: PublicProfileView = {
+  bio: "Kinesióloga con 10 años de experiencia en rehabilitación deportiva y traumatológica. Trabajo con ejercicio terapéutico y seguimiento sesión a sesión.",
+  city: "Rosario",
+  homeVisits: true,
+  insuranceNotes: "",
+  insuranceProviders: ["OSDE", "Swiss Medical", "IAPOS"],
+  licenseNumber: "MP 1234",
+  name: "Laura Gómez",
+  publicAddress: "",
+  treatments: ["deportiva", "traumatologia", "rpg"],
+  type: "PERSONAL",
+  workspaceId: "ejemplo",
+};
 
 export default async function Home({
   searchParams,
@@ -368,6 +406,57 @@ export default async function Home({
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        className="border-y border-ocean-100 bg-white px-4 py-14 sm:px-6 lg:px-8"
+        id="buscador"
+      >
+        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-2 lg:items-center">
+          <div>
+            <p className="inline-flex items-center gap-2 text-sm font-semibold text-ocean-700">
+              <Search aria-hidden="true" className="h-4 w-4" />
+              Incluido gratis
+            </p>
+            <h2 className="mt-2 text-3xl font-bold text-ink">
+              Aparecé en el buscador de KineFlow
+            </h2>
+            <p className="mt-4 max-w-lg leading-7 text-slate-600">
+              Tu link de reservas se convierte en un perfil profesional que podés
+              compartir: con tus tratamientos, obras sociales y turnos libres. Si
+              querés, también lo vas a poder mostrar en el buscador de KineFlow.
+            </p>
+
+            <div className="mt-8 space-y-5">
+              {directoryBenefits.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <div className="flex items-start gap-3" key={item.title}>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
+                      <Icon aria-hidden="true" className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <p className="font-bold text-ink">{item.title}</p>
+                      <p className="mt-0.5 text-sm text-slate-500">{item.text}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {showAuthLinks ? (
+              <LinkButton className="mt-8" href="/registro" prefetch={false}>
+                Crear mi perfil gratis
+                <ArrowRight className="h-4 w-4" />
+              </LinkButton>
+            ) : null}
+          </div>
+
+          <div aria-hidden="true" className="pointer-events-none select-none">
+            <PublicProfileHeader headingLevel="h2" profile={sampleProfile} />
           </div>
         </div>
       </section>
