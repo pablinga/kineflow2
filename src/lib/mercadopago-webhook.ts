@@ -9,7 +9,7 @@ import {
   type MercadoPagoPreapproval,
 } from "@/lib/mercadopago";
 import { verifyMercadoPagoSignature } from "@/lib/mercadopago-signature";
-import type { CommercialPlan } from "@/lib/plans";
+import { resolveSubscriptionTarget } from "@/lib/mercadopago-subscription-target";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
 
 /**
@@ -26,13 +26,6 @@ import { getSupabaseAdminClient } from "@/lib/supabase-server";
 type SupabaseAdminClient = NonNullable<ReturnType<typeof getSupabaseAdminClient>>;
 type Payload = Record<string, unknown>;
 type EventStatus = "processed" | "ignored" | "unresolved" | "failed" | "rejected";
-
-/** Referencias fijas que Mercado Pago pone en las preapprovals de los planes. */
-const PLAN_EXTERNAL_REFERENCES: Record<string, CommercialPlan> = {
-  KINECONSU: "CONSULTORIO",
-  KINEINDEP: "INDEPENDIENTE",
-  KINEPART: "INDEPENDIENTE",
-};
 
 /** Tope de rechazos guardados por hora: el endpoint es público. */
 const MAX_REJECTED_EVENTS_PER_HOUR = 100;
@@ -143,161 +136,6 @@ async function getProviderSubscriptionFromEvent(eventType: string, resourceId: s
   return authorizedPayment?.preapproval_id
     ? getMercadoPagoSubscription(authorizedPayment.preapproval_id)
     : null;
-}
-
-type SubscriptionRow = {
-  account_id: string;
-  account_type: "KINESIOLOGO" | "CONSULTORIO";
-  id: string;
-  plans: { code?: string } | Array<{ code?: string }> | null;
-  workspace_id: string | null;
-};
-
-const SUBSCRIPTION_ROW_COLUMNS = "id, account_id, account_type, workspace_id, plans(code)";
-
-export type SubscriptionTarget = {
-  accountId: string;
-  accountType: "KINESIOLOGO" | "CONSULTORIO";
-  matchedBy: "provider_subscription_id" | "external_reference" | "parsed_reference" | "payer_email";
-  planCode: CommercialPlan;
-  subscriptionId: string | null;
-  workspaceId: string | null;
-};
-
-function getRowPlanCode(row: SubscriptionRow, fallback: CommercialPlan): CommercialPlan {
-  const plans = Array.isArray(row.plans) ? row.plans[0] : row.plans;
-  const code = plans?.code;
-
-  if (code === "INDEPENDIENTE" || code === "CONSULTORIO") {
-    return code;
-  }
-
-  return fallback;
-}
-
-function rowToTarget(row: SubscriptionRow, matchedBy: SubscriptionTarget["matchedBy"]) {
-  return {
-    accountId: row.account_id,
-    accountType: row.account_type,
-    matchedBy,
-    planCode: getRowPlanCode(
-      row,
-      row.account_type === "CONSULTORIO" ? "CONSULTORIO" : "INDEPENDIENTE",
-    ),
-    subscriptionId: row.id,
-    workspaceId: row.workspace_id,
-  } satisfies SubscriptionTarget;
-}
-
-/** Referencia que arma create-subscription: cuenta:plan:workspace|account:uuid. */
-function parseExternalReference(reference: string) {
-  const [accountId, planCode, workspaceSegment] = reference.split(":");
-
-  if (
-    !accountId ||
-    !/^[0-9a-f-]{36}$/i.test(accountId) ||
-    (planCode !== "INDEPENDIENTE" && planCode !== "CONSULTORIO")
-  ) {
-    return null;
-  }
-
-  return {
-    accountId,
-    planCode: planCode as CommercialPlan,
-    workspaceId:
-      workspaceSegment && workspaceSegment !== "account" ? workspaceSegment : null,
-  };
-}
-
-/**
- * Fila de subscriptions a la que corresponde una preapproval, en orden de
- * confianza: el id de Mercado Pago ya asociado, la external_reference guardada
- * al crear el checkout, la referencia parseada (filas anteriores a guardarla)
- * y, si Mercado Pago devolvió la referencia fija del plan, el email del
- * pagador contra la última fila PENDING_PAYMENT de esa cuenta.
- */
-export async function resolveSubscriptionTarget(
-  admin: SupabaseAdminClient,
-  providerSubscription: MercadoPagoPreapproval,
-): Promise<SubscriptionTarget | null> {
-  const { data: linked } = await admin
-    .from("subscriptions")
-    .select(SUBSCRIPTION_ROW_COLUMNS)
-    .eq("provider", "mercadopago")
-    .eq("provider_subscription_id", providerSubscription.id)
-    .maybeSingle();
-
-  if (linked) {
-    return rowToTarget(linked as SubscriptionRow, "provider_subscription_id");
-  }
-
-  const reference = providerSubscription.external_reference?.trim() ?? "";
-
-  if (reference) {
-    const { data: byReference } = await admin
-      .from("subscriptions")
-      .select(SUBSCRIPTION_ROW_COLUMNS)
-      .eq("external_reference", reference)
-      .maybeSingle();
-
-    if (byReference) {
-      return rowToTarget(byReference as SubscriptionRow, "external_reference");
-    }
-
-    const parsed = parseExternalReference(reference);
-
-    if (parsed) {
-      let rowQuery = admin
-        .from("subscriptions")
-        .select(SUBSCRIPTION_ROW_COLUMNS)
-        .eq("account_id", parsed.accountId);
-      rowQuery = parsed.workspaceId
-        ? rowQuery.eq("workspace_id", parsed.workspaceId)
-        : rowQuery.is("workspace_id", null);
-      const { data: row } = await rowQuery.maybeSingle();
-
-      return row
-        ? rowToTarget(row as SubscriptionRow, "parsed_reference")
-        : {
-            accountId: parsed.accountId,
-            accountType: parsed.planCode === "CONSULTORIO" ? "CONSULTORIO" : "KINESIOLOGO",
-            matchedBy: "parsed_reference",
-            planCode: parsed.planCode,
-            subscriptionId: null,
-            workspaceId: parsed.workspaceId,
-          };
-    }
-  }
-
-  const planFromReference = reference ? PLAN_EXTERNAL_REFERENCES[reference.toUpperCase()] : undefined;
-  const payerEmail = providerSubscription.payer_email?.trim().toLowerCase();
-
-  if ((reference && !planFromReference) || !payerEmail) {
-    return null;
-  }
-
-  const accountType = planFromReference === "CONSULTORIO" ? "CONSULTORIO" : "KINESIOLOGO";
-  const { data: profiles } = await admin
-    .from("profiles")
-    .select("id")
-    .eq("email", payerEmail)
-    .eq("account_type", accountType)
-    .limit(2);
-
-  if (profiles?.length !== 1) {
-    return null;
-  }
-
-  const { data: pending } = await admin
-    .from("subscriptions")
-    .select(SUBSCRIPTION_ROW_COLUMNS)
-    .eq("account_id", (profiles[0] as { id: string }).id)
-    .eq("status", "PENDING_PAYMENT")
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return pending ? rowToTarget(pending as SubscriptionRow, "payer_email") : null;
 }
 
 export async function processMercadoPagoSubscriptionForWebhook(params: {
