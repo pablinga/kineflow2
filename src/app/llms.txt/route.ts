@@ -1,6 +1,7 @@
 import { buildLlmsTxt } from "@/lib/llms-txt";
 import {
   LANDING_CONTACT_EMAIL,
+  LANDING_FAQ,
   LANDING_FEATURES,
   LANDING_INSTAGRAM_URL,
   LANDING_WHATSAPP_BENEFITS,
@@ -33,6 +34,7 @@ export async function GET() {
 
   const body = buildLlmsTxt({
     contactEmail: LANDING_CONTACT_EMAIL,
+    faqs: LANDING_FAQ,
     features: LANDING_FEATURES.map(({ text, title }) => ({ text, title })),
     instagramUrl: LANDING_INSTAGRAM_URL,
     plans: getVisiblePlansForMvp().map(({ audience, features, limit, name, price }) => ({

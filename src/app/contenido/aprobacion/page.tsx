@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   robots: { follow: false, index: false },
-  title: "Aprobar publicación | KineFlow",
+  title: "Aprobar publicación",
 };
 
 const RESULT_MESSAGES: Record<string, { text: string; title: string; tone: "ok" | "warn" }> = {

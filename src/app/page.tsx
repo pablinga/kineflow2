@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  ChevronDown,
   CalendarClock,
   CalendarDays,
   CheckCircle2,
@@ -16,7 +17,14 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { LegalLinks } from "@/components/layout/LegalLinks";
 import { PublicNavbar } from "@/components/layout/PublicNavbar";
+import type { Metadata } from "next";
 import { LinkButton } from "@/components/ui/Button";
+import {
+  LANDING_DESCRIPTION,
+  buildLandingJsonLd,
+  serializeJsonLd,
+} from "@/lib/landing-seo";
+import { getSiteUrl } from "@/lib/site-url";
 import { PublicProfileHeader } from "@/components/booking/PublicProfileHeader";
 import type { PublicProfileView } from "@/lib/public-profile";
 import {
@@ -30,6 +38,7 @@ import {
 } from "@/lib/signups";
 import {
   LANDING_CONTACT_EMAIL as contactEmail,
+  LANDING_FAQ as faqs,
   LANDING_FEATURES as features,
   LANDING_INSTAGRAM_URL as instagramUrl,
   LANDING_WHATSAPP_BENEFITS as whatsappBenefits,
@@ -108,6 +117,21 @@ const sampleProfile: PublicProfileView = {
   type: "PERSONAL",
   workspaceId: "ejemplo",
 };
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
+
+const landingJsonLd = serializeJsonLd(
+  buildLandingJsonLd({
+    contactEmail,
+    description: LANDING_DESCRIPTION,
+    faqs,
+    instagramUrl,
+    plans: commercialPlans,
+    siteUrl: getSiteUrl(),
+  }),
+);
 
 export default async function Home({
   searchParams,
@@ -624,6 +648,28 @@ export default async function Home({
         </div>
       </section>
 
+      <section
+        className="border-y border-ocean-100 bg-white px-4 py-14 sm:px-6 lg:px-8"
+        id="preguntas"
+      >
+        <div className="mx-auto max-w-3xl">
+          <h2 className="text-3xl font-bold text-ink">Preguntas frecuentes</h2>
+          <div className="mt-8 divide-y divide-ocean-100 rounded-lg border border-ocean-100 bg-white">
+            {faqs.map((faq) => (
+              <details className="group px-5 py-4" key={faq.question}>
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-bold text-ink [&::-webkit-details-marker]:hidden">
+                  <h3>{faq.question}</h3>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className="h-5 w-5 shrink-0 text-ocean-600 transition group-open:rotate-180"
+                  />
+                </summary>
+                <p className="mt-3 leading-7 text-slate-600">{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
       <section className="px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl rounded-lg bg-gradient-to-br from-ocean-50 via-white to-emerald-50 p-8 text-center shadow-soft sm:p-12">
           <h2 className="text-3xl font-bold text-ink">
@@ -710,6 +756,10 @@ export default async function Home({
           </div>
         </div>
       </section>
+      <script
+        dangerouslySetInnerHTML={{ __html: landingJsonLd }}
+        type="application/ld+json"
+      />
     </main>
   );
 }
