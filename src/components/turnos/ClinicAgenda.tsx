@@ -1046,6 +1046,7 @@ export function ClinicAgenda() {
               }}
               patients={activePatients}
               slot={bookingSlot}
+              workspaceId={workspaceId}
               writeBlockMessage={writeBlockMessage}
             />
           ) : null}

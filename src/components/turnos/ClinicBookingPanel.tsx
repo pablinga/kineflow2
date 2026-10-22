@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { CalendarClock, MessageCircle, Search, UserPlus, X } from "lucide-react";
+import {
+  RepeatSeriesSection,
+  type RepeatSeriesState,
+} from "@/components/turnos/RepeatSeriesSection";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import type {
   Appointment,
@@ -32,6 +36,7 @@ type ClinicBookingPanelProps = {
   onSaved: (message: string) => void;
   patients: Patient[];
   slot: AgendaSlot;
+  workspaceId: string;
   /** Mensaje si no puede dar turnos (plan, solo lectura), o null. */
   writeBlockMessage: string | null;
 };
@@ -82,6 +87,7 @@ export function ClinicBookingPanel({
   onSaved,
   patients,
   slot,
+  workspaceId,
   writeBlockMessage,
 }: ClinicBookingPanelProps) {
   const [query, setQuery] = useState("");
@@ -97,6 +103,7 @@ export function ClinicBookingPanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [amountOverride, setAmountOverride] = useState<number | null>(null);
+  const [repeatState, setRepeatState] = useState<RepeatSeriesState>("off");
 
   // Escape cierra el panel (salvo mientras guarda).
   useEffect(() => {
@@ -214,6 +221,13 @@ export function ClinicBookingPanel({
       return;
     }
 
+    if (repeatState === "pending") {
+      setError("Esperá a que termine de revisar la serie de turnos, o desactivá \"Repetir este turno\".");
+      return;
+    }
+
+    const repeatDates = Array.isArray(repeatState) ? repeatState : [];
+
     setSaving(true);
 
     try {
@@ -234,12 +248,17 @@ export function ClinicBookingPanel({
         paymentType,
         professionalId: professional.professionalId,
         reason: attentionType?.name ?? "",
+        repeatDates,
         sessionAmount,
         sessionNumber: null,
         time: slot.startTime,
         treatmentId: "",
       });
-      onSaved(`Turno dado: ${patient.name}, ${formatSlotDay(slot.date)} ${slot.startTime}`);
+      onSaved(
+        repeatDates.length > 0
+          ? `${repeatDates.length + 1} turnos dados: ${patient.name}, desde el ${formatSlotDay(slot.date)} ${slot.startTime}`
+          : `Turno dado: ${patient.name}, ${formatSlotDay(slot.date)} ${slot.startTime}`,
+      );
     } catch (saveError) {
       setError(getFriendlyErrorMessage(saveError, "No pudimos guardar el turno."));
     } finally {
@@ -498,6 +517,21 @@ export function ClinicBookingPanel({
                 </span>
               ) : null}
             </label>
+          ) : null}
+
+          {patient && professional ? (
+            <RepeatSeriesSection
+              allowsSimultaneous={allowsSimultaneous}
+              clinicProfessionalId={professional.clinicProfessionalId}
+              durationMinutes={durationMinutes}
+              // La disponibilidad del profesional ya descuenta los turnos cargados.
+              isLocallyBusy={() => false}
+              onChange={setRepeatState}
+              slotProfessional={professional.clinicProfessionalId}
+              startDate={slot.date}
+              time={slot.startTime}
+              workspaceId={workspaceId}
+            />
           ) : null}
 
           {patient ? (

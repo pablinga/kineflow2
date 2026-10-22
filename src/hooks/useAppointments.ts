@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { seriesSessionNumbers } from "@/lib/appointment-series";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
@@ -100,6 +101,12 @@ export type NewAppointmentInput = {
   attentionTypeId?: string | null;
   /** Snapshot del nombre: se conserva aunque el tipo se renombre o desactive. */
   attentionTypeName?: string | null;
+  /**
+   * Turnos en serie: fechas extra (YYYY-MM-DD) a la misma hora. Se guardan
+   * todos en un solo insert (todo o nada) y solo el primero pide la
+   * confirmación por WhatsApp. Los números de sesión se van sumando.
+   */
+  repeatDates?: string[];
 };
 
 export type NewClinicAppointmentInput = NewAppointmentInput & {
@@ -469,6 +476,17 @@ export function getWorkspaceCapacityMap(
   );
 }
 
+/** En una serie, la confirmación por WhatsApp sale solo para el primer turno. */
+function requestFirstConfirmation(rows: unknown) {
+  const first = ((rows ?? []) as Array<{ id: string; scheduled_at: string }>)
+    .slice()
+    .sort((left, right) => left.scheduled_at.localeCompare(right.scheduled_at))[0];
+
+  if (first) {
+    requestAppointmentConfirmation(first.id);
+  }
+}
+
 /**
  * Pide la confirmación por WhatsApp del turno recién creado (solo se manda si
  * el paciente la aceptó y el turno es futuro: ver
@@ -748,20 +766,24 @@ export function useAppointments(
       throw new Error("No encontramos un espacio de trabajo activo.");
     }
 
-    const scheduledAt = new Date(`${input.date}T${input.time}`).toISOString();
-    await validateAppointmentSlot({
-      allowsSimultaneous: input.allowsSimultaneous ?? false,
-      durationMinutes: input.durationMinutes,
-      ownerId: sessionData.user.id,
-      scheduledAt,
-      workspaceId: activeWorkspace.id,
-    });
+    const dates = [input.date, ...(input.repeatDates ?? [])];
+    const sessionNumbers = seriesSessionNumbers(input.sessionNumber, dates.length);
 
-    const { data: inserted, error: insertError } = await supabase.from("appointments").insert({
+    for (const date of dates) {
+      await validateAppointmentSlot({
+        allowsSimultaneous: input.allowsSimultaneous ?? false,
+        durationMinutes: input.durationMinutes,
+        ownerId: sessionData.user.id,
+        scheduledAt: new Date(`${date}T${input.time}`).toISOString(),
+        workspaceId: activeWorkspace.id,
+      });
+    }
+
+    const { data: inserted, error: insertError } = await supabase.from("appointments").insert(dates.map((date, index) => ({
       owner_id: sessionData.user.id,
       workspace_id: activeWorkspace.id,
       patient_id: input.patientId,
-      scheduled_at: scheduledAt,
+      scheduled_at: new Date(`${date}T${input.time}`).toISOString(),
       duration_minutes: input.durationMinutes,
       modality: input.modality,
       reason: input.reason?.trim() || "Sesion",
@@ -771,31 +793,31 @@ export function useAppointments(
       attention_type_id: input.attentionTypeId || null,
       attention_type_name: input.attentionTypeId ? input.attentionTypeName ?? null : null,
       treatment_id: input.treatmentId || null,
-      session_number: input.sessionNumber ?? null,
+      session_number: sessionNumbers[index],
       session_amount: input.sessionAmount ?? 0,
       insurance_provider_id: input.insuranceProviderId ?? null,
       insurance_member_number: input.insuranceMemberNumber ?? null,
       art_provider_id: input.artProviderId ?? null,
       payment_type: input.paymentType ?? "PARTICULAR",
       status: "pending",
-    }).select("id").single();
+    }))).select("id, scheduled_at");
 
     if (insertError) {
       throw new Error(mapSupabaseError(insertError));
     }
 
-    requestAppointmentConfirmation((inserted as { id: string }).id);
+    requestFirstConfirmation(inserted);
     await loadAppointments();
   }
 
   async function addClinicAppointment(input: NewClinicAppointmentInput) {
-    const scheduledAt = new Date(`${input.date}T${input.time}`).toISOString();
+    const dates = [input.date, ...(input.repeatDates ?? [])];
     const supabase = getSupabaseClient();
-    const { data: inserted, error: insertError } = await supabase.from("appointments").insert({
+    const { data: inserted, error: insertError } = await supabase.from("appointments").insert(dates.map((date) => ({
       owner_id: input.professionalId,
       workspace_id: activeWorkspace?.id ?? null,
       patient_id: input.patientId,
-      scheduled_at: scheduledAt,
+      scheduled_at: new Date(`${date}T${input.time}`).toISOString(),
       duration_minutes: input.durationMinutes,
       modality: input.modality,
       reason: input.reason?.trim() || "Sesion",
@@ -812,13 +834,13 @@ export function useAppointments(
       art_provider_id: input.artProviderId ?? null,
       payment_type: input.paymentType ?? "PARTICULAR",
       status: "pending",
-    }).select("id").single();
+    }))).select("id, scheduled_at");
 
     if (insertError) {
       throw new Error(mapSupabaseError(insertError));
     }
 
-    requestAppointmentConfirmation((inserted as { id: string }).id);
+    requestFirstConfirmation(inserted);
     await loadAppointments();
   }
 
