@@ -28,6 +28,8 @@ const nextConfig: NextConfig = {
     "/api/admin/content/preview": ["./src/assets/social/**", "./public/images/landing/**"],
     // Imagen para compartir cada perfil: se genera al pedirla (no en el build).
     "/reservar/**": ["./src/assets/social/**"],
+    // Piezas para redes en URL pública (/social/<id>.jpg), para Metricool.
+    "/social/**": ["./src/assets/social/**"],
   },
   async headers() {
     return [

@@ -259,6 +259,13 @@ Revisión de UX del dashboard en tres bloques (commits `4420409`, `b9b8297`, `01
 - **Evoluciones desde la agenda:** `AppointmentEvolutionModal` (antes `ClinicEvolutionModal`) sirve para cualquier turno asistido; `canRegisterEvolution` en la agenda: turno de clínica visto por el kinesiólogo (si la clínica lo habilitó) o turno propio del espacio particular (salvo solo lectura). En la tarjeta del turno reemplaza al link "Evolución" que llevaba a la ficha; si ya existe muestra "Evolución registrada".
 - E2E permanente: `scripts/agenda-series-e2e.mjs` (Playwright con Supabase y `/api` simulados; dev server con `NEXT_PUBLIC_SUPABASE_URL=http://supabase.test`). Tres escenarios con su propio usuario: clínica "Dar turno" con serie de 4 que saltea un feriado y un día sin lugar (un insert, una confirmación); particular Nuevo turno con serie de 3; particular vista Día "Registrar evolución" (evolución vinculada al turno, después "Evolución registrada").
 
+### Piezas para redes en URL pública (2026-10-22)
+
+- Para programar Instagram con **Metricool** (conectado a @kineflow.ar; Metricool necesita la imagen en una URL pública y no tiene Drive conectado). Se eligió Metricool por sobre el publicador propio (`/admin/contenido`), que sigue en `dry_run`.
+- `GET /social/<uuid>.jpg` (`src/app/social/[file]/route.ts`): genera la pieza 1080×1350 con la plantilla "promo" (`src/lib/content/promo-render.tsx`: bajada, título + resaltado, maqueta `perfil` | `reservas` | `serie` | `ninguno`, pie oscuro con la marca) y responde JPEG con caché inmutable y `X-Robots-Tag: noindex`. Lógica pura en `src/lib/content/promo-image.ts` (`npm run test:promo`).
+- Definiciones en `public.social_images` (`202610220002`; RLS sin policies, `revoke` a anon/authenticated): se cargan con SQL (MCP de Supabase) y **no se editan**; un cambio de diseño = fila nueva con otro id (la respuesta se cachea para siempre).
+- Probar el render localmente: `tsx` con `jsx: react-jsx` y un stub temporal de `server-only` en `node_modules`.
+
 ## Pendientes abiertos (al 2026-10-22)
 
 - **Mercado Pago:** nunca entró un pago real. Con el primer cliente que pague, correr `supabase/queries/mercadopago-matching.sql` (¿se conservó la `external_reference`? ¿quedó ACTIVE?). Sin sandbox ni pago de prueba, por decisión del usuario.

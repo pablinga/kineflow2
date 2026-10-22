@@ -15,6 +15,7 @@
     "test:activation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/activation-checklist.test.mjs",
     "test:dashboard": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/dashboard-home.test.mjs",
     "test:content": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/content-publisher.test.mjs",
+    "test:promo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/promo-image.test.mjs",
     "test:profile": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/public-profile.test.mjs",
     "test:mp-target": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/mercadopago-target.test.mjs",
     "test:seo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/landing-seo.test.mjs",
