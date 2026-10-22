@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { Check, Clipboard, ExternalLink, Save, UserRound } from "lucide-react";
+import { Check, Clipboard, ExternalLink, MessageCircle, Save, UserRound } from "lucide-react";
 import { PublicProfileHeader } from "@/components/booking/PublicProfileHeader";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -24,7 +24,11 @@ import {
   type PublicProfileFields,
   isProfileEmpty,
 } from "@/lib/public-profile";
-import { copyBookingLink } from "@/lib/share-booking-link";
+import {
+  copyBookingLink,
+  getBookingShareMessage,
+  getWhatsAppShareUrl,
+} from "@/lib/share-booking-link";
 import { getSupabaseClient } from "@/lib/supabase";
 
 const inputClassName =
@@ -37,7 +41,8 @@ type PublicProfileSectionProps = {
 
 /**
  * Pestaña "Perfil público" de Configuración: datos que se muestran arriba de
- * la reserva online, vista previa en vivo y "Copiar link".
+ * la reserva online, vista previa en vivo, "Compartir por WhatsApp" y
+ * "Copiar link".
  */
 export function PublicProfileSection({ canEdit }: PublicProfileSectionProps) {
   const { user } = useRequireAuth();
@@ -65,6 +70,12 @@ export function PublicProfileSection({ canEdit }: PublicProfileSectionProps) {
   const bookingLink = activeWorkspace
     ? getPublicBookingLink(activeWorkspace.id, process.env.NEXT_PUBLIC_APP_URL)
     : "";
+  const whatsAppShareUrl = getWhatsAppShareUrl(
+    getBookingShareMessage({
+      clinicName: isClinic ? activeWorkspace?.name : null,
+      link: bookingLink,
+    }),
+  );
   const preview = useMemo(
     () => ({
       ...form,
@@ -107,6 +118,19 @@ export function PublicProfileSection({ canEdit }: PublicProfileSectionProps) {
     }
   }
 
+  // Mismo paso del checklist que "Copiar link" en Reservas online (solo la
+  // primera vez).
+  function markLinkShared() {
+    if (user) {
+      void getSupabaseClient()
+        .from("profiles")
+        .update({ booking_link_shared_at: new Date().toISOString() })
+        .eq("id", user.id)
+        .is("booking_link_shared_at", null)
+        .then(() => undefined);
+    }
+  }
+
   async function handleCopy() {
     if (!bookingLink) {
       return;
@@ -118,16 +142,7 @@ export function PublicProfileSection({ canEdit }: PublicProfileSectionProps) {
       await copyBookingLink(bookingLink);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
-
-      // Mismo paso del checklist que "Copiar link" en Reservas online.
-      if (user) {
-        void getSupabaseClient()
-          .from("profiles")
-          .update({ booking_link_shared_at: new Date().toISOString() })
-          .eq("id", user.id)
-          .is("booking_link_shared_at", null)
-          .then(() => undefined);
-      }
+      markLinkShared();
     } catch (copyError) {
       setError(getFriendlyErrorMessage(copyError, "No pudimos copiar el link."));
     }
@@ -323,7 +338,17 @@ export function PublicProfileSection({ canEdit }: PublicProfileSectionProps) {
           <p className="mt-2 break-all rounded-lg bg-ocean-50 px-3 py-2 text-sm font-semibold text-ocean-900">
             {bookingLink}
           </p>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <a
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 text-sm font-semibold text-white shadow-soft transition hover:bg-[#1EBE5A]"
+            href={whatsAppShareUrl}
+            onClick={markLinkShared}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Compartir por WhatsApp
+          </a>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <Button className="flex-1" onClick={() => void handleCopy()} type="button" variant="secondary">
               {copied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
               {copied ? "Copiado" : "Copiar link"}
