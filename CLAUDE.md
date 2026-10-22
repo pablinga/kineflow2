@@ -113,7 +113,7 @@ Pendiente posible: "Registrar evolución" también desde Sesiones diarias.
 - **Mails de invitación** con el mismo diseño que el de confirmación (`src/lib/email-templates.ts`); remitente por defecto `notificaciones@mail.kineflow.ar` (dominio verificado en Resend; `kineflow.ar` raíz no lo está).
 - **Middleware solo en `/api`** (CORS de `OPTIONS`, ahora incluye `https://www.kineflow.ar`) y funciones en `sfo1`.
 - Ocultar Obra social / ART en nuevo turno y reserva online si no hay prestadores activos; varios arreglos de mobile (grillas con `grid-cols-1` para que textos largos no estiren las tarjetas).
-- **Solo en QA** (falta pasar a prod): `supabase-js` 2.117 (arregla la aceptación de invitaciones al registrarse) y la pantalla **"Revisá tu correo"** (`/registro/confirmar`, email por `sessionStorage` `kf_signup_pending`, aviso de email ya registrado, `AuthShell` compartido con el registro).
+- **En prod desde los merges del 2026-10-21/22** (antes solo en QA): `supabase-js` 2.117 (arregla la aceptación de invitaciones al registrarse) y la pantalla **"Revisá tu correo"** (`/registro/confirmar`, email por `sessionStorage` `kf_signup_pending`, aviso de email ya registrado, `AuthShell` compartido con el registro).
 
 ### Forma de trabajar del usuario
 
@@ -123,6 +123,9 @@ Pendiente posible: "Registrar evolución" también desde Sesiones diarias.
 - Cuando pide "mostrame el diff antes de commitear", esperar su OK; "subilo / mandalo a qa" = commit + push a `qa`; "pasalo a prod" = aplicar migraciones pendientes en prod y después mergear `qa` → `main`.
 - "Subilo a qa y luego a main" = commit + push a `qa` y merge a `main` sin volver a preguntar (antes de mergear, chequear que no haya migraciones de `qa` sin aplicar en prod).
 - Las migraciones nuevas se escriben como archivo y se aplican primero en QA; en prod solo con su OK explícito.
+- Prefiere que le expliquen las opciones en lenguaje simple, con una recomendación clara (pidió aclarar preguntas demasiado técnicas). Cuando pide ideas ("¿ves algo más para mejorar?") espera una lista priorizada y elige él por dónde seguir.
+- Decidió no hacer pagos reales de prueba en Mercado Pago; tampoco armar el sandbox.
+- Prueba en el celular y manda capturas: revisar el detalle de la captura (ej. campos de texto libre que convendría normalizar).
 
 ### Instalación de la PWA desde el celular (2026-10-08, en prod)
 
@@ -248,4 +251,14 @@ Revisión de UX del dashboard en tres bloques (commits `4420409`, `b9b8297`, `01
 - Título, descripción y canonical propios en `/registro`, `/login` (layouts, porque las páginas son de cliente) y en las páginas legales.
 - **Google Search Console** (2026-10-22, lo hizo el usuario): propiedad de tipo **Dominio** (`kineflow.ar`), por eso el sitemap se envía con la URL completa `https://www.kineflow.ar/sitemap.xml` (con solo `sitemap.xml` da "Dirección de sitemap no válida"). Sitemap enviado e indexación de la home solicitada. Al momento: 36 impresiones y 8 clics en 28 días, todos a la home, todavía con el título viejo ("Software para profesionales…") hasta que Google la vuelva a leer.
 - Siguiente paso acordado: en unas semanas el usuario manda captura de "Consultas que llevan a tu sitio" para decidir qué reforzar. Otras ideas: páginas por tipo de cliente (kinesiólogos / clínicas), páginas por ciudad con los perfiles del buscador, guías, y menciones/links desde colegios y asociaciones de kinesiología.
+
+## Pendientes abiertos (al 2026-10-22)
+
+- **Mercado Pago:** nunca entró un pago real. Con el primer cliente que pague, correr `supabase/queries/mercadopago-matching.sql` (¿se conservó la `external_reference`? ¿quedó ACTIVE?). Sin sandbox ni pago de prueba, por decisión del usuario.
+- **Probar con usuarios reales:** agenda "Dar turno" en la clínica (hermana del usuario), perfil público y su imagen al compartir en el celular, instalación de la PWA en dispositivos reales.
+- **Publicador de redes:** sigue en `dry_run` hasta que el usuario cargue `META_ACCESS_TOKEN`, `META_PAGE_ID` y `META_IG_USER_ID`; después, Fase 2 (métricas).
+- **`NEXT_PUBLIC_SUPPORT_WHATSAPP`** sin cargar en Vercel (tarjeta de ayuda del checklist de Inicio).
+- **Limpieza:** borrar en QA `qa-activation-a/b@kineflow.test` (con OK del usuario); borrar los alias del webhook de Mercado Pago (`/api/webhooks/mercadopago`, `/api/billing/webhook`) si en los logs nadie los usa; `npm run test` falla por un texto viejo de la landing (arreglo de una línea).
+- **Producto:** "Registrar evolución" desde Sesiones diarias; botón "Compartir por WhatsApp" en Perfil público; el buscador de KineFlow (perfiles con `listed_in_directory`) y su maestro de obras sociales.
+- **SEO:** en unas semanas, revisar con el usuario las consultas de Search Console; ideas: páginas por tipo de cliente (kinesiólogos / clínicas), páginas por ciudad, guías.
 
