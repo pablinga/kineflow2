@@ -17,6 +17,8 @@ export type Evolution = {
   notes: string;
   sessionDateRaw: string;
   painScore: number | null;
+  /** Quién la registró (profiles.id). */
+  ownerId: string | null;
 };
 
 export type NewEvolutionInput = {
@@ -37,6 +39,7 @@ type EvolutionRow = {
   session_date: string;
   pain_level: number | null;
   clinical_notes: string;
+  owner_id: string | null;
   patients: { full_name: string } | Array<{ full_name: string }> | null;
 };
 
@@ -54,6 +57,7 @@ function mapEvolution(row: EvolutionRow): Evolution {
     notes: row.clinical_notes,
     sessionDateRaw: row.session_date,
     painScore: row.pain_level,
+    ownerId: row.owner_id,
   };
 }
 
@@ -99,7 +103,7 @@ export function useEvolutions(patientId?: string) {
       let query = supabase
         .from("evolutions")
         .select(
-          "id, patient_id, treatment_id, appointment_id, session_date, pain_level, clinical_notes, patients(full_name)",
+          "id, patient_id, treatment_id, appointment_id, session_date, pain_level, clinical_notes, owner_id, patients(full_name)",
         )
         .eq("workspace_id", activeWorkspace.id)
         .order("session_date", { ascending: false });
