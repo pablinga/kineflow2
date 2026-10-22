@@ -38,3 +38,24 @@ export async function shareBookingLink(
     return copyBookingLink(link);
   }
 }
+
+/** Mensaje para compartir el link de reservas (WhatsApp u otras apps). */
+export function getBookingShareMessage(params: {
+  link: string;
+  /** Nombre de la clínica; para un particular se omite (habla en primera persona). */
+  clinicName?: string | null;
+}) {
+  const clinicName = params.clinicName?.trim();
+
+  return clinicName
+    ? `Reservá tu turno en ${clinicName} online, eligiendo el día y horario que te quede cómodo: ${params.link}`
+    : `Reservá tu turno conmigo online, eligiendo el día y horario que te quede cómodo: ${params.link}`;
+}
+
+/**
+ * Link de WhatsApp para compartir un texto: abre la app en el celular (o
+ * WhatsApp Web en la computadora) para elegir el chat o el estado.
+ */
+export function getWhatsAppShareUrl(text: string) {
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+}

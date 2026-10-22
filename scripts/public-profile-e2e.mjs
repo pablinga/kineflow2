@@ -401,6 +401,12 @@ try {
     await page.getByText("San Martín 50, Rosario, Santa Fe").waitFor();
     await page.getByRole("heading", { level: 2, name: "Lic. Pedro Nuevo" }).waitFor();
     await page.screenshot({ fullPage: true, path: `${SHOTS}/configuracion-perfil.png` });
+    const share = page.getByRole("link", { name: "Compartir por WhatsApp" });
+    const shareUrl = new URL(await share.getAttribute("href"));
+    assert.equal(shareUrl.origin, "https://wa.me");
+    assert.ok(shareUrl.searchParams.get("text").endsWith(`/reservar/${W_NEW}`), "el mensaje no lleva el link");
+    await page.getByText("Tu link").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${SHOTS}/configuracion-compartir.png` });
     await page.getByRole("button", { name: "Guardar perfil" }).click();
     await page.getByText("Perfil guardado.").waitFor();
     const saved = tables.workspace_public_profiles.find((row) => row.workspace_id === W_NEW);

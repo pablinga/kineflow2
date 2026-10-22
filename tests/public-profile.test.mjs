@@ -17,6 +17,7 @@ import {
   normalizeProfileFields,
   normalizeTreatments,
 } from "../src/lib/public-profile.ts";
+import { getBookingShareMessage, getWhatsAppShareUrl } from "../src/lib/share-booking-link.ts";
 
 function test(name, fn) {
   fn();
@@ -165,4 +166,15 @@ test("tarjeta para compartir: nombre, localidad y hasta 4 tratamientos", () => {
   assert.ok(clinic.name.endsWith("…"));
   assert.deepEqual(clinic.treatments, []);
   assert.equal(clinic.locality, "");
+});
+
+test("compartir por WhatsApp: mensaje y link", () => {
+  const link = "https://www.kineflow.ar/reservar/abc";
+  const personal = getBookingShareMessage({ link });
+  assert.ok(personal.startsWith("Reservá tu turno conmigo online"));
+  assert.ok(personal.endsWith(link));
+  assert.ok(getBookingShareMessage({ clinicName: " Centro Kine Sur ", link }).startsWith("Reservá tu turno en Centro Kine Sur online"));
+  const url = new URL(getWhatsAppShareUrl(personal));
+  assert.equal(url.origin, "https://wa.me");
+  assert.equal(url.searchParams.get("text"), personal);
 });
