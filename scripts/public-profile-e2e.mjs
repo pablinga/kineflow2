@@ -69,7 +69,7 @@ function seed() {
     ],
     workspace_public_profiles: [{
       bio: "Kinesióloga deportiva. Trabajo con ejercicio terapéutico.", locality_id: "82084270", home_visits: true,
-      insurance_notes: "Reintegros de prepagas", license_number: "MP 1234", listed_in_directory: false, listed_in_directory_at: null,
+      insurance_notes: "Reintegros de prepagas", license_number: "MP 1234", listed_in_directory: true, listed_in_directory_at: "2026-10-21T00:00:00Z",
       public_address: "Corrientes 123", treatments: ["deportiva", "rpg"], workspace_id: W_FULL,
     }],
     workspaces: [
@@ -140,7 +140,9 @@ function project(rows, select) {
     // Embed por FK: ar_localities(...) desde locality_id.
     column === "ar_localities"
       ? tables.ar_localities.find((locality) => locality.id === row.locality_id) ?? null
-      : row[column] ?? null,
+      : column === "workspaces" && row.workspace_id
+        ? tables.workspaces.find((workspace) => workspace.id === row.workspace_id) ?? null
+        : row[column] ?? null,
   ])));
 }
 
@@ -409,6 +411,29 @@ try {
     assert.equal(saved.license_number, "MN 5555");
     log("Configuración: opt-in en false por defecto, guarda el perfil y la vista previa");
     await context.close();
+  }
+
+  // 5. llms.txt, sitemap y robots
+  {
+    const llms = await (await fetch(`${APP}/llms.txt`)).text();
+    assert.ok(llms.startsWith("# KineFlow"), "llms.txt sin título");
+    assert.ok(llms.includes("## Planes") && llms.includes("Reservas online"));
+    assert.ok(
+      llms.includes(`- [Lic. Laura Gómez](${APP}/reservar/${W_FULL}): Kinesiología · Rosario, Santa Fe · tratamientos: RPG, Deportiva · atiende a domicilio.`),
+      "falta el perfil que aceptó el buscador",
+    );
+    assert.ok(!llms.includes("Pedro Nuevo"), "lista un perfil sin consentimiento");
+    assert.ok(!llms.includes("Kinesióloga deportiva"), "publica la bio");
+    assertNoSecrets(llms, "llms.txt");
+    const sitemap = await (await fetch(`${APP}/sitemap.xml`)).text();
+    assert.ok(sitemap.includes(`${APP}/reservar/${W_FULL}`));
+    assert.ok(sitemap.includes(`${APP}/reservar/${W_NEW}`), "falta el perfil completado en Configuración");
+    assert.ok(!sitemap.includes(W_CLINIC), "incluye un perfil vacío");
+    assert.ok(sitemap.includes(`<loc>${APP}</loc>`) && sitemap.includes(`${APP}/registro`));
+    const robots = await (await fetch(`${APP}/robots.txt`)).text();
+    assert.ok(robots.includes(`Sitemap: ${APP}/sitemap.xml`));
+    assert.ok(!/Disallow: \/\s*$/m.test(robots), "robots bloquea todo en local");
+    log("llms.txt solo con perfiles que aceptaron el buscador; sitemap sin perfiles vacíos; robots con sitemap");
   }
 
   console.log("public-profile e2e: todo ok");

@@ -3,10 +3,6 @@ import {
   CalendarClock,
   CalendarDays,
   CheckCircle2,
-  ClipboardList,
-  Clock,
-  CreditCard,
-  HeartPulse,
   Instagram,
   Mail,
   MessageCircle,
@@ -15,7 +11,6 @@ import {
   Stethoscope,
   TrendingUp,
   UserPlus,
-  UsersRound,
 } from "lucide-react";
 import Image from "next/image";
 import { redirect } from "next/navigation";
@@ -33,57 +28,12 @@ import {
   SIGNUPS_CLOSED_MESSAGE,
   arePublicAuthLinksVisible,
 } from "@/lib/signups";
-
-const features = [
-  {
-    icon: CalendarClock,
-    title: "Reservas online",
-    text: "Tus pacientes reservan turnos solos desde un link, sin que vos tengas que coordinar por mensajes.",
-  },
-  {
-    icon: CalendarDays,
-    title: "Agenda simple",
-    text: "Turnos claros para organizar el día desde el celular.",
-  },
-  {
-    icon: UsersRound,
-    title: "Pacientes ordenados",
-    text: "Datos, historial y tratamientos en una ficha fácil de leer.",
-  },
-  {
-    icon: HeartPulse,
-    title: "Evolución por tratamiento",
-    text: "Notas y seguimiento del progreso en cada sesión.",
-  },
-  {
-    icon: ClipboardList,
-    title: "Registro de sesiones",
-    text: "Asistencia, observaciones y continuidad sin planillas sueltas.",
-  },
-  {
-    icon: CreditCard,
-    title: "Control de cobros",
-    text: "Cobros por sesión y pendientes siempre visibles.",
-  },
-];
-
-const whatsappBenefits = [
-  {
-    icon: CheckCircle2,
-    title: "Menos ausencias",
-    text: "Tus pacientes no se olvidan del turno.",
-  },
-  {
-    icon: Clock,
-    title: "Ahorrá tiempo",
-    text: "La confirmación y el recordatorio se envían solos a quienes los aceptan.",
-  },
-  {
-    icon: MessageCircle,
-    title: "Sin coordinar a mano",
-    text: "Nada de escribir uno por uno para confirmar.",
-  },
-];
+import {
+  LANDING_CONTACT_EMAIL as contactEmail,
+  LANDING_FEATURES as features,
+  LANDING_INSTAGRAM_URL as instagramUrl,
+  LANDING_WHATSAPP_BENEFITS as whatsappBenefits,
+} from "@/lib/landing-content";
 
 const howItWorks = [
   {
@@ -124,8 +74,6 @@ const productScreenshots = [
   },
 ];
 
-const instagramUrl = "https://www.instagram.com/kineflow.ar/";
-const contactEmail = "contacto@kineflow.ar";
 
 const directoryBenefits = [
   {

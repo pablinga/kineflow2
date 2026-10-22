@@ -10,6 +10,7 @@ import {
   getProfileTitle,
   isProfileEmpty,
 } from "@/lib/public-profile";
+import { getSiteUrl } from "@/lib/site-url";
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase-server";
 import { BookingClient } from "./BookingClient";
 
@@ -19,9 +20,6 @@ type PageProps = {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function getBaseUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://kineflow.ar").replace(/\/$/, "");
-}
 
 /**
  * Perfil público del espacio. Si no se puede cargar (link inválido, base
@@ -63,7 +61,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const title = getProfileTitle(profile);
   const description = getProfileDescription(profile);
-  const url = `${getBaseUrl()}/reservar/${profile.workspaceId}`;
+  const url = `${getSiteUrl()}/reservar/${profile.workspaceId}`;
 
   return {
     alternates: { canonical: url },
@@ -88,7 +86,7 @@ export default async function PublicBookingPage({ params }: PageProps) {
   const profile = await loadProfile(workspaceId);
   const jsonLd = profile
     ? JSON.stringify(
-        buildProfileJsonLd(profile, `${getBaseUrl()}/reservar/${profile.workspaceId}`),
+        buildProfileJsonLd(profile, `${getSiteUrl()}/reservar/${profile.workspaceId}`),
       ).replace(/</g, "\\u003c")
     : null;
 
