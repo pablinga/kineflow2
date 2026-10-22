@@ -281,11 +281,16 @@ export function createMercadoPagoWebhookHandler(route: string) {
         .eq("id", eventRowId);
     }
 
-    const finish = async (status: EventStatus, error: string | null = null) => {
+    const finish = async (
+      status: EventStatus,
+      error: string | null = null,
+      matchedBy: string | null = null,
+    ) => {
       await admin
         .from("payment_events")
         .update({
           error,
+          matched_by: matchedBy,
           processed: status !== "failed" && status !== "unresolved",
           processed_at: new Date().toISOString(),
           status,
@@ -325,7 +330,7 @@ export function createMercadoPagoWebhookHandler(route: string) {
         return NextResponse.json({ ok: true, unresolved: true });
       }
 
-      await finish("processed");
+      await finish("processed", null, result.matchedBy);
       log("processed", {
         matchedBy: result.matchedBy,
         preapprovalId: providerSubscription.id,
