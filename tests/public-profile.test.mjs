@@ -11,6 +11,7 @@ import {
   getProfileDisplayName,
   getLocalityText,
   getProfileFooterUrl,
+  getProfileShareCard,
   getProfileTitle,
   isProfileEmpty,
   normalizeProfileFields,
@@ -143,4 +144,25 @@ test("texto de la localidad para mostrar", () => {
   assert.equal(getLocalityText(CABA), "Ciudad Autónoma de Buenos Aires");
   assert.equal(getLocalityText({ displayName: "Córdoba", name: "Córdoba", province: "Córdoba" }), "Córdoba");
   assert.equal(getLocalityText(null), "");
+});
+
+test("tarjeta para compartir: nombre, localidad y hasta 4 tratamientos", () => {
+  const card = getProfileShareCard({
+    ...base,
+    homeVisits: true,
+    locality: ROSARIO,
+    treatments: ["rpg", "deportiva", "respiratoria", "piso_pelvico", "atm", "neurologica"],
+  });
+  assert.equal(card.name, "Lic. Juan Pérez");
+  assert.equal(card.eyebrow, "Kinesiología");
+  assert.equal(card.locality, "Rosario, Santa Fe");
+  assert.deepEqual(card.treatments, ["RPG", "Deportiva", "Respiratoria", "Piso pélvico", "+2"]);
+  assert.equal(card.homeVisits, true);
+
+  const clinic = getProfileShareCard({ ...base, name: "C".repeat(80), type: "CLINICA" });
+  assert.equal(clinic.eyebrow, "Centro de kinesiología");
+  assert.equal(clinic.name.length, 48);
+  assert.ok(clinic.name.endsWith("…"));
+  assert.deepEqual(clinic.treatments, []);
+  assert.equal(clinic.locality, "");
 });
