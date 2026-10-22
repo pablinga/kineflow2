@@ -8,7 +8,7 @@ import type { Appointment } from "@/hooks/useAppointments";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
 
-type ClinicEvolutionModalProps = {
+type AppointmentEvolutionModalProps = {
   appointment: Appointment;
   onClose: () => void;
   onSaved: (appointmentId: string) => void;
@@ -21,15 +21,16 @@ function toDateInputValue(scheduledAt: string) {
 }
 
 /**
- * Evolución de un turno de clínica registrada por el kinesiólogo desde su
- * espacio particular. Se guarda en el workspace de la clínica (el del turno),
- * no en el espacio activo; la RLS exige que la clínica lo haya habilitado.
+ * Evolución de un turno asistido, registrada desde la agenda (mismo guardado
+ * que la ficha del paciente). Se guarda en el workspace del turno, no en el
+ * espacio activo: en un turno de clínica visto por el kinesiólogo, la RLS
+ * exige que la clínica lo haya habilitado.
  */
-export function ClinicEvolutionModal({
+export function AppointmentEvolutionModal({
   appointment,
   onClose,
   onSaved,
-}: ClinicEvolutionModalProps) {
+}: AppointmentEvolutionModalProps) {
   const [sessionDate, setSessionDate] = useState(() =>
     toDateInputValue(appointment.scheduledAt),
   );
@@ -93,8 +94,14 @@ export function ClinicEvolutionModal({
       >
         <h2 className="text-lg font-bold text-ink">Registrar evolución</h2>
         <p className="mt-1 text-sm text-slate-500">
-          {appointment.patient} · {appointment.date} · {appointment.time} ·{" "}
-          {appointment.clinicName ?? "Clínica"}
+          {[
+            appointment.patient,
+            appointment.date,
+            appointment.time,
+            appointment.origin === "clinic" ? appointment.clinicName ?? "Clínica" : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
 
         <label className="mt-5 block">

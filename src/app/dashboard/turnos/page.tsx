@@ -53,7 +53,7 @@ import { usePatients } from "@/hooks/usePatients";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
 import { useClinicLinks, type ClinicAvailability } from "@/hooks/useClinicLinks";
-import { ClinicEvolutionModal } from "@/components/turnos/ClinicEvolutionModal";
+import { AppointmentEvolutionModal } from "@/components/turnos/AppointmentEvolutionModal";
 import { getSupabaseClient } from "@/lib/supabase";
 import { CLINIC_PROFESSIONAL_STATUS } from "@/lib/clinic-professionals";
 import { getPatientPlanLimitBlock } from "@/lib/patient-plan-limit";
@@ -726,31 +726,53 @@ function LegacyAppointmentsPage() {
     );
   }, [appointments, clinicLinks]);
 
-  // Turnos de clínica asistidos: qué evoluciones ya registró el kinesiólogo,
-  // para no ofrecer registrar dos veces la misma.
-  const attendedClinicAppointmentIdsKey = useMemo(
+  // "Registrar evolución" desde la agenda, en turnos asistidos:
+  // - turno de clínica visto por el kinesiólogo: si la clínica se lo habilitó;
+  // - turno propio del espacio particular: si no está en modo solo lectura.
+  function canRegisterEvolution(appointment: Appointment) {
+    if (getAppointmentDisplayStatus(appointment) !== "Asistió") {
+      return false;
+    }
+
+    if (isProfessionalClinicAppointment(appointment)) {
+      return clinicLinks.some(
+        (link) =>
+          link.id === appointment.clinicProfessionalId &&
+          link.status === CLINIC_PROFESSIONAL_STATUS.active &&
+          link.canRegisterEvolutions,
+      );
+    }
+
+    return (
+      activeWorkspace?.type === "PERSONAL" &&
+      appointment.origin !== "clinic" &&
+      appointment.workspaceId === activeWorkspace.id &&
+      !isReadOnly
+    );
+  }
+
+  // Turnos asistidos donde se puede registrar evolución: cuáles ya la
+  // tienen, para no ofrecer registrar dos veces la misma.
+  const attendedEvolutionAppointmentIdsKey = useMemo(
     () =>
       appointments
-        .filter(
-          (appointment) =>
-            isProfessionalClinicAppointment(appointment) &&
-            getAppointmentDisplayStatus(appointment) === "Asistió",
-        )
+        .filter(canRegisterEvolution)
         .map((appointment) => appointment.id)
         .sort()
         .join(","),
-    // isProfessionalClinicAppointment solo depende del tipo de workspace activo.
+    // canRegisterEvolution depende del workspace activo, los vínculos con
+    // clínicas y el modo solo lectura.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [appointments, activeWorkspace?.type],
+    [appointments, activeWorkspace?.type, clinicLinks, isReadOnly],
   );
 
   useEffect(() => {
-    if (!attendedClinicAppointmentIdsKey) {
+    if (!attendedEvolutionAppointmentIdsKey) {
       return;
     }
 
     let cancelled = false;
-    const appointmentIds = attendedClinicAppointmentIdsKey.split(",");
+    const appointmentIds = attendedEvolutionAppointmentIdsKey.split(",");
 
     void getSupabaseClient()
       .from("evolutions")
@@ -773,23 +795,10 @@ function LegacyAppointmentsPage() {
     return () => {
       cancelled = true;
     };
-  }, [attendedClinicAppointmentIdsKey]);
+  }, [attendedEvolutionAppointmentIdsKey]);
 
-  function canRegisterClinicEvolution(appointment: Appointment) {
-    return (
-      isProfessionalClinicAppointment(appointment) &&
-      getAppointmentDisplayStatus(appointment) === "Asistió" &&
-      clinicLinks.some(
-        (link) =>
-          link.id === appointment.clinicProfessionalId &&
-          link.status === CLINIC_PROFESSIONAL_STATUS.active &&
-          link.canRegisterEvolutions,
-      )
-    );
-  }
-
-  function renderClinicEvolutionAction(appointment: Appointment, compact = false) {
-    if (!canRegisterClinicEvolution(appointment)) {
+  function renderEvolutionAction(appointment: Appointment, compact = false) {
+    if (!canRegisterEvolution(appointment)) {
       return null;
     }
 
@@ -1295,7 +1304,7 @@ function LegacyAppointmentsPage() {
         </button>
         {clinicAppointment ? (
           <>
-          {renderClinicEvolutionAction(appointment)}
+          {renderEvolutionAction(appointment)}
           <p className="px-3 py-2.5 text-xs font-medium leading-5 text-slate-500">
             Turno de {appointment.clinicName ?? "la clínica"}: el cobro, la
             reprogramación y la cancelación los gestiona la clínica.
@@ -1504,8 +1513,8 @@ function LegacyAppointmentsPage() {
             >
               Marcar asistió
             </button>
-          ) : isAttended && clinicAppointment ? (
-            renderClinicEvolutionAction(appointment, true)
+          ) : isAttended && (clinicAppointment || canRegisterEvolution(appointment)) ? (
+            renderEvolutionAction(appointment, true)
           ) : isAttended ? (
             <Link
               className="inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-600 px-2 text-[0.68rem] font-semibold text-white transition hover:bg-ocean-700"
@@ -1976,7 +1985,7 @@ function LegacyAppointmentsPage() {
           ) : null}
 
           {evolutionAppointment ? (
-            <ClinicEvolutionModal
+            <AppointmentEvolutionModal
               appointment={evolutionAppointment}
               onClose={() => setEvolutionAppointment(null)}
               onSaved={(appointmentId) => {

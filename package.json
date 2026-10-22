@@ -19,6 +19,7 @@
     "test:mp-target": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/mercadopago-target.test.mjs",
     "test:seo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/landing-seo.test.mjs",
     "test:llms": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/llms-txt.test.mjs",
+    "test:series": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/appointment-series.test.mjs",
     "test:agenda": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/clinic-agenda.test.mjs",
     "test:attribution:qa": "node scripts/attribution-check.mjs",
     "lint": "next lint"

@@ -12,6 +12,10 @@ import {
   type PickerSlot,
   SlotPicker,
 } from "@/components/turnos/SlotPicker";
+import {
+  RepeatSeriesSection,
+  type RepeatSeriesState,
+} from "@/components/turnos/RepeatSeriesSection";
 import { Alert } from "@/components/ui/Alert";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import {
@@ -188,6 +192,8 @@ export default function NewAppointmentPage() {
   const [slotsError, setSlotsError] = useState("");
   const [selectedSlotStart, setSelectedSlotStart] = useState("");
   const [manualDateEntry, setManualDateEntry] = useState(false);
+  // Turnos en serie: "off", "pending" (revisando) o las fechas extra.
+  const [repeatState, setRepeatState] = useState<RepeatSeriesState>("off");
   const selectedSlotRef = useRef({ professionalId: "", start: "" });
 
   const simultaneousCapacity = Math.max(
@@ -733,6 +739,13 @@ export default function NewAppointmentPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (repeatState === "pending") {
+      setError("Esperá a que termine de revisar la serie de turnos, o desactivá \"Repetir este turno\".");
+      return;
+    }
+
+    const repeatDates = Array.isArray(repeatState) ? repeatState : [];
     setSaving(true);
     setError("");
 
@@ -811,6 +824,7 @@ export default function NewAppointmentPage() {
 
         await addClinicAppointment({
           ...appointment,
+          repeatDates,
           allowsSimultaneous: effectiveAllowsSimultaneous,
           attentionTypeId: selectedAttentionType?.id ?? null,
           attentionTypeName: selectedAttentionType?.name ?? null,
@@ -847,6 +861,7 @@ export default function NewAppointmentPage() {
 
         await addAppointment({
           ...appointment,
+          repeatDates,
           allowsSimultaneous: effectiveAllowsSimultaneous,
           attentionTypeId: selectedAttentionType?.id ?? null,
           attentionTypeName: selectedAttentionType?.name ?? null,
@@ -1571,6 +1586,43 @@ export default function NewAppointmentPage() {
                     </label>
                   </div>
                 ) : null}
+              </div>
+            ) : null}
+
+            {activeWorkspaceId ? (
+              <div className="mt-4">
+                <RepeatSeriesSection
+                  allowsSimultaneous={effectiveAllowsSimultaneous}
+                  clinicProfessionalId={isClinicWorkspace ? selectedClinicProfessionalId || null : null}
+                  durationMinutes={appointment.durationMinutes}
+                  isLocallyBusy={(date) =>
+                    Boolean(
+                      conflictOwnerId &&
+                        appointment.time &&
+                        evaluateAppointmentConflict(appointments, {
+                          allowsSimultaneous: effectiveAllowsSimultaneous,
+                          capacityByWorkspace: getWorkspaceCapacityMap(workspaces),
+                          durationMinutes: appointment.durationMinutes,
+                          ownerId: conflictOwnerId,
+                          scheduledAt: new Date(`${date}T${appointment.time}`).toISOString(),
+                          workspaceId: activeWorkspace?.id ?? null,
+                        }).kind !== "none",
+                    )
+                  }
+                  onChange={setRepeatState}
+                  // Carga manual o profesional de la clínica (sin acceso a la
+                  // disponibilidad del staff): solo feriados y choques.
+                  slotProfessional={
+                    manualDateEntry || isClinicProfessional
+                      ? null
+                      : isPersonalWorkspace
+                        ? "self"
+                        : selectedClinicProfessionalId || null
+                  }
+                  startDate={appointment.date}
+                  time={appointment.time}
+                  workspaceId={activeWorkspaceId}
+                />
               </div>
             ) : null}
 
