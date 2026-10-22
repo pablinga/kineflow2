@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import { LegalPage } from "@/components/layout/LegalPage";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/arrepentimiento" },
+  description: "Cómo ejercer el derecho de arrepentimiento sobre una suscripción de KineFlow.",
+  title: "Derecho de arrepentimiento",
+};
 
 const updatedAt = "11 de junio de 2026";
 

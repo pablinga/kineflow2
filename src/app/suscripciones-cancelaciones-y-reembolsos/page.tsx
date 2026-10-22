@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import { LegalPage } from "@/components/layout/LegalPage";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/suscripciones-cancelaciones-y-reembolsos" },
+  description: "Condiciones de los planes de KineFlow: renovación, cancelación y reembolsos.",
+  title: "Suscripciones, cancelaciones y reembolsos",
+};
 
 const updatedAt = "11 de junio de 2026";
 

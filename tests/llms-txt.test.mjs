@@ -9,6 +9,7 @@ function test(name, fn) {
 
 const input = {
   contactEmail: "contacto@kineflow.ar",
+  faqs: [{ answer: "No. Son 3 meses gratis.", question: "¿Necesito tarjeta?" }],
   features: [{ text: "Tus pacientes reservan solos.", title: "Reservas online" }],
   instagramUrl: "https://www.instagram.com/kineflow.ar/",
   plans: [{ audience: "Para independientes.", features: ["Pacientes ilimitados", "Agenda"], limit: "Pacientes ilimitados", name: "KineFlow - Particular", price: "$ 20.000/mes" }],
@@ -20,7 +21,8 @@ const input = {
 test("estructura de llms.txt: título, resumen, secciones y links absolutos", () => {
   const text = buildLlmsTxt(input);
   assert.ok(text.startsWith("# KineFlow\n\n> Software de gestión"));
-  for (const heading of ["## Funciones", "## Planes", "## Páginas", "## Contacto"]) {
+  assert.ok(text.includes("\n### ¿Necesito tarjeta?\n\nNo. Son 3 meses gratis.\n"));
+  for (const heading of ["## Funciones", "## Planes", "## Preguntas frecuentes", "## Páginas", "## Contacto"]) {
     assert.ok(text.includes(`\n${heading}\n`), heading);
   }
   assert.ok(text.includes("- Reservas online: Tus pacientes reservan solos."));

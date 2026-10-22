@@ -4,6 +4,8 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AttributionCapture } from "@/components/analytics/AttributionCapture";
 import { PwaInstallCapture } from "@/components/PwaInstallCapture";
+import { LANDING_DESCRIPTION, LANDING_TITLE } from "@/lib/landing-seo";
+import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 const inter = Inter({
@@ -12,9 +14,25 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "KineFlow | Software para profesionales y clínicas de rehabilitación",
-  description:
-    "App para profesionales y clínicas de rehabilitación: pacientes, turnos, sesiones, evolución y cobros en un solo lugar.",
+  // Base de las URLs relativas (canonical, Open Graph): dominio canónico.
+  metadataBase: new URL(getSiteUrl()),
+  title: {
+    default: LANDING_TITLE,
+    template: "%s | KineFlow",
+  },
+  description: LANDING_DESCRIPTION,
+  openGraph: {
+    description: LANDING_DESCRIPTION,
+    locale: "es_AR",
+    siteName: "KineFlow",
+    title: LANDING_TITLE,
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    description: LANDING_DESCRIPTION,
+    title: LANDING_TITLE,
+  },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

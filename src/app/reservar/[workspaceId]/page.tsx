@@ -56,7 +56,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const profile = await loadProfile(workspaceId);
 
   if (!profile) {
-    return { robots: { follow: false, index: false }, title: "Reservá tu turno | KineFlow" };
+    return { robots: { follow: false, index: false }, title: { absolute: "Reservá tu turno | KineFlow" } };
   }
 
   const title = getProfileTitle(profile);
@@ -76,7 +76,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     // Un perfil sin bio ni tratamientos no se indexa (el link funciona igual).
     robots: isProfileEmpty(profile) ? { follow: true, index: false } : { follow: true, index: true },
-    title,
+    title: { absolute: title },
     twitter: { card: "summary", description, title },
   };
 }

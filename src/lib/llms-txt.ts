@@ -29,6 +29,7 @@ export type LlmsTxtProfile = {
 
 export type LlmsTxtInput = {
   contactEmail: string;
+  faqs: Array<{ answer: string; question: string }>;
   features: LlmsTxtFeature[];
   instagramUrl: string;
   plans: LlmsTxtPlan[];
@@ -82,6 +83,9 @@ export function buildLlmsTxt(input: LlmsTxtInput) {
     "",
     "Los precios están en pesos argentinos.",
     "",
+    "## Preguntas frecuentes",
+    "",
+    ...input.faqs.flatMap((faq) => [`### ${faq.question}`, "", faq.answer, ""]),
     "## Páginas",
     "",
     `- [Inicio](${site}/): presentación, funciones y planes`,

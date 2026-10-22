@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import { LegalPage } from "@/components/layout/LegalPage";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/politica-de-privacidad" },
+  description: "Cómo KineFlow trata y protege los datos de profesionales y pacientes.",
+  title: "Política de privacidad",
+};
 
 const updatedAt = "11 de junio de 2026";
 
