@@ -182,7 +182,76 @@ function ReservasVisual({ fields }: { fields: NonNullable<PromoFields["reservas"
   );
 }
 
-const WEEKDAY_LETTERS = ["L", "M", "M", "J", "V", "S", "D"];
+function EvolucionVisual({ fields }: { fields: NonNullable<PromoFields["evolucion"]> }) {
+  return (
+    <div style={{ alignItems: "center", display: "flex", flexDirection: "column", gap: 24 }}>
+      <div style={{ ...cardStyle, alignItems: "center", gap: 24, justifyContent: "space-between", padding: "30px 40px", width: 760 }}>
+        <div style={{ alignItems: "center", display: "flex", gap: 22 }}>
+          {fields.time ? (
+            <div style={{ color: BRAND, display: "flex", fontSize: 34, fontWeight: 800 }}>{fields.time}</div>
+          ) : null}
+          <div style={{ display: "flex", fontSize: 34, fontWeight: 800 }}>{fields.patient}</div>
+        </div>
+        <div
+          style={{
+            alignItems: "center",
+            background: "#E3F8F2",
+            borderRadius: 999,
+            color: "#0E7C66",
+            display: "flex",
+            fontSize: 28,
+            fontWeight: 800,
+            gap: 10,
+            padding: "12px 22px",
+          }}
+        >
+          <svg fill="none" height="28" stroke="#0E7C66" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.4" viewBox="0 0 24 24" width="28">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+          Asistió
+        </div>
+      </div>
+      <div style={{ ...cardStyle, flexDirection: "column", gap: 22, padding: "40px 48px", width: 760 }}>
+        <div style={{ alignItems: "baseline", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", fontSize: 34, fontWeight: 800 }}>Registrar evolución</div>
+          {fields.session ? <div style={{ color: MUTED, display: "flex", fontSize: 26 }}>{fields.session}</div> : null}
+        </div>
+        <div
+          style={{
+            background: BACKGROUND,
+            border: `2px solid ${CARD_BORDER}`,
+            borderRadius: 18,
+            color: INK,
+            display: "flex",
+            fontSize: 28,
+            lineHeight: 1.4,
+            minHeight: 150,
+            padding: "22px 26px",
+          }}
+        >
+          {fields.note}
+        </div>
+        <div
+          style={{
+            alignItems: "center",
+            background: BRAND,
+            borderRadius: 22,
+            color: "#FFFFFF",
+            display: "flex",
+            fontSize: 32,
+            fontWeight: 800,
+            height: 88,
+            justifyContent: "center",
+          }}
+        >
+          Guardar evolución
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const WEEKDAY_LETTERS =["L", "M", "M", "J", "V", "S", "D"];
 const HOLIDAY_FILL = "#F8D27A";
 
 function SerieVisual({ fields }: { fields: NonNullable<PromoFields["serie"]> }) {
@@ -259,6 +328,7 @@ export async function renderPromoJpeg(fields: PromoFields) {
   if (fields.visual === "perfil" && fields.perfil) visual = <PerfilVisual fields={fields.perfil} />;
   if (fields.visual === "reservas" && fields.reservas) visual = <ReservasVisual fields={fields.reservas} />;
   if (fields.visual === "serie" && fields.serie) visual = <SerieVisual fields={fields.serie} />;
+  if (fields.visual === "evolucion" && fields.evolucion) visual = <EvolucionVisual fields={fields.evolucion} />;
 
   const response = new ImageResponse(
     (
