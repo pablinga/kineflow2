@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { applyMercadoPagoSubscriptionToAccount } from "@/lib/billing-server";
 import { getMercadoPagoSubscription } from "@/lib/mercadopago";
+import {
+  decideReturnConfirmation,
+  resolveSubscriptionTarget,
+} from "@/lib/mercadopago-subscription-target";
 import type { CommercialPlan, PlanStatus } from "@/lib/plans";
 import {
   getSupabaseAdminClient,
@@ -10,35 +14,6 @@ import {
 type ConfirmReturnBody = {
   preapprovalId?: string;
 };
-
-const MERCADOPAGO_PLAN_EXTERNAL_REFERENCES = new Set([
-  "KINEPART",
-  "KINEINDEP",
-  "KINECONSU",
-]);
-
-function parseExternalReference(reference: unknown) {
-  if (typeof reference !== "string") {
-    return null;
-  }
-
-  const parts = reference.split(":");
-  const [accountId, planCode] = parts;
-
-  if (!accountId || !planCode) {
-    return null;
-  }
-
-  const hasWorkspaceSegment = parts.length >= 4;
-  const workspaceId = hasWorkspaceSegment ? parts[2] : null;
-
-  return {
-    accountId,
-    planCode: planCode as CommercialPlan,
-    workspaceId:
-      workspaceId && workspaceId !== "account" ? workspaceId : null,
-  };
-}
 
 function normalizePlan(value: unknown): CommercialPlan {
   if (
@@ -102,72 +77,40 @@ export async function POST(request: Request) {
     try {
       const admin = getSupabaseAdminClient();
       const providerSubscription = await getMercadoPagoSubscription(preapprovalId);
-      const parsed = parseExternalReference(providerSubscription.external_reference);
-      const payerEmail = providerSubscription.payer_email?.trim().toLowerCase() ?? "";
-      const userEmail = user.email?.trim().toLowerCase() ?? "";
-      const externalReference =
-        providerSubscription.external_reference?.trim().toUpperCase() ?? "";
-      const belongsToUser =
-        parsed?.accountId === user.id ||
-        !payerEmail ||
-        payerEmail === userEmail ||
-        MERCADOPAGO_PLAN_EXTERNAL_REFERENCES.has(externalReference);
+      // Mismos criterios que el webhook: solo se activa si la preapproval es
+      // de quien está logueado (ver decideReturnConfirmation).
+      const target = admin
+        ? await resolveSubscriptionTarget(admin, providerSubscription)
+        : null;
+      const decision = decideReturnConfirmation({
+        providerStatus: providerSubscription.status,
+        target,
+        userId: user.id,
+      });
 
+      // Sin datos personales en los logs (ni email del pagador).
       console.info("[billing:confirm-return] Mercado Pago preapproval loaded", {
-        belongsToUser,
-        externalReference: providerSubscription.external_reference ?? null,
-        payerEmail: providerSubscription.payer_email ?? null,
+        action: decision.action,
+        matchedBy: target?.matchedBy ?? null,
         preapproval_id: providerSubscription.id,
+        reason: decision.action === "skip" ? decision.reason : null,
         status: providerSubscription.status ?? null,
         userId: user.id,
       });
 
-      if (admin && belongsToUser && providerSubscription.status === "authorized") {
-        const { data: pendingSubscription } = await admin
-          .from("subscriptions")
-          .select("id, workspace_id, plans(code)")
-          .eq("account_id", user.id)
-          .eq("status", "PENDING_PAYMENT")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const planCode = pendingSubscription
-          ? getJoinedPlanCode(pendingSubscription)
-          : parsed
-            ? normalizePlan(parsed.planCode)
-            : "FREE";
-        const resolvedWorkspaceId =
-          (pendingSubscription as { workspace_id?: string | null } | null)
-            ?.workspace_id ??
-          parsed?.workspaceId ??
-          null;
-
-        // Sin fila pendiente ni referencia propia no hay plan que activar.
-        if (planCode !== "FREE") {
-          await applyMercadoPagoSubscriptionToAccount({
-            accountId: user.id,
-            accountType:
-              planCode === "CONSULTORIO" ? "CONSULTORIO" : "KINESIOLOGO",
-            admin,
-            planCode,
-            providerSubscription,
-            subscriptionId:
-              (pendingSubscription as { id?: string } | null)?.id ?? null,
-            workspaceId: resolvedWorkspaceId,
-          });
-        }
-      } else if (!belongsToUser) {
-        console.warn("[billing:confirm-return] Preapproval does not belong to user", {
-          externalReference: providerSubscription.external_reference ?? null,
-          payerEmail: providerSubscription.payer_email ?? null,
-          preapproval_id: preapprovalId,
-          userEmail: user.email ?? null,
-          userId: user.id,
+      if (admin && decision.action === "apply") {
+        await applyMercadoPagoSubscriptionToAccount({
+          accountId: user.id,
+          accountType: decision.target.accountType,
+          admin,
+          planCode: decision.target.planCode,
+          providerSubscription,
+          subscriptionId: decision.target.subscriptionId,
+          workspaceId: decision.target.workspaceId,
         });
-      } else if (providerSubscription.status !== "authorized") {
-        console.info("[billing:confirm-return] Preapproval not authorized yet", {
+      } else if (decision.action === "skip" && decision.reason === "other_account") {
+        console.warn("[billing:confirm-return] Preapproval belongs to another account", {
           preapproval_id: preapprovalId,
-          status: providerSubscription.status ?? null,
           userId: user.id,
         });
       }
