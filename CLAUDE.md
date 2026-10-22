@@ -237,12 +237,13 @@ Revisión de UX del dashboard en tres bloques (commits `4420409`, `b9b8297`, `01
 - `robots.txt`: abierto a todos los robots, incluidos los de IA de búsqueda y de entrenamiento (decisión del usuario); suma `Sitemap:`. En QA/preview (`VERCEL_ENV != production`) bloquea todo.
 - Dominio canónico `https://www.kineflow.ar` (`kineflow.ar` redirige con 308): `getSiteUrl()` en `src/lib/site-url.ts` normaliza `NEXT_PUBLIC_APP_URL`; lo usan sitemap, robots, llms.txt y el canonical/JSON-LD de los perfiles (antes apuntaban a `kineflow.ar`).
 
-### SEO de la landing (2026-10-22, en QA)
+### SEO de la landing (2026-10-22, en prod)
 
 - Metadatos en `layout.tsx`: `metadataBase` = dominio canónico, título con plantilla `%s | KineFlow` (las páginas que necesitan un título exacto usan `title: { absolute }`, ej. los perfiles y `/registro/confirmar`), descripción, Open Graph y Twitter. Textos en `src/lib/landing-seo.ts`.
 - Imagen al compartir: `src/app/opengraph-image.tsx` (next/og en el build, con la tipografía y el logo de `src/assets/social`).
 - JSON-LD de la landing (`buildLandingJsonLd`, `npm run test:seo`): Organization, WebSite, SoftwareApplication con los planes en ARS y FAQPage. Google ya casi no muestra FAQ como resultado enriquecido; sirve igual para que las IA tomen las respuestas.
 - Sección "Preguntas frecuentes" (`#preguntas`, 10 preguntas en `LANDING_FAQ` de `src/lib/landing-content.ts`): la misma fuente para la sección, el FAQPage y `/llms.txt`. Solo afirmaciones verificadas en el código (prueba de 3 meses sin tarjeta, recordatorio 24 h antes, importación Excel/CSV, reportes de obras sociales, cancelación desde Plan). Si cambia algo del producto, actualizarlas.
 - Título, descripción y canonical propios en `/registro`, `/login` (layouts, porque las páginas son de cliente) y en las páginas legales.
-- Pendiente del usuario: verificar el dominio en Google Search Console y enviar el sitemap; conseguir menciones/links desde colegios y asociaciones. Ideas siguientes: páginas por tipo de cliente (kinesiólogos / clínicas), páginas por ciudad con perfiles del buscador, guías.
+- **Google Search Console** (2026-10-22, lo hizo el usuario): propiedad de tipo **Dominio** (`kineflow.ar`), por eso el sitemap se envía con la URL completa `https://www.kineflow.ar/sitemap.xml` (con solo `sitemap.xml` da "Dirección de sitemap no válida"). Sitemap enviado e indexación de la home solicitada. Al momento: 36 impresiones y 8 clics en 28 días, todos a la home, todavía con el título viejo ("Software para profesionales…") hasta que Google la vuelva a leer.
+- Siguiente paso acordado: en unas semanas el usuario manda captura de "Consultas que llevan a tu sitio" para decidir qué reforzar. Otras ideas: páginas por tipo de cliente (kinesiólogos / clínicas), páginas por ciudad con los perfiles del buscador, guías, y menciones/links desde colegios y asociaciones de kinesiología.
 
