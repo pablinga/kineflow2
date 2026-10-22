@@ -34,6 +34,7 @@ import {
   type PatientEvaluation,
 } from "@/hooks/usePatientEvaluations";
 import { usePatients } from "@/hooks/usePatients";
+import { useProfileNames } from "@/hooks/useProfileNames";
 import {
   useTreatments,
   type NewTreatmentInput,
@@ -87,7 +88,7 @@ function PatientDetailPageContent() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const patientId = params.id;
-  const { authError, displayName, loading, redirecting } = useRequireAuth();
+  const { authError, loading, redirecting, user } = useRequireAuth();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
   const { accessLevel, isReadOnly, loaded: accessLoaded } = useAccessLevel();
   const {
@@ -239,6 +240,14 @@ function PatientDetailPageContent() {
     }
   }, [appointments, isRecepcion, searchParams]);
 
+  // Nombres para "Profesional:" (cabecera) y el autor de cada evolución.
+  // Antes se mostraba siempre el nombre de quien estaba logueado.
+  const profileNames = useProfileNames([
+    user?.id,
+    patient?.assignedProfessionalId,
+    ...evolutions.map((item) => item.ownerId),
+  ]);
+
   if (authError) {
     return (
       <DashboardLoading
@@ -325,6 +334,29 @@ function PatientDetailPageContent() {
   const assignmentByProfessional = new Map(
     assignments.map((assignment) => [assignment.professionalId, assignment]),
   );
+  // Particular: el dueño. Clínica: los asignados (patient_assignments) o, si
+  // no hay, la columna assigned_professional_id.
+  const isClinicPatientView = activeWorkspace?.type === "CLINICA";
+  const assignedNames = isClinicPatientView
+    ? assignments.length > 0
+      ? assignments.map(
+          (assignment) =>
+            professionals.find((item) => item.id === assignment.professionalId)?.name ??
+            profileNames.get(assignment.professionalId) ??
+            "Profesional del equipo",
+        )
+      : patient?.assignedProfessionalId
+        ? [profileNames.get(patient.assignedProfessionalId) ?? "Profesional del equipo"]
+        : []
+    : [user?.id ? profileNames.get(user.id) : null].filter((name): name is string => Boolean(name));
+  const professionalLabel =
+    assignedNames.length > 1
+      ? `Profesionales: ${assignedNames.join(", ")}`
+      : assignedNames.length === 1
+        ? `Profesional: ${assignedNames[0]}`
+        : isClinicPatientView
+          ? "Sin profesional asignado"
+          : "";
 
   function updateField<Field extends keyof NewEvolutionInput>(
     field: Field,
@@ -665,10 +697,12 @@ function PatientDetailPageContent() {
                     <Mail className="h-4 w-4 text-ocean-600" />
                     {patient.email}
                   </p>
-                  <p className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-ocean-600" />
-                    Profesional: {displayName}
-                  </p>
+                  {professionalLabel ? (
+                    <p className="flex items-center gap-2">
+                      <Activity className="h-4 w-4 shrink-0 text-ocean-600" />
+                      {professionalLabel}
+                    </p>
+                  ) : null}
                   {patient.insuranceProviderName || patient.insuranceMemberNumber ? (
                     <p className="flex items-center gap-2">
                       <IdCard className="h-4 w-4 text-ocean-600" />
@@ -1124,9 +1158,11 @@ function PatientDetailPageContent() {
                             <summary className="cursor-pointer font-semibold text-ocean-800">
                               Ver detalle clínico
                             </summary>
-                            <p className="mt-2 text-slate-500">
-                              Profesional: {displayName}
-                            </p>
+                            {item.ownerId && profileNames.get(item.ownerId) ? (
+                              <p className="mt-2 text-slate-500">
+                                Registró: {profileNames.get(item.ownerId)}
+                              </p>
+                            ) : null}
                             <p className="mt-2">{item.notes}</p>
                           </details>
                         </article>
