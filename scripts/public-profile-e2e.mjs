@@ -413,6 +413,26 @@ try {
     await context.close();
   }
 
+  // 4b. Imagen para compartir de cada perfil
+  {
+    const { context, page } = await newPage();
+    for (const [id, file] of [[W_FULL, "og-perfil-completo.png"], [W_CLINIC, "og-perfil-vacio.png"]]) {
+      await page.goto(`${APP}/reservar/${id}`);
+      const ogImage = await page.locator('meta[property="og:image"]').first().getAttribute("content");
+      assert.ok(ogImage.includes(`/reservar/${id}/opengraph-image`), `og:image del perfil: ${ogImage}`);
+      assert.equal(await page.locator('meta[name="twitter:card"]').getAttribute("content"), "summary_large_image");
+      const response = await fetch(new URL(new URL(ogImage).pathname + new URL(ogImage).search, APP));
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("content-type"), "image/png");
+      const { writeFileSync } = await import("node:fs");
+      writeFileSync(`${SHOTS}/${file}`, Buffer.from(await response.arrayBuffer()));
+    }
+    const invalid = await fetch(`${APP}/reservar/no-existe/opengraph-image`);
+    assert.equal(invalid.status, 200, "la imagen de un link inválido no responde");
+    log("imagen para compartir propia de cada perfil (y genérica si no hay perfil)");
+    await context.close();
+  }
+
   // 5. llms.txt, sitemap y robots
   {
     const llms = await (await fetch(`${APP}/llms.txt`)).text();

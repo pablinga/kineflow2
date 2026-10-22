@@ -222,3 +222,31 @@ export function getProfileFooterUrl(baseUrl = "") {
 
   return `${baseUrl.replace(/\/$/, "")}/?${query}`;
 }
+
+/** Contenido de la imagen para compartir el perfil (opengraph-image). */
+export type ProfileShareCard = {
+  eyebrow: string;
+  homeVisits: boolean;
+  locality: string;
+  name: string;
+  /** Hasta 4 tratamientos; el resto como "+N". */
+  treatments: string[];
+};
+
+const SHARE_CARD_MAX_TREATMENTS = 4;
+const SHARE_CARD_MAX_NAME = 48;
+
+export function getProfileShareCard(profile: PublicProfileView): ProfileShareCard {
+  const name = getProfileDisplayName(profile);
+  const labels = profile.treatments.map(treatmentLabel);
+  const visible = labels.slice(0, SHARE_CARD_MAX_TREATMENTS);
+  const hidden = labels.length - visible.length;
+
+  return {
+    eyebrow: profile.type === "CLINICA" ? "Centro de kinesiología" : "Kinesiología",
+    homeVisits: profile.homeVisits,
+    locality: getLocalityText(profile.locality),
+    name: name.length > SHARE_CARD_MAX_NAME ? `${name.slice(0, SHARE_CARD_MAX_NAME - 1).trimEnd()}…` : name,
+    treatments: hidden > 0 ? [...visible, `+${hidden}`] : visible,
+  };
+}

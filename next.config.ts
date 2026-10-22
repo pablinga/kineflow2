@@ -26,6 +26,8 @@ const nextConfig: NextConfig = {
     "/api/admin/content": ["./src/assets/social/**", "./public/images/landing/**"],
     "/api/admin/content/drafts": ["./src/assets/social/**", "./public/images/landing/**"],
     "/api/admin/content/preview": ["./src/assets/social/**", "./public/images/landing/**"],
+    // Imagen para compartir cada perfil: se genera al pedirla (no en el build).
+    "/reservar/**": ["./src/assets/social/**"],
   },
   async headers() {
     return [
