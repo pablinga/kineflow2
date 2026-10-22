@@ -4,7 +4,7 @@
 // la parte pura: validar los campos y armar el calendario de la serie.
 // Sin dependencias de Next ni de Node: se prueba con node --test.
 
-export const PROMO_VISUALS = ["perfil", "reservas", "serie", "ninguno"] as const;
+export const PROMO_VISUALS = ["perfil", "reservas", "serie", "evolucion", "ninguno"] as const;
 export type PromoVisual = (typeof PROMO_VISUALS)[number];
 
 export type PromoPerfil = {
@@ -23,6 +23,13 @@ export type PromoReservas = {
   slots: string[];
 };
 
+export type PromoEvolucion = {
+  note: string;
+  patient: string;
+  session: string;
+  time: string;
+};
+
 export type PromoSerie = {
   count: number;
   holidays: number[];
@@ -37,6 +44,7 @@ export type PromoSerie = {
 export type PromoFields = {
   cta: string;
   eyebrow: string;
+  evolucion?: PromoEvolucion;
   highlight: string;
   perfil?: PromoPerfil;
   reservas?: PromoReservas;
@@ -122,6 +130,14 @@ export function normalizePromoFields(raw: unknown): PromoFields | null {
       day: text(reservas.day, 30),
       selected: int(reservas.selected, -1, Math.max(slots.length - 1, -1), -1),
       slots,
+    };
+  } else if (visual === "evolucion") {
+    const evolucion = record(source.evolucion);
+    fields.evolucion = {
+      note: text(evolucion.note, 140),
+      patient: text(evolucion.patient, 30, "Paciente"),
+      session: text(evolucion.session, 30),
+      time: text(evolucion.time, 8),
     };
   } else if (visual === "serie") {
     const serie = record(source.serie);

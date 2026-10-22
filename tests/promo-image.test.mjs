@@ -53,6 +53,18 @@ test("serie de 10 los lun/mié/vie de nov 2026 saltea el feriado del 23 y termin
   assert.equal(cells.length % 7, 0);
 });
 
+test("evolucion: recorta la nota y completa el paciente", () => {
+  const fields = normalizePromoFields({
+    evolucion: { note: "n".repeat(300), session: "Sesión 4 de 10", time: "16:00" },
+    title: "Asistió,",
+    visual: "evolucion",
+  });
+  assert.equal(fields.visual, "evolucion");
+  assert.equal(fields.evolucion.note.length, 140);
+  assert.equal(fields.evolucion.patient, "Paciente");
+  assert.equal(fields.evolucion.time, "16:00");
+});
+
 test("un feriado que no cae en un día de la serie no se marca", () => {
   const cells = buildSeriesCalendar({
     count: 4,
