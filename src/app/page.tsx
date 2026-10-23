@@ -26,6 +26,7 @@ import {
 } from "@/lib/landing-seo";
 import { getSiteUrl } from "@/lib/site-url";
 import { PublicProfileHeader } from "@/components/booking/PublicProfileHeader";
+import { LandingTestimonials } from "@/components/landing/LandingTestimonials";
 import type { PublicProfileView } from "@/lib/public-profile";
 import {
   getVisiblePlansForMvp,
@@ -41,6 +42,7 @@ import {
   LANDING_FAQ as faqs,
   LANDING_FEATURES as features,
   LANDING_INSTAGRAM_URL as instagramUrl,
+  LANDING_TESTIMONIALS as testimonials,
   LANDING_WHATSAPP_BENEFITS as whatsappBenefits,
 } from "@/lib/landing-content";
 
@@ -108,7 +110,7 @@ const sampleProfile: PublicProfileView = {
   homeVisits: true,
   insuranceNotes: "",
   insuranceProviders: ["OSDE", "Swiss Medical", "IAPOS"],
-  licenseNumber: "MP 1234",
+  licenseNumber: "MP 0000",
   locality: { displayName: "Rosario", name: "Rosario", province: "Santa Fe" },
   localityId: "82084270",
   name: "Laura Gómez",
@@ -154,15 +156,14 @@ export default async function Home({
 
       <section className="border-b border-ocean-100 bg-gradient-to-b from-white to-ocean-50 px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-          <div className="order-1">
+          <div className="order-1 min-w-0">
             <h1 className="mt-6 max-w-xl text-4xl font-extrabold leading-tight text-ink sm:text-5xl">
-              Gestioná pacientes, turnos y cobros sin perder tiempo en
-              tareas administrativas
+              El sistema para kinesiólogos: turnos, pacientes y cobros en un
+              solo lugar
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
-              Agenda, pacientes, evoluciones, cobros y recordatorios
-              automáticos por WhatsApp a los pacientes que los aceptan.
-              Todo en un solo lugar.
+              Agenda con reservas online, evoluciones, cobros y recordatorios
+              por WhatsApp. Para kinesiólogos independientes y consultorios.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               {showAuthLinks ? (
@@ -192,6 +193,7 @@ export default async function Home({
                 Sin tarjeta de crédito
               </p>
             ) : null}
+            <LandingTestimonials testimonials={testimonials} variant="compact" />
           </div>
 
           <div className="relative order-2 mx-auto w-full max-w-xl lg:mx-0 lg:max-w-none">
@@ -428,8 +430,13 @@ export default async function Home({
             ) : null}
           </div>
 
-          <div aria-hidden="true" className="pointer-events-none select-none">
-            <PublicProfileHeader headingLevel="h2" profile={sampleProfile} />
+          <div>
+            <span className="mb-3 inline-flex rounded-full bg-ocean-50 px-3 py-1 text-xs font-bold text-ocean-700">
+              Perfil de ejemplo
+            </span>
+            <div aria-hidden="true" className="pointer-events-none select-none">
+              <PublicProfileHeader headingLevel="h2" profile={sampleProfile} />
+            </div>
           </div>
         </div>
       </section>
@@ -670,6 +677,7 @@ export default async function Home({
           </div>
         </div>
       </section>
+      <LandingTestimonials testimonials={testimonials} />
       <section className="px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl rounded-lg bg-gradient-to-br from-ocean-50 via-white to-emerald-50 p-8 text-center shadow-soft sm:p-12">
           <h2 className="text-3xl font-bold text-ink">

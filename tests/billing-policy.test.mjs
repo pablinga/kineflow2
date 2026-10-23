@@ -80,17 +80,14 @@ test("Los montos se muestran con separador de miles argentino", () => {
   assert.equal(formatMonto(20000), "$ 20.000");
 });
 
-test("Landing MVP1 habla solo a kinesiólogos independientes", () => {
-  const source = fs.readFileSync("src/app/page.tsx", "utf8");
-  const button = fs.readFileSync("src/components/ui/Button.tsx", "utf8");
+test("Landing dice desde el titular que es para kinesiólogos", () => {
+  const source = fs.readFileSync("src/app/page.tsx", "utf8").replace(/\s+/g, " ");
 
-  assert.match(source, /kinesiólogos independientes/);
-  assert.match(source, /Gestiona tus pacientes, turnos y sesiones/);
+  assert.match(source, /El sistema para kinesiólogos: turnos, pacientes y cobros en un solo lugar/);
+  assert.match(source, /Para kinesiólogos independientes y consultorios\./);
   assert.match(source, /Crear cuenta gratis/);
-  assert.match(source, /variant="inverted"/);
-  assert.match(button, /inverted:/);
-  assert.doesNotMatch(source, /consultorios/i);
-  assert.doesNotMatch(source, /clinicas/i);
+  assert.match(source, /Perfil de ejemplo/);
+  assert.match(source, /licenseNumber: "MP 0000"/);
 });
 
 test("Planes comerciales muestran nombre, precio y copy actualizado", () => {
