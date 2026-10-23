@@ -126,3 +126,21 @@ export const LANDING_FAQ = [
     question: "¿Cómo cancelo la suscripción?",
   },
 ];
+
+export type LandingTestimonial = { quote: string; name: string; role: string; city?: string };
+
+// Solo testimonios reales, con permiso de la persona para publicar su nombre.
+export const LANDING_TESTIMONIALS: LandingTestimonial[] = [
+  {
+    name: "Melisa",
+    role: "Kinesióloga, clínica de rehabilitación",
+    quote:
+      "Doy los turnos de todo el equipo desde un mismo calendario y veo de un vistazo qué días tienen lugar. Además, a los pacientes les llega el recordatorio por WhatsApp sin que yo haga nada.",
+  },
+  {
+    name: "Estanislao",
+    role: "Kinesiólogo",
+    quote:
+      "Tengo la evolución de cada paciente a mano y la cargo desde el celular entre sesión y sesión. Es lo que más uso.",
+  },
+];
