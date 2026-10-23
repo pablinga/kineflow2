@@ -96,9 +96,10 @@ test("Planes comerciales muestran nombre, precio y copy actualizado", () => {
   const migrations = [
     "supabase/migrations/202605270004_add_mercadopago_subscriptions.sql",
     "supabase/migrations/202605310001_init_kineflow_qa.sql",
+    "supabase/migrations/202609010002_update_plan_prices.sql",
   ].map((path) => fs.readFileSync(path, "utf8")).join("\n");
 
-  assert.match(plans, /INDEPENDENT_PLAN_PRICE = 15000/);
+  assert.match(plans, /INDEPENDENT_PLAN_PRICE = 20000/);
   assert.match(plans, /name: "KineFlow - Particular"/);
   assert.match(plans, /price: `\$\{formatMonto\(INDEPENDENT_PLAN_PRICE\)\}\/mes`/);
   assert.match(plans, /Pacientes ilimitados/);
@@ -107,7 +108,7 @@ test("Planes comerciales muestran nombre, precio y copy actualizado", () => {
   assert.match(plans, /Pacientes ilimitados durante la prueba/);
   assert.match(planesPage, /getPlanDisplayName/);
   assert.match(migrations, /KineFlow - Particular/);
-  assert.match(migrations, /15000/);
+  assert.match(migrations, /20000/);
 
   [plans, planesPage, migrations].forEach((source) => {
     const technicalCopy = `${"mobile"}-${"first"}`;
@@ -212,10 +213,11 @@ test("Registro y login usan bloqueos explicitos y ocultan links publicos", () =>
   const loginPage = fs.readFileSync("src/app/login/page.tsx", "utf8");
   const navbar = fs.readFileSync("src/components/layout/PublicNavbar.tsx", "utf8");
   const home = fs.readFileSync("src/app/page.tsx", "utf8");
+  const landingContent = fs.readFileSync("src/lib/landing-content.ts", "utf8");
 
   assert.equal(
     SIGNUPS_CLOSED_MESSAGE,
-    "🚀 KineFlow se encuentra actualmente en etapa de acceso limitado.\n\nSi sos kinesiólogo y querés conocer la plataforma o participar de las pruebas iniciales, contactanos.",
+    "🚀 KineFlow se encuentra actualmente en etapa de acceso limitado.\n\nSi trabajás en rehabilitación y querés conocer la plataforma o participar de las pruebas iniciales, contactanos.",
   );
   assert.match(registerPage, /ACCESS_REQUEST_MAILTO/);
   assert.match(registerPage, /Solicitar acceso/);
@@ -231,30 +233,30 @@ test("Registro y login usan bloqueos explicitos y ocultan links publicos", () =>
   assert.match(home, /ACCESS_REQUEST_MAILTO/);
   assert.match(home, /Solicitar acceso/);
   assert.match(home, /© 2026 KineFlow\. Todos los derechos reservados\./);
-  assert.match(home, /https:\/\/www\.instagram\.com\/kineflow\.ar\//);
+  assert.match(home, /href=\{instagramUrl\}/);
+  assert.match(landingContent, /https:\/\/www\.instagram\.com\/kineflow\.ar\//);
   assert.match(home, /rel="noopener noreferrer"/);
   assert.match(home, /mailto:\$\{contactEmail\}\?subject=Quiero%20probar%20KineFlow/);
 });
 
 test("Retorno de Mercado Pago activa solo si preapproval pertenece al usuario", () => {
   const source = fs.readFileSync("src/app/api/billing/confirm-return/route.ts", "utf8");
+  const target = fs.readFileSync("src/lib/mercadopago-subscription-target.ts", "utf8");
 
+  // Misma asociación que el webhook; la decisión pura se prueba en test:mp-target.
   assert.match(source, /getMercadoPagoSubscription\(preapprovalId\)/);
-  assert.match(source, /applyMercadoPagoSubscriptionToAccount/);
-  assert.match(source, /parsed\?\.accountId === user\.id/);
-  assert.match(source, /parts\.length >= 4/);
-  assert.match(source, /\.eq\("status", "PENDING_PAYMENT"\)/);
-  assert.match(source, /resolvedWorkspaceId/);
-  assert.match(source, /workspaceId: resolvedWorkspaceId/);
-  assert.match(source, /MERCADOPAGO_PLAN_EXTERNAL_REFERENCES/);
-  assert.match(source, /"KINEPART"/);
-  assert.match(source, /"KINEINDEP"/);
-  assert.match(source, /"KINECONSU"/);
-  assert.match(source, /!payerEmail/);
-  assert.match(source, /payerEmail === userEmail/);
+  assert.match(source, /resolveSubscriptionTarget\(admin, providerSubscription\)/);
+  assert.match(source, /decideReturnConfirmation\(\{[\s\S]*userId: user\.id/);
+  assert.match(source, /decision\.action === "apply"[\s\S]*applyMercadoPagoSubscriptionToAccount\(\{\s*accountId: user\.id/);
+  assert.match(source, /workspaceId: decision\.target\.workspaceId/);
   assert.match(source, /from\("subscriptions"\)/);
   assert.match(source, /plans\(code\)/);
+  assert.doesNotMatch(source, /payer_email|payerEmail/);
   assert.doesNotMatch(source, /select\("plan, estado_plan/);
+  assert.match(target, /KINEPART: "INDEPENDIENTE"/);
+  assert.match(target, /KINEINDEP: "INDEPENDIENTE"/);
+  assert.match(target, /KINECONSU: "CONSULTORIO"/);
+  assert.match(target, /\.eq\("status", "PENDING_PAYMENT"\)/);
 });
 
 test("Checkout de Mercado Pago usa NEXT_PUBLIC_APP_URL y rutas QA reales", () => {
@@ -321,15 +323,18 @@ test("Post pago consulta Supabase antes de mostrar Plan activo", () => {
 });
 
 test("Webhook aplica planes pagos y mail posterior a activacion", () => {
-  const webhook = fs.readFileSync("src/app/api/webhooks/mercadopago/route.ts", "utf8");
+  const webhook = fs.readFileSync("src/lib/mercadopago-webhook.ts", "utf8");
+  const target = fs.readFileSync("src/lib/mercadopago-subscription-target.ts", "utf8");
   const billingServer = fs.readFileSync("src/lib/billing-server.ts", "utf8");
 
-  assert.doesNotMatch(webhook, /parsed\.planCode !== "INDEPENDIENTE"/);
-  assert.match(webhook, /parsed\.planCode === "CONSULTORIO" \? "CONSULTORIO" : "KINESIOLOGO"/);
-  assert.match(webhook, /parts\.length >= 4/);
-  assert.match(webhook, /workspaceId: parsed\.workspaceId \?\? undefined/);
+  assert.doesNotMatch(webhook, /planCode !== "INDEPENDIENTE"/);
+  assert.match(webhook, /resolveSubscriptionTarget\(params\.admin, params\.providerSubscription\)/);
+  assert.match(webhook, /accountType: target\.accountType/);
+  assert.match(webhook, /workspaceId: target\.workspaceId/);
   assert.match(webhook, /payment_events/);
-  assert.match(billingServer, /internalStatus === "ACTIVE"/);
+  assert.match(target, /planCode !== "INDEPENDIENTE" && planCode !== "CONSULTORIO"/);
+  assert.match(target, /workspaceSegment !== "account"/);
+  assert.match(billingServer, /statusUpdate\.status === "ACTIVE" && existing\?\.status !== "ACTIVE"/);
   assert.match(billingServer, /workspace_id: workspaceId \?\? null/);
   assert.match(billingServer, /sendSubscriptionActivatedEmail/);
 });
@@ -342,14 +347,19 @@ test("Actualizacion de plan loguea errores exactos de Supabase", () => {
   assert.match(billingServer, /details: error\.details/);
   assert.match(billingServer, /hint: error\.hint/);
   assert.match(billingServer, /message: error\.message/);
-  assert.match(billingServer, /Supabase subscription upsert failed/);
-  assert.match(billingServer, /subscriptionUpsertError\.message/);
+  assert.match(billingServer, /Supabase subscription save failed/);
+  assert.match(billingServer, /saveError\.message/);
   assert.doesNotMatch(billingServer, /estado_plan|limite_pacientes|mercado_pago_status|plan_status|subscription_current_period_end/);
 });
 
 test("Webhook Mercado Pago acepta eventos de suscripción y pago por ruta publica", () => {
-  const webhook = fs.readFileSync("src/app/api/webhooks/mercadopago/route.ts", "utf8");
-  const alias = fs.readFileSync("src/app/api/mercadopago/webhook/route.ts", "utf8");
+  const webhook = fs.readFileSync("src/lib/mercadopago-webhook.ts", "utf8");
+  const signature = fs.readFileSync("src/lib/mercadopago-signature.ts", "utf8");
+  const routes = [
+    "src/app/api/mercadopago/webhook/route.ts",
+    "src/app/api/webhooks/mercadopago/route.ts",
+    "src/app/api/billing/webhook/route.ts",
+  ].map((path) => fs.readFileSync(path, "utf8"));
   const testEndpoint = fs.readFileSync(
     "src/app/api/mercadopago/webhook-test/route.ts",
     "utf8",
@@ -357,30 +367,25 @@ test("Webhook Mercado Pago acepta eventos de suscripción y pago por ruta public
   const mercadoPago = fs.readFileSync("src/lib/mercadopago.ts", "utf8");
   const envExample = fs.readFileSync(".env.example", "utf8");
 
-  assert.match(alias, /api\/webhooks\/mercadopago\/route/);
+  // Ruta oficial y alias comparten el mismo handler.
+  routes.forEach((route) => assert.match(route, /createMercadoPagoWebhookHandler\("\/api\//));
   assert.match(webhook, /eventType\.includes\("preapproval"\)/);
   assert.match(webhook, /eventType\.includes\("authorized_payment"\)/);
-  assert.match(webhook, /includes\("payment"\)/);
+  assert.match(webhook, /eventType\.includes\("payment"\)/);
   assert.match(webhook, /getProviderSubscriptionFromEvent/);
   assert.match(webhook, /getMercadoPagoAuthorizedPayment/);
   assert.match(webhook, /findMercadoPagoAuthorizedPaymentByPaymentId/);
   assert.match(webhook, /getMercadoPagoPayment/);
   assert.match(webhook, /MERCADOPAGO_WEBHOOK_SECRET/);
-  assert.match(webhook, /isMercadoPagoDashboardTestEvent/);
-  assert.match(webhook, /isMercadoPagoDashboardTestRequest/);
-  assert.match(webhook, /Request received/);
-  assert.match(webhook, /Unauthorized request rejected/);
-  assert.match(webhook, /missing_signature_headers_or_data_id/);
-  assert.match(webhook, /x-vercel-protection-bypass/);
-  assert.match(webhook, /SKIP_WEBHOOK_SIGNATURE_VERIFICATION/);
-  assert.match(webhook, /process\.env\.NODE_ENV !== "production"/);
-  assert.match(webhook, /payloadDataId \?\? url\.searchParams\.get\("data\.id"\) \?\? url\.searchParams\.get\("id"\)/);
-  assert.match(webhook, /Payment loaded/);
-  assert.match(webhook, /Authorized payment lookup complete/);
+  assert.match(webhook, /verifyMercadoPagoSignature/);
+  assert.match(webhook, /invalid_signature" \}, \{ status: 401 \}/);
+  assert.match(webhook, /recordRejectedEvent/);
+  assert.match(webhook, /url\.searchParams\.get\("data\.id"\) \?\? getPayloadDataId\(payload\) \?\? url\.searchParams\.get\("id"\)/);
   assert.match(webhook, /payload\.id\?\.toString\(\) === "123456"/);
-  assert.match(webhook, /payload\.type\?\.toString\(\) === "subscription_preapproval"/);
-  assert.match(webhook, /processingError: true/);
+  assert.match(webhook, /isDashboardTestEvent/);
+  assert.match(webhook, /processing_failed" \}, \{ status: 500 \}/);
   assert.match(webhook, /processMercadoPagoSubscriptionForWebhook/);
+  assert.match(signature, /missing_signature/);
   assert.match(testEndpoint, /NODE_ENV === "production"/);
   assert.match(testEndpoint, /getMercadoPagoSubscription\(preapprovalId\)/);
   assert.match(testEndpoint, /providerSubscription\.status !== "authorized"/);
@@ -430,20 +435,22 @@ test("Baja de suscripción llama a Mercado Pago, usa la ruta publica y registra 
 });
 
 test("Webhook sincroniza altas, pausas y cancelaciones desde Mercado Pago", () => {
-  const webhook = fs.readFileSync("src/app/api/webhooks/mercadopago/route.ts", "utf8");
+  const webhook = fs.readFileSync("src/lib/mercadopago-webhook.ts", "utf8");
   const billingServer = fs.readFileSync("src/lib/billing-server.ts", "utf8");
-  const mercadoPago = fs.readFileSync("src/lib/mercadopago.ts", "utf8");
+  const status = fs.readFileSync("src/lib/mercadopago-status.ts", "utf8");
 
-  assert.match(webhook, /getMercadoPagoSubscription\(params\.resourceId\)/);
-  assert.match(webhook, /status_recibido/);
-  assert.match(webhook, /preapproval_id/);
-  assert.match(mercadoPago, /status === "authorized"/);
-  assert.match(mercadoPago, /status === "paused"/);
-  assert.match(mercadoPago, /status === "canceled" \|\| status === "cancelled"/);
-  assert.match(billingServer, /effectivePlanCode = internalStatus === "ACTIVE" \? planCode : "FREE"/);
-  assert.match(billingServer, /\.eq\("workspace_id", workspaceId \?\? null\)/);
-  assert.match(billingServer, /upsert\(subscriptionPayload, \{ onConflict: "account_id,workspace_id" \}\)/);
-  assert.match(billingServer, /status: storedStatus/);
+  assert.match(webhook, /getMercadoPagoSubscription\(resourceId\)/);
+  assert.match(webhook, /preapprovalId: providerSubscription\.id/);
+  assert.match(status, /status === "authorized"/);
+  assert.match(status, /status === "paused"/);
+  assert.match(status, /status === "canceled" \|\| status === "cancelled"/);
+  // Se guarda el plan pedido; el acceso lo decide el estado (solo ACTIVE).
+  assert.match(billingServer, /buildSubscriptionStatusUpdate\(providerSubscription, existing, now\)/);
+  assert.match(billingServer, /existingQuery\.eq\("workspace_id", workspaceId\)/);
+  assert.match(billingServer, /existingQuery\.is\("workspace_id", null\)/);
+  assert.match(billingServer, /from\("subscriptions"\)\.update\(subscriptionPayload\)/);
+  assert.match(billingServer, /from\("subscriptions"\)\.insert\(subscriptionPayload\)/);
+  assert.match(billingServer, /storedStatus: statusUpdate\.status/);
   assert.doesNotMatch(billingServer, /estado_plan|limite_pacientes|mercado_pago_status|plan_status|subscription_current_period_end/);
 });
 
@@ -567,6 +574,7 @@ test("Equipo de clinica permite invitar profesionales por email", () => {
   const migration = [
     "supabase/migrations/202605270002_add_clinic_professional_model.sql",
     "supabase/migrations/202607020002_clinic_invitation_token_flow.sql",
+    "supabase/migrations/202607070002_align_clinic_professional_statuses.sql",
   ].map((path) => fs.readFileSync(path, "utf8")).join("\n");
 
   assert.match(sidebar, /UsersRound/);
@@ -574,8 +582,8 @@ test("Equipo de clinica permite invitar profesionales por email", () => {
   assert.match(sidebar, /activeWorkspace\?\.type === "CLINICA" && activeWorkspace\.role === "ADMIN"/);
   assert.match(teamHook, /clinic_professionals/);
   assert.match(teamHook, /CLINIC_PROFESSIONAL_STATUS\.pending/);
-  assert.match(teamHook, /CLINIC_PROFESSIONAL_STATUS\.accepted/);
-  assert.match(teamPage, /Agregar kinesiólogo/);
+  assert.match(teamHook, /CLINIC_PROFESSIONAL_STATUS\.active/);
+  assert.match(teamPage, /Agregar profesional/);
   assert.match(teamPage, /\/api\/invite-professional/);
   assert.match(teamPage, /lookup\.exists/);
   assert.match(inviteRoute, /https:\/\/api\.resend\.com\/emails/);
@@ -584,9 +592,9 @@ test("Equipo de clinica permite invitar profesionales por email", () => {
   assert.match(invitationPage, /answer_clinic_professional_invitation/);
   assert.match(invitationPage, /router\.replace\(`\/registro\?token=/);
   assert.match(registerPage, /answer_clinic_professional_invitation/);
-  assert.match(registerPage, /target_status: CLINIC_PROFESSIONAL_STATUS\.accepted/);
-  assert.match(migration, /status in \('pending', 'accepted', 'rejected', 'inactive'\)/);
-  assert.match(migration, /target_status not in \('accepted', 'rejected'\)/);
+  assert.match(registerPage, /target_status: CLINIC_PROFESSIONAL_STATUS\.active/);
+  // clinic_professionals.status pasó a 'pending' | 'active' | 'inactive' (202607060001 / 202607070002).
+  assert.match(migration, /target_status not in \('active', 'inactive'\)/);
 });
 
 test("Inicio muestra y responde invitaciones pendientes a clinicas", () => {
@@ -676,7 +684,7 @@ test("Equipo agrega un kinesiologo existente como aceptado", () => {
   assert.equal(decision.payload.clinic_id, "clinic-a");
   assert.equal(decision.payload.professional_email, "kine@email.com");
   assert.equal(decision.payload.professional_id, "professional-a");
-  assert.equal(decision.payload.status, "accepted");
+  assert.equal(decision.payload.status, "active");
 });
 
 test("Equipo invita un kinesiologo no registrado como pendiente", () => {
@@ -701,7 +709,7 @@ test("Equipo bloquea agregar nuevamente al mismo kinesiologo", () => {
   const decision = decideClinicProfessionalMembership({
     activeLink: {
       id: "link-a",
-      status: "accepted",
+      status: "active",
     },
     clinicId: "clinic-a",
     inactiveLink: null,
@@ -755,12 +763,12 @@ test("Equipo reactiva un kinesiologo inactivo", () => {
   assert.equal(decision.id, "link-inactive");
   assert.equal(decision.payload.professional_id, "professional-a");
   assert.equal(decision.payload.responded_at, "2026-07-08T12:00:00.000Z");
-  assert.equal(decision.payload.status, "accepted");
+  assert.equal(decision.payload.status, "active");
 });
 
 test("Equipo rechaza status invalido para clinic_professionals", () => {
   assert.throws(
-    () => assertClinicProfessionalStatus("active"),
+    () => assertClinicProfessionalStatus("accepted"),
     /Status de kinesiologo de clinica invalido/,
   );
 });
@@ -780,7 +788,7 @@ test("Equipo permite que un usuario trabaje en mas de una clinica", () => {
   assert.equal(decision.type, "insert");
   assert.equal(decision.payload.clinic_id, "clinic-b");
   assert.equal(decision.payload.professional_id, "professional-a");
-  assert.equal(decision.payload.status, "accepted");
+  assert.equal(decision.payload.status, "active");
 });
 
 test("Nuevo turno en workspace de clinica usa turno clinico para kinesiologo invitado", () => {
@@ -794,7 +802,8 @@ test("Nuevo turno en workspace de clinica usa turno clinico para kinesiologo inv
   assert.match(page, /const isClinicProfessional =/);
   assert.match(page, /professional\.professional_id === user\?\.id/);
   assert.match(page, /await addClinicAppointment/);
-  assert.match(page, /\{isClinicAdmin \? \(/);
+  assert.match(page, /const isClinicAdmin = isClinicWorkspace && isWorkspaceStaff\(activeWorkspace\)/);
+  assert.match(page, /isClinicAdmin \? \(/);
   assert.match(page, /\(isClinicAdmin && clinicProfessionals\.length === 0\)/);
 });
 
@@ -820,13 +829,14 @@ test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => 
 
   assert.match(patientsHook, /findDuplicatePatient/);
   assert.match(patientsHook, /\.neq\("id", params\.excludePatientId\)/);
-  assert.match(patientsHook, /\.eq\("owner_id", sessionData\.user\.id\)/);
+  // DNI duplicado se busca dentro del espacio activo.
+  assert.match(patientsHook, /\.eq\("workspace_id", params\.workspaceId\)/);
   assert.match(patientsHook, /\.select\("id"\)/);
   assert.match(patientsHook, /updatePatient/);
   assert.match(patientsPage, /Editar paciente/);
-  assert.match(newPatientModal, /Crear tratamiento inicial/);
-  assert.match(patientsPage, /addTreatment/);
-  assert.match(patientsPage, /initialTreatment/);
+  // El alta carga una evaluación kinésica inicial (reemplazó al tratamiento inicial).
+  assert.match(newPatientModal, /Cargar evaluación inicial/);
+  assert.match(patientsPage, /insertPatientEvaluation\(activeWorkspace\.id, patientId, initialEvaluation\)/);
   assert.match(patientsPage, /Paciente actualizado correctamente/);
   assert.match(migration, /patients\.owner_id = new\.owner_id/);
   assert.match(migration, /patients\.id is distinct from new\.id/);
@@ -843,7 +853,7 @@ test("Nuevo paciente se abre en modal accesible sin cambiar la logica de alta", 
   assert.match(patientsPage, /<NuevoPacienteModal/);
   assert.match(patientsPage, /onSubmit=\{handleSubmit\}/);
   assert.match(patientsPage, /onUpdateField=\{updateField\}/);
-  assert.match(patientsPage, /onUpdateInitialTreatmentField=\{updateInitialTreatmentField\}/);
+  assert.match(patientsPage, /onUpdateInitialEvaluationField=\{updateInitialEvaluationField\}/);
   assert.match(patientsPage, /setShowForm\(true\)/);
   assert.doesNotMatch(patientsPage, /className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:mt-6 sm:p-5"[\s\S]*onSubmit=\{handleSubmit\}/);
   assert.match(newPatientModal, /role="dialog"/);
@@ -910,17 +920,17 @@ test("Ficha del paciente separa historial y carga de evolucion en modal", () => 
 });
 
 test("Dashboard y cobros distinguen asistencia, deuda y pago registrado", () => {
-  const dashboard = fs.readFileSync("src/app/dashboard/page.tsx", "utf8");
+  const todayCard = fs.readFileSync("src/components/dashboard/TodayAgendaCard.tsx", "utf8");
+  const paymentModal = fs.readFileSync("src/components/turnos/AppointmentPaymentModal.tsx", "utf8");
   const appointmentsPage = fs.readFileSync("src/app/dashboard/turnos/page.tsx", "utf8");
   const appointmentsHook = fs.readFileSync("src/hooks/useAppointments.ts", "utf8");
 
-  assert.match(dashboard, /Pendiente asistencia/);
-  assert.match(dashboard, /Sin cobrar/);
-  assert.match(dashboard, /Pendiente de cobro/);
-  assert.match(dashboard, /Estado de asistencia/);
-  assert.match(dashboard, /Estado de cobro/);
-  assert.match(appointmentsPage, /Seleccionar medio/);
-  assert.match(appointmentsPage, /required/);
+  // Inicio ("Hoy") y la agenda comparten el formulario de cobro.
+  assert.match(todayCard, /Sin cobrar/);
+  assert.match(todayCard, /AppointmentPaymentModal/);
+  assert.match(appointmentsPage, /AppointmentPaymentModal/);
+  assert.match(paymentModal, /Seleccionar medio/);
+  assert.match(paymentModal, /required/);
   assert.doesNotMatch(appointmentsPage, /Estado de cobro/);
   assert.doesNotMatch(appointmentsPage, /Fecha de cobro/);
   assert.match(appointmentsHook, /payment_status: "paid"/);
@@ -986,6 +996,7 @@ test("Links legales existen", () => {
 test("Tratamientos vinculan sesiones, turnos y evoluciones", () => {
   const treatmentsHook = fs.readFileSync("src/hooks/useTreatments.ts", "utf8");
   const appointmentsHook = fs.readFileSync("src/hooks/useAppointments.ts", "utf8");
+  const treatmentList = fs.readFileSync("src/components/treatments/TreatmentList.tsx", "utf8");
   const evolutionsHook = fs.readFileSync("src/hooks/useEvolutions.ts", "utf8");
   const patientPage = fs.readFileSync(
     "src/app/dashboard/pacientes/[id]/page.tsx",
@@ -1009,10 +1020,12 @@ test("Tratamientos vinculan sesiones, turnos y evoluciones", () => {
   assert.match(treatmentsHook, /updateTreatmentStatus/);
   assert.match(patientPage, /Nuevo tratamiento/);
   assert.match(patientPage, /Tratamientos/);
-  assert.match(patientPage, /Ver sesiones/);
-  assert.match(patientPage, /ABANDONADO/);
+  assert.match(patientPage, /<TreatmentList/);
+  assert.match(treatmentList, /ABANDONADO/);
+  assert.match(treatmentList, /Sin sesiones asociadas/);
   assert.match(appointmentsHook, /treatment_id: input\.treatmentId \|\| null/);
-  assert.match(appointmentsHook, /session_number: input\.sessionNumber \?\? null/);
+  // Turnos en serie: números de sesión consecutivos desde el primero.
+  assert.match(appointmentsHook, /session_number: sessionNumbers\[index\]/);
   assert.match(appointmentsHook, /fetch\("\/api\/appointments\/status"/);
   assert.match(newAppointmentPage, /useTreatments\(appointment\.patientId/);
   assert.match(newAppointmentPage, /updateTreatment/);
@@ -1024,7 +1037,7 @@ test("Tratamientos vinculan sesiones, turnos y evoluciones", () => {
   assert.match(evolutionsHook, /treatment_id: input\.treatmentId \|\| null/);
   assert.match(statusRoute, /getSupabaseAdminClient/);
   assert.match(statusRoute, /from\("treatments"\)/);
-  assert.match(statusRoute, /used_sessions: usedSessions/);
+  assert.match(statusRoute, /used_sessions: treatmentUpdate\.usedSessions/);
   assert.match(statusRoute, /FINALIZADO/);
   assert.match(migration, /create table if not exists public\.treatments/);
   assert.match(migration, /add column if not exists treatment_id uuid references public\.treatments/);
@@ -1266,8 +1279,8 @@ test("Pacientes carga paginada sin validar usuario dos veces", () => {
   assert.match(hook, /\.from\("appointments"\)[\s\S]*\.in\("patient_id", patientIds\)/);
   assert.match(hook, /\.from\("evolutions"\)[\s\S]*\.in\("patient_id", patientIds\)/);
   assert.match(page, /PATIENTS_PAGE_SIZE = 25/);
-  assert.match(page, /usePatients\(\{\s*page: currentPage,\s*pageSize: PATIENTS_PAGE_SIZE,\s*search: query,\s*\}\)/);
-  assert.match(page, /useTreatments\(undefined, \{ enabled: false \}\)/);
+  assert.match(page, /usePatients\(\{\s*page: currentPage,\s*pageSize: PATIENTS_PAGE_SIZE,\s*search: debouncedQuery,\s*\}\)/);
+  assert.doesNotMatch(page, /useTreatments\(/);
   assert.match(page, /setCurrentPage\(1\)/);
   assert.match(page, /Mostrando \{pageStart\}-\{pageEnd\} de \{totalCount\} pacientes/);
   assert.match(page, /href=\{`\/dashboard\/pacientes\/\$\{patient\.id\}`\}[\s\S]*prefetch=\{false\}/);

@@ -13,14 +13,12 @@ function test(name, fn) {
 const melisa = { name: "Melisa", quote: "Doy los turnos de todo el equipo.", role: "Kinesióloga" };
 const estanislao = { name: "Estanislao", quote: "Cargo la evolución desde el celular.", role: "Kinesiólogo" };
 
-test("lista vacía: no se muestra la sección ni el testimonio del hero", () => {
-  assert.equal(selectLandingTestimonials([], "full"), null);
-  assert.equal(selectLandingTestimonials([], "compact"), null);
+test("lista vacía: no se muestra la sección ni el carrusel del hero", () => {
+  assert.equal(selectLandingTestimonials([]), null);
 });
 
-test("el hero muestra solo el primero; la sección, todos", () => {
-  assert.deepEqual(selectLandingTestimonials([melisa, estanislao], "compact"), [melisa]);
-  assert.deepEqual(selectLandingTestimonials([melisa, estanislao], "full"), [melisa, estanislao]);
+test("con testimonios se muestran todos, en orden", () => {
+  assert.deepEqual(selectLandingTestimonials([melisa, estanislao]), [melisa, estanislao]);
 });
 
 test("iniciales y rol con ciudad opcional", () => {

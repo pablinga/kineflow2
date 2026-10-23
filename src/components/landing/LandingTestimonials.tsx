@@ -1,3 +1,4 @@
+import { TestimonialsCarousel } from "@/components/landing/TestimonialsCarousel";
 import type { LandingTestimonial } from "@/lib/landing-content";
 import {
   type LandingTestimonialsVariant,
@@ -25,35 +26,44 @@ function Initials({ name, size }: { name: string; size: "sm" | "md" }) {
 }
 
 /**
- * Testimonios reales de la landing. "compact": el primero, en una línea, debajo
- * de los CTAs del hero. "full": la sección con todos. Sin testimonios no se
+ * Testimonios reales de la landing. "compact": carrusel debajo de los CTAs del
+ * hero. "full": la sección con todos. Sin testimonios no se
  * muestra nada.
  */
 export function LandingTestimonials({
   testimonials,
   variant = "full",
 }: LandingTestimonialsProps) {
-  const visible = selectLandingTestimonials(testimonials, variant);
+  const visible = selectLandingTestimonials(testimonials);
 
   if (!visible) {
     return null;
   }
 
   if (variant === "compact") {
-    const [testimonial] = visible;
-
+    // Carrusel con la siguiente tarjeta asomando para que se note que hay más.
     return (
-      <figure className="mt-6 flex max-w-xl items-center gap-3 rounded-lg border border-ocean-100 bg-white p-3 shadow-card">
-        <Initials name={testimonial.name} size="sm" />
-        <div className="min-w-0">
-          <blockquote className="truncate text-sm text-slate-700">
-            “{testimonial.quote}”
-          </blockquote>
-          <figcaption className="mt-0.5 text-xs font-bold text-ink">
-            {testimonial.name}
-          </figcaption>
-        </div>
-      </figure>
+      <TestimonialsCarousel>
+        {visible.map((testimonial) => (
+          <figure
+            className="flex w-[85%] max-w-md shrink-0 snap-start flex-col justify-between rounded-lg border border-ocean-100 bg-white p-4 shadow-card"
+            key={testimonial.name}
+          >
+            <blockquote className="text-sm leading-6 text-slate-700">
+              “{testimonial.quote}”
+            </blockquote>
+            <figcaption className="mt-3 flex items-center gap-3">
+              <Initials name={testimonial.name} size="sm" />
+              <div>
+                <p className="text-sm font-bold text-ink">{testimonial.name}</p>
+                <p className="text-xs text-slate-500">
+                  {testimonialByline(testimonial)}
+                </p>
+              </div>
+            </figcaption>
+          </figure>
+        ))}
+      </TestimonialsCarousel>
     );
   }
 
