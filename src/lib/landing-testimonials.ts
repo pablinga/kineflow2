@@ -1,21 +1,14 @@
-// Qué testimonios muestra la landing en cada lugar. Lógica pura (testeada).
+// Testimonios de la landing: qué se muestra y cómo. Lógica pura (testeada).
 import type { LandingTestimonial } from "@/lib/landing-content";
 
 export type LandingTestimonialsVariant = "compact" | "full";
 
 /**
- * Testimonios a mostrar: en el hero solo el primero, en la sección todos.
- * null = no se renderiza nada (lista vacía).
+ * Testimonios a mostrar (el hero los muestra en carrusel, la sección en
+ * grilla). null = no se renderiza nada (lista vacía).
  */
-export function selectLandingTestimonials(
-  testimonials: LandingTestimonial[],
-  variant: LandingTestimonialsVariant,
-) {
-  if (testimonials.length === 0) {
-    return null;
-  }
-
-  return variant === "compact" ? testimonials.slice(0, 1) : testimonials;
+export function selectLandingTestimonials(testimonials: LandingTestimonial[]) {
+  return testimonials.length === 0 ? null : testimonials;
 }
 
 /** Iniciales para el círculo (sin fotos): "Melisa" → "M", "Ana Paz" → "AP". */
