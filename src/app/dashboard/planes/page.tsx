@@ -13,6 +13,7 @@ import { usePatients } from "@/hooks/usePatients";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useSubscriptionPlan } from "@/hooks/useSubscriptionPlan";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
+import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 import { isPlanAllowedForAccount } from "@/lib/billing";
 import { getFriendlyErrorMessage, logFriendlyError } from "@/lib/error-messages";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -34,6 +35,9 @@ export default function PlansPage() {
     trialEndsAt,
   } = useAccessLevel();
   const { loaded: patientsLoaded, patients } = usePatients();
+  // En la app de Android no se ofrece el checkout (política de pagos de
+  // Google Play, ver src/lib/android-app.ts): solo el estado del plan y la baja.
+  const isAndroidApp = useIsAndroidApp();
   const [selectedPlan, setSelectedPlan] = useState<CommercialPlan | null>(null);
   const [checkoutMessage, setCheckoutMessage] = useState("");
   const [checkoutError, setCheckoutError] = useState("");
@@ -128,6 +132,8 @@ export default function PlansPage() {
       Probá KineFlow gratis durante 3 meses, sin tarjeta y sin compromiso.
       Después podés activar un plan para seguir gestionando tu práctica.
     </>
+  ) : isAndroidApp ? (
+    "El estado de tu plan y tu suscripción."
   ) : (
     "Gestioná tu suscripción y método de pago desde acá."
   );
@@ -250,7 +256,7 @@ export default function PlansPage() {
             title="Plan / Suscripción"
           />
 
-          {stalePendingPlan && accessLevel !== "PAID_ACTIVE" ? (
+          {stalePendingPlan && accessLevel !== "PAID_ACTIVE" && !isAndroidApp ? (
             <Alert className="mt-4 sm:mt-6" tone="warning">
               <p className="font-bold">Tu activación está pendiente</p>
               <p className="mt-1">
@@ -292,12 +298,14 @@ export default function PlansPage() {
                     </p>
                   ) : null}
                 </div>
-                <a
-                  className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
-                  href="#planes-disponibles"
-                >
-                  Ver planes
-                </a>
+                {isAndroidApp ? null : (
+                  <a
+                    className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+                    href="#planes-disponibles"
+                  >
+                    Ver planes
+                  </a>
+                )}
               </div>
             </section>
           ) : (
@@ -333,7 +341,7 @@ export default function PlansPage() {
                     </p>
                   ) : null}
                 </div>
-                {isFreePlan ? (
+                {isFreePlan && !isAndroidApp ? (
                   <button
                     className="inline-flex min-h-11 items-center justify-center rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 disabled:opacity-60"
                     disabled={checkoutLoading === "INDEPENDIENTE"}
@@ -399,83 +407,89 @@ export default function PlansPage() {
             </section>
           ) : null}
 
-          <section
-            className="mt-4 grid gap-4 sm:mt-6 lg:grid-cols-2"
-            id="planes-disponibles"
-          >
-            {visiblePlans.map((item) => {
-              const Icon = item.icon;
-              const isCurrent = item.id === plan.plan;
+          {isAndroidApp ? (
+            <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 text-sm leading-6 text-slate-600 shadow-card sm:mt-6">
+              Los planes no se pueden contratar ni cambiar desde la app de Android.
+            </section>
+          ) : (
+            <section
+              className="mt-4 grid gap-4 sm:mt-6 lg:grid-cols-2"
+              id="planes-disponibles"
+            >
+              {visiblePlans.map((item) => {
+                const Icon = item.icon;
+                const isCurrent = item.id === plan.plan;
 
-              return (
-                <article
-                  className={`relative flex rounded-lg border bg-white p-4 shadow-card sm:p-5 ${
-                    item.recommended
-                      ? "border-ocean-500 ring-2 ring-ocean-100"
-                      : "border-ocean-100"
-                  }`}
-                  key={item.id}
-                >
-                  {item.recommended ? (
-                    <div className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-ocean-600 px-3 py-1 text-xs font-bold uppercase text-white">
-                      <Star className="h-3.5 w-3.5" />
-                      Recomendado
+                return (
+                  <article
+                    className={`relative flex rounded-lg border bg-white p-4 shadow-card sm:p-5 ${
+                      item.recommended
+                        ? "border-ocean-500 ring-2 ring-ocean-100"
+                        : "border-ocean-100"
+                    }`}
+                    key={item.id}
+                  >
+                    {item.recommended ? (
+                      <div className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-ocean-600 px-3 py-1 text-xs font-bold uppercase text-white">
+                        <Star className="h-3.5 w-3.5" />
+                        Recomendado
+                      </div>
+                    ) : null}
+                    <div className="flex w-full flex-col">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <h2
+                        className={`mt-5 text-xl font-bold text-ink ${
+                          item.recommended ? "pr-28" : ""
+                        }`}
+                      >
+                        {item.name}
+                      </h2>
+                      <p className="mt-2 text-2xl font-bold text-ocean-800">
+                        {item.price}
+                      </p>
+                      <p className="mt-2 font-semibold text-slate-700">
+                        {item.limit}
+                      </p>
+                      <p className="mt-3 text-sm leading-6 text-slate-600">
+                        {item.audience}
+                      </p>
+                      <ul className="mt-5 space-y-2">
+                        {item.features.map((feature) => (
+                          <li
+                            className="flex gap-2 text-sm leading-6 text-slate-700"
+                            key={feature}
+                          >
+                            <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <button
+                        className={`mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition ${
+                          isCurrent
+                            ? "border border-ocean-200 bg-white text-ocean-800 disabled:cursor-default"
+                            : "bg-ocean-600 text-white shadow-soft hover:bg-ocean-700"
+                        }`}
+                        disabled={isCurrent || checkoutLoading === item.id}
+                        onClick={() => {
+                          if (!isCurrent) handleCheckout(item.id);
+                        }}
+                        type="button"
+                      >
+                        {isCurrent
+                          ? "Plan actual"
+                          : checkoutLoading === item.id
+                            ? "Preparando..."
+                            : item.cta}
+                      </button>
                     </div>
-                  ) : null}
-                  <div className="flex w-full flex-col">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ocean-50 text-ocean-700">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <h2
-                      className={`mt-5 text-xl font-bold text-ink ${
-                        item.recommended ? "pr-28" : ""
-                      }`}
-                    >
-                      {item.name}
-                    </h2>
-                    <p className="mt-2 text-2xl font-bold text-ocean-800">
-                      {item.price}
-                    </p>
-                    <p className="mt-2 font-semibold text-slate-700">
-                      {item.limit}
-                    </p>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                      {item.audience}
-                    </p>
-                    <ul className="mt-5 space-y-2">
-                      {item.features.map((feature) => (
-                        <li
-                          className="flex gap-2 text-sm leading-6 text-slate-700"
-                          key={feature}
-                        >
-                          <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <button
-                      className={`mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition ${
-                        isCurrent
-                          ? "border border-ocean-200 bg-white text-ocean-800 disabled:cursor-default"
-                          : "bg-ocean-600 text-white shadow-soft hover:bg-ocean-700"
-                      }`}
-                      disabled={isCurrent || checkoutLoading === item.id}
-                      onClick={() => {
-                        if (!isCurrent) handleCheckout(item.id);
-                      }}
-                      type="button"
-                    >
-                      {isCurrent
-                        ? "Plan actual"
-                        : checkoutLoading === item.id
-                          ? "Preparando..."
-                          : item.cta}
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </section>
+                  </article>
+                );
+              })}
+            </section>
+          )}
 
           <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-4 text-xs text-slate-500 sm:mt-8">
             <LegalLinks />

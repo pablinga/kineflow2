@@ -31,6 +31,12 @@ const nextConfig: NextConfig = {
     // Piezas para redes en URL pública (/social/<id>.jpg), para Metricool.
     "/social/**": ["./src/assets/social/**"],
   },
+  async rewrites() {
+    return [
+      // Digital Asset Links de la app de Android (src/lib/android-app.ts).
+      { source: "/.well-known/assetlinks.json", destination: "/api/android/assetlinks" },
+    ];
+  },
   async headers() {
     return [
       {
