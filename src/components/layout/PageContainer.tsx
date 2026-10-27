@@ -20,7 +20,8 @@ export function PageContainer({
   maxWidth = "7xl",
 }: PageContainerProps) {
   return (
-    <section className="px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:px-8">
+    // Abajo, lugar para la barra inferior y el botón flotante del celular.
+    <section className="px-4 pb-32 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pb-24">
       <div className={clsx("mx-auto", maxWidthClasses[maxWidth], className)}>
         {children}
       </div>
