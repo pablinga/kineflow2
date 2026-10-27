@@ -1,4 +1,5 @@
 import { track } from "@vercel/analytics";
+import { detectAndroidApp } from "@/lib/android-app";
 import {
   getInstallPlatform,
   isStandalone,
@@ -122,9 +123,13 @@ export function detectInstallPlatform(): InstallPlatform {
   });
 }
 
+/** true si ya corre instalada: PWA en modo standalone o la app de Android. */
 export function detectStandalone() {
-  return isStandalone({
-    displayModeStandalone: window.matchMedia("(display-mode: standalone)").matches,
-    navigatorStandalone: (navigator as Navigator & { standalone?: boolean }).standalone,
-  });
+  return (
+    detectAndroidApp() ||
+    isStandalone({
+      displayModeStandalone: window.matchMedia("(display-mode: standalone)").matches,
+      navigatorStandalone: (navigator as Navigator & { standalone?: boolean }).standalone,
+    })
+  );
 }
