@@ -21,6 +21,7 @@
     "test:seo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/landing-seo.test.mjs",
     "test:llms": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/llms-txt.test.mjs",
     "test:series": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/appointment-series.test.mjs",
+    "test:android": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/android-app.test.mjs",
     "test:agenda": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/clinic-agenda.test.mjs",
     "test:testimonials": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/landing-testimonials.test.mjs",
     "test:attribution:qa": "node scripts/attribution-check.mjs",

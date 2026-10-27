@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AttributionCapture } from "@/components/analytics/AttributionCapture";
+import { AndroidAppCapture } from "@/components/AndroidAppCapture";
 import { PwaInstallCapture } from "@/components/PwaInstallCapture";
 import { LANDING_DESCRIPTION, LANDING_TITLE } from "@/lib/landing-seo";
 import { getSiteUrl } from "@/lib/site-url";
@@ -63,6 +64,7 @@ export default function RootLayout({
         <SpeedInsights />
         <AttributionCapture />
         <PwaInstallCapture />
+        <AndroidAppCapture />
       </body>
     </html>
   );

@@ -276,3 +276,10 @@ Revisión de UX del dashboard en tres bloques (commits `4420409`, `b9b8297`, `01
 - **Producto:** el buscador de KineFlow (perfiles con `listed_in_directory`) y su maestro de obras sociales.
 - **SEO:** en unas semanas, revisar con el usuario las consultas de Search Console; ideas: páginas por tipo de cliente (kinesiólogos / clínicas), páginas por ciudad, guías.
 
+### App de Android (TWA, 2026-10-27)
+
+- La app de Google Play es una Trusted Web Activity sobre `https://www.kineflow.ar` (package `ar.kineflow.app`, no se puede cambiar después de la primera subida). En el repo solo están `android/twa-manifest.json` y `android/README.md` (pasos de build con Bubblewrap, firma y Play Console); el proyecto Gradle, la clave y los builds están en `.gitignore`.
+- `/.well-known/assetlinks.json` → `/api/android/assetlinks` (rewrite en `next.config.ts`), arma la respuesta con `ANDROID_APP_SHA256_FINGERPRINTS` (huellas de Play App Signing y de subida). Sin la variable devuelve `[]` y la app abre con la barra de Chrome.
+- La web detecta la app por `?app=android` (startUrl de la TWA) o el referrer `android-app://ar.kineflow.app` y lo guarda en `sessionStorage` (`kf_android_app`), no en `localStorage`: la TWA comparte almacenamiento con Chrome. `useIsAndroidApp` en `/dashboard/planes` oculta el checkout y la grilla de planes (política de pagos de Play: dentro de la app no se vende ni se dirige a pagar en la web); la baja de la suscripción sigue. Para probar en el navegador: entrar con `?app=android`.
+- `/eliminar-cuenta`: página pública de baja de cuenta que exige Play (pedido por mail; el texto legal lo revisa el usuario).
+- El manifest tiene `id: "/dashboard"` (igual al que Chrome calculaba antes, no duplica PWAs instaladas) y `scope: "/"`.
