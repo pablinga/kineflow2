@@ -642,8 +642,9 @@ function PatientDetailPageContent() {
       <DashboardSidebar />
       <section className="px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
+          {/* En el celular la flecha para volver está en la barra superior. */}
           <Link
-            className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-ocean-700"
+            className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-ocean-700 max-lg:hidden"
             href="/dashboard/pacientes"
           >
             <ArrowLeft className="h-4 w-4" />

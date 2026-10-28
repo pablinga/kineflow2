@@ -5,6 +5,7 @@ import {
   getPublicProfessionals,
   getWorkspace,
 } from "@/lib/public-booking";
+import { getPublicDepositInfo } from "@/lib/deposit-payments";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
 
 type RouteContext = {
@@ -32,14 +33,17 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
-    const [professionals, insuranceProviders, artProviders] = await Promise.all([
+    const [professionals, insuranceProviders, artProviders, deposit] = await Promise.all([
       getPublicProfessionals(admin, workspace),
       getActiveInsuranceProviders(admin, workspace.id),
       getActiveArtProviders(admin, workspace.id),
+      getPublicDepositInfo(admin, workspace),
     ]);
 
     return NextResponse.json({
       artProviders,
+      // Seña de las reservas particulares (null si no se cobra).
+      deposit,
       insuranceProviders,
       professionals,
       workspace: {

@@ -9,6 +9,8 @@ import {
   paymentMethodLabels,
 } from "@/hooks/useAppointments";
 import { useCanSeeAmounts } from "@/hooks/useCanSeeAmounts";
+import { remainingSessionAmount } from "@/lib/deposits";
+import { formatCurrency } from "@/lib/format";
 
 type AppointmentPaymentModalProps = {
   appointment: Appointment;
@@ -28,8 +30,21 @@ export function AppointmentPaymentModal({
   saving,
 }: AppointmentPaymentModalProps) {
   const canSeeAmounts = useCanSeeAmounts();
+  // Con seña cobrada, el cobro de la sesión es el saldo (la seña ya está
+  // registrada en Ingresos).
+  const depositPaid =
+    appointment.depositStatus === "paid" || appointment.depositStatus === "retained"
+      ? appointment.depositAmount ?? 0
+      : 0;
   const [paymentForm, setPaymentForm] = useState<AppointmentPaymentInput>({
-    amount: appointment.amount,
+    amount:
+      appointment.paymentStatus === "pending"
+        ? remainingSessionAmount({
+            depositAmount: appointment.depositAmount,
+            depositStatus: appointment.depositStatus,
+            sessionAmount: appointment.amount,
+          })
+        : appointment.amount,
     paymentMethod: appointment.paymentMethod,
     paymentNotes: appointment.paymentNotes,
   });
@@ -51,6 +66,11 @@ export function AppointmentPaymentModal({
         <p className="mt-1 text-sm text-slate-600">
           {appointment.patient} · {appointment.date} · {appointment.time}
         </p>
+        {depositPaid > 0 && canSeeAmounts ? (
+          <p className="mt-2 rounded-lg bg-violet-50 px-3 py-2 text-sm font-medium text-violet-800">
+            Ya pagó una seña de {formatCurrency(depositPaid)} por Mercado Pago: el monto es el saldo.
+          </p>
+        ) : null}
 
         <div className={`mt-5 grid gap-4 ${canSeeAmounts ? "sm:grid-cols-2" : ""}`}>
           {/* Recepción no ve montos: se guarda el monto del turno. */}

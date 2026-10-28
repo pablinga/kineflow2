@@ -22,6 +22,7 @@ import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { ClinicAgenda } from "@/components/turnos/ClinicAgenda";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { MobileFab } from "@/components/layout/MobileFab";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { UndoToast } from "@/components/ui/UndoToast";
 import { AppointmentPaymentModal } from "@/components/turnos/AppointmentPaymentModal";
@@ -45,6 +46,7 @@ import {
   isPatientPaidAppointment,
   paymentStatusStyles,
 } from "@/lib/payment-ui";
+import { getDepositChipLabel } from "@/lib/deposits";
 import { formatDate, formatSessionAmount } from "@/lib/format";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
@@ -588,6 +590,8 @@ function LegacyAppointmentsPage() {
   const [actionNotice, setActionNotice] = useState("");
   const [updatingId, setUpdatingId] = useState("");
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  // Al cancelar un turno con seña cobrada: quién cancela define la devolución.
+  const [cancelledBy, setCancelledBy] = useState<"patient" | "professional">("professional");
   const [evolutionAppointment, setEvolutionAppointment] =
     useState<Appointment | null>(null);
   const [registeredEvolutionIds, setRegisteredEvolutionIds] = useState<
@@ -797,12 +801,26 @@ function LegacyAppointmentsPage() {
     };
   }, [attendedEvolutionAppointmentIdsKey]);
 
-  function renderEvolutionAction(appointment: Appointment, compact = false) {
+  // compact: botón de la tarjeta; "pill": fila del celular; sin valor: ítem
+  // del menú de acciones.
+  function renderEvolutionAction(
+    appointment: Appointment,
+    compact: boolean | "pill" = false,
+  ) {
     if (!canRegisterEvolution(appointment)) {
       return null;
     }
 
     if (registeredEvolutionIds.has(appointment.id)) {
+      if (compact === "pill") {
+        return (
+          <span className="inline-flex h-9 items-center gap-1.5 px-1 text-sm font-semibold text-ocean-800">
+            <CheckCircle className="h-4 w-4" />
+            Evolución registrada
+          </span>
+        );
+      }
+
       return (
         <span
           className={
@@ -820,7 +838,9 @@ function LegacyAppointmentsPage() {
     return (
       <button
         className={
-          compact
+          compact === "pill"
+            ? "inline-flex h-9 items-center justify-center rounded-full bg-ocean-50 px-4 text-sm font-semibold text-ocean-800 transition-colors duration-150 ease-out active:bg-ocean-100"
+            : compact
             ? "inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-600 px-2 text-[0.68rem] font-semibold text-white transition hover:bg-ocean-700"
             : "flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50"
         }
@@ -898,6 +918,40 @@ function LegacyAppointmentsPage() {
       }),
     [filteredAppointments, calendarDate],
   );
+  // Celular: días de la semana visible que tienen turnos (puntito en la tira)
+  // y chips de lugar (propios / cada clínica) con su color.
+  const weekDaysWithAppointments = useMemo(
+    () =>
+      new Set(
+        filteredAppointments
+          .map((appointment) => new Date(appointment.scheduledAt))
+          .filter((date) => weekDays.some((day) => sameDay(day, date)))
+          .map((date) => date.toDateString()),
+      ),
+    [filteredAppointments, weekDays],
+  );
+  const originChips = useMemo(() => {
+    const independent = appointments.find(
+      (appointment) => appointment.origin === "independent",
+    );
+
+    return [
+      {
+        color: independent?.originColor ?? "#0F55DC",
+        label: "Propios",
+        value: "independent",
+      },
+      ...clinicOptions.map(([clinicId, clinicName]) => ({
+        color:
+          appointments.find(
+            (appointment) =>
+              (appointment.clinicId ?? appointment.originLabel) === clinicId,
+          )?.originColor ?? "#64748B",
+        label: clinicName,
+        value: clinicId,
+      })),
+    ];
+  }, [appointments, clinicOptions]);
   const visibleRangeLabel =
     view === "month"
       ? calendarDate.toLocaleDateString("es-AR", {
@@ -974,6 +1028,7 @@ function LegacyAppointmentsPage() {
       return;
     }
 
+    setCancelledBy("professional");
     setPendingAction({
       appointment,
       status,
@@ -1103,9 +1158,10 @@ function LegacyAppointmentsPage() {
         return;
       }
 
-      await updateAppointmentStatus(
+      const result = await updateAppointmentStatus(
         pendingAction.appointment.id,
         pendingAction.status,
+        { cancelledBy },
       );
       if (
         pendingAction.status === "attended" &&
@@ -1116,7 +1172,13 @@ function LegacyAppointmentsPage() {
       }
       setActionNotice(
         pendingAction.status === "cancelled"
-          ? "Turno cancelado"
+          ? result.deposit?.result === "refunded"
+            ? "Turno cancelado. La seña se devolvió por Mercado Pago."
+            : result.deposit?.result === "retained"
+              ? "Turno cancelado. La seña queda retenida."
+              : result.deposit?.result === "refund_failed"
+                ? "Turno cancelado, pero no pudimos devolver la seña. Te enviamos un mail."
+                : "Turno cancelado"
           : "Asistencia actualizada",
       );
       setPendingAction(null);
@@ -1458,6 +1520,11 @@ function LegacyAppointmentsPage() {
 
             return null;
           })()}
+          {appointment.depositStatus && appointment.depositStatus !== "awaiting" ? (
+            <span className="w-fit rounded-full bg-violet-50 px-2 py-1 text-[0.62rem] font-semibold text-violet-800 ring-1 ring-violet-200">
+              {getDepositChipLabel(appointment.depositStatus, appointment.depositAmount)}
+            </span>
+          ) : null}
           {clinicAppointment ? null : !isPatientPaidAppointment(appointment) ? (
             <span className="w-fit rounded-full bg-sky-50 px-2 py-1 text-[0.62rem] font-semibold text-sky-800 ring-1 ring-sky-200">
               {getCoverageLabel(appointment)}
@@ -1544,6 +1611,336 @@ function LegacyAppointmentsPage() {
           </details>
         </div>
       </article>
+    );
+  }
+
+  // --- Celular: barra con fecha y tira de días, chips de filtro y lista ---
+
+  function renderMobileToolbar() {
+    const today = new Date();
+    const iconButtonClass =
+      "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 transition-colors duration-150 ease-out active:bg-ocean-100";
+
+    return (
+      <section className="sticky top-14 z-30 -mx-4 -mt-4 border-b border-ocean-100 bg-white px-4 pb-3 pt-1 sm:-mx-6 sm:-mt-6 sm:px-6 lg:hidden">
+        <div className="flex items-center gap-1">
+          {view === "day" ? null : (
+            <button
+              aria-label={view === "month" ? "Mes anterior" : "Semana anterior"}
+              className={iconButtonClass}
+              onClick={handlePreviousPeriod}
+              type="button"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          )}
+          <p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-600 first-letter:uppercase">
+            {view === "day"
+              ? calendarDate.toLocaleDateString("es-AR", {
+                  day: "numeric",
+                  month: "long",
+                  weekday: "long",
+                })
+              : visibleRangeLabel}
+          </p>
+          {view === "day" ? null : (
+            <button
+              aria-label={view === "month" ? "Mes siguiente" : "Semana siguiente"}
+              className={iconButtonClass}
+              onClick={handleNextPeriod}
+              type="button"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          )}
+          <button
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-full px-3 text-sm font-semibold text-ocean-700 transition-colors duration-150 ease-out active:bg-ocean-100"
+            onClick={() => setCalendarDate(new Date())}
+            type="button"
+          >
+            Hoy
+          </button>
+        </div>
+
+        <div className="mt-1 grid grid-cols-3 rounded-full bg-slate-100 p-1">
+          {[
+            ["day", "Día"],
+            ["week", "Semana"],
+            ["month", "Mes"],
+          ].map(([value, label]) => (
+            <button
+              aria-pressed={view === value}
+              className={`inline-flex h-8 items-center justify-center rounded-full text-xs font-semibold transition-colors duration-150 ease-out ${
+                view === value ? "bg-white text-ink shadow-sm" : "text-slate-600"
+              }`}
+              key={value}
+              onClick={() => changeView(value as CalendarView)}
+              type="button"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {view === "day" ? (
+          <div className="mt-3 flex items-center gap-0.5">
+            <button
+              aria-label="Semana anterior"
+              className={iconButtonClass}
+              onClick={() => setCalendarDate((date) => addDays(date, -7))}
+              type="button"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <div className="grid flex-1 grid-cols-7 gap-0.5">
+              {weekDays.map((day) => {
+                const selected = sameDay(day, calendarDate);
+                const isToday = sameDay(day, today);
+                const hasAppointments = weekDaysWithAppointments.has(day.toDateString());
+
+                return (
+                  <button
+                    aria-current={isToday ? "date" : undefined}
+                    aria-label={day.toLocaleDateString("es-AR", {
+                      day: "numeric",
+                      month: "long",
+                      weekday: "long",
+                    })}
+                    aria-pressed={selected}
+                    className={`flex flex-col items-center gap-0.5 rounded-2xl py-1.5 transition-colors duration-150 ease-out ${
+                      selected ? "bg-ocean-600 text-white" : "text-slate-500 active:bg-ocean-50"
+                    }`}
+                    key={day.toDateString()}
+                    onClick={() => setCalendarDate(day)}
+                    type="button"
+                  >
+                    <span className="text-[0.7rem] font-semibold uppercase">
+                      {day.toLocaleDateString("es-AR", { weekday: "narrow" })}
+                    </span>
+                    <span
+                      className={`text-base font-bold ${
+                        selected ? "text-white" : isToday ? "text-ocean-700" : "text-ink"
+                      }`}
+                    >
+                      {day.getDate()}
+                    </span>
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        hasAppointments
+                          ? selected
+                            ? "bg-white"
+                            : "bg-ocean-300"
+                          : "bg-transparent"
+                      }`}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              aria-label="Semana siguiente"
+              className={iconButtonClass}
+              onClick={() => setCalendarDate((date) => addDays(date, 7))}
+              type="button"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        ) : null}
+      </section>
+    );
+  }
+
+  function renderMobileFilterChips() {
+    const chipClass = (active: boolean) =>
+      `inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 ease-out ${
+        active
+          ? "border-ocean-200 bg-ocean-50 text-ocean-800"
+          : "border-slate-200 bg-white text-slate-600"
+      }`;
+
+    return (
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:hidden">
+        <button
+          aria-pressed={statusFilter === "all"}
+          className={chipClass(statusFilter === "all")}
+          onClick={() => setStatusFilter("all")}
+          type="button"
+        >
+          Todos
+        </button>
+        {statusOptions.map((status) => (
+          <button
+            aria-pressed={statusFilter === status}
+            className={chipClass(statusFilter === status)}
+            key={status}
+            onClick={() => setStatusFilter(statusFilter === status ? "all" : status)}
+            type="button"
+          >
+            {status}
+          </button>
+        ))}
+        {/* Lugares solo si hay turnos de alguna clínica (si no, son todos propios). */}
+        {clinicOptions.length > 0
+          ? originChips.map((origin) => (
+              <button
+                aria-pressed={originFilter === origin.value}
+                className={chipClass(originFilter === origin.value)}
+                key={origin.value}
+                onClick={() =>
+                  setOriginFilter(originFilter === origin.value ? "all" : origin.value)
+                }
+                type="button"
+              >
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: origin.color }}
+                />
+                {origin.label}
+              </button>
+            ))
+          : null}
+      </div>
+    );
+  }
+
+  /** Fila de un turno en la vista Día del celular (mismas acciones que la tarjeta). */
+  function renderAppointmentRow(appointment: Appointment) {
+    const status = getAppointmentDisplayStatus(appointment);
+    const isAttended = status === "Asistió";
+    const clinicAppointment = isProfessionalClinicAppointment(appointment);
+    const canMarkAttendance =
+      (status === "Pendiente" || status === "Sin registrar asistencia") &&
+      !isFutureAppointment(appointment);
+    const patientPaid = !clinicAppointment && isPatientPaidAppointment(appointment);
+    const pendingCharge =
+      patientPaid && isAttended && appointment.paymentStatus === "pending";
+    const showOrigin = clinicOptions.length > 0;
+    const paymentLabel =
+      patientPaid && (isAttended || appointment.paymentStatus !== "pending")
+        ? appointment.paymentStatus === "pending"
+          ? "Sin cobrar"
+          : appointment.paymentStatusLabel
+        : null;
+    const details = [
+      appointment.attentionTypeName,
+      activeWorkspace?.type === "CLINICA"
+        ? appointment.professionalName ?? "Sin profesional asignado"
+        : null,
+      !clinicAppointment && !patientPaid ? getCoverageLabel(appointment) : null,
+      patientPaid && canSeeAmounts ? formatSessionAmount(appointment.amount) : null,
+    ].filter((value): value is string => Boolean(value));
+    const evolutionAction =
+      isAttended && (clinicAppointment || canRegisterEvolution(appointment))
+        ? renderEvolutionAction(appointment, "pill")
+        : null;
+    const hasActions = canMarkAttendance || pendingCharge || evolutionAction;
+
+    return (
+      <li className="flex gap-3 px-4 py-3.5 sm:px-6" key={appointment.id}>
+        <div className="w-12 shrink-0">
+          <p className="text-[0.95rem] font-semibold text-ink">{appointment.time}</p>
+          <p className="mt-0.5 text-xs text-slate-500">{appointment.duration}</p>
+        </div>
+        <div className="min-w-0 flex-1">
+          {clinicAppointment ? (
+            <p className="truncate text-base font-semibold text-ink">
+              {appointment.patient}
+            </p>
+          ) : (
+            <Link
+              className="block truncate text-base font-semibold text-ink"
+              href={`/dashboard/pacientes/${appointment.patientId}`}
+              prefetch={false}
+            >
+              {appointment.patient}
+            </Link>
+          )}
+          <p className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[0.8rem] text-slate-500">
+            <span
+              className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${
+                appointmentStatusStyles[status] ?? "bg-slate-100 text-slate-700"
+              }`}
+            >
+              {status}
+            </span>
+            {showOrigin ? (
+              <span className="inline-flex min-w-0 items-center gap-1.5">
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: appointment.originColor }}
+                />
+                <span className="truncate">{appointment.originLabel}</span>
+              </span>
+            ) : null}
+            {details.map((detail) => (
+              <span className="before:mr-1.5 before:content-['·']" key={detail}>
+                {detail}
+              </span>
+            ))}
+            {paymentLabel ? (
+              <span
+                className={`before:mr-1.5 before:content-['·'] ${
+                  appointment.paymentStatus === "pending"
+                    ? "font-semibold text-amber-700"
+                    : ""
+                }`}
+              >
+                {paymentLabel}
+              </span>
+            ) : null}
+          </p>
+          {appointment.conflictWarning ? (
+            <p className="mt-2 rounded-md bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-800">
+              Conflicto de agenda: {appointment.conflictWarning}
+            </p>
+          ) : null}
+          {hasActions ? (
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {canMarkAttendance ? (
+                <>
+                  <button
+                    className="inline-flex h-9 items-center justify-center rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors duration-150 ease-out active:bg-emerald-700 disabled:opacity-60"
+                    disabled={attendance.updatingId === appointment.id}
+                    onClick={() => openStatusModal(appointment, "attended")}
+                    type="button"
+                  >
+                    Asistió
+                  </button>
+                  <button
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors duration-150 ease-out active:bg-slate-50 disabled:opacity-60"
+                    disabled={attendance.updatingId === appointment.id}
+                    onClick={() => openStatusModal(appointment, "no_show")}
+                    type="button"
+                  >
+                    No asistió
+                  </button>
+                </>
+              ) : null}
+              {pendingCharge ? (
+                <button
+                  className="inline-flex h-9 items-center justify-center rounded-full bg-ocean-50 px-4 text-sm font-semibold text-ocean-800 transition-colors duration-150 ease-out active:bg-ocean-100"
+                  onClick={() => openPaymentModal(appointment)}
+                  type="button"
+                >
+                  Cobrar
+                </button>
+              ) : null}
+              {evolutionAction}
+            </div>
+          ) : null}
+        </div>
+        <div className="-mr-2 -mt-1.5 shrink-0">
+          <button
+            aria-label={`Acciones del turno de ${appointment.patient}`}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 transition-colors duration-150 ease-out active:bg-slate-100"
+            onClick={() => setActionsAppointment(appointment)}
+            type="button"
+          >
+            <MoreVertical className="h-5 w-5" />
+          </button>
+        </div>
+      </li>
     );
   }
 
@@ -1729,14 +2126,14 @@ function LegacyAppointmentsPage() {
               <>
               {activeWorkspace?.type === "CLINICA" && isWorkspaceStaff(activeWorkspace) ? (
                 <Link
-                  className="inline-flex min-h-11 items-center justify-center rounded-lg px-3 text-sm font-semibold text-ocean-700 hover:bg-ocean-50"
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg px-3 text-sm font-semibold text-ocean-700 hover:bg-ocean-50 max-lg:hidden"
                   href="/dashboard/turnos"
                   prefetch={false}
                 >
                   Vista nueva
                 </Link>
               ) : null}
-              <div className="grid grid-cols-3 rounded-lg border border-ocean-100 bg-white p-1">
+              <div className="grid grid-cols-3 rounded-lg border border-ocean-100 bg-white p-1 max-lg:hidden">
                 {[
                   ["month", "Mes"],
                   ["week", "Semana"],
@@ -1756,7 +2153,7 @@ function LegacyAppointmentsPage() {
                   </button>
                 ))}
               </div>
-              <div className="grid grid-cols-3 rounded-lg border border-ocean-100 bg-white p-1">
+              <div className="grid grid-cols-3 rounded-lg border border-ocean-100 bg-white p-1 max-lg:hidden">
                 <button
                   className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md px-2 text-xs font-semibold text-slate-700 transition hover:bg-ocean-50 sm:text-sm"
                   onClick={handlePreviousPeriod}
@@ -1783,7 +2180,7 @@ function LegacyAppointmentsPage() {
               </div>
               {writeBlockMessage ? (
                 <button
-                  className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-500"
+                  className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-500 max-lg:hidden"
                   disabled
                   title={writeBlockMessage}
                   type="button"
@@ -1793,7 +2190,7 @@ function LegacyAppointmentsPage() {
                 </button>
               ) : canCreateAppointment ? (
                 <Link
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ocean-600 px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:bg-ocean-700 max-lg:hidden"
                   href="/dashboard/turnos/nuevo"
                 >
                   <CalendarPlus className="h-4 w-4" />
@@ -1819,7 +2216,9 @@ function LegacyAppointmentsPage() {
             title="Agenda"
           />
 
-          <div className="mt-4 flex flex-wrap gap-3 rounded-lg border border-ocean-100 bg-white px-4 py-3 text-xs font-semibold text-slate-600 shadow-sm sm:mt-6">
+          {renderMobileToolbar()}
+
+          <div className="mt-4 flex flex-wrap gap-3 rounded-lg border border-ocean-100 bg-white px-4 py-3 text-xs font-semibold text-slate-600 shadow-sm sm:mt-6 max-lg:hidden">
             <span className="inline-flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
               Asistió
@@ -1870,7 +2269,7 @@ function LegacyAppointmentsPage() {
             </p>
           ) : null}
 
-          <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-3 shadow-sm sm:mt-6 sm:p-4">
+          <section className="mt-4 rounded-lg border border-ocean-100 bg-white p-3 shadow-sm sm:mt-6 sm:p-4 max-lg:hidden">
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <div className="flex items-center gap-2 font-semibold text-ink">
                 <Filter className="h-4 w-4 text-ocean-700" />
@@ -1931,11 +2330,27 @@ function LegacyAppointmentsPage() {
             ) : null}
           </section>
 
+          {renderMobileFilterChips()}
+
           {view === "month" ? renderMonthView() : null}
           {view === "week" ? renderWeekView() : null}
 
           {view === "day" ? (
-            <section className="mt-4 sm:mt-6">
+            <section className="-mx-4 border-y border-ocean-100 bg-white sm:-mx-6 lg:hidden">
+              {mobileDays[1]?.appointments.length ? (
+                <ul className="divide-y divide-slate-100">
+                  {mobileDays[1].appointments.map(renderAppointmentRow)}
+                </ul>
+              ) : (
+                <p className="px-4 py-12 text-center text-sm font-medium text-slate-500">
+                  No hay turnos para este día.
+                </p>
+              )}
+            </section>
+          ) : null}
+
+          {view === "day" ? (
+            <section className="mt-4 hidden sm:mt-6 lg:block">
               <div className="grid gap-4 lg:grid-cols-3">
                 {mobileDays.map((day, index) => (
                   <div
@@ -2064,6 +2479,36 @@ function LegacyAppointmentsPage() {
                     </span>{" "}
                     {getAppointmentDisplayStatus(pendingAction.appointment)}
                   </p>
+                  {pendingAction.status === "cancelled" &&
+                  pendingAction.appointment.depositStatus === "paid" ? (
+                    <fieldset className="mt-3 space-y-2">
+                      <legend className="font-semibold text-ink">
+                        Seña cobrada:{" "}
+                        {formatSessionAmount(pendingAction.appointment.depositAmount ?? 0)}
+                      </legend>
+                      <label className="flex items-start gap-2">
+                        <input
+                          checked={cancelledBy === "professional"}
+                          className="mt-1 accent-ocean-600"
+                          name="cancelled-by"
+                          onChange={() => setCancelledBy("professional")}
+                          type="radio"
+                        />
+                        Lo cancelo yo: se devuelve la seña.
+                      </label>
+                      <label className="flex items-start gap-2">
+                        <input
+                          checked={cancelledBy === "patient"}
+                          className="mt-1 accent-ocean-600"
+                          name="cancelled-by"
+                          onChange={() => setCancelledBy("patient")}
+                          type="radio"
+                        />
+                        Lo canceló el paciente: se devuelve solo si avisó con la anticipación de tu
+                        política; si no, la seña queda retenida.
+                      </label>
+                    </fieldset>
+                  ) : null}
                   <p className="mt-1">
                     <span className="font-semibold text-ink">
                       Acción a confirmar:
@@ -2252,6 +2697,9 @@ function LegacyAppointmentsPage() {
           ) : null
 }
       </PageContainer>
+      {!writeBlockMessage && canCreateAppointment ? (
+        <MobileFab href="/dashboard/turnos/nuevo" label="Nuevo turno" />
+      ) : null}
     </main>
   );
 }

@@ -16,6 +16,7 @@ type AppointmentStatus =
   | "cancelled"
   | "no_show"
   | "rescheduled"
+    | "awaiting_payment"
   | "confirmed"
   | "completed";
 type PaymentStatus = "pending" | "paid" | "waived" | "not_applicable";

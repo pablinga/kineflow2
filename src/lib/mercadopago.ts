@@ -8,7 +8,7 @@ export {
 
 // La URL de la API se puede cambiar solo fuera de producción (pruebas contra
 // un mock local).
-const MERCADOPAGO_API_URL =
+export const MERCADOPAGO_API_URL =
   (process.env.NODE_ENV !== "production" && process.env.MERCADOPAGO_API_URL?.trim()) ||
   "https://api.mercadopago.com";
 const MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL =
@@ -233,16 +233,121 @@ export async function getMercadoPagoPayment(paymentId: string) {
     throw new Error("Mercado Pago no esta configurado.");
   }
 
-  const response = await fetch(`${MERCADOPAGO_API_URL}/v1/payments/${paymentId}`, {
-    headers: getMercadoPagoHeaders(accessToken),
+  return getMercadoPagoPaymentWithToken(accessToken, paymentId);
+}
+
+// --- Señas: llamadas con el token del profesional (OAuth marketplace) ------
+
+export class MercadoPagoApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function mercadoPagoRequest<T>(
+  accessToken: string,
+  path: string,
+  init: { body?: unknown; idempotencyKey?: string; method?: "GET" | "POST" } = {},
+) {
+  const response = await fetch(`${MERCADOPAGO_API_URL}${path}`, {
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    headers: {
+      ...getMercadoPagoHeaders(accessToken),
+      ...(init.idempotencyKey ? { "X-Idempotency-Key": init.idempotencyKey } : {}),
+    },
+    method: init.method ?? "GET",
   });
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data?.message ?? "No pudimos leer el pago.");
+    throw new MercadoPagoApiError(
+      (data as { message?: string })?.message ?? `Mercado Pago respondió ${response.status}.`,
+      response.status,
+    );
   }
 
-  return data as MercadoPagoPayment;
+  return data as T;
+}
+
+export type MercadoPagoDepositPayment = MercadoPagoPayment & {
+  collector_id?: number | string;
+  currency_id?: string;
+  date_approved?: string | null;
+  metadata?: MercadoPagoPayment["metadata"] & { kineflow_kind?: string };
+  status_detail?: string;
+  transaction_amount?: number;
+};
+
+export function getMercadoPagoPaymentWithToken(accessToken: string, paymentId: string) {
+  return mercadoPagoRequest<MercadoPagoDepositPayment>(
+    accessToken,
+    `/v1/payments/${encodeURIComponent(paymentId)}`,
+  );
+}
+
+export type MercadoPagoPreferenceInput = {
+  amount: number;
+  appointmentId: string;
+  backUrl: string;
+  expiresAt: string;
+  notificationUrl: string;
+  payerEmail?: string | null;
+  payerName?: string | null;
+  title: string;
+};
+
+/** Preferencia de Checkout Pro a nombre del profesional; external_reference = id del turno. */
+export function createMercadoPagoDepositPreference(
+  accessToken: string,
+  input: MercadoPagoPreferenceInput,
+) {
+  return mercadoPagoRequest<{ id: string; init_point?: string; sandbox_init_point?: string }>(
+    accessToken,
+    "/checkout/preferences",
+    {
+      body: {
+        auto_return: "approved",
+        back_urls: {
+          failure: `${input.backUrl}&r=failure`,
+          pending: `${input.backUrl}&r=pending`,
+          success: `${input.backUrl}&r=success`,
+        },
+        binary_mode: true,
+        expiration_date_to: input.expiresAt,
+        expires: true,
+        external_reference: input.appointmentId,
+        items: [
+          {
+            currency_id: "ARS",
+            id: input.appointmentId,
+            quantity: 1,
+            title: input.title,
+            unit_price: input.amount,
+          },
+        ],
+        metadata: { kineflow_kind: "deposit" },
+        notification_url: input.notificationUrl,
+        payer: {
+          ...(input.payerEmail ? { email: input.payerEmail } : {}),
+          ...(input.payerName ? { name: input.payerName } : {}),
+        },
+      },
+      idempotencyKey: `deposit-preference-${input.appointmentId}`,
+      method: "POST",
+    },
+  );
+}
+
+/** Reembolso total del pago (con el token del profesional que cobró). */
+export function refundMercadoPagoPayment(accessToken: string, paymentId: string) {
+  return mercadoPagoRequest<{ id: number | string; status?: string }>(
+    accessToken,
+    `/v1/payments/${encodeURIComponent(paymentId)}/refunds`,
+    { body: {}, idempotencyKey: `deposit-refund-${paymentId}`, method: "POST" },
+  );
 }
 
 export async function cancelMercadoPagoSubscription(subscriptionId: string) {

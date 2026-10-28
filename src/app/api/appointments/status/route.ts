@@ -4,11 +4,22 @@ import {
   getSupabaseServerClient,
 } from "@/lib/supabase-server";
 import { toArgentinaDateValue } from "@/lib/dates";
+import { loadDepositSettings, refundDeposit } from "@/lib/deposit-payments";
+import { type DepositStatus, decideCancellationRefund } from "@/lib/deposits";
 
-type AppointmentStatus = "pending" | "attended" | "cancelled" | "no_show" | "rescheduled";
+type AppointmentStatus =
+  | "pending"
+  | "attended"
+  | "cancelled"
+  | "no_show"
+  | "rescheduled"
+  | "awaiting_payment";
 
 type AppointmentRow = {
   appointment_origin: string | null;
+  deposit_mp_payment_id: string | null;
+  deposit_status: DepositStatus | null;
+  scheduled_at: string;
   id: string;
   owner_id: string;
   patient_id: string;
@@ -40,8 +51,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const { appointmentId, status } = (await request.json()) as {
+  const { appointmentId, cancelledBy, status } = (await request.json()) as {
     appointmentId?: string;
+    /** Quién cancela: define si se devuelve la seña (por defecto, el profesional). */
+    cancelledBy?: "patient" | "professional";
     status?: AppointmentStatus;
   };
 
@@ -76,7 +89,9 @@ export async function POST(request: Request) {
 
   const { data: appointment, error: appointmentError } = await admin
     .from("appointments")
-    .select("id, owner_id, patient_id, status, treatment_id, session_number, workspace_id, appointment_origin")
+    .select(
+      "id, owner_id, patient_id, status, treatment_id, session_number, workspace_id, appointment_origin, scheduled_at, deposit_status, deposit_mp_payment_id",
+    )
     .eq("id", appointmentId)
     .maybeSingle();
 
@@ -133,6 +148,18 @@ export async function POST(request: Request) {
       { status: 403 },
     );
   }
+
+  // Un turno esperando la seña solo se puede cancelar (o se libera solo al
+  // vencer); la asistencia se registra cuando ya está confirmado.
+  if (currentAppointment.status === "awaiting_payment" && status !== "cancelled") {
+    return NextResponse.json(
+      { error: "Este turno todavía espera el pago de la seña." },
+      { status: 409 },
+    );
+  }
+
+  const cancelling = status === "cancelled" && currentAppointment.status !== "cancelled";
+  const cancellationActor = cancelledBy === "patient" ? "patient" : "professional";
 
   let treatmentCompleted: { totalSessions: number } | null = null;
   let treatmentUpdate: {
@@ -193,6 +220,9 @@ export async function POST(request: Request) {
     .update({
       session_number: currentAppointment.session_number,
       status,
+      ...(cancelling
+        ? { cancelled_at: new Date().toISOString(), cancelled_by: cancellationActor }
+        : {}),
     })
     .eq("id", appointmentId);
 
@@ -234,6 +264,31 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, treatmentCompleted });
+  // Seña cobrada: se devuelve si cancela el profesional o el paciente con la
+  // anticipación configurada; si no, queda retenida.
+  let deposit: { result: "refunded" | "refund_failed" | "retained" } | null = null;
+
+  if (cancelling && currentAppointment.deposit_status === "paid" && currentAppointment.workspace_id) {
+    const settings = await loadDepositSettings(admin, currentAppointment.workspace_id);
+    const decision = decideCancellationRefund({
+      cancellationWindowHours: settings?.cancellation_window_hours ?? 0,
+      cancelledBy: cancellationActor,
+      depositStatus: currentAppointment.deposit_status,
+      scheduledAt: currentAppointment.scheduled_at,
+    });
+
+    if (decision === "refund") {
+      deposit = { result: await refundDeposit(admin, currentAppointment) };
+    } else if (decision === "retain") {
+      await admin
+        .from("appointments")
+        .update({ deposit_status: "retained" })
+        .eq("id", currentAppointment.id)
+        .eq("deposit_status", "paid");
+      deposit = { result: "retained" };
+    }
+  }
+
+  return NextResponse.json({ deposit, ok: true, treatmentCompleted });
 }
 
