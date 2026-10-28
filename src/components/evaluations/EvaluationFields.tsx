@@ -1,5 +1,6 @@
 "use client";
 
+import { BodyMapPicker } from "@/components/evaluations/BodyMap";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import {
   EVALUATION_ONSET_OPTIONS,
@@ -41,17 +42,6 @@ export function EvaluationFields({ onChange, value }: EvaluationFieldsProps) {
         />
       </label>
       <label className="block">
-        <FieldLabel required>Localización</FieldLabel>
-        <input
-          className={inputClassName}
-          onChange={(event) => onChange("painLocation", event.target.value)}
-          placeholder="Ej. Rodilla derecha"
-          required
-          type="text"
-          value={value.painLocation}
-        />
-      </label>
-      <label className="block">
         <FieldLabel>Inicio</FieldLabel>
         <select
           className={inputClassName}
@@ -68,7 +58,24 @@ export function EvaluationFields({ onChange, value }: EvaluationFieldsProps) {
           ))}
         </select>
       </label>
-      <label className="block">
+      <div className="md:col-span-2">
+        <FieldLabel required>Zona a tratar</FieldLabel>
+        <BodyMapPicker
+          onChange={(zones) => onChange("bodyZones", zones)}
+          value={value.bodyZones}
+        />
+      </div>
+      <label className="block md:col-span-2">
+        <FieldLabel>Detalle de la zona</FieldLabel>
+        <input
+          className={inputClassName}
+          onChange={(event) => onChange("painLocation", event.target.value)}
+          placeholder="Ej. Menisco interno, post quirúrgico"
+          type="text"
+          value={value.painLocation}
+        />
+      </label>
+      <label className="block md:col-span-2">
         <FieldLabel>Diagnóstico médico / derivación</FieldLabel>
         <input
           className={inputClassName}
