@@ -4,7 +4,7 @@
 // la parte pura: validar los campos y armar el calendario de la serie.
 // Sin dependencias de Next ni de Node: se prueba con node --test.
 
-export const PROMO_VISUALS = ["perfil", "reservas", "serie", "evolucion", "ninguno"] as const;
+export const PROMO_VISUALS = ["perfil", "reservas", "serie", "evolucion", "tarjeta", "ninguno"] as const;
 export type PromoVisual = (typeof PROMO_VISUALS)[number];
 
 export type PromoPerfil = {
@@ -30,6 +30,16 @@ export type PromoEvolucion = {
   time: string;
 };
 
+/** Maqueta genérica: una tarjeta con filas, barra de avance opcional y un aviso. */
+export type PromoTarjeta = {
+  /** Texto destacado abajo (ej. "Quedan 3 sesiones · pedí la renovación"). */
+  note: string;
+  /** Barra de avance (ej. sesiones usadas de una orden); null = sin barra. */
+  progress: { current: number; label: string; total: number } | null;
+  rows: Array<{ label: string; value: string }>;
+  title: string;
+};
+
 export type PromoSerie = {
   count: number;
   holidays: number[];
@@ -50,6 +60,7 @@ export type PromoFields = {
   reservas?: PromoReservas;
   serie?: PromoSerie;
   subtitle: string;
+  tarjeta?: PromoTarjeta;
   title: string;
   visual: PromoVisual;
 };
@@ -138,6 +149,22 @@ export function normalizePromoFields(raw: unknown): PromoFields | null {
       patient: text(evolucion.patient, 30, "Paciente"),
       session: text(evolucion.session, 30),
       time: text(evolucion.time, 8),
+    };
+  } else if (visual === "tarjeta") {
+    const tarjeta = record(source.tarjeta);
+    const progress = record(tarjeta.progress);
+    const total = int(progress.total, 0, 99, 0);
+    fields.tarjeta = {
+      note: text(tarjeta.note, 50),
+      progress:
+        total > 0
+          ? { current: int(progress.current, 0, total, 0), label: text(progress.label, 30), total }
+          : null,
+      rows: (Array.isArray(tarjeta.rows) ? tarjeta.rows : [])
+        .map((row) => ({ label: text(record(row).label, 30), value: text(record(row).value, 20) }))
+        .filter((row) => row.label)
+        .slice(0, 4),
+      title: text(tarjeta.title, 34, "KineFlow"),
     };
   } else if (visual === "serie") {
     const serie = record(source.serie);
