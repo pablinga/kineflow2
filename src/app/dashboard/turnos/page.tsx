@@ -361,7 +361,7 @@ function DayDetailPanel({
       role="dialog"
     >
       <div
-        className="max-h-[88vh] w-full overflow-hidden rounded-t-2xl border border-ocean-100 bg-white shadow-soft md:max-w-3xl md:rounded-xl"
+        className="max-h-[88vh] supports-[height:100dvh]:max-h-[88dvh] w-full overflow-hidden rounded-t-2xl border border-ocean-100 bg-white shadow-soft md:max-w-3xl md:rounded-xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mx-auto mt-4 h-1 w-12 rounded-full bg-slate-200 md:hidden" />
@@ -389,7 +389,7 @@ function DayDetailPanel({
             No hay turnos para este dia.
           </p>
         ) : (
-          <div className="max-h-[68vh] overflow-y-auto px-4 py-4 sm:px-5">
+          <div className="max-h-[68vh] supports-[height:100dvh]:max-h-[68dvh] overflow-y-auto px-4 py-4 sm:px-5">
             <div className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-3">
               <div
                 className="relative"

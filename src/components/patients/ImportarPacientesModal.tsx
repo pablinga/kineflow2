@@ -421,7 +421,7 @@ export function ImportarPacientesModal({
       }}
       role="dialog"
     >
-      <div className="max-h-[calc(100vh-1.5rem)] w-full max-w-5xl overflow-y-auto rounded-lg border border-ocean-100 bg-white p-4 shadow-soft sm:max-h-[90vh] sm:p-5">
+      <div className="max-h-[calc(100vh-1.5rem)] supports-[height:100dvh]:max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl overflow-y-auto rounded-lg border border-ocean-100 bg-white p-4 shadow-soft sm:max-h-[90vh] sm:p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-ink" id="importar-pacientes-title">

@@ -89,7 +89,7 @@ export function AppointmentEvolutionModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 px-4 py-6">
       <form
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
+        className="max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
         onSubmit={handleSubmit}
       >
         <h2 className="text-lg font-bold text-ink">Registrar evolución</h2>
