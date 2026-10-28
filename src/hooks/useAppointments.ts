@@ -529,7 +529,12 @@ function requestAppointmentConfirmation(appointmentId: string) {
 
 export function useAppointments(
   patientId?: string,
-  options: { unified?: boolean } = {},
+  options: {
+    unified?: boolean;
+    /** Rango opcional de `scheduled_at` (ISO): desde (incluido) y hasta (excluido). */
+    from?: string;
+    to?: string;
+  } = {},
 ) {
   const { accountType, user } = useRequireAuth();
   const {
@@ -548,6 +553,8 @@ export function useAppointments(
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [error, setError] = useState("");
   const unified = options.unified ?? false;
+  const rangeFrom = options.from ?? null;
+  const rangeTo = options.to ?? null;
   const workspaceIdsKey = workspaces.map((workspace) => workspace.id).join(",");
   const workspaceCapacityKey = workspaces
     .map((workspace) => `${workspace.id}:${workspace.maxSimultaneousAppointments ?? 1}`)
@@ -615,6 +622,14 @@ export function useAppointments(
         query = query.eq("patient_id", patientId);
       }
 
+      if (rangeFrom) {
+        query = query.gte("scheduled_at", rangeFrom);
+      }
+
+      if (rangeTo) {
+        query = query.lt("scheduled_at", rangeTo);
+      }
+
       const abortableQuery = signal ? query.abortSignal(signal) : query;
       const { data, error: queryError } = await abortableQuery;
 
@@ -661,6 +676,8 @@ export function useAppointments(
     activeWorkspaceError,
     activeWorkspaceLoaded,
     patientId,
+    rangeFrom,
+    rangeTo,
     unified,
     user,
     workspaceCapacityKey,

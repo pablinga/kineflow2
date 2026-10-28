@@ -3,16 +3,6 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import {
-  Bar,
-  BarChart,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-} from "recharts";
-import {
   estimateHoursSaved,
   formatCompactCurrency,
   formatHours,
@@ -41,79 +31,43 @@ const INCOME_CURRENT = "#0F55DC";
 const INCOME_PAST = "#B8CFFF";
 const INCOME_EMPTY = "#DCE8FF";
 
-// Recharts hace foco en el SVG al tocarlo y el navegador le dibuja un
-// recuadro negro: se saca (la información está también en texto).
-const chartFocusReset =
-  "[&_.recharts-wrapper]:outline-none [&_svg]:outline-none [&_*:focus]:outline-none";
+// Gráficos dibujados a mano (SVG/CSS): son una dona y 8 barras, y así el
+// Inicio no carga una librería de gráficos entera.
+const DONUT_GAP = 1.2;
 
-type ChartTooltipProps = {
-  active?: boolean;
-  label?: unknown;
-  payload?: Array<{
-    name?: unknown;
-    payload?: { weekStart?: string; amount?: number; label?: string; value?: number };
-    value?: unknown;
-  }>;
-};
+type DonutSlice = { color: string; label: string; value: number };
 
-/** Tooltip con el estilo de las tarjetas (sirve para barras y anillo). */
-function ChartTooltip({ active, payload }: ChartTooltipProps) {
-  const item = payload?.[0];
-
-  if (!active || !item?.payload) {
-    return null;
-  }
-
-  const data = item.payload;
-  const title = data.weekStart
-    ? `Semana del ${formatShortDay(data.weekStart)}`
-    : String(data.label ?? item.name ?? "");
-  const value = data.weekStart
-    ? formatCurrency(Number(data.amount ?? 0))
-    : String(data.value ?? item.value ?? "");
+function AttendanceDonut({ slices, total }: { slices: DonutSlice[]; total: number }) {
+  const visible = slices.filter((slice) => slice.value > 0);
+  const gap = visible.length > 1 ? DONUT_GAP : 0;
+  let offset = 0;
 
   return (
-    <div className="rounded-xl border border-ocean-100 bg-white px-3 py-2 text-sm shadow-card">
-      <p className="font-medium text-slate-600">{title}</p>
-      <p className="font-extrabold text-ink">{value}</p>
-    </div>
-  );
-}
+    <svg aria-hidden className="h-full w-full -rotate-90" viewBox="0 0 36 36">
+      {visible.map((slice) => {
+        const length = (slice.value / total) * 100;
+        const dash = Math.max(length - gap, 0.1);
+        const circle = (
+          <circle
+            cx="18"
+            cy="18"
+            fill="none"
+            key={slice.label}
+            pathLength={100}
+            r="15.5"
+            stroke={slice.color}
+            strokeDasharray={`${dash} ${100 - dash}`}
+            strokeDashoffset={-offset}
+            strokeWidth="5"
+          >
+            <title>{`${slice.label}: ${slice.value}`}</title>
+          </circle>
+        );
 
-type IncomeBarProps = {
-  height: number;
-  payload: { amount: number; current: boolean };
-  width: number;
-  x: number;
-  y: number;
-};
-
-function IncomeBar({ height, payload, width, x, y }: IncomeBarProps) {
-  const radius = Math.min(4, width / 2, height);
-  const fill = payload.current
-    ? INCOME_CURRENT
-    : payload.amount > 0
-      ? INCOME_PAST
-      : INCOME_EMPTY;
-  // Rectángulo con las esquinas de arriba redondeadas, apoyado en la base.
-  const path = `M${x},${y + height} L${x},${y + radius} Q${x},${y} ${x + radius},${y} L${x + width - radius},${y} Q${x + width},${y} ${x + width},${y + radius} L${x + width},${y + height} Z`;
-
-  return (
-    <g>
-      <path d={path} fill={fill} />
-      {payload.current && payload.amount > 0 ? (
-        <text
-          fill="#0D1B2A"
-          fontSize={12}
-          fontWeight={700}
-          textAnchor="end"
-          x={x + width}
-          y={y - 6}
-        >
-          {formatCompactCurrency(payload.amount)}
-        </text>
-      ) : null}
-    </g>
+        offset += length;
+        return circle;
+      })}
+    </svg>
   );
 }
 
@@ -230,29 +184,8 @@ export function AttendanceCard({ stats }: { stats: DashboardHomeStats }) {
         Asistencia del mes
       </h2>
       <div className="mt-3 flex items-center gap-5">
-        <div className={`relative h-36 w-36 shrink-0 ${chartFocusReset}`}>
-          <ResponsiveContainer height="100%" width="100%">
-            <PieChart>
-              <Pie
-                data={slices.filter((slice) => slice.value > 0)}
-                dataKey="value"
-                innerRadius="72%"
-                isAnimationActive={false}
-                nameKey="label"
-                outerRadius="100%"
-                paddingAngle={summary.total > 1 ? 2 : 0}
-                stroke="#ffffff"
-                strokeWidth={2}
-              >
-                {slices
-                  .filter((slice) => slice.value > 0)
-                  .map((slice) => (
-                    <Cell fill={slice.color} key={slice.label} />
-                  ))}
-              </Pie>
-              <Tooltip content={<ChartTooltip />} wrapperStyle={{ zIndex: 10 }} />
-            </PieChart>
-          </ResponsiveContainer>
+        <div className="relative h-36 w-36 shrink-0">
+          <AttendanceDonut slices={slices} total={summary.total} />
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-2xl font-extrabold text-ink">
               {summary.attendedPercent}%
@@ -299,61 +232,53 @@ export function WeeklyIncomeCard({ stats }: { stats: DashboardHomeStats }) {
   }
 
   const firstLabel = formatShortDay(weeks[0].weekStart);
-  const lastIndex = weeks.length - 1;
+  const maxAmount = Math.max(...weeks.map((week) => week.amount));
 
   return (
     <section aria-labelledby="weekly-income-title" className={`${cardClass} xl:order-5`}>
       <h2 className="text-lg font-bold text-ink" id="weekly-income-title">
         Ingresos por semana
       </h2>
-      <div className={`mt-3 h-40 ${chartFocusReset}`}>
-        <ResponsiveContainer height="100%" width="100%">
-          <BarChart
-            barCategoryGap={2}
-            data={weeks}
-            margin={{ bottom: 0, left: 0, right: 0, top: 22 }}
-          >
-            <XAxis
-              axisLine={false}
-              dataKey="weekStart"
-              interval={0}
-              // Etiquetas solo en los extremos, alineadas hacia adentro para
-              // que no se corten en el borde.
-              tick={(props) => {
-                const { index, x, y } = props as { index: number; x: number; y: number };
+      {/* Las semanas en $0 se ven como una rayita para que se lean las 8; la
+          actual lleva su monto encima. */}
+      <ul className="mt-3 flex h-[8.5rem] items-end gap-0.5 pt-6">
+        {weeks.map((week) => {
+          const label = `Semana del ${formatShortDay(week.weekStart)}: ${formatCurrency(week.amount)}`;
 
-                if (index !== 0 && index !== lastIndex) {
-                  return <g />;
-                }
-
-                return (
-                  <text
-                    fill="#475569"
-                    fontSize={12}
-                    textAnchor={index === 0 ? "start" : "end"}
-                    x={index === 0 ? x - 14 : x + 14}
-                    y={y + 12}
-                  >
-                    {index === 0 ? firstLabel : "esta semana"}
-                  </text>
-                );
-              }}
-              tickLine={false}
-            />
-            <Tooltip
-              content={<ChartTooltip />}
-              cursor={false}
-            />
-            {/* Las semanas en $0 se ven como una rayita (minPointSize) para que
-                se lean las 8; la actual lleva su monto encima. */}
-            <Bar
-              dataKey="amount"
-              isAnimationActive={false}
-              minPointSize={3}
-              shape={(props: unknown) => <IncomeBar {...(props as IncomeBarProps)} />}
-            />
-          </BarChart>
-        </ResponsiveContainer>
+          return (
+            <li
+              aria-label={label}
+              className="relative flex h-full flex-1 items-end"
+              key={week.weekStart}
+              title={label}
+            >
+              <span
+                className="relative block w-full rounded-t"
+                style={{
+                  backgroundColor: week.current
+                    ? INCOME_CURRENT
+                    : week.amount > 0
+                      ? INCOME_PAST
+                      : INCOME_EMPTY,
+                  height:
+                    week.amount > 0
+                      ? `max(3px, ${(week.amount / maxAmount) * 100}%)`
+                      : "3px",
+                }}
+              >
+                {week.current && week.amount > 0 ? (
+                  <span className="absolute -top-5 right-0 whitespace-nowrap text-xs font-bold text-ink">
+                    {formatCompactCurrency(week.amount)}
+                  </span>
+                ) : null}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-1.5 flex justify-between text-xs text-slate-600">
+        <span>{firstLabel}</span>
+        <span>esta semana</span>
       </div>
     </section>
   );

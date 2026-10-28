@@ -1275,7 +1275,7 @@ test("Pacientes carga paginada sin validar usuario dos veces", () => {
   assert.doesNotMatch(loadPatientsBlock, /supabase\.auth\.getUser\(\)/);
   assert.match(hook, /\.select\([\s\S]*\{ count: "exact" \}/);
   assert.match(hook, /\.range\(from, from \+ pageSize - 1\)/);
-  assert.match(hook, /if \(patientIds\.length === 0\)/);
+  assert.match(hook, /if \(patientIds\.length === 0 \|\| !withStats\)/);
   assert.match(hook, /\.from\("appointments"\)[\s\S]*\.in\("patient_id", patientIds\)/);
   assert.match(hook, /\.from\("evolutions"\)[\s\S]*\.in\("patient_id", patientIds\)/);
   assert.match(page, /PATIENTS_PAGE_SIZE = 25/);

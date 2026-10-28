@@ -575,7 +575,7 @@ function LegacyAppointmentsPage() {
     isReadOnly,
     loaded: accessLoaded,
   } = useAccessLevel();
-  const { activePatients, loaded: patientsLoaded } = usePatients();
+  const { activePatients, loaded: patientsLoaded } = usePatients({ withStats: false });
   const {
     appointments,
     error,

@@ -75,6 +75,12 @@ export type UsePatientsOptions = {
   page?: number;
   pageSize?: number;
   search?: string;
+  /**
+   * Última sesión, próximo turno y último cobro de cada paciente (dos
+   * consultas más). Solo la lista de Pacientes los muestra; los selectores y
+   * los conteos pasan false.
+   */
+  withStats?: boolean;
 };
 
 type ClinicProfessionalAccessRow = {
@@ -99,7 +105,6 @@ type PatientAppointmentRow = {
 type PatientEvolutionRow = {
   patient_id: string;
   session_date: string;
-  clinical_notes: string | null;
 };
 
 function mapPatient(
@@ -229,6 +234,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
   const page = Math.max(options.page ?? 1, 1);
   const pageSize = options.pageSize ?? null;
   const search = options.search?.trim() ?? "";
+  const withStats = options.withStats ?? true;
 
   const loadPatients = useCallback(async (signal?: AbortSignal) => {
     if (!activeWorkspaceLoaded) {
@@ -392,10 +398,10 @@ export function usePatients(options: UsePatientsOptions = {}) {
       const patientRows = (data ?? []) as PatientRow[];
       const patientIds = patientRows.map((patient) => patient.id);
 
-      if (patientIds.length === 0) {
+      if (patientIds.length === 0 || !withStats) {
         setTotalCount(count ?? patientRows.length);
         setActivePatientCount(activeCount ?? 0);
-        setPatients([]);
+        setPatients(patientRows.map((patient) => mapPatient(patient, [], [])));
         return;
       }
 
@@ -405,7 +411,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
         .in("patient_id", patientIds);
       let evolutionsQuery = supabase
         .from("evolutions")
-        .select("patient_id, session_date, clinical_notes")
+        .select("patient_id, session_date")
         .in("patient_id", patientIds);
 
       appointmentsQuery = appointmentsQuery.eq("workspace_id", activeWorkspace.id);
@@ -477,6 +483,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
     pageSize,
     search,
     user,
+    withStats,
   ]);
 
   useEffect(() => {

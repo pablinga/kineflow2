@@ -34,7 +34,7 @@ export default function PlansPage() {
     trialDaysRemaining,
     trialEndsAt,
   } = useAccessLevel();
-  const { loaded: patientsLoaded, patients } = usePatients();
+  const { loaded: patientsLoaded, patients } = usePatients({ withStats: false });
   // En la app de Android no se ofrece el checkout (política de pagos de
   // Google Play, ver src/lib/android-app.ts): solo el estado del plan y la baja.
   const isAndroidApp = useIsAndroidApp();
