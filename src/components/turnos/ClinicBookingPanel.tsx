@@ -506,7 +506,7 @@ export function ClinicBookingPanel({
                 className={inputClassName}
                 min={0}
                 onChange={(event) => setAmountOverride(Number(event.target.value))}
-                step="100"
+                step="0.01"
                 type="number"
                 value={sessionAmount}
               />

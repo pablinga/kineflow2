@@ -128,7 +128,7 @@ function DraftFields({
           min={0}
           onChange={(event) => onChange({ ...draft, price: event.target.value })}
           placeholder="Opcional"
-          step="100"
+          step="0.01"
           type="number"
           value={draft.price}
         />

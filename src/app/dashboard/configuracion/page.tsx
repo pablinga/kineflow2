@@ -410,7 +410,7 @@ export default function WorkspaceSettingsPage() {
           }
         }}
         placeholder="Sin precio"
-        step="100"
+        step="0.01"
         title="Precio por sesión"
         type="number"
       />
@@ -697,7 +697,7 @@ export default function WorkspaceSettingsPage() {
                 min={0}
                 onChange={(event) => setProviderPrice(event.target.value)}
                 placeholder="Precio"
-                step="100"
+                step="0.01"
                 type="number"
                 value={providerPrice}
               />
@@ -818,7 +818,7 @@ export default function WorkspaceSettingsPage() {
                 min={0}
                 onChange={(event) => setArtProviderPrice(event.target.value)}
                 placeholder="Precio"
-                step="100"
+                step="0.01"
                 type="number"
                 value={artProviderPrice}
               />

@@ -213,7 +213,7 @@ export function BookingClient({ workspaceId }: BookingClientProps) {
     workspace?.defaultSessionDurationMinutes ?? DEFAULT_DURATION_MINUTES;
   const todayDate = toDateValue(new Date());
   const toDate = useMemo(
-    () => toDateValue(addDays(new Date(`${fromDate}T12:00:00`), 4)),
+    () => toDateValue(addDays(new Date(`${fromDate}T12:00:00`), 6)),
     [fromDate],
   );
   const previousWeekEnd = toDateValue(

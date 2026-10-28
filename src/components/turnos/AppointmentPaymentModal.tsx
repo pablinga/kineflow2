@@ -87,7 +87,7 @@ export function AppointmentPaymentModal({
                 }))
               }
               required
-              step="100"
+              step="0.01"
               type="number"
               value={paymentForm.amount}
             />
