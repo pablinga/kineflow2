@@ -251,6 +251,68 @@ function EvolucionVisual({ fields }: { fields: NonNullable<PromoFields["evolucio
   );
 }
 
+function TarjetaVisual({ fields }: { fields: NonNullable<PromoFields["tarjeta"]> }) {
+  const percent = fields.progress ? Math.round((fields.progress.current / fields.progress.total) * 100) : 0;
+
+  return (
+    <div style={{ ...cardStyle, flexDirection: "column", gap: 26, padding: "40px 48px", width: 820 }}>
+      <div style={{ display: "flex", fontSize: 36, fontWeight: 800 }}>{fields.title}</div>
+      {fields.progress ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", fontSize: 30, fontWeight: 800, justifyContent: "space-between" }}>
+            <div style={{ display: "flex" }}>{fields.progress.label}</div>
+            <div style={{ color: BRAND, display: "flex" }}>
+              {`${fields.progress.current} de ${fields.progress.total}`}
+            </div>
+          </div>
+          <div style={{ background: CARD_BORDER, borderRadius: 999, display: "flex", height: 22, width: "100%" }}>
+            <div style={{ background: BRAND, borderRadius: 999, display: "flex", height: 22, width: `${percent}%` }} />
+          </div>
+        </div>
+      ) : null}
+      {fields.rows.length ? (
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {fields.rows.map((row, index) => (
+            <div
+              key={`${row.label}-${index}`}
+              style={{
+                borderTop: index === 0 ? "none" : `2px solid ${CARD_BORDER}`,
+                display: "flex",
+                fontSize: 30,
+                justifyContent: "space-between",
+                padding: "16px 0",
+              }}
+            >
+              <div style={{ color: MUTED, display: "flex" }}>{row.label}</div>
+              <div style={{ display: "flex", fontWeight: 800 }}>{row.value}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {fields.note ? (
+        <div
+          style={{
+            alignItems: "center",
+            background: "#E3F8F2",
+            borderRadius: 22,
+            color: "#0E7C66",
+            display: "flex",
+            fontSize: 30,
+            fontWeight: 800,
+            gap: 14,
+            padding: "20px 26px",
+          }}
+        >
+          <svg fill="none" height="32" stroke="#0E7C66" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.2" viewBox="0 0 24 24" width="32">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+          {fields.note}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 const WEEKDAY_LETTERS =["L", "M", "M", "J", "V", "S", "D"];
 const HOLIDAY_FILL = "#F8D27A";
 
@@ -329,6 +391,7 @@ export async function renderPromoJpeg(fields: PromoFields) {
   if (fields.visual === "reservas" && fields.reservas) visual = <ReservasVisual fields={fields.reservas} />;
   if (fields.visual === "serie" && fields.serie) visual = <SerieVisual fields={fields.serie} />;
   if (fields.visual === "evolucion" && fields.evolucion) visual = <EvolucionVisual fields={fields.evolucion} />;
+  if (fields.visual === "tarjeta" && fields.tarjeta) visual = <TarjetaVisual fields={fields.tarjeta} />;
 
   const response = new ImageResponse(
     (

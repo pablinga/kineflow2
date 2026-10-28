@@ -78,3 +78,30 @@ test("un feriado que no cae en un día de la serie no se marca", () => {
   assert.equal(cells.filter((c) => c.kind === "holiday").length, 0);
   assert.deepEqual(cells.filter((c) => c.kind === "session").map((c) => c.day), [2, 9, 16, 23]);
 });
+
+test("tarjeta: máximo 4 filas, barra solo con total y avance acotado", () => {
+  const fields = normalizePromoFields({
+    tarjeta: {
+      note: "Quedan 3 sesiones",
+      progress: { current: 15, label: "Sesiones usadas", total: 10 },
+      rows: [
+        { label: "Paciente", value: "Juan P." },
+        { label: "", value: "sin etiqueta" },
+        { label: "A", value: "1" },
+        { label: "B", value: "2" },
+        { label: "C", value: "3" },
+        { label: "D", value: "4" },
+      ],
+      title: "Orden OSDE",
+    },
+    title: "Órdenes",
+    visual: "tarjeta",
+  });
+  assert.equal(fields.visual, "tarjeta");
+  assert.deepEqual(fields.tarjeta.rows.map((row) => row.label), ["Paciente", "A", "B", "C"]);
+  assert.deepEqual(fields.tarjeta.progress, { current: 10, label: "Sesiones usadas", total: 10 });
+
+  const sinBarra = normalizePromoFields({ tarjeta: { rows: [] }, title: "x", visual: "tarjeta" });
+  assert.equal(sinBarra.tarjeta.progress, null);
+  assert.equal(sinBarra.tarjeta.title, "KineFlow");
+});
