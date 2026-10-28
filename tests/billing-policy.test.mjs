@@ -393,7 +393,7 @@ test("Webhook Mercado Pago acepta eventos de suscripción y pago por ruta public
   assert.match(envExample, /SKIP_WEBHOOK_SIGNATURE_VERIFICATION=false/);
   assert.match(mercadoPago, /MERCADOPAGO_ACCESS_TOKEN/);
   assert.match(mercadoPago, /authorized_payments\/search/);
-  assert.match(mercadoPago, /\/v1\/payments\/\$\{paymentId\}/);
+  assert.match(mercadoPago, /\/v1\/payments\/\$\{encodeURIComponent\(paymentId\)\}/);
 });
 
 test("Retorno accidental a home con preapproval_id redirige a post pago", () => {
