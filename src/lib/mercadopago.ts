@@ -8,7 +8,7 @@ export {
 
 // La URL de la API se puede cambiar solo fuera de producción (pruebas contra
 // un mock local).
-const MERCADOPAGO_API_URL =
+export const MERCADOPAGO_API_URL =
   (process.env.NODE_ENV !== "production" && process.env.MERCADOPAGO_API_URL?.trim()) ||
   "https://api.mercadopago.com";
 const MERCADOPAGO_SUBSCRIPTIONS_CHECKOUT_URL =
