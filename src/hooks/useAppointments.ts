@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { seriesSessionNumbers } from "@/lib/appointment-series";
+import type { DepositStatus } from "@/lib/deposits";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
@@ -61,6 +62,9 @@ export type Appointment = {
   paymentNotes: string;
   signaturePath: string | null;
   signedAt: string | null;
+  /** Seña de la reserva online (null si el turno no tuvo seña). */
+  depositAmount: number | null;
+  depositStatus: DepositStatus | null;
 };
 
 export type AppointmentStatus =
@@ -145,6 +149,8 @@ type AppointmentRow = {
   payment_notes: string | null;
   signature_path: string | null;
   signed_at: string | null;
+  deposit_amount: number | string | null;
+  deposit_status: DepositStatus | null;
   session_number: number | null;
   treatment_id: string | null;
   insurance_provider_id: string | null;
@@ -275,6 +281,8 @@ function mapAppointment(row: AppointmentRow): Appointment {
     paymentNotes: row.payment_notes ?? "",
     signaturePath: row.signature_path ?? null,
     signedAt: row.signed_at ?? null,
+    depositAmount: row.deposit_amount === null || row.deposit_amount === undefined ? null : Number(row.deposit_amount),
+    depositStatus: row.deposit_status ?? null,
   };
 }
 
@@ -563,7 +571,7 @@ export function useAppointments(
       let query = supabase
         .from("appointments")
         .select(
-          "id, owner_id, workspace_id, patient_id, scheduled_at, duration_minutes, allows_simultaneous, attention_type_id, attention_type_name, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, insurance_provider_id, insurance_member_number, art_provider_id, payment_type, payment_status, payment_method, paid_at, payment_notes, signature_path, signed_at, patients(full_name), clinics(name, color), clinic_professionals(color, profiles(full_name)), workspaces(color)",
+          "id, owner_id, workspace_id, patient_id, scheduled_at, duration_minutes, allows_simultaneous, attention_type_id, attention_type_name, modality, reason, status, appointment_origin, clinic_id, clinic_professional_id, treatment_id, session_number, session_amount, insurance_provider_id, insurance_member_number, art_provider_id, payment_type, payment_status, payment_method, paid_at, payment_notes, signature_path, signed_at, deposit_amount, deposit_status, patients(full_name), clinics(name, color), clinic_professionals(color, profiles(full_name)), workspaces(color)",
         )
         .order("scheduled_at", { ascending: true });
 
@@ -848,7 +856,11 @@ export function useAppointments(
   async function updateAppointmentStatus(
     id: string,
     status: AppointmentStatus | "confirmed",
-  ): Promise<{ treatmentCompleted?: { totalSessions: number } | null }> {
+    options: { cancelledBy?: "patient" | "professional" } = {},
+  ): Promise<{
+    deposit?: { result: "refunded" | "refund_failed" | "retained" } | null;
+    treatmentCompleted?: { totalSessions: number } | null;
+  }> {
     const supabase = getSupabaseClient();
     const { data: sessionData, error: sessionError } =
       await supabase.auth.getSession();
@@ -859,7 +871,7 @@ export function useAppointments(
     }
 
     const response = await fetch("/api/appointments/status", {
-      body: JSON.stringify({ appointmentId: id, status }),
+      body: JSON.stringify({ appointmentId: id, cancelledBy: options.cancelledBy, status }),
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",

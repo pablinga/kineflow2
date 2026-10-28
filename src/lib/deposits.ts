@@ -173,3 +173,19 @@ export function depositOutcomeForPaymentStatus(status: string | null | undefined
   // pending, in_process, authorized, in_mediation: se espera otra notificación.
   return "wait" as const;
 }
+
+const depositChipLabels: Record<DepositStatus, string> = {
+  awaiting: "Seña pendiente",
+  expired: "Seña vencida",
+  paid: "Seña pagada",
+  refund_failed: "Seña sin devolver",
+  refunded: "Seña devuelta",
+  rejected: "Seña rechazada",
+  retained: "Seña retenida",
+};
+
+/** Texto del chip de la seña en la agenda ("Seña pagada · $ 5.000"). */
+export function getDepositChipLabel(status: DepositStatus, amount: number | null) {
+  const label = depositChipLabels[status];
+  return amount ? `${label} · $ ${Math.round(amount).toLocaleString("es-AR")}` : label;
+}

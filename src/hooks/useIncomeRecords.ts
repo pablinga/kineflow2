@@ -13,11 +13,19 @@ import {
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { formatDate } from "@/lib/format";
 import { appointmentStatusLabels } from "@/lib/appointment-ui";
+import {
+  type DepositStatus,
+  depositIncome,
+  getDepositChipLabel,
+  remainingSessionAmount,
+} from "@/lib/deposits";
 import { getSupabaseClient } from "@/lib/supabase";
 
 export type IncomeRecord = {
   amount: number;
   date: string;
+  /** Seña de la reserva online ("Seña pagada · $ 5.000"), si hubo. */
+  depositLabel: string | null;
   id: string;
   modality: string;
   paidAt: string | null;
@@ -76,10 +84,14 @@ type IncomeAppointmentRow = {
   payment_method: PaymentMethod | null;
   payment_type: PaymentType | null;
   paid_at: string | null;
+  deposit_amount: number | string | null;
+  deposit_status: DepositStatus | null;
   patients: { full_name: string } | Array<{ full_name: string }> | null;
 };
 
 type AmountRow = {
+  deposit_amount: number | string | null;
+  deposit_status: DepositStatus | null;
   payment_status: PaymentStatus | null;
   payment_type: PaymentType | null;
   session_amount: number | null;
@@ -132,6 +144,9 @@ function mapIncomeRecord(row: IncomeAppointmentRow): IncomeRecord {
   return {
     amount: Number(row.session_amount ?? 0),
     date: formatDate(date),
+    depositLabel: row.deposit_status
+      ? getDepositChipLabel(row.deposit_status, Number(row.deposit_amount) || null)
+      : null,
     id: row.id,
     modality: modalityLabels[row.modality],
     paidAt: row.paid_at,
@@ -240,19 +255,36 @@ function getSummary(rows: AmountRow[]): IncomeSummary {
       row.payment_status !== "paid" &&
       ATTENDED_STATUSES.includes(row.status),
   );
-  const paidAmount = paidRows.reduce(
-    (total, row) => total + Number(row.session_amount ?? 0),
+  // Señas cobradas por Mercado Pago (incluidas las retenidas al cancelar): se
+  // suman a lo cobrado; lo pendiente de la sesión es el saldo.
+  const depositRows = rows.filter((row) => depositIncome({
+    depositAmount: Number(row.deposit_amount) || null,
+    depositStatus: row.deposit_status,
+  }) > 0);
+  const depositAmount = depositRows.reduce(
+    (total, row) =>
+      total +
+      depositIncome({ depositAmount: Number(row.deposit_amount) || null, depositStatus: row.deposit_status }),
     0,
   );
+  const paidAmount =
+    paidRows.reduce((total, row) => total + Number(row.session_amount ?? 0), 0) + depositAmount;
   const pendingAmount = pendingRows.reduce(
-    (total, row) => total + Number(row.session_amount ?? 0),
+    (total, row) =>
+      total +
+      remainingSessionAmount({
+        depositAmount: Number(row.deposit_amount) || null,
+        depositStatus: row.deposit_status,
+        sessionAmount: Number(row.session_amount ?? 0),
+      }),
     0,
   );
+  const paidCount = new Set([...paidRows, ...depositRows]).size;
 
   return {
-    averageAmount: paidRows.length > 0 ? paidAmount / paidRows.length : 0,
+    averageAmount: paidCount > 0 ? paidAmount / paidCount : 0,
     paidAmount,
-    paidCount: paidRows.length,
+    paidCount,
     pendingAmount,
     pendingCount: pendingRows.length,
     toBillAmount: toBillRows.reduce(
@@ -319,7 +351,7 @@ export function useIncomeRecords(options: UseIncomeRecordsOptions) {
           supabase
             .from("appointments")
             .select(
-              "id, patient_id, scheduled_at, modality, status, session_amount, payment_status, payment_method, payment_type, paid_at, patients!inner(full_name)",
+              "id, patient_id, scheduled_at, modality, status, session_amount, payment_status, payment_method, payment_type, paid_at, deposit_amount, deposit_status, patients!inner(full_name)",
               { count: "exact" },
             )
             .order("scheduled_at", { ascending: false })
@@ -329,7 +361,9 @@ export function useIncomeRecords(options: UseIncomeRecordsOptions) {
         let summaryQuery = applyFilters(
           supabase
             .from("appointments")
-            .select("session_amount, payment_status, payment_type, status, patients!inner(full_name)"),
+            .select(
+              "session_amount, payment_status, payment_type, status, deposit_amount, deposit_status, patients!inner(full_name)",
+            ),
           filterParams,
         );
 

@@ -46,6 +46,7 @@ import {
   isPatientPaidAppointment,
   paymentStatusStyles,
 } from "@/lib/payment-ui";
+import { getDepositChipLabel } from "@/lib/deposits";
 import { formatDate, formatSessionAmount } from "@/lib/format";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
@@ -589,6 +590,8 @@ function LegacyAppointmentsPage() {
   const [actionNotice, setActionNotice] = useState("");
   const [updatingId, setUpdatingId] = useState("");
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  // Al cancelar un turno con seña cobrada: quién cancela define la devolución.
+  const [cancelledBy, setCancelledBy] = useState<"patient" | "professional">("professional");
   const [evolutionAppointment, setEvolutionAppointment] =
     useState<Appointment | null>(null);
   const [registeredEvolutionIds, setRegisteredEvolutionIds] = useState<
@@ -1025,6 +1028,7 @@ function LegacyAppointmentsPage() {
       return;
     }
 
+    setCancelledBy("professional");
     setPendingAction({
       appointment,
       status,
@@ -1154,9 +1158,10 @@ function LegacyAppointmentsPage() {
         return;
       }
 
-      await updateAppointmentStatus(
+      const result = await updateAppointmentStatus(
         pendingAction.appointment.id,
         pendingAction.status,
+        { cancelledBy },
       );
       if (
         pendingAction.status === "attended" &&
@@ -1167,7 +1172,13 @@ function LegacyAppointmentsPage() {
       }
       setActionNotice(
         pendingAction.status === "cancelled"
-          ? "Turno cancelado"
+          ? result.deposit?.result === "refunded"
+            ? "Turno cancelado. La seña se devolvió por Mercado Pago."
+            : result.deposit?.result === "retained"
+              ? "Turno cancelado. La seña queda retenida."
+              : result.deposit?.result === "refund_failed"
+                ? "Turno cancelado, pero no pudimos devolver la seña. Te enviamos un mail."
+                : "Turno cancelado"
           : "Asistencia actualizada",
       );
       setPendingAction(null);
@@ -1509,6 +1520,11 @@ function LegacyAppointmentsPage() {
 
             return null;
           })()}
+          {appointment.depositStatus && appointment.depositStatus !== "awaiting" ? (
+            <span className="w-fit rounded-full bg-violet-50 px-2 py-1 text-[0.62rem] font-semibold text-violet-800 ring-1 ring-violet-200">
+              {getDepositChipLabel(appointment.depositStatus, appointment.depositAmount)}
+            </span>
+          ) : null}
           {clinicAppointment ? null : !isPatientPaidAppointment(appointment) ? (
             <span className="w-fit rounded-full bg-sky-50 px-2 py-1 text-[0.62rem] font-semibold text-sky-800 ring-1 ring-sky-200">
               {getCoverageLabel(appointment)}
@@ -2463,6 +2479,36 @@ function LegacyAppointmentsPage() {
                     </span>{" "}
                     {getAppointmentDisplayStatus(pendingAction.appointment)}
                   </p>
+                  {pendingAction.status === "cancelled" &&
+                  pendingAction.appointment.depositStatus === "paid" ? (
+                    <fieldset className="mt-3 space-y-2">
+                      <legend className="font-semibold text-ink">
+                        Seña cobrada:{" "}
+                        {formatSessionAmount(pendingAction.appointment.depositAmount ?? 0)}
+                      </legend>
+                      <label className="flex items-start gap-2">
+                        <input
+                          checked={cancelledBy === "professional"}
+                          className="mt-1 accent-ocean-600"
+                          name="cancelled-by"
+                          onChange={() => setCancelledBy("professional")}
+                          type="radio"
+                        />
+                        Lo cancelo yo: se devuelve la seña.
+                      </label>
+                      <label className="flex items-start gap-2">
+                        <input
+                          checked={cancelledBy === "patient"}
+                          className="mt-1 accent-ocean-600"
+                          name="cancelled-by"
+                          onChange={() => setCancelledBy("patient")}
+                          type="radio"
+                        />
+                        Lo canceló el paciente: se devuelve solo si avisó con la anticipación de tu
+                        política; si no, la seña queda retenida.
+                      </label>
+                    </fieldset>
+                  ) : null}
                   <p className="mt-1">
                     <span className="font-semibold text-ink">
                       Acción a confirmar:
