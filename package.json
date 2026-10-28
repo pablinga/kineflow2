@@ -19,6 +19,7 @@
     "test:profile": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/public-profile.test.mjs",
     "test:mp-target": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/mercadopago-target.test.mjs",
     "test:mp-oauth": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/mercadopago-oauth.test.mjs",
+    "test:deposits": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/deposits.test.mjs",
     "test:seo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/landing-seo.test.mjs",
     "test:llms": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/llms-txt.test.mjs",
     "test:series": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/appointment-series.test.mjs",
