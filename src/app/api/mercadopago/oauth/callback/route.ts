@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAppUrl } from "@/lib/mercadopago";
+import { getSiteUrl } from "@/lib/site-url";
 import {
   OAUTH_NONCE_COOKIE,
   requestOAuthToken,
@@ -13,7 +13,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-server";
 // guarda cifrados. Siempre termina en Configuración → Señas con el resultado.
 function backToSettings(result: string) {
   const response = NextResponse.redirect(
-    `${getAppUrl()}/dashboard/configuracion?mp=${result}#senas`,
+    `${getSiteUrl()}/dashboard/configuracion?mp=${result}#senas`,
   );
   response.cookies.delete({ name: OAUTH_NONCE_COOKIE, path: "/api/mercadopago/oauth" });
   return response;

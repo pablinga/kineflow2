@@ -2,7 +2,8 @@ import "server-only";
 
 import crypto from "node:crypto";
 import { notifyProfessional } from "@/lib/deposit-emails";
-import { MERCADOPAGO_API_URL, getAppUrl } from "@/lib/mercadopago";
+import { MERCADOPAGO_API_URL } from "@/lib/mercadopago";
+import { getSiteUrl } from "@/lib/site-url";
 import {
   MercadoPagoOAuthError,
   type MercadoPagoOAuthToken,
@@ -46,7 +47,7 @@ export function getMercadoPagoOAuthConfig() {
     clientId,
     clientSecret,
     encryptionKey,
-    redirectUri: `${getAppUrl()}/api/mercadopago/oauth/callback`,
+    redirectUri: `${getSiteUrl()}/api/mercadopago/oauth/callback`,
     // Clave del state derivada de la de cifrado (una variable menos).
     stateSecret: crypto
       .createHmac("sha256", encryptionKey)

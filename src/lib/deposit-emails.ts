@@ -1,7 +1,7 @@
 import "server-only";
 
 import { renderKineflowEmail } from "@/lib/email-templates";
-import { getAppUrl } from "@/lib/mercadopago";
+import { getSiteUrl } from "@/lib/site-url";
 import { sendResendEmail } from "@/lib/resend";
 import type { getSupabaseAdminClient } from "@/lib/supabase-server";
 
@@ -71,7 +71,7 @@ export async function notifyProfessional(
   }
 
   const content = professionalNotices[notice];
-  const ctaUrl = `${getAppUrl()}/dashboard/configuracion#senas`;
+  const ctaUrl = `${getSiteUrl()}/dashboard/configuracion#senas`;
   const greeting = `Hola ${profile.full_name?.trim() || ""},`.replace(" ,", ",");
   const html = renderKineflowEmail({
     ctaLabel: "Ir a Configuración",
@@ -112,7 +112,7 @@ export async function sendDepositPaidEmail(params: {
   ];
   const html = renderKineflowEmail({
     ctaLabel: "Ver KineFlow",
-    ctaUrl: getAppUrl(),
+    ctaUrl: getSiteUrl(),
     footnote:
       "Si necesitás cancelar o cambiar el turno, comunicate con el profesional. La devolución de la seña depende de su política de cancelación.",
     highlights: [
