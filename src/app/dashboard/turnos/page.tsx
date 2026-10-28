@@ -26,6 +26,8 @@ import { MobileFab } from "@/components/layout/MobileFab";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import { UndoToast } from "@/components/ui/UndoToast";
 import { AppointmentPaymentModal } from "@/components/turnos/AppointmentPaymentModal";
+import { AgendaAppointmentRow } from "@/components/turnos/AgendaAppointmentRow";
+import { AgendaWeekStrip } from "@/components/turnos/AgendaWeekStrip";
 import { SignaturePad } from "@/components/turnos/SignaturePad";
 import {
   type Appointment,
@@ -1636,7 +1638,6 @@ function LegacyAppointmentsPage() {
   // --- Celular: barra con fecha y tira de días, chips de filtro y lista ---
 
   function renderMobileToolbar() {
-    const today = new Date();
     const iconButtonClass =
       "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 transition-colors duration-150 ease-out active:bg-ocean-100";
 
@@ -1702,69 +1703,14 @@ function LegacyAppointmentsPage() {
         </div>
 
         {view === "day" ? (
-          <div className="mt-3 flex items-center gap-0.5">
-            <button
-              aria-label="Semana anterior"
-              className={iconButtonClass}
-              onClick={() => setCalendarDate((date) => addDays(date, -7))}
-              type="button"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <div className="grid flex-1 grid-cols-7 gap-0.5">
-              {weekDays.map((day) => {
-                const selected = sameDay(day, calendarDate);
-                const isToday = sameDay(day, today);
-                const hasAppointments = weekDaysWithAppointments.has(day.toDateString());
-
-                return (
-                  <button
-                    aria-current={isToday ? "date" : undefined}
-                    aria-label={day.toLocaleDateString("es-AR", {
-                      day: "numeric",
-                      month: "long",
-                      weekday: "long",
-                    })}
-                    aria-pressed={selected}
-                    className={`flex flex-col items-center gap-0.5 rounded-2xl py-1.5 transition-colors duration-150 ease-out ${
-                      selected ? "bg-ocean-600 text-white" : "text-slate-500 active:bg-ocean-50"
-                    }`}
-                    key={day.toDateString()}
-                    onClick={() => setCalendarDate(day)}
-                    type="button"
-                  >
-                    <span className="text-[0.7rem] font-semibold uppercase">
-                      {day.toLocaleDateString("es-AR", { weekday: "narrow" })}
-                    </span>
-                    <span
-                      className={`text-base font-bold ${
-                        selected ? "text-white" : isToday ? "text-ocean-700" : "text-ink"
-                      }`}
-                    >
-                      {day.getDate()}
-                    </span>
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${
-                        hasAppointments
-                          ? selected
-                            ? "bg-white"
-                            : "bg-ocean-300"
-                          : "bg-transparent"
-                      }`}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              aria-label="Semana siguiente"
-              className={iconButtonClass}
-              onClick={() => setCalendarDate((date) => addDays(date, 7))}
-              type="button"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
+          <AgendaWeekStrip
+            days={weekDays}
+            daysWithAppointments={weekDaysWithAppointments}
+            onNextWeek={() => setCalendarDate((date) => addDays(date, 7))}
+            onPreviousWeek={() => setCalendarDate((date) => addDays(date, -7))}
+            onSelectDay={setCalendarDate}
+            selectedDate={calendarDate}
+          />
         ) : null}
       </section>
     );
@@ -1825,144 +1771,37 @@ function LegacyAppointmentsPage() {
 
   /** Fila de un turno en la vista Día del celular (mismas acciones que la tarjeta). */
   function renderAppointmentRow(appointment: Appointment) {
-    const status = getAppointmentDisplayStatus(appointment);
-    const isAttended = status === "Asistió";
     const clinicAppointment = isProfessionalClinicAppointment(appointment);
-    const canMarkAttendance =
-      (status === "Pendiente" || status === "Sin registrar asistencia") &&
-      !isFutureAppointment(appointment);
-    const patientPaid = !clinicAppointment && isPatientPaidAppointment(appointment);
-    const pendingCharge =
-      patientPaid && isAttended && appointment.paymentStatus === "pending";
-    const showOrigin = clinicOptions.length > 0;
-    const paymentLabel =
-      patientPaid && (isAttended || appointment.paymentStatus !== "pending")
-        ? appointment.paymentStatus === "pending"
-          ? "Sin cobrar"
-          : appointment.paymentStatusLabel
-        : null;
-    const details = [
-      appointment.attentionTypeName,
-      activeWorkspace?.type === "CLINICA"
-        ? appointment.professionalName ?? "Sin profesional asignado"
-        : null,
-      !clinicAppointment && !patientPaid ? getCoverageLabel(appointment) : null,
-      patientPaid && canSeeAmounts ? formatSessionAmount(appointment.amount) : null,
-    ].filter((value): value is string => Boolean(value));
     const evolutionAction =
-      isAttended && (clinicAppointment || canRegisterEvolution(appointment))
+      getAppointmentDisplayStatus(appointment) === "Asistió" &&
+      (clinicAppointment || canRegisterEvolution(appointment))
         ? renderEvolutionAction(appointment, "pill")
         : null;
-    const hasActions = canMarkAttendance || pendingCharge || evolutionAction;
 
     return (
-      <li className="flex gap-3 px-4 py-3.5 sm:px-6" key={appointment.id}>
-        <div className="w-12 shrink-0">
-          <p className="text-[0.95rem] font-semibold text-ink">{appointment.time}</p>
-          <p className="mt-0.5 text-xs text-slate-500">{appointment.duration}</p>
-        </div>
-        <div className="min-w-0 flex-1">
-          {clinicAppointment ? (
-            <p className="truncate text-base font-semibold text-ink">
-              {appointment.patient}
-            </p>
-          ) : (
-            <Link
-              className="block truncate text-base font-semibold text-ink"
-              href={`/dashboard/pacientes/${appointment.patientId}`}
-              prefetch={false}
-            >
-              {appointment.patient}
-            </Link>
-          )}
-          <p className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[0.8rem] text-slate-500">
-            <span
-              className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${
-                appointmentStatusStyles[status] ?? "bg-slate-100 text-slate-700"
-              }`}
-            >
-              {status}
-            </span>
-            {showOrigin ? (
-              <span className="inline-flex min-w-0 items-center gap-1.5">
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: appointment.originColor }}
-                />
-                <span className="truncate">{appointment.originLabel}</span>
-              </span>
-            ) : null}
-            {details.map((detail) => (
-              <span className="before:mr-1.5 before:content-['·']" key={detail}>
-                {detail}
-              </span>
-            ))}
-            {!clinicAppointment && !patientPaid && medicalOrders.hasOrders ? (
-              <MedicalOrderChip info={medicalOrders.byAppointment.get(appointment.id)} />
-            ) : null}
-            {paymentLabel ? (
-              <span
-                className={`before:mr-1.5 before:content-['·'] ${
-                  appointment.paymentStatus === "pending"
-                    ? "font-semibold text-amber-700"
-                    : ""
-                }`}
-              >
-                {paymentLabel}
-              </span>
-            ) : null}
-          </p>
-          {appointment.conflictWarning ? (
-            <p className="mt-2 rounded-md bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-800">
-              Conflicto de agenda: {appointment.conflictWarning}
-            </p>
-          ) : null}
-          {hasActions ? (
-            <div className="mt-2.5 flex flex-wrap gap-2">
-              {canMarkAttendance ? (
-                <>
-                  <button
-                    className="inline-flex h-9 items-center justify-center rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors duration-150 ease-out active:bg-emerald-700 disabled:opacity-60"
-                    disabled={attendance.updatingId === appointment.id}
-                    onClick={() => openStatusModal(appointment, "attended")}
-                    type="button"
-                  >
-                    Asistió
-                  </button>
-                  <button
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors duration-150 ease-out active:bg-slate-50 disabled:opacity-60"
-                    disabled={attendance.updatingId === appointment.id}
-                    onClick={() => openStatusModal(appointment, "no_show")}
-                    type="button"
-                  >
-                    No asistió
-                  </button>
-                </>
-              ) : null}
-              {pendingCharge ? (
-                <button
-                  className="inline-flex h-9 items-center justify-center rounded-full bg-ocean-50 px-4 text-sm font-semibold text-ocean-800 transition-colors duration-150 ease-out active:bg-ocean-100"
-                  onClick={() => openPaymentModal(appointment)}
-                  type="button"
-                >
-                  Cobrar
-                </button>
-              ) : null}
-              {evolutionAction}
-            </div>
-          ) : null}
-        </div>
-        <div className="-mr-2 -mt-1.5 shrink-0">
-          <button
-            aria-label={`Acciones del turno de ${appointment.patient}`}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 transition-colors duration-150 ease-out active:bg-slate-100"
-            onClick={() => setActionsAppointment(appointment)}
-            type="button"
-          >
-            <MoreVertical className="h-5 w-5" />
-          </button>
-        </div>
-      </li>
+      <AgendaAppointmentRow
+        appointment={appointment}
+        attendanceBusy={attendance.updatingId === appointment.id}
+        canSeeAmounts={canSeeAmounts}
+        clinicAppointment={clinicAppointment}
+        evolutionAction={evolutionAction}
+        extraBadges={
+          !clinicAppointment &&
+          !isPatientPaidAppointment(appointment) &&
+          medicalOrders.hasOrders ? (
+            <MedicalOrderChip info={medicalOrders.byAppointment.get(appointment.id)} />
+          ) : null
+        }
+        key={appointment.id}
+        onCharge={openPaymentModal}
+        onMarkAttendance={openStatusModal}
+        onOpenActions={setActionsAppointment}
+        patientHref={
+          clinicAppointment ? null : `/dashboard/pacientes/${appointment.patientId}`
+        }
+        showOrigin={clinicOptions.length > 0}
+        showProfessional={activeWorkspace?.type === "CLINICA"}
+      />
     );
   }
 

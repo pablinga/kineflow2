@@ -28,6 +28,8 @@
     "test:body": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/body-zones.test.mjs",
     "test:orders": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/medical-orders.test.mjs",
     "test:testimonials": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/landing-testimonials.test.mjs",
+    "test:demo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/demo.test.mjs",
+    "test:demo:e2e": "node scripts/demo-e2e.mjs",
     "test:attribution:qa": "node scripts/attribution-check.mjs",
     "lint": "next lint"
   },

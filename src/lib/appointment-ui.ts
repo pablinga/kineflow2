@@ -57,6 +57,11 @@ export function getAppointmentDisplayStatus(appointment: {
     : appointment.status;
 }
 
+/** Un turno futuro todavía no admite Asistió / No asistió. */
+export function isFutureAppointment(appointment: { scheduledAt: string }) {
+  return new Date(appointment.scheduledAt).getTime() > Date.now();
+}
+
 export function isUpcomingActiveAppointment(appointment: {
   scheduledAt: string;
   status: string;

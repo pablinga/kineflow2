@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   isAcquisitionEventType,
+  isValidDemoEventAttribution,
   isProfileEventType,
   isValidProfileEventAttribution,
   isVisitorId,
@@ -11,7 +12,8 @@ import { getSupabaseAdminClient } from "@/lib/supabase-server";
 /**
  * Eventos del embudo de adquisición (landing_view, signup_started) para
  * visitas con UTM, y del perfil público (profile_view, profile_footer_click),
- * que llevan su propia atribución (utm_source=perfil). Público y anónimo: valida y sanea todo, y guarda una sola
+ * que llevan su propia atribución (utm_source=perfil), y la vista de la demo
+ * pública (demo_view, landing_page /demo). Público y anónimo: valida y sanea todo, y guarda una sola
  * vez por visitante, tipo de evento y atribución (índice único en la base).
  * signup_completed no pasa por acá: lo registra el trigger del alta en
  * user_attribution.
@@ -32,6 +34,10 @@ export async function POST(request: NextRequest) {
   }
 
   if (isProfileEventType(body.eventType) && !isValidProfileEventAttribution(attribution)) {
+    return NextResponse.json({ error: "Evento inválido." }, { status: 400 });
+  }
+
+  if (body.eventType === "demo_view" && !isValidDemoEventAttribution(attribution)) {
     return NextResponse.json({ error: "Evento inválido." }, { status: 400 });
   }
 

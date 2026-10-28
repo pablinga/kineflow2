@@ -10,6 +10,7 @@ export const revalidate = 3600;
 const STATIC_PAGES: Array<{ path: string; priority: number }> = [
   { path: "/", priority: 1 },
   { path: "/registro", priority: 0.8 },
+  { path: "/demo", priority: 0.7 },
   { path: "/terminos-y-condiciones", priority: 0.3 },
   { path: "/politica-de-privacidad", priority: 0.3 },
   { path: "/suscripciones-cancelaciones-y-reembolsos", priority: 0.3 },

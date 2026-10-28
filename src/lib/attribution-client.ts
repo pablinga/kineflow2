@@ -4,6 +4,7 @@ import {
   type AcquisitionEventType,
   type Attribution,
   type ProfileEventType,
+  buildDemoEventAttribution,
   buildProfileEventAttribution,
   isAttributionExpired,
   parseAttributionFromSearch,
@@ -169,6 +170,47 @@ export function trackProfileEvent(eventType: ProfileEventType, workspaceId: stri
 
   void fetch("/api/acquisition/event", {
     body: JSON.stringify({ attribution, eventType, visitorId }),
+    headers: { "Content-Type": "application/json" },
+    keepalive: true,
+    method: "POST",
+  }).catch(() => {
+    // El tracking nunca debe afectar la navegación.
+  });
+}
+
+const DEMO_VIEW_KEY = "kineflow.demo.view.v1";
+
+/**
+ * Vista de la demo pública (demo_view), una vez por sesión del navegador.
+ * Primero captura los UTM de la URL (el efecto de la página corre antes que el
+ * de AttributionCapture del layout), así una visita con campaña cuenta para
+ * esa campaña desde la primera vez.
+ */
+export function trackDemoView() {
+  const visitorId = getVisitorId();
+
+  if (!visitorId) {
+    return;
+  }
+
+  try {
+    if (window.sessionStorage.getItem(DEMO_VIEW_KEY)) {
+      return;
+    }
+
+    window.sessionStorage.setItem(DEMO_VIEW_KEY, "1");
+  } catch {
+    // Sin sessionStorage se registra igual.
+  }
+
+  const attribution = buildDemoEventAttribution({
+    ownHost: window.location.host,
+    referrer: document.referrer,
+    stored: captureAttributionFromLocation(),
+  });
+
+  void fetch("/api/acquisition/event", {
+    body: JSON.stringify({ attribution, eventType: "demo_view", visitorId }),
     headers: { "Content-Type": "application/json" },
     keepalive: true,
     method: "POST",

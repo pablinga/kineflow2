@@ -1345,11 +1345,24 @@ test("Links a detalle de paciente no hacen prefetch automatico", () => {
     const matches = source.matchAll(/href=\{`\/dashboard\/pacientes\/[^`]+`\}/g);
 
     for (const match of matches) {
+      // PatientCard recibe el href como prop y arma el Link con prefetch={false}.
+      if (/<PatientCard\s[^>]*$/.test(source.slice(Math.max(0, match.index - 200), match.index))) {
+        continue;
+      }
+
       const nearbySource = source.slice(match.index, match.index + 220);
 
       assert.match(nearbySource, /prefetch=\{false\}/, path);
     }
   });
+
+  ["src/components/patients/PatientCard.tsx", "src/components/turnos/AgendaAppointmentRow.tsx"].forEach(
+    (path) => {
+      const source = fs.readFileSync(path, "utf8");
+
+      assert.match(source, /<Link[^>]*href=\{href\}[^>]*prefetch=\{false\}|<Link[\s\S]{0,160}prefetch=\{false\}/, path);
+    },
+  );
 });
 
 test("Textos visibles usan UTF-8 sin mojibake", () => {
