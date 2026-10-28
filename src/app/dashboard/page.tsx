@@ -54,11 +54,8 @@ export default function DashboardPage() {
     loaded: accessLoaded,
     trialDaysRemaining,
   } = useAccessLevel();
-  const {
-    error: dashboardError,
-    loaded: dashboardLoaded,
-    summary,
-  } = useDashboardSummary();
+  // Solo para el aviso de límite del plan: no bloquea la página.
+  const { activePatientCount, error: dashboardError } = useDashboardSummary();
   // Recepción y profesionales del equipo nunca ven el checklist: ni se consulta.
   const checklistEnabled =
     workspaceLoaded &&
@@ -101,7 +98,6 @@ export default function DashboardPage() {
 
   if (
     loading ||
-    !dashboardLoaded ||
     !accessLoaded ||
     !planLoaded ||
     !workspaceLoaded ||
@@ -121,7 +117,7 @@ export default function DashboardPage() {
     : accessLevel === "TRIAL_ACTIVE"
       ? null
       : getPatientPlanLimitBlock({
-        activePatientCount: summary.activePatientCount,
+        activePatientCount,
         patientLimit: plan.limitePacientes,
       });
   const readOnlyMessage =

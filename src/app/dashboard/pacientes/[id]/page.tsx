@@ -128,7 +128,7 @@ function PatientDetailPageContent() {
     error: patientsError,
     loaded: patientsLoaded,
     patients,
-  } = usePatients();
+  } = usePatients({ withStats: false });
   const {
     assignProfessional,
     assignments,

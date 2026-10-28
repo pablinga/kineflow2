@@ -139,7 +139,7 @@ export default function NewAppointmentPage() {
         accountType === "KINESIOLOGO" && activeWorkspace?.type !== "CLINICA",
     },
   );
-  const { activePatients, loaded } = usePatients();
+  const { activePatients, loaded } = usePatients({ withStats: false });
   const [clinicProfessionals, setClinicProfessionals] = useState<
     ClinicProfessionalOption[]
   >([]);
