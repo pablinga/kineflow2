@@ -105,3 +105,22 @@ test("tarjeta: máximo 4 filas, barra solo con total y avance acotado", () => {
   assert.equal(sinBarra.tarjeta.progress, null);
   assert.equal(sinBarra.tarjeta.title, "KineFlow");
 });
+
+test("tema y diseño: valores conocidos o los de siempre", () => {
+  const fields = normalizePromoFields({ layout: "costado", theme: "oscuro", title: "x" });
+  assert.equal(fields.theme, "oscuro");
+  assert.equal(fields.layout, "costado");
+  const defaults = normalizePromoFields({ layout: "diagonal", theme: "rosa", title: "x" });
+  assert.equal(defaults.theme, "claro");
+  assert.equal(defaults.layout, "arriba");
+});
+
+test("captura: solo un nombre de archivo .jpg de la carpeta, sin rutas", () => {
+  const fields = normalizePromoFields({ captura: { file: "agenda-dia.jpg", sticker: "88% asistencia", tilt: true }, title: "x", visual: "captura" });
+  assert.deepEqual(fields.captura, { file: "agenda-dia.jpg", sticker: "88% asistencia", tilt: true });
+  for (const file of ["../secreto.jpg", "capturas/agenda.jpg", "agenda.png", ""]) {
+    const unsafe = normalizePromoFields({ captura: { file }, title: "x", visual: "captura" });
+    assert.equal(unsafe.visual, "ninguno");
+    assert.equal(unsafe.captura, undefined);
+  }
+});
