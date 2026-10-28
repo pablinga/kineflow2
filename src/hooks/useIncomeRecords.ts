@@ -68,6 +68,7 @@ type IncomeAppointmentRow = {
     | "cancelled"
     | "no_show"
     | "rescheduled"
+    | "awaiting_payment"
     | "confirmed"
     | "completed";
   session_amount: number | null;

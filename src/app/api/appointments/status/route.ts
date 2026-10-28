@@ -5,7 +5,13 @@ import {
 } from "@/lib/supabase-server";
 import { toArgentinaDateValue } from "@/lib/dates";
 
-type AppointmentStatus = "pending" | "attended" | "cancelled" | "no_show" | "rescheduled";
+type AppointmentStatus =
+  | "pending"
+  | "attended"
+  | "cancelled"
+  | "no_show"
+  | "rescheduled"
+  | "awaiting_payment";
 
 type AppointmentRow = {
   appointment_origin: string | null;

@@ -68,7 +68,8 @@ export type AppointmentStatus =
   | "attended"
   | "cancelled"
   | "no_show"
-  | "rescheduled";
+  | "rescheduled"
+  | "awaiting_payment";
 
 export type AppointmentOrigin = "independent" | "clinic";
 export type AppointmentModality = "presencial" | "domicilio" | "virtual";

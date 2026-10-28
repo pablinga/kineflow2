@@ -5,10 +5,13 @@ export type AppointmentStatusCode =
   | "no_show"
   | "rescheduled"
   | "confirmed"
-  | "completed";
+  | "completed"
+  | "awaiting_payment";
 
 export const appointmentStatusLabels: Record<AppointmentStatusCode, string> = {
   attended: "Asistió",
+  // Reserva online esperando el pago de la seña: bloquea el horario.
+  awaiting_payment: "Seña pendiente",
   cancelled: "Cancelado",
   completed: "Asistió",
   confirmed: "Pendiente",
@@ -23,6 +26,7 @@ export const appointmentStatusStyles: Record<string, string> = {
   Cancelado: "bg-red-50 text-red-800 ring-1 ring-red-200",
   "No asistió": "bg-rose-50 text-rose-800 ring-1 ring-rose-200",
   Reprogramado: "bg-ocean-50 text-ocean-900 ring-1 ring-ocean-200",
+  "Seña pendiente": "bg-violet-50 text-violet-800 ring-1 ring-violet-200",
   "Sin registrar asistencia":
     "bg-orange-50 text-orange-800 ring-1 ring-orange-200",
 };
@@ -30,6 +34,7 @@ export const appointmentStatusStyles: Record<string, string> = {
 export const activeAppointmentStatuses = new Set([
   "Pendiente",
   "Reprogramado",
+  "Seña pendiente",
   "Sin registrar asistencia",
 ]);
 
