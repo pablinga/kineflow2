@@ -23,6 +23,7 @@
     "test:series": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/appointment-series.test.mjs",
     "test:agenda": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/clinic-agenda.test.mjs",
     "test:body": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/body-zones.test.mjs",
+    "test:orders": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/medical-orders.test.mjs",
     "test:testimonials": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/landing-testimonials.test.mjs",
     "test:attribution:qa": "node scripts/attribution-check.mjs",
     "lint": "next lint"

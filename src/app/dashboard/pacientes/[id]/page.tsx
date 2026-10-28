@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { EvaluationList } from "@/components/evaluations/EvaluationList";
 import { EvaluationModal } from "@/components/evaluations/EvaluationModal";
+import { MedicalOrdersSection } from "@/components/patients/MedicalOrdersSection";
 import { DashboardLoading } from "@/components/layout/DashboardLoading";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { TreatmentAttachmentsInput } from "@/components/treatments/TreatmentAttachmentsInput";
@@ -1126,6 +1127,19 @@ function PatientDetailPageContent() {
                       treatments={treatments}
                     />
                   </section>
+
+                  <MedicalOrdersSection
+                    canManage={!isReadOnly && activeWorkspace?.role !== "KINESIOLOGO"}
+                    patientId={patientId}
+                    patientInsuranceProviderId={patient.insuranceProviderId}
+                    readOnlyMessage={
+                      isReadOnly ? readOnlyMessage : "Solo la administración del espacio carga órdenes."
+                    }
+                    treatments={treatments.map((item) => ({
+                      id: item.id,
+                      label: [item.bodyRegion, item.diagnosis].filter(Boolean).join(" · ") || "Tratamiento",
+                    }))}
+                  />
                 </aside>
 
                 <div

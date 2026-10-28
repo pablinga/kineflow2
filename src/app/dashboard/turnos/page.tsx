@@ -45,6 +45,8 @@ import {
   isPatientPaidAppointment,
   paymentStatusStyles,
 } from "@/lib/payment-ui";
+import { MedicalOrderChip } from "@/components/turnos/MedicalOrderChip";
+import { useWorkspaceMedicalOrders } from "@/hooks/useMedicalOrders";
 import { formatDate, formatSessionAmount } from "@/lib/format";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
@@ -584,6 +586,15 @@ function LegacyAppointmentsPage() {
     // En una clínica donde es recepción, ve la agenda de la clínica.
     unified: accountType === "KINESIOLOGO" && activeWorkspace?.type !== "CLINICA",
   });
+  // Órdenes médicas del espacio: "Sesión 3 de 10" / "Sin orden vigente" en
+  // los turnos propios con obra social o ART.
+  const medicalOrders = useWorkspaceMedicalOrders();
+  const refreshMedicalOrders = medicalOrders.refresh;
+  useEffect(() => {
+    if (initialLoaded) {
+      void refreshMedicalOrders();
+    }
+  }, [appointments, initialLoaded, refreshMedicalOrders]);
   const [actionError, setActionError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
   const [updatingId, setUpdatingId] = useState("");
@@ -1459,9 +1470,17 @@ function LegacyAppointmentsPage() {
             return null;
           })()}
           {clinicAppointment ? null : !isPatientPaidAppointment(appointment) ? (
-            <span className="w-fit rounded-full bg-sky-50 px-2 py-1 text-[0.62rem] font-semibold text-sky-800 ring-1 ring-sky-200">
-              {getCoverageLabel(appointment)}
-            </span>
+            <>
+              <span className="w-fit rounded-full bg-sky-50 px-2 py-1 text-[0.62rem] font-semibold text-sky-800 ring-1 ring-sky-200">
+                {getCoverageLabel(appointment)}
+              </span>
+              {medicalOrders.hasOrders ? (
+                <MedicalOrderChip
+                  info={medicalOrders.byAppointment.get(appointment.id)}
+                  size="xs"
+                />
+              ) : null}
+            </>
           ) : (
             <>
               {/* El cobro se muestra cuando asistió (o si ya se cobró); antes

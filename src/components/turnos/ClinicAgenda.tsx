@@ -28,6 +28,8 @@ import {
   type AppointmentPaymentInput,
   useAppointments,
 } from "@/hooks/useAppointments";
+import { useWorkspaceMedicalOrders } from "@/hooks/useMedicalOrders";
+import { MedicalOrderChip } from "@/components/turnos/MedicalOrderChip";
 import { useAttentionTypes } from "@/hooks/useAttentionTypes";
 import { isFutureAppointment, useAttendanceActions } from "@/hooks/useAttendanceActions";
 import { useCanSeeAmounts } from "@/hooks/useCanSeeAmounts";
@@ -146,6 +148,13 @@ export function ClinicAgenda() {
     updateAppointmentPayment,
     updateAppointmentStatus,
   } = useAppointments();
+  const medicalOrders = useWorkspaceMedicalOrders();
+  const refreshMedicalOrders = medicalOrders.refresh;
+  useEffect(() => {
+    if (initialLoaded) {
+      void refreshMedicalOrders();
+    }
+  }, [appointments, initialLoaded, refreshMedicalOrders]);
 
   const [today, setToday] = useState(() => toArgentinaDateValue());
   const [now, setNow] = useState(() => new Date());
@@ -614,6 +623,9 @@ export function ClinicAgenda() {
                     {getCoverageLabel(appointment)}
                   </span>
                 )
+              ) : null}
+              {medicalOrders.hasOrders ? (
+                <MedicalOrderChip info={medicalOrders.byAppointment.get(appointment.id)} />
               ) : null}
             </div>
           </div>

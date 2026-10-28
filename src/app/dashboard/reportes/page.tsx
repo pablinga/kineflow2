@@ -11,6 +11,7 @@ import { useArtProviders } from "@/hooks/useArtProviders";
 import { useInsuranceProviders } from "@/hooks/useInsuranceProviders";
 import { type ReportRow, useSessionsReport } from "@/hooks/useSessionsReport";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
+import { useWorkspaceMedicalOrders } from "@/hooks/useMedicalOrders";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { formatCurrency } from "@/lib/payment-ui";
 
@@ -33,7 +34,14 @@ function getDefaultMonth() {
   return `${year}-${month}`;
 }
 
-function downloadExcel(rows: ReportRow[], month: string, hideProfessional: boolean) {
+type OrderColumns = { orderNumber: string; session: string };
+
+function downloadExcel(
+  rows: ReportRow[],
+  month: string,
+  hideProfessional: boolean,
+  getOrderColumns: ((row: ReportRow) => OrderColumns) | null,
+) {
   const worksheet = XLSX.utils.json_to_sheet(
     rows.map((row) => {
       const record: Record<string, string | number> = {
@@ -49,6 +57,13 @@ function downloadExcel(rows: ReportRow[], month: string, hideProfessional: boole
       record["Tipo de pago"] = row.paymentType;
       record.Proveedor = row.provider;
       record["N° afiliado"] = row.memberNumber;
+
+      if (getOrderColumns) {
+        const order = getOrderColumns(row);
+        record["N° orden"] = order.orderNumber;
+        record["Sesión"] = order.session;
+      }
+
       record.Monto = row.amount;
       record.Estado = row.status;
 
@@ -83,6 +98,27 @@ function SessionsReportPageContent() {
     providerId,
   });
   const hideProfessional = activeWorkspace?.type === "PERSONAL";
+  // N° de orden y sesión, solo si el espacio usa órdenes médicas.
+  const medicalOrders = useWorkspaceMedicalOrders();
+  const getOrderColumns = medicalOrders.hasOrders
+    ? (row: ReportRow): OrderColumns => {
+        const info = medicalOrders.byAppointment.get(row.appointmentId);
+
+        if (!info || info.kind === "no_order") {
+          return { orderNumber: "", session: info ? "Sin orden" : "" };
+        }
+
+        const order = medicalOrders.ordersById.get(info.orderId);
+
+        return {
+          orderNumber: order?.orderNumber ?? "",
+          session:
+            info.kind === "covered"
+              ? `${info.sessionNumber}/${info.authorizedSessions}`
+              : "Fuera de orden",
+        };
+      }
+    : null;
   const totalAmount = rows.reduce((total, row) => total + row.amount, 0);
 
   useEffect(() => {
@@ -124,7 +160,7 @@ function SessionsReportPageContent() {
             </div>
             <Button
               disabled={rows.length === 0}
-              onClick={() => downloadExcel(rows, month, hideProfessional)}
+              onClick={() => downloadExcel(rows, month, hideProfessional, getOrderColumns)}
               type="button"
             >
               Descargar Excel
@@ -272,6 +308,9 @@ function SessionsReportPageContent() {
                     {row.paymentType}
                     {row.provider ? ` · ${row.provider}` : ""}
                     {row.memberNumber ? ` · Afiliado ${row.memberNumber}` : ""}
+                    {getOrderColumns && getOrderColumns(row).orderNumber
+                      ? ` · Orden ${getOrderColumns(row).orderNumber} (${getOrderColumns(row).session})`
+                      : ""}
                     {` · ${row.status}`}
                   </p>
                 </li>
@@ -291,6 +330,12 @@ function SessionsReportPageContent() {
                     <th className="px-5 py-3 font-semibold">Tipo de pago</th>
                     <th className="px-5 py-3 font-semibold">Proveedor</th>
                     <th className="px-5 py-3 font-semibold">N° afiliado</th>
+                    {getOrderColumns ? (
+                      <>
+                        <th className="px-5 py-3 font-semibold">N° orden</th>
+                        <th className="px-5 py-3 font-semibold">Sesión</th>
+                      </>
+                    ) : null}
                     <th className="px-5 py-3 text-right font-semibold">
                       Monto
                     </th>
@@ -319,6 +364,16 @@ function SessionsReportPageContent() {
                       <td className="px-5 py-4 text-slate-600">
                         {row.memberNumber}
                       </td>
+                      {getOrderColumns ? (
+                        <>
+                          <td className="px-5 py-4 text-slate-600">
+                            {getOrderColumns(row).orderNumber}
+                          </td>
+                          <td className="whitespace-nowrap px-5 py-4 text-slate-600">
+                            {getOrderColumns(row).session}
+                          </td>
+                        </>
+                      ) : null}
                       <td className="px-5 py-4 text-right font-bold text-ink">
                         {formatCurrency(row.amount)}
                       </td>

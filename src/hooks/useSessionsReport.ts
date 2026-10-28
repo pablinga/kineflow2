@@ -13,6 +13,7 @@ import {
 import { getSupabaseClient } from "@/lib/supabase";
 
 export type ReportRow = {
+  appointmentId: string;
   date: string;
   time: string;
   patient: string;
@@ -111,6 +112,7 @@ function mapReportRow(
 
   return {
     amount: Number(row.session_amount ?? 0),
+    appointmentId: row.id,
     date: formatDate(new Date(row.scheduled_at)),
     // Mismo formato que la agenda (useAppointments).
     time: new Date(row.scheduled_at).toLocaleTimeString("es-AR", {
