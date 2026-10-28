@@ -169,7 +169,7 @@ export function PwaInstallInstructionsModal({
       <section
         aria-labelledby="pwa-install-title"
         aria-modal="true"
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
+        className="max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
       >

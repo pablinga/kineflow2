@@ -392,7 +392,7 @@ export default function RegisterPage() {
       <section
         aria-labelledby="terms-modal-title"
         aria-modal="true"
-        className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-lg bg-white shadow-2xl"
+        className="flex max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] w-full max-w-3xl flex-col rounded-lg bg-white shadow-2xl"
         role="dialog"
       >
         <header className="flex items-start justify-between gap-4 border-b border-ocean-100 px-5 py-4">

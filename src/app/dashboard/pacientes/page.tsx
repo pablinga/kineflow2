@@ -1132,7 +1132,7 @@ export default function PatientsPage() {
       {editingPatient ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4 py-6">
           <form
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
+            className="max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
             onSubmit={handleEditSubmit}
           >
             <h2 className="text-lg font-bold text-ink">Editar paciente</h2>

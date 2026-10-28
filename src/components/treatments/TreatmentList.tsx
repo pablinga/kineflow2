@@ -142,7 +142,7 @@ export function TreatmentList({
 
       {detail ? (
         <div className="fixed inset-0 z-50 flex items-end bg-ink/60 px-3 pb-3 sm:items-center sm:justify-center sm:px-4 sm:py-6">
-          <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-2xl border border-ocean-100 bg-white p-4 shadow-soft sm:rounded-lg sm:p-5">
+          <div className="max-h-[92vh] supports-[height:100dvh]:max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl border border-ocean-100 bg-white p-4 shadow-soft sm:rounded-lg sm:p-5">
             <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-slate-200 sm:hidden" />
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">

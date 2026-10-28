@@ -98,7 +98,11 @@ export function NuevoPacienteModal({
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    window.setTimeout(() => firstInputRef.current?.focus(), 0);
+    // En el celular el foco automático abre el teclado y tapa el formulario
+    // antes de que se vea: solo con mouse.
+    if (window.matchMedia("(pointer: fine)").matches) {
+      window.setTimeout(() => firstInputRef.current?.focus(), 0);
+    }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -159,7 +163,7 @@ export function NuevoPacienteModal({
       role="dialog"
     >
       <form
-        className="max-h-[calc(100vh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-lg border border-ocean-100 bg-white p-4 shadow-soft sm:max-h-[90vh] sm:p-5"
+        className="max-h-[calc(100vh-1.5rem)] supports-[height:100dvh]:max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-lg border border-ocean-100 bg-white p-4 shadow-soft sm:max-h-[90vh] sm:p-5"
         onSubmit={onSubmit}
         ref={modalRef}
       >
