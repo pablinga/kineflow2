@@ -242,6 +242,7 @@ export default function DashboardPage() {
             }
             description={dashboardDescription}
             eyebrow={isNewAccount ? "Inicio" : formatLongDate(new Date())}
+            keepTitleOnMobile
             title={dashboardTitle}
           />
 

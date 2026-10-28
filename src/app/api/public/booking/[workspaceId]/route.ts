@@ -11,6 +11,12 @@ import {
   PUBLIC_BOOKING_UNAVAILABLE_MESSAGE,
   resolveBookingContext,
 } from "@/lib/public-booking";
+import {
+  convertToBookingWithoutDeposit,
+  createDepositCheckout,
+  notifyDepositFallback,
+  planBookingDeposit,
+} from "@/lib/deposit-payments";
 import { DEFAULT_SESSION_PRICE } from "@/lib/session-defaults";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
 import { verifyTurnstileToken } from "@/lib/turnstile";
@@ -410,6 +416,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
           bookingContext.workspace.default_session_price ?? DEFAULT_SESSION_PRICE,
         );
 
+    // Seña: el turno queda en awaiting_payment (ocupa el horario) hasta que
+    // se pague o venza. Sin Mercado Pago conectado, reserva sin seña.
+    const deposit = await planBookingDeposit({
+      admin,
+      origin: bookingContext.origin,
+      ownerId: bookingContext.ownerId,
+      paymentType,
+      sessionAmount,
+      workspaceId: bookingContext.workspace.id,
+      workspaceType: bookingContext.workspace.type,
+    });
+
     const { data: appointment, error: appointmentError } = await admin.from("appointments").insert({
       allows_simultaneous: getPublicBookingAllowsSimultaneous(bookingContext.workspace),
       appointment_origin: bookingContext.origin,
@@ -428,8 +446,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
       reason: "Sesion",
       scheduled_at: new Date(scheduledAt).toISOString(),
       session_amount: sessionAmount,
-      status: "pending",
+      status: deposit ? "awaiting_payment" : "pending",
       workspace_id: bookingContext.workspace.id,
+      ...(deposit
+        ? {
+            deposit_amount: deposit.amount,
+            deposit_expires_at: deposit.expiresAt,
+            deposit_status: "awaiting",
+          }
+        : {}),
     }).select("id")
       .single();
 
@@ -442,6 +467,41 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const appointmentId = (appointment as { id: string }).id;
     const appointmentDateTime = formatAppointmentDateTime(scheduledAt);
+
+    if (deposit) {
+      const checkout = await createDepositCheckout({
+        admin,
+        amount: deposit.amount,
+        appointmentId,
+        expiresAt: deposit.expiresAt,
+        patientEmail: email || null,
+        patientName: fullName,
+        professionalName: bookingContext.professional.name,
+        seller: deposit.seller,
+        workspaceId: bookingContext.workspace.id,
+      });
+
+      if (checkout) {
+        // La confirmación por WhatsApp sale cuando se acredita el pago.
+        return NextResponse.json({
+          appointment: {
+            date: appointmentDateTime.date,
+            durationMinutes,
+            professionalName: bookingContext.professional.name,
+            time: appointmentDateTime.time,
+          },
+          payment: {
+            amount: deposit.amount,
+            appointmentId,
+            checkoutUrl: checkout.checkoutUrl,
+            expiresAt: deposit.expiresAt,
+          },
+        });
+      }
+
+      await convertToBookingWithoutDeposit(admin, appointmentId);
+      await notifyDepositFallback(admin, bookingContext.workspace.id, bookingContext.ownerId);
+    }
 
     // El límite se consulta con o sin consentimiento, como antes de mover
     // esta lógica a appointment-notifications.

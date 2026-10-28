@@ -30,6 +30,33 @@ a {
   text-decoration: none;
 }
 
+/* Comportamiento de app en pantallas táctiles: sin el resaltado al tocar ni
+   la selección de texto al mantener apretado un botón o un ítem del menú. */
+@media (pointer: coarse) {
+  a,
+  button,
+  summary,
+  label {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  nav a {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Instalada (PWA o app de Android): arrastrar hacia abajo no recarga la
+   página, como en una app. En el navegador se mantiene el gesto de Chrome. */
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
 ::selection {
   background: #b8cfff;
   color: #0d1b2a;

@@ -26,3 +26,10 @@ git-acl.txt
 .DS_Store
 .env*
 supabase/.temp/
+
+# App de Android (TWA): solo se versionan twa-manifest.json y el README. El
+# proyecto Gradle se regenera con `bubblewrap update`; la clave de firma y los
+# builds nunca van al repo.
+/android/*
+!/android/twa-manifest.json
+!/android/README.md

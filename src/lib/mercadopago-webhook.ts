@@ -8,6 +8,7 @@ import {
   getMercadoPagoSubscription,
   type MercadoPagoPreapproval,
 } from "@/lib/mercadopago";
+import { processDepositPayment } from "@/lib/deposit-payments";
 import { verifyMercadoPagoSignature } from "@/lib/mercadopago-signature";
 import { resolveSubscriptionTarget } from "@/lib/mercadopago-subscription-target";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
@@ -89,6 +90,31 @@ function isDashboardTestEvent(payload: Payload, url: URL) {
     getPayloadDataId(payload) === "123456" &&
     (queryDataId === null || queryDataId === "123456")
   );
+}
+
+/**
+ * Pago de una seña: notificación de pago de una cuenta vendedora conectada por
+ * OAuth (user_id = mp_user_id de mp_connections). Los pagos de las
+ * suscripciones son de la cuenta de KineFlow y siguen el camino de siempre.
+ */
+async function getDepositSellerId(admin: SupabaseAdminClient, payload: Payload, eventType: string) {
+  if (!eventType.includes("payment") || eventType.includes("authorized_payment")) {
+    return null;
+  }
+
+  const userId = payload.user_id?.toString();
+
+  if (!userId || !/^\d{1,20}$/.test(userId)) {
+    return null;
+  }
+
+  const { data } = await admin
+    .from("mp_connections")
+    .select("id")
+    .eq("mp_user_id", userId)
+    .maybeSingle();
+
+  return data ? userId : null;
 }
 
 function parseBody(rawBody: string): { payload: Payload; parseError: boolean } {
@@ -218,12 +244,21 @@ export function createMercadoPagoWebhookHandler(route: string) {
       return NextResponse.json({ ok: true, test: true });
     }
 
-    const signature = verifyMercadoPagoSignature({
-      dataId: getSignedDataId(payload, url),
-      requestId: request.headers.get("x-request-id"),
-      secret: process.env.MERCADOPAGO_WEBHOOK_SECRET ?? process.env.MP_WEBHOOK_SECRET,
-      signature: request.headers.get("x-signature"),
-    });
+    // Si las señas usan otra aplicación de Mercado Pago (OAuth) que las
+    // suscripciones, sus avisos vienen firmados con la clave de esa app.
+    const secrets = [
+      process.env.MERCADOPAGO_WEBHOOK_SECRET ?? process.env.MP_WEBHOOK_SECRET,
+      process.env.MP_OAUTH_WEBHOOK_SECRET,
+    ].filter((value): value is string => Boolean(value?.trim()));
+    const verify = (secret: string | undefined) =>
+      verifyMercadoPagoSignature({
+        dataId: getSignedDataId(payload, url),
+        requestId: request.headers.get("x-request-id"),
+        secret,
+        signature: request.headers.get("x-signature"),
+      });
+    const results = secrets.length > 0 ? secrets.map(verify) : [verify(undefined)];
+    const signature = results.find((result) => result.valid) ?? results[0];
 
     if (!signature.valid) {
       log("rejected", { reason: signature.reason });
@@ -310,6 +345,30 @@ export function createMercadoPagoWebhookHandler(route: string) {
     }
 
     try {
+      const depositSellerId = await getDepositSellerId(admin, payload, eventType);
+
+      if (depositSellerId) {
+        const result = await processDepositPayment({
+          admin,
+          mpUserId: depositSellerId,
+          paymentId: resourceId,
+        });
+
+        if (result.outcome === "ignored") {
+          await finish("ignored", result.reason, "deposit");
+          log("ignored", { kind: "deposit", reason: result.reason });
+          return NextResponse.json({ ignored: true, ok: true });
+        }
+
+        await finish("processed", null, "deposit");
+        log("processed", {
+          appointmentId: result.appointmentId,
+          kind: "deposit",
+          outcome: result.outcome,
+        });
+        return NextResponse.json({ ok: true, outcome: result.outcome });
+      }
+
       const providerSubscription = await getProviderSubscriptionFromEvent(eventType, resourceId);
 
       if (!providerSubscription) {

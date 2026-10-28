@@ -393,7 +393,7 @@ test("Webhook Mercado Pago acepta eventos de suscripción y pago por ruta public
   assert.match(envExample, /SKIP_WEBHOOK_SIGNATURE_VERIFICATION=false/);
   assert.match(mercadoPago, /MERCADOPAGO_ACCESS_TOKEN/);
   assert.match(mercadoPago, /authorized_payments\/search/);
-  assert.match(mercadoPago, /\/v1\/payments\/\$\{paymentId\}/);
+  assert.match(mercadoPago, /\/v1\/payments\/\$\{encodeURIComponent\(paymentId\)\}/);
 });
 
 test("Retorno accidental a home con preapproval_id redirige a post pago", () => {
@@ -634,7 +634,7 @@ test("Navegacion principal muestra agenda y pacientes en desktop y mobile", () =
   assert.match(sidebar, /const mobileNavigationOrder =[\s\S]*"\/dashboard\/turnos"[\s\S]*"\/dashboard\/pacientes"/);
   assert.match(sidebar, /effectiveAccountType === "CONSULTORIO"[\s\S]*"\/dashboard\/equipo"/);
   assert.match(sidebar, /"\/dashboard\/ingresos"/);
-  assert.match(sidebar, /grid-cols-4/);
+  assert.match(sidebar, /aria-label="Más opciones del menú"/);
   assert.match(sidebar, /item\.href !== "\/dashboard\/ingresos"/);
   assert.doesNotMatch(sidebar, /\["\/dashboard\/pacientes", "\/dashboard\/ingresos"\]/);
 });
@@ -1345,11 +1345,24 @@ test("Links a detalle de paciente no hacen prefetch automatico", () => {
     const matches = source.matchAll(/href=\{`\/dashboard\/pacientes\/[^`]+`\}/g);
 
     for (const match of matches) {
+      // PatientCard recibe el href como prop y arma el Link con prefetch={false}.
+      if (/<PatientCard\s[^>]*$/.test(source.slice(Math.max(0, match.index - 200), match.index))) {
+        continue;
+      }
+
       const nearbySource = source.slice(match.index, match.index + 220);
 
       assert.match(nearbySource, /prefetch=\{false\}/, path);
     }
   });
+
+  ["src/components/patients/PatientCard.tsx", "src/components/turnos/AgendaAppointmentRow.tsx"].forEach(
+    (path) => {
+      const source = fs.readFileSync(path, "utf8");
+
+      assert.match(source, /<Link[^>]*href=\{href\}[^>]*prefetch=\{false\}|<Link[\s\S]{0,160}prefetch=\{false\}/, path);
+    },
+  );
 });
 
 test("Textos visibles usan UTF-8 sin mojibake", () => {

@@ -91,6 +91,7 @@ type PatientAppointmentRow = {
     | "cancelled"
     | "no_show"
     | "rescheduled"
+    | "awaiting_payment"
     | "confirmed"
     | "completed";
 };

@@ -4,10 +4,15 @@ const themeColor = "#0F55DC";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    // id y scope fijos: la app de Android (android/twa-manifest.json) depende
+    // de ellos; cambiarlos crea otra app instalada.
+    id: "/dashboard",
     name: "KineFlow",
     short_name: "KineFlow",
     description: "Software para profesionales y clínicas de rehabilitación",
     start_url: "/dashboard",
+    scope: "/",
+    lang: "es-AR",
     display: "standalone",
     background_color: "#ffffff",
     theme_color: themeColor,

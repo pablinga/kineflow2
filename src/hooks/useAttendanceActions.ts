@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import type { Appointment, AppointmentStatus } from "@/hooks/useAppointments";
-import type { AppointmentStatusCode } from "@/lib/appointment-ui";
+import { type AppointmentStatusCode, isFutureAppointment } from "@/lib/appointment-ui";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 
 type AttendanceStatus = "attended" | "no_show";
@@ -34,9 +34,7 @@ function toRevertibleStatus(
   return status === "completed" ? "attended" : status;
 }
 
-export function isFutureAppointment(appointment: Appointment) {
-  return new Date(appointment.scheduledAt).getTime() > Date.now();
-}
+export { isFutureAppointment };
 
 /**
  * Asistió / No asistió en un toque, sin confirmación, con "Deshacer". Lo

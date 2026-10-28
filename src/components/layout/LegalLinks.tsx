@@ -8,6 +8,7 @@ export const legalLinks = [
     label: "Suscripciones, Cancelaciones y Reembolsos",
   },
   { href: "/arrepentimiento", label: "Derecho de Arrepentimiento" },
+  { href: "/eliminar-cuenta", label: "Eliminar mi cuenta" },
 ];
 
 export function LegalLinks({ className = "" }: { className?: string }) {

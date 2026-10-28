@@ -385,6 +385,11 @@ function IncomePageContent() {
                           >
                             {appointment.paymentStatusLabel}
                           </span>
+                          {appointment.depositLabel ? (
+                            <span className="mt-1 block text-xs font-semibold text-violet-800">
+                              {appointment.depositLabel}
+                            </span>
+                          ) : null}
                         </td>
                         <td className="px-5 py-4 text-slate-600">
                           {appointment.paymentMethodLabel}
@@ -446,6 +451,11 @@ function IncomePageContent() {
                         {appointment.paymentStatusLabel}
                       </span>
                     </div>
+                    {appointment.depositLabel ? (
+                      <p className="mt-2 text-xs font-semibold text-violet-800">
+                        {appointment.depositLabel}
+                      </p>
+                    ) : null}
                     <div className="mt-3 flex items-center justify-between gap-3 text-sm">
                       <span className="text-slate-500">
                         {appointment.paymentMethodLabel}

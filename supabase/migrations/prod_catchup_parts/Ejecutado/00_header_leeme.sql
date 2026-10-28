@@ -1,0 +1,100 @@
+-- =====================================================================
+-- CATCH-UP DE PRODUCCION: alinear el modelo de autorizacion (workspaces)
+-- =====================================================================
+--
+-- Por que existe este archivo
+-- ----------------------------
+-- Comparando el esquema real de produccion contra QA (introspeccion
+-- directa via pg_catalog/information_schema, no la tabla de bookkeeping
+-- de Supabase, que no es confiable en este proyecto porque las
+-- migraciones se vienen aplicando a mano) se encontro que produccion
+-- nunca recibio la migracion de "workspaces" (202606300001 en adelante),
+-- aunque el codigo ya desplegado en main usa workspace_id/activeWorkspace
+-- en todos lados. Prod sigue con las policies viejas basadas en
+-- clinic_id/owner_id/can_access_patient.
+--
+-- Que hace este archivo
+-- ----------------------
+-- Es la concatenacion, EN ORDEN CRONOLOGICO, de las migraciones
+-- 202606010001 a 202608310001 (excepto las dos marcadas abajo), tal
+-- como fueron escritas. Todo el DDL de este repo usa patrones
+-- idempotentes (create or replace function, drop policy if exists +
+-- create policy, add column if not exists, create table if not
+-- exists), asi que es seguro correr el archivo completo aunque
+-- produccion ya tenga aplicadas partes sueltas de este rango (lo
+-- vuelve a aplicar sin efecto).
+--
+-- Excluidas de este archivo (a proposito):
+--   * 202605310001_init_kineflow_qa.sql
+--       Bootstrap especifico usado para crear la base de QA desde cero.
+--       Todas las tablas que crea ya existen en produccion desde antes
+--       (profiles, clinics, patients, appointments, etc. via las
+--       migraciones de mayo/2026), asi que es un no-op puro. Se excluye
+--       para no confundir.
+--   * 202608280001_schedule_whatsapp_reminders_cron.sql
+--       Programa un pg_cron que llama a Supabase Vault por 3 secrets
+--       (kineflow_cron_base_url, vercel_automation_bypass_secret,
+--       kineflow_cron_secret). Esos secrets hoy apuntan a QA. Hay que
+--       crear/actualizar esos 3 secrets en el Vault de PRODUCCION
+--       (con la URL y tokens de prod) ANTES de correr esa migracion,
+--       si no el cron va a pegarle a QA desde prod o va a fallar.
+--       Se deja afuera de este catch-up para que sea un paso manual
+--       consciente y separado.
+--
+-- ADVERTENCIAS - leer antes de correr en prod
+-- --------------------------------------------
+-- La mayoria de este archivo es DDL idempotente sin riesgo. Pero hay
+-- statements que TOCAN FILAS EXISTENTES de datos reales. Los que mas
+-- importan:
+--
+-- 1) 202606300001_add_workspaces_foundation.sql (la mas grande, ~1075
+--    lineas): crea un workspace PERSONAL para cada profile y un
+--    workspace CLINICA para cada clinic existente, y rellena
+--    workspace_id en TODAS las filas de patients/appointments/
+--    evolutions/treatments/subscriptions que hoy lo tengan NULL (que
+--    en prod es el 100%, porque la columna workspace_id existe pero
+--    nunca se populo). Esto es IMPRESCINDIBLE para que las policies
+--    nuevas (que filtran por workspace_id) puedan seguir mostrando los
+--    pacientes/turnos que ya existen hoy. Sin este paso, aplicar solo
+--    las policies nuevas dejaria a los usuarios reales sin poder ver
+--    sus propios datos. Esta escrito de forma defensiva (on conflict
+--    do nothing, solo pisa columnas que estan en NULL), pero toca cada
+--    fila de esas tablas.
+--
+-- 2) 202607070001_fix_clinic_owner_personal_workspaces.sql: borra (DELETE)
+--    workspaces PERSONAL de cuentas CONSULTORIO que hayan quedado
+--    huerfanos (sin ningun paciente/turno/evolucion/tratamiento/
+--    suscripcion y sin otros miembros). Es un cleanup acotado, pero es
+--    un DELETE real sobre datos de prod.
+--
+-- 3) 202607060001 y 202607070002: renombran
+--    clinic_professionals.status de 'accepted'/'rejected' (nomenclatura
+--    vieja, la que probablemente tiene prod hoy) a 'active'/'inactive'
+--    (la que usa el codigo actual). Necesario para que las invitaciones
+--    de kinesiologos a consultorios sigan funcionando.
+--
+-- 4) 202608190002_backfill_profile_trials.sql: le pone
+--    trial_ends_at = now() + 3 meses a TODOS los profiles existentes
+--    que no tengan una suscripcion activa y no tengan trial_ends_at
+--    seteado. OJO: esto es una decision de negocio, no solo tecnica -
+--    hoy con trial_ends_at NULL esos usuarios tienen acceso ilimitado
+--    (get_account_access_level trata NULL como TRIAL_ACTIVE), asi que
+--    correr esto es lo que efectivamente ARRANCA la cuenta regresiva
+--    de 3 meses para todos los usuarios reales gratuitos actuales.
+--    Confirmar con el negocio antes de correr esta parte, se puede
+--    separar del resto si se quiere postergar.
+--
+-- 5) 202605270001_complete_billing_fields_and_guards.sql: un UPDATE
+--    defensivo (coalesce) sobre columnas de profiles.plan/
+--    estado_plan/limite_pacientes que ya estan en desuso (reemplazadas
+--    por la tabla subscriptions). Bajo riesgo, pero toca todas las
+--    filas de profiles.
+--
+-- Recomendacion: correr esto contra un clon/backup de produccion
+-- primero, o al menos tomar un snapshot antes de correrlo en la base
+-- real. Se puede correr con:
+--   npx supabase db query --linked --project-ref vpibqrsccntykhdeavbk \
+--     -f supabase/migrations/202608310002_prod_catchup_from_qa.sql
+--
+-- =====================================================================
+
