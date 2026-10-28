@@ -68,7 +68,7 @@ test("búsqueda sin tildes", () => {
 
 test("el check de la migración tiene exactamente las claves del catálogo", () => {
   const sql = readFileSync(
-    new URL("../supabase/migrations/202610280001_patient_evaluation_body_zones.sql", import.meta.url),
+    new URL("../supabase/migrations/202610280005_patient_evaluation_body_zones.sql", import.meta.url),
     "utf8",
   );
   const inCheck = [...sql.matchAll(/^\s+'([a-z_]+)'/gm)].map((match) => match[1]);
