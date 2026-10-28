@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
-import { buildSeriesCalendar, type PromoFields } from "./promo-image.ts";
+import { buildSeriesCalendar, type PromoFields, type PromoTheme } from "./promo-image.ts";
 
 // Pieza "promo" 1080×1350 (feed de Instagram): bajada arriba, una maqueta de
 // la app en el medio y la marca abajo. next/og (Satori) arma el PNG y sharp
@@ -20,6 +20,34 @@ const CARD_BORDER = "#DCE8FF";
 const SLOT_BORDER = "#BCD1FF";
 const WIDTH = 1080;
 const HEIGHT = 1350;
+
+type ThemeColors = {
+  background: string;
+  bezel: string;
+  blob: string;
+  blobOpacity: number;
+  eyebrow: string;
+  footer: string;
+  highlight: string;
+  muted: string;
+  sticker: string;
+  text: string;
+};
+
+const THEMES: Record<PromoTheme, ThemeColors> = {
+  azul: {
+    background: BRAND, bezel: INK, blob: "#FFFFFF", blobOpacity: 0.1, eyebrow: "#BDEFE3", footer: INK,
+    highlight: "#BDEFE3", muted: "#DCE8FF", sticker: INK, text: "#FFFFFF",
+  },
+  claro: {
+    background: BACKGROUND, bezel: INK, blob: GREEN, blobOpacity: 0.12, eyebrow: BRAND, footer: INK,
+    highlight: BRAND, muted: MUTED, sticker: GREEN, text: INK,
+  },
+  oscuro: {
+    background: INK, bezel: "#24364D", blob: BRAND, blobOpacity: 0.35, eyebrow: GREEN, footer: "#060E17",
+    highlight: GREEN, muted: "#B8C4D6", sticker: BRAND, text: "#FFFFFF",
+  },
+};
 
 const assetsDir = path.join(process.cwd(), "src/assets/social");
 let assetsPromise: Promise<{ bold: Buffer; icon: string; medium: Buffer }> | null = null;
@@ -40,6 +68,7 @@ function loadAssets() {
 
 const cardStyle = {
   background: "#FFFFFF",
+  color: INK,
   border: `2px solid ${CARD_BORDER}`,
   borderRadius: 40,
   boxShadow: "0 30px 70px rgba(21,101,255,0.16)",
@@ -313,6 +342,82 @@ function TarjetaVisual({ fields }: { fields: NonNullable<PromoFields["tarjeta"]>
   );
 }
 
+type Screenshot = { height: number; src: string; width: number };
+
+/** Captura de la carpeta capturas/ como data URI; null si no existe. */
+async function loadScreenshot(file: string): Promise<Screenshot | null> {
+  try {
+    const data = await readFile(path.join(assetsDir, "capturas", file));
+    const { height = 0, width = 0 } = await sharp(data).metadata();
+    return width && height ? { height, src: `data:image/jpeg;base64,${data.toString("base64")}`, width } : null;
+  } catch {
+    return null;
+  }
+}
+
+function PhoneVisual({
+  displayWidth,
+  screenshot,
+  sticker,
+  theme,
+  tilt,
+}: {
+  displayWidth: number;
+  screenshot: Screenshot;
+  sticker: string;
+  theme: ThemeColors;
+  tilt: boolean;
+}) {
+  const displayHeight = Math.round((screenshot.height * displayWidth) / screenshot.width);
+
+  return (
+    <div style={{ display: "flex", flexShrink: 0, padding: "30px 60px 0", position: "relative" }}>
+      <div
+        style={{
+          background: theme.bezel,
+          borderRadius: 64,
+          boxShadow: "0 40px 90px rgba(13,27,42,0.35)",
+          display: "flex",
+          padding: 16,
+          ...(tilt ? { transform: "rotate(-4deg)" } : {}),
+        }}
+      >
+        <div style={{ borderRadius: 50, display: "flex", height: displayHeight, overflow: "hidden", width: displayWidth }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt="" height={displayHeight} src={screenshot.src} width={displayWidth} />
+        </div>
+      </div>
+      {sticker ? (
+        <div
+          style={{
+            alignItems: "center",
+            background: theme.sticker,
+            border: "6px solid #FFFFFF",
+            borderRadius: 999,
+            boxShadow: "0 20px 40px rgba(13,27,42,0.3)",
+            color: "#FFFFFF",
+            display: "flex",
+            fontSize: sticker.length > 8 ? 30 : 40,
+            fontWeight: 800,
+            height: 200,
+            justifyContent: "center",
+            lineHeight: 1.05,
+            padding: 20,
+            position: "absolute",
+            right: 0,
+            textAlign: "center",
+            top: 0,
+            transform: "rotate(10deg)",
+            width: 200,
+          }}
+        >
+          {sticker}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 const WEEKDAY_LETTERS =["L", "M", "M", "J", "V", "S", "D"];
 const HOLIDAY_FILL = "#F8D27A";
 
@@ -385,6 +490,10 @@ function SerieVisual({ fields }: { fields: NonNullable<PromoFields["serie"]> }) 
 
 export async function renderPromoJpeg(fields: PromoFields) {
   const assets = await loadAssets();
+  const theme = THEMES[fields.theme];
+  const side = fields.layout === "costado";
+  const screenshot =
+    fields.visual === "captura" && fields.captura ? await loadScreenshot(fields.captura.file) : null;
   let visual: React.ReactNode = null;
 
   if (fields.visual === "perfil" && fields.perfil) visual = <PerfilVisual fields={fields.perfil} />;
@@ -392,13 +501,53 @@ export async function renderPromoJpeg(fields: PromoFields) {
   if (fields.visual === "serie" && fields.serie) visual = <SerieVisual fields={fields.serie} />;
   if (fields.visual === "evolucion" && fields.evolucion) visual = <EvolucionVisual fields={fields.evolucion} />;
   if (fields.visual === "tarjeta" && fields.tarjeta) visual = <TarjetaVisual fields={fields.tarjeta} />;
+  if (screenshot && fields.captura) {
+    visual = (
+      <PhoneVisual
+        displayWidth={side ? 480 : 560}
+        screenshot={screenshot}
+        sticker={fields.captura.sticker}
+        theme={theme}
+        tilt={fields.captura.tilt}
+      />
+    );
+  }
+
+  const text = (
+    <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, width: side ? 430 : "100%" }}>
+      {fields.eyebrow ? (
+        <div style={{ color: theme.eyebrow, display: "flex", fontSize: side ? 26 : 30, fontWeight: 800, letterSpacing: 3 }}>
+          {fields.eyebrow.toUpperCase()}
+        </div>
+      ) : null}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          fontSize: side ? 74 : 96,
+          fontWeight: 800,
+          letterSpacing: side ? -2 : -3,
+          lineHeight: 1.04,
+          marginTop: 22,
+        }}
+      >
+        <div style={{ display: "flex" }}>{fields.title}</div>
+        {fields.highlight ? <div style={{ color: theme.highlight, display: "flex" }}>{fields.highlight}</div> : null}
+      </div>
+      {fields.subtitle ? (
+        <div style={{ color: theme.muted, display: "flex", fontSize: side ? 34 : 38, lineHeight: 1.35, marginTop: 28, maxWidth: 860 }}>
+          {fields.subtitle}
+        </div>
+      ) : null}
+    </div>
+  );
 
   const response = new ImageResponse(
     (
       <div
         style={{
-          background: BACKGROUND,
-          color: INK,
+          background: theme.background,
+          color: theme.text,
           display: "flex",
           flexDirection: "column",
           fontFamily: "Inter",
@@ -409,38 +558,43 @@ export async function renderPromoJpeg(fields: PromoFields) {
       >
         <div
           style={{
-            background: GREEN,
+            background: theme.blob,
             borderRadius: 999,
             display: "flex",
             height: 520,
-            opacity: 0.12,
+            opacity: theme.blobOpacity,
             position: "absolute",
             right: -180,
             top: -160,
             width: 520,
           }}
         />
-        <div style={{ display: "flex", flex: 1, flexDirection: "column", padding: "96px 88px 0" }}>
-          {fields.eyebrow ? (
-            <div style={{ color: BRAND, display: "flex", fontSize: 30, fontWeight: 800, letterSpacing: 3 }}>
-              {fields.eyebrow.toUpperCase()}
-            </div>
-          ) : null}
-          <div style={{ display: "flex", flexDirection: "column", fontSize: 96, fontWeight: 800, letterSpacing: -3, lineHeight: 1.02, marginTop: 22 }}>
-            <div style={{ display: "flex" }}>{fields.title}</div>
-            {fields.highlight ? <div style={{ color: BRAND, display: "flex" }}>{fields.highlight}</div> : null}
+        {side ? (
+          <div style={{ alignItems: "center", display: "flex", flex: 1, overflow: "hidden", padding: "0 0 0 88px" }}>
+            {text}
+            {/* El celular puede asomar cortado por el borde derecho. */}
+            <div style={{ display: "flex", flexShrink: 0, marginLeft: -20 }}>{visual}</div>
           </div>
-          {fields.subtitle ? (
-            <div style={{ color: MUTED, display: "flex", fontSize: 38, lineHeight: 1.35, marginTop: 28, maxWidth: 860 }}>
-              {fields.subtitle}
+        ) : (
+          <div style={{ display: "flex", flex: 1, flexDirection: "column", overflow: "hidden", padding: "96px 88px 0" }}>
+            {text}
+            <div
+              style={{
+                alignItems: screenshot ? "flex-start" : "center",
+                display: "flex",
+                flex: 1,
+                justifyContent: "center",
+                marginTop: screenshot ? 20 : 0,
+              }}
+            >
+              {visual}
             </div>
-          ) : null}
-          <div style={{ alignItems: "center", display: "flex", flex: 1, justifyContent: "center" }}>{visual}</div>
-        </div>
+          </div>
+        )}
         <div
           style={{
             alignItems: "center",
-            background: INK,
+            background: theme.footer,
             color: "#FFFFFF",
             display: "flex",
             height: 150,
@@ -471,5 +625,5 @@ export async function renderPromoJpeg(fields: PromoFields) {
   );
 
   const png = Buffer.from(await response.arrayBuffer());
-  return sharp(png).flatten({ background: BACKGROUND }).jpeg({ mozjpeg: true, quality: 90 }).toBuffer();
+  return sharp(png).flatten({ background: theme.background }).jpeg({ mozjpeg: true, quality: 90 }).toBuffer();
 }

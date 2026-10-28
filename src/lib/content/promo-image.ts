@@ -4,8 +4,23 @@
 // la parte pura: validar los campos y armar el calendario de la serie.
 // Sin dependencias de Next ni de Node: se prueba con node --test.
 
-export const PROMO_VISUALS = ["perfil", "reservas", "serie", "evolucion", "tarjeta", "ninguno"] as const;
+export const PROMO_VISUALS = ["perfil", "reservas", "serie", "evolucion", "tarjeta", "captura", "ninguno"] as const;
 export type PromoVisual = (typeof PROMO_VISUALS)[number];
+/** Fondo de la pieza: claro (el de siempre), azul de la marca u oscuro. */
+export const PROMO_THEMES = ["claro", "azul", "oscuro"] as const;
+export type PromoTheme = (typeof PROMO_THEMES)[number];
+/** arriba: texto arriba y maqueta abajo. costado: texto a la izquierda y celular a la derecha. */
+export const PROMO_LAYOUTS = ["arriba", "costado"] as const;
+export type PromoLayout = (typeof PROMO_LAYOUTS)[number];
+
+/** Captura de la app (src/assets/social/capturas) dentro de un celular. */
+export type PromoCaptura = {
+  file: string;
+  /** Etiqueta redonda encima del celular (ej. "Quedan 2"); vacía = sin etiqueta. */
+  sticker: string;
+  /** Celular levemente inclinado. */
+  tilt: boolean;
+};
 
 export type PromoPerfil = {
   chips: string[];
@@ -52,6 +67,7 @@ export type PromoSerie = {
 };
 
 export type PromoFields = {
+  captura?: PromoCaptura;
   cta: string;
   eyebrow: string;
   evolucion?: PromoEvolucion;
@@ -61,6 +77,8 @@ export type PromoFields = {
   serie?: PromoSerie;
   subtitle: string;
   tarjeta?: PromoTarjeta;
+  layout: PromoLayout;
+  theme: PromoTheme;
   title: string;
   visual: PromoVisual;
 };
@@ -117,7 +135,9 @@ export function normalizePromoFields(raw: unknown): PromoFields | null {
     cta: text(source.cta, 40, "Gratis 3 meses"),
     eyebrow: text(source.eyebrow, 40),
     highlight: text(source.highlight, 40),
+    layout: PROMO_LAYOUTS.includes(source.layout as PromoLayout) ? (source.layout as PromoLayout) : "arriba",
     subtitle: text(source.subtitle, 160),
+    theme: PROMO_THEMES.includes(source.theme as PromoTheme) ? (source.theme as PromoTheme) : "claro",
     title,
     visual,
   };
@@ -150,6 +170,15 @@ export function normalizePromoFields(raw: unknown): PromoFields | null {
       session: text(evolucion.session, 30),
       time: text(evolucion.time, 8),
     };
+  } else if (visual === "captura") {
+    const captura = record(source.captura);
+    const file = text(captura.file, 60);
+    // Solo un nombre de archivo de la carpeta de capturas (sin rutas).
+    if (/^[a-z0-9-]+\.jpg$/.test(file)) {
+      fields.captura = { file, sticker: text(captura.sticker, 14), tilt: captura.tilt === true };
+    } else {
+      fields.visual = "ninguno";
+    }
   } else if (visual === "tarjeta") {
     const tarjeta = record(source.tarjeta);
     const progress = record(tarjeta.progress);
