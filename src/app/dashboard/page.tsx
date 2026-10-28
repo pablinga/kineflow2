@@ -10,6 +10,7 @@ import {
   ResolveCard,
   WeeklyIncomeCard,
 } from "@/components/dashboard/DashboardHomeSections";
+import { MedicalOrderAlertsCard } from "@/components/dashboard/MedicalOrderAlertsCard";
 import { PendingClinicInvitationsBanner } from "@/components/dashboard/PendingClinicInvitationsBanner";
 import { PendingReceptionInvitationsBanner } from "@/components/dashboard/PendingReceptionInvitationsBanner";
 import { TodayAgendaCard } from "@/components/dashboard/TodayAgendaCard";
@@ -406,6 +407,7 @@ export default function DashboardPage() {
                   <AttendanceCard stats={homeStats} />
                   {canSeeIncome ? <WeeklyIncomeCard stats={homeStats} /> : null}
                   <ResolveCard rows={resolveRows} />
+                  <MedicalOrderAlertsCard />
                   <KineflowMonthCard
                     onlineBookings={homeStats.monthOnlineBookings}
                     remindersSent={homeRemindersSent}
