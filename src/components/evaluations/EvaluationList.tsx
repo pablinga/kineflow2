@@ -1,6 +1,7 @@
 "use client";
 
 import { Activity, ClipboardList, Plus } from "lucide-react";
+import { BodyMapPreview } from "@/components/evaluations/BodyMap";
 import {
   getOnsetLabel,
   type PatientEvaluation,
@@ -66,6 +67,12 @@ export function EvaluationList({
                 {evaluation.painLevel}/10
               </span>
             </div>
+
+            {evaluation.bodyZones.length > 0 ? (
+              <div className="mt-3">
+                <BodyMapPreview zones={evaluation.bodyZones} />
+              </div>
+            ) : null}
 
             {index === 0 && latestEvolutionPain ? (
               <p className="mt-2 text-xs font-semibold text-slate-500">

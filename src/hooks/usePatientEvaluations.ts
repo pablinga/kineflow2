@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { toArgentinaDateValue } from "@/lib/dates";
+import { buildPainLocationText, normalizeBodyZones } from "@/lib/body-zones";
 
 export type EvaluationOnset =
   | "traumatico"
@@ -27,6 +28,8 @@ export function getOnsetLabel(onset: EvaluationOnset | null) {
 }
 
 export type PatientEvaluation = {
+  /** Claves de `src/lib/body-zones.ts`; vacío en las evaluaciones anteriores al mapa. */
+  bodyZones: string[];
   date: string;
   examFindings: string;
   goals: string;
@@ -35,24 +38,28 @@ export type PatientEvaluation = {
   medicalDiagnosis: string;
   onset: EvaluationOnset | null;
   painLevel: number;
+  /** Zonas marcadas y detalle, como texto (ver `buildPainLocationText`). */
   painLocation: string;
   patientId: string;
   suggestedSessions: number | null;
 };
 
 export type NewEvaluationInput = {
+  bodyZones: string[];
   examFindings: string;
   goals: string;
   kinesicDiagnosis: string;
   medicalDiagnosis: string;
   onset: EvaluationOnset | "";
   painLevel: number;
+  /** Detalle libre de la zona; se guarda junto con las zonas marcadas. */
   painLocation: string;
   suggestedSessions: string;
 };
 
 export function createEmptyEvaluation(): NewEvaluationInput {
   return {
+    bodyZones: [],
     examFindings: "",
     goals: "",
     kinesicDiagnosis: "",
@@ -66,8 +73,8 @@ export function createEmptyEvaluation(): NewEvaluationInput {
 
 /** Mensaje de error si faltan los obligatorios, o "" si está completa. */
 export function validateEvaluation(input: NewEvaluationInput) {
-  if (!input.painLocation.trim()) {
-    return "Ingresá la localización del dolor.";
+  if (!buildPainLocationText(input.bodyZones, input.painLocation)) {
+    return "Marcá la zona a tratar en el dibujo o escribí el detalle.";
   }
 
   if (!input.kinesicDiagnosis.trim()) {
@@ -78,6 +85,7 @@ export function validateEvaluation(input: NewEvaluationInput) {
 }
 
 type EvaluationRow = {
+  body_zones: string[] | null;
   evaluated_at: string;
   exam_findings: string | null;
   goals: string | null;
@@ -93,6 +101,7 @@ type EvaluationRow = {
 
 function mapEvaluation(row: EvaluationRow): PatientEvaluation {
   return {
+    bodyZones: normalizeBodyZones(row.body_zones ?? []),
     date: formatDate(row.evaluated_at),
     examFindings: row.exam_findings ?? "",
     goals: row.goals ?? "",
@@ -125,6 +134,7 @@ export async function insertPatientEvaluation(
   const { data, error } = await supabase
     .from("patient_evaluations")
     .insert({
+      body_zones: normalizeBodyZones(input.bodyZones),
       evaluated_at: toArgentinaDateValue(),
       exam_findings: input.examFindings.trim() || null,
       goals: input.goals.trim() || null,
@@ -133,7 +143,7 @@ export async function insertPatientEvaluation(
       onset: input.onset || null,
       owner_id: userId,
       pain_level: input.painLevel,
-      pain_location: input.painLocation.trim(),
+      pain_location: buildPainLocationText(input.bodyZones, input.painLocation),
       patient_id: patientId,
       suggested_sessions:
         Number.isInteger(suggestedSessions) && suggestedSessions > 0
@@ -174,7 +184,7 @@ export function usePatientEvaluations(patientId: string) {
       const { data, error: queryError } = await getSupabaseClient()
         .from("patient_evaluations")
         .select(
-          "id, patient_id, evaluated_at, pain_level, pain_location, onset, medical_diagnosis, exam_findings, kinesic_diagnosis, goals, suggested_sessions",
+          "id, patient_id, evaluated_at, pain_level, pain_location, body_zones, onset, medical_diagnosis, exam_findings, kinesic_diagnosis, goals, suggested_sessions",
         )
         .eq("workspace_id", activeWorkspace.id)
         .eq("patient_id", patientId)
