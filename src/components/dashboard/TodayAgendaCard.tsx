@@ -35,6 +35,22 @@ import {
 } from "@/lib/payment-ui";
 import { useCanSeeAmounts } from "@/hooks/useCanSeeAmounts";
 
+/** Inicio y fin del día local (ISO), para pedir solo los turnos de hoy. */
+function getDayRange(dayKey: string) {
+  const start = new Date(`${dayKey}T00:00:00`);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return { from: start.toISOString(), to: end.toISOString() };
+}
+
+function toLocalDayKey(date: Date) {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 function isToday(value: string) {
   const date = new Date(value);
   const today = new Date();
@@ -78,6 +94,9 @@ export function TodayAgendaCard({
   const { accountType } = useRequireAuth();
   const { activeWorkspace } = useActiveWorkspace();
   const canSeeAmounts = useCanSeeAmounts();
+  // Solo los turnos de hoy (cambia sola al pasar la medianoche).
+  const todayKey = toLocalDayKey(now);
+  const todayRange = useMemo(() => getDayRange(todayKey), [todayKey]);
   const {
     appointments,
     error: appointmentsError,
@@ -85,6 +104,8 @@ export function TodayAgendaCard({
     updateAppointmentPayment,
     updateAppointmentStatus,
   } = useAppointments(undefined, {
+    from: todayRange.from,
+    to: todayRange.to,
     // Igual que la Agenda: el kinesiólogo ve también sus turnos de clínica.
     unified: accountType === "KINESIOLOGO" && activeWorkspace?.type !== "CLINICA",
   });

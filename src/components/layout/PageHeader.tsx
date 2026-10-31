@@ -6,6 +6,12 @@ type PageHeaderProps = {
   className?: string;
   description?: ReactNode;
   eyebrow: string;
+  /**
+   * En el celular el título ya está en la barra superior (DashboardSidebar),
+   * así que acá queda solo para lectores de pantalla. true lo mantiene
+   * visible (por ejemplo, el saludo de Inicio).
+   */
+  keepTitleOnMobile?: boolean;
   title: ReactNode;
 };
 
@@ -14,17 +20,19 @@ export function PageHeader({
   className,
   description,
   eyebrow,
+  keepTitleOnMobile = false,
   title,
 }: PageHeaderProps) {
   return (
     <header
       className={clsx(
-        "rounded-lg border border-ocean-100 bg-white p-5 shadow-card sm:p-6",
+        // En el celular no es una tarjeta: la pantalla arranca con su contenido.
+        "lg:rounded-lg lg:border lg:border-ocean-100 lg:bg-white lg:p-6 lg:shadow-card",
         className,
       )}
     >
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
+        <div className={keepTitleOnMobile ? undefined : "max-lg:sr-only"}>
           <p className="text-sm font-semibold text-ocean-700">{eyebrow}</p>
           <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">
             {title}

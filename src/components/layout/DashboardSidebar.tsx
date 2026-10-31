@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   Building2,
   CalendarClock,
   CalendarDays,
@@ -47,6 +48,12 @@ import {
 } from "@/lib/workspace-permissions";
 
 const LOGOUT_TIMEOUT_MS = 5000;
+
+// Título de la barra superior del celular para páginas internas que no son
+// un ítem del menú (el resto muestra el nombre de su sección).
+const mobileSubpageTitles: Record<string, string> = {
+  "/dashboard/turnos/nuevo": "Nuevo turno",
+};
 const LOGOUT_REDIRECT_FALLBACK_MS = 800;
 
 const navigation = {
@@ -268,21 +275,42 @@ export function DashboardSidebar() {
     return !hasMoreSpecificMatch;
   }
 
+  // Celular: barra superior con el nombre de la pantalla (y flecha para
+  // volver en las páginas internas) y barra inferior con "Más" para el resto
+  // del menú, como una app.
+  const activeItem = visibleNavigation.find((item) => isActive(item.href));
+  const isSubpage = Boolean(activeItem && pathname !== activeItem.href);
+  const mobileTitle = mobileSubpageTitles[pathname] ?? activeItem?.label;
+  const moreActive =
+    open || !visibleMobileNavigation.some((item) => isActive(item.href));
+
   return (
     <>
-      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-ocean-100 bg-white px-4 py-3 lg:hidden">
-        <Logo compact />
-        <div className="flex items-center gap-1">
-          {isRecepcion ? null : <SessionDefaultsNotificationBell />}
-          <button
-            aria-label="Abrir navegación"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-ocean-100 text-slate-700 transition-colors duration-150 ease-out hover:bg-ocean-50 active:scale-95"
-            onClick={() => setOpen(true)}
-            type="button"
+      <div className="sticky top-0 z-40 flex min-h-14 items-center gap-1 border-b border-ocean-100 bg-white px-2 py-1.5 lg:hidden">
+        {activeItem && isSubpage ? (
+          <Link
+            aria-label={`Volver a ${activeItem.label}`}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-700 transition-colors duration-150 ease-out active:bg-ocean-100"
+            href={activeItem.href}
+            prefetch={false}
           >
-            <Menu className="h-5 w-5" />
-          </button>
-        </div>
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+        ) : null}
+        {mobileTitle ? (
+          <p
+            className={`min-w-0 flex-1 truncate text-xl font-bold text-ink ${
+              isSubpage ? "" : "pl-2"
+            }`}
+          >
+            {mobileTitle}
+          </p>
+        ) : (
+          <div className="flex-1 pl-2">
+            <Logo compact />
+          </div>
+        )}
+        {isRecepcion ? null : <SessionDefaultsNotificationBell />}
       </div>
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-ocean-100 bg-white p-5 shadow-soft transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:z-30 lg:flex lg:h-screen lg:translate-x-0 lg:shadow-none ${
@@ -389,36 +417,58 @@ export function DashboardSidebar() {
           ) : null}
         </div>
       </aside>
-      {visibleMobileNavigation.length > 0 ? (
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ocean-100 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-soft backdrop-blur lg:hidden">
-          <div
-            className={`mx-auto grid max-w-lg gap-1 ${
-              visibleMobileNavigation.length === 3 ? "grid-cols-3" : "grid-cols-4"
-            }`}
-          >
-            {visibleMobileNavigation.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ocean-100 bg-white/95 px-1 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1.5 backdrop-blur lg:hidden">
+        <div
+          className="mx-auto grid max-w-lg"
+          style={{
+            gridTemplateColumns: `repeat(${visibleMobileNavigation.length + 1}, minmax(0, 1fr))`,
+          }}
+        >
+          {visibleMobileNavigation.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
 
-              return (
-                <Link
-                  className={`flex min-h-[3.25rem] flex-col items-center justify-center gap-1 rounded-lg px-1 text-[0.68rem] font-semibold transition-colors duration-150 ease-out ${
-                    active
-                      ? "bg-ocean-50 text-ocean-700"
-                      : "text-slate-500 hover:bg-ocean-50 hover:text-ocean-700"
+            return (
+              <Link
+                aria-current={active ? "page" : undefined}
+                className={`flex min-h-[3.5rem] flex-col items-center justify-center gap-1 px-1 text-[0.7rem] transition-colors duration-150 ease-out ${
+                  active ? "font-bold text-ocean-800" : "font-semibold text-slate-500"
+                }`}
+                href={item.href}
+                key={item.href}
+                prefetch={false}
+              >
+                <span
+                  className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-150 ease-out ${
+                    active ? "bg-ocean-100" : ""
                   }`}
-                        href={item.href}
-                        key={item.href}
-                        prefetch={false}
-                      >
+                >
                   <Icon className="h-5 w-5" />
-                  <span className="max-w-full truncate">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-      ) : null}
+                </span>
+                <span className="max-w-full truncate">{item.label}</span>
+              </Link>
+            );
+          })}
+          <button
+            aria-expanded={open}
+            aria-label="Más opciones del menú"
+            className={`flex min-h-[3.5rem] flex-col items-center justify-center gap-1 px-1 text-[0.7rem] transition-colors duration-150 ease-out ${
+              moreActive ? "font-bold text-ocean-800" : "font-semibold text-slate-500"
+            }`}
+            onClick={() => setOpen(true)}
+            type="button"
+          >
+            <span
+              className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-150 ease-out ${
+                moreActive ? "bg-ocean-100" : ""
+              }`}
+            >
+              <Menu className="h-5 w-5" />
+            </span>
+            <span>Más</span>
+          </button>
+        </div>
+      </nav>
       {open ? (
         <button
           aria-label="Cerrar navegación"

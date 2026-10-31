@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase-server";
+import { getSupabaseAdminClient } from "@/lib/supabase-server";
+import { getAuthenticatedUserId } from "@/lib/request-auth";
 import { isPushEnabled } from "@/lib/push";
 
 type SubscriptionPayload = {
@@ -9,26 +10,6 @@ type SubscriptionPayload = {
     p256dh?: string;
   };
 };
-
-async function getAuthenticatedUserId(request: NextRequest) {
-  const authorization = request.headers.get("authorization");
-  const accessToken = authorization?.startsWith("Bearer ")
-    ? authorization.slice("Bearer ".length).trim()
-    : "";
-
-  if (!accessToken) {
-    return null;
-  }
-
-  const supabase = getSupabaseServerClient(accessToken);
-  const { data, error } = await supabase.auth.getUser(accessToken);
-
-  if (error || !data.user) {
-    return null;
-  }
-
-  return data.user.id;
-}
 
 function isValidEndpoint(endpoint: string) {
   try {

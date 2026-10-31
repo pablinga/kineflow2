@@ -192,6 +192,7 @@ export const ACQUISITION_EVENT_TYPES = [
   "signup_started",
   "profile_view",
   "profile_footer_click",
+  "demo_view",
 ] as const;
 export type AcquisitionEventType = (typeof ACQUISITION_EVENT_TYPES)[number];
 export type ProfileEventType = Extract<AcquisitionEventType, `profile_${string}`>;
@@ -239,6 +240,76 @@ export function isValidProfileEventAttribution(attribution: Attribution) {
     Boolean(attribution.utm_content) &&
     attribution.landing_page.startsWith("/reservar/")
   );
+}
+
+/** Path de la demo pública (`/demo`). */
+export const DEMO_PATH = "/demo";
+
+/**
+ * Atribución de la vista de la demo: si el visitante ya tiene una campaña
+ * (first touch vigente) cuenta para esa campaña; si no, va como
+ * utm_source=demo. landing_page siempre es /demo. No modifica la atribución
+ * guardada.
+ */
+export function buildDemoEventAttribution(params: {
+  now?: Date;
+  ownHost?: string;
+  referrer?: string | null;
+  stored: Attribution | null;
+}): Attribution {
+  if (params.stored) {
+    return { ...params.stored, landing_page: DEMO_PATH };
+  }
+
+  return {
+    first_visited_at: (params.now ?? new Date()).toISOString(),
+    landing_page: DEMO_PATH,
+    referrer: sanitizeReferrer(params.referrer, params.ownHost),
+    utm_campaign: "demo",
+    utm_content: null,
+    utm_medium: "direct",
+    utm_source: "demo",
+    utm_term: null,
+  };
+}
+
+/** Un demo_view solo vale si viene de la página de la demo. */
+export function isValidDemoEventAttribution(attribution: Attribution) {
+  return attribution.landing_page === DEMO_PATH;
+}
+
+/**
+ * Link del CTA de la demo a /registro conservando los UTM: los de la URL
+ * actual (saneados) o, si no hay, los de la atribución guardada. Sin UTM va a
+ * /registro a secas (no inventa una campaña).
+ */
+export function buildDemoSignupHref(search: string, stored: Attribution | null) {
+  let current: URLSearchParams;
+
+  try {
+    current = new URLSearchParams(search);
+  } catch {
+    current = new URLSearchParams();
+  }
+
+  const params = new URLSearchParams();
+  const fromUrl = sanitizeUtmValue(current.get("utm_source"));
+
+  for (const key of UTM_KEYS) {
+    const value = fromUrl
+      ? sanitizeUtmValue(current.get(key))
+      : stored
+        ? stored[key]
+        : null;
+
+    if (value) {
+      params.set(key, value);
+    }
+  }
+
+  const query = params.toString();
+
+  return query ? `/registro?${query}` : "/registro";
 }
 
 export function isAcquisitionEventType(value: unknown): value is AcquisitionEventType {

@@ -12,6 +12,7 @@ import {
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
+import { formatMonto } from "@/lib/format";
 import { DEFAULT_SESSION_DURATION_MINUTES } from "@/lib/session-defaults";
 import { isWhatsAppNotificationsEnabled } from "@/lib/whatsapp";
 
@@ -53,6 +54,12 @@ type FreeSlot = {
   endTime: string;
   start: string;
   startTime: string;
+};
+
+type DepositInfo = {
+  amount: number;
+  cancellationWindowHours: number;
+  paymentWindowMinutes: number;
 };
 
 type Confirmation = {
@@ -151,6 +158,7 @@ export function BookingClient({ workspaceId }: BookingClientProps) {
   const [error, setError] = useState("");
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [turnstileToken, setTurnstileToken] = useState("");
+  const [deposit, setDeposit] = useState<DepositInfo | null>(null);
 
   useEffect(() => {
     async function loadProfessionals() {
@@ -179,6 +187,7 @@ export function BookingClient({ workspaceId }: BookingClientProps) {
           (result.insuranceProviders ?? []) as InsuranceProvider[],
         );
         setArtProviders((result.artProviders ?? []) as ArtProvider[]);
+        setDeposit((result.deposit ?? null) as DepositInfo | null);
         const nextWorkspace = result.workspace as Workspace;
         setProfessionalId(
           (current) =>
@@ -196,6 +205,9 @@ export function BookingClient({ workspaceId }: BookingClientProps) {
 
     loadProfessionals();
   }, [workspaceId]);
+
+  // La seña aplica a las reservas particulares (no obra social / ART).
+  const requiresDeposit = Boolean(deposit) && paymentType === "PARTICULAR";
 
   const durationMinutes =
     workspace?.defaultSessionDurationMinutes ?? DEFAULT_DURATION_MINUTES;
@@ -340,6 +352,13 @@ export function BookingClient({ workspaceId }: BookingClientProps) {
 
       if (!response.ok) {
         throw new Error(result.error || "No pudimos reservar el turno.");
+      }
+
+      // Reserva con seña: el turno queda reservado hasta que se pague en
+      // Mercado Pago (la vuelta del checkout muestra el estado real).
+      if (result.payment?.checkoutUrl) {
+        window.location.assign(result.payment.checkoutUrl as string);
+        return;
       }
 
       setConfirmation(result.appointment as Confirmation);
@@ -764,6 +783,16 @@ export function BookingClient({ workspaceId }: BookingClientProps) {
                   </div>
                 ) : null}
 
+                {requiresDeposit && deposit ? (
+                  <Alert className="mt-4" tone="info">
+                    Para confirmar el turno vas a pagar una seña de{" "}
+                    <strong>{formatMonto(deposit.amount)}</strong> con Mercado Pago (se descuenta de
+                    la sesión). Tenés {deposit.paymentWindowMinutes} minutos para pagarla. Si
+                    cancelás con menos de {deposit.cancellationWindowHours} horas de anticipación,
+                    la seña no se devuelve.
+                  </Alert>
+                ) : null}
+
                 <Button
                   className="mt-5 w-full"
                   disabled={
@@ -778,7 +807,11 @@ export function BookingClient({ workspaceId }: BookingClientProps) {
                   type="submit"
                 >
                   <CheckCircle className="h-4 w-4" />
-                  {saving ? "Reservando..." : "Confirmar turno"}
+                  {saving
+                    ? "Reservando..."
+                    : requiresDeposit
+                      ? "Reservar y pagar seña"
+                      : "Confirmar turno"}
                 </Button>
               </aside>
             </form>

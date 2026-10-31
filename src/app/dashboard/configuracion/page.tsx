@@ -22,6 +22,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { PushNotificationsCard } from "@/components/dashboard/PushNotificationsCard";
 import { AttentionTypesSection } from "@/components/configuracion/AttentionTypesSection";
 import { PublicProfileSection } from "@/components/configuracion/PublicProfileSection";
+import { DepositSettingsSection } from "@/components/configuracion/DepositSettingsSection";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { formatCurrency } from "@/lib/format";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
@@ -122,6 +123,7 @@ const CONFIG_SECTIONS = [
   { id: "agenda", label: "Agenda" },
   { id: "notificaciones", label: "Notificaciones" },
   { id: "perfil", label: "Perfil público" },
+  { id: "senas", label: "Señas" },
 ] as const;
 
 type ConfigSection = (typeof CONFIG_SECTIONS)[number]["id"];
@@ -446,7 +448,10 @@ export default function WorkspaceSettingsPage() {
           aria-label="Secciones de configuración"
           className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ocean-100 bg-white p-1 shadow-sm"
         >
-          {CONFIG_SECTIONS.map((item) => (
+          {CONFIG_SECTIONS.filter(
+            // Señas: por ahora solo el espacio particular del kinesiólogo.
+            (item) => item.id !== "senas" || activeWorkspace?.type === "PERSONAL",
+          ).map((item) => (
             <button
               aria-current={section === item.id ? "page" : undefined}
               className={`inline-flex min-h-10 shrink-0 items-center rounded-md px-4 text-sm font-semibold transition ${
@@ -1027,6 +1032,12 @@ export default function WorkspaceSettingsPage() {
         {section === "perfil" ? (
           <div className="mt-4">
             <PublicProfileSection canEdit={canEdit} />
+          </div>
+        ) : null}
+
+        {section === "senas" ? (
+          <div className="mt-4">
+            <DepositSettingsSection canEdit={canEdit} />
           </div>
         ) : null}
       </PageContainer>

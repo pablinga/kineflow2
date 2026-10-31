@@ -1,6 +1,7 @@
 import "server-only";
 
 import { escapeHtml, renderKineflowEmail } from "@/lib/email-templates";
+import { sendResendEmail } from "@/lib/resend";
 import type { PublisherNotifier } from "./publisher.ts";
 import { composeCaption } from "./rules.ts";
 import {
@@ -13,29 +14,15 @@ import {
 // Mails del publicador por Resend (mismo patrón que las invitaciones). Van
 // solo a CONTENT_ADMIN_EMAIL; si falta o falta Resend, se loguea y sigue.
 
-const FROM = () => process.env.RESEND_FROM_EMAIL || "KineFlow <notificaciones@mail.kineflow.ar>";
-
 async function sendAdminEmail(subject: string, html: string, text: string) {
   const to = process.env.CONTENT_ADMIN_EMAIL?.trim();
-  const apiKey = process.env.RESEND_API_KEY?.trim();
 
-  if (!to || !apiKey) {
-    console.warn("[content] mail no enviado: falta CONTENT_ADMIN_EMAIL o RESEND_API_KEY", { subject });
+  if (!to) {
+    console.warn("[content] mail no enviado: falta CONTENT_ADMIN_EMAIL", { subject });
     return { sent: false };
   }
 
-  const response = await fetch("https://api.resend.com/emails", {
-    body: JSON.stringify({ from: FROM(), html, subject, text, to }),
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    method: "POST",
-  });
-
-  if (!response.ok) {
-    console.error("[content] Resend respondió", response.status);
-    return { sent: false };
-  }
-
-  return { sent: true };
+  return sendResendEmail({ html, logTag: "content", subject, text, to });
 }
 
 const channelLabel = (channel: string) => (channel === "instagram" ? "Instagram" : "Facebook");

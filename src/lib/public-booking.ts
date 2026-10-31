@@ -93,7 +93,8 @@ export const ANY_PROFESSIONAL_ID = "any";
 const DEFAULT_DURATION_MINUTES = DEFAULT_SESSION_DURATION_MINUTES;
 const VALID_DURATIONS = new Set([30, 45, 60, 90]);
 const TIME_ZONE_OFFSET = "-03:00";
-const ACTIVE_APPOINTMENT_STATUSES = ["pending", "confirmed", "rescheduled"];
+// awaiting_payment: reserva con seña sin pagar, ocupa el horario hasta que vence.
+const ACTIVE_APPOINTMENT_STATUSES = ["pending", "confirmed", "rescheduled", "awaiting_payment"];
 
 // TODO(enero de cada año): actualizar esta lista contra el calendario oficial
 // argentino. Los feriados móviles, turísticos y traslados por decreto cambian

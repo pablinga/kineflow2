@@ -136,7 +136,7 @@ export function ClinicAgenda() {
   const canSeeAmounts = useCanSeeAmounts();
   const { isReadOnly, loaded: accessLoaded } = useAccessLevel();
   const { loaded: planLoaded, plan } = useSubscriptionPlan();
-  const { activePatients, addPatient } = usePatients();
+  const { activePatients, addPatient } = usePatients({ withStats: false });
   const { attentionTypes } = useAttentionTypes();
   const { providers: insuranceProviders } = useInsuranceProviders();
   const {
