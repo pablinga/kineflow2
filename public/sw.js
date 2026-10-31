@@ -1,4 +1,7 @@
-const CACHE_NAME = "kineflow-pwa-shell-v1";
+const CACHE_NAME = "kineflow-pwa-shell-v2";
+// Pantalla estática para cuando no hay conexión. Las páginas de la app nunca
+// se guardan en caché: tienen datos de pacientes.
+const OFFLINE_URL = "/offline.html";
 const APP_SHELL_ASSETS = [
   "/manifest.webmanifest",
   "/icon-192.png",
@@ -6,6 +9,7 @@ const APP_SHELL_ASSETS = [
   "/icon-maskable-512.png",
   "/favicon.svg",
   "/kineflow-icon.svg",
+  OFFLINE_URL,
 ];
 
 self.addEventListener("install", (event) => {
@@ -46,6 +50,17 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
 
   if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // Navegaciones: siempre a la red; solo si falla (sin conexión) se muestra
+  // la pantalla offline en lugar del error de Chrome.
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).catch(() =>
+        caches.match(OFFLINE_URL).then((cached) => cached || Response.error()),
+      ),
+    );
     return;
   }
 

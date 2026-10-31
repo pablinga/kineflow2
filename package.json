@@ -31,6 +31,7 @@
     "test:demo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/demo.test.mjs",
     "test:demo:e2e": "node scripts/demo-e2e.mjs",
     "test:attribution:qa": "node scripts/attribution-check.mjs",
+    "check:assetlinks": "node scripts/check-assetlinks.mjs",
     "lint": "next lint"
   },
   "dependencies": {
