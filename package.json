@@ -27,6 +27,7 @@
     "test:orders": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/medical-orders.test.mjs",
     "test:testimonials": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/landing-testimonials.test.mjs",
     "test:attribution:qa": "node scripts/attribution-check.mjs",
+    "check:assetlinks": "node scripts/check-assetlinks.mjs",
     "lint": "next lint"
   },
   "dependencies": {

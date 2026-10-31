@@ -33,3 +33,7 @@ supabase/.temp/
 /android/*
 !/android/twa-manifest.json
 !/android/README.md
+
+# Claves de firma de Android: nunca al repo (ver docs/android-twa.md).
+*.keystore
+*.jks
