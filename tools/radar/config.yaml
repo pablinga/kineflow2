@@ -5,6 +5,7 @@ batch_size: 15            # textos por llamada a Claude
 max_posts: 200            # tope de posts nuevos a clasificar por corrida (lo pisa --max-posts)
 max_retries: 2            # reintentos si Claude devuelve un JSON inválido o incompleto
 min_potential: 2          # monetizable mínimo para entrar al reporte
+dashboard_weeks: 8        # semanas que muestra dashboard.html
 
 sources:
   reddit:

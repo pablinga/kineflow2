@@ -21,7 +21,10 @@ python3 -m venv .venv
 | `YOUTUBE_API_KEY` | Fuente `youtube`. Crear un proyecto en https://console.cloud.google.com, activar **YouTube Data API v3** y crear una clave de API (conviene restringirla a esa API). Gratis hasta 10.000 unidades por día. Si falta, el script corta con un mensaje; para no usar YouTube poné `enabled: false`. |
 | `ANTHROPIC_API_KEY` | Para clasificar (no hace falta con `--dry`). |
 
-Google News y la App Store no piden clave.
+| `RADAR_EMAIL_TO` | Opcional. Si está, al terminar manda el reporte por mail (con `dashboard.html` adjunto). Varios destinatarios separados por coma. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `RADAR_EMAIL_FROM` | Servidor para el mail. Puerto 587 (STARTTLS, por defecto) o 465 (SSL). `RADAR_EMAIL_FROM` es opcional (por defecto, `SMTP_USER`). Ejemplos: Gmail → `smtp.gmail.com`, tu cuenta y una [contraseña de aplicación](https://myaccount.google.com/apppasswords); Resend → `smtp.resend.com`, usuario `resend`, contraseña = API key y un remitente de un dominio verificado. |
+
+Google News y la App Store no piden clave. Si `RADAR_EMAIL_TO` está pero falta algún dato del SMTP, el script corta antes de gastar en Claude; si el envío falla (red, contraseña), avisa y el reporte queda guardado igual. `--no-email` saltea el mail.
 
 ## Uso
 
@@ -37,6 +40,15 @@ Google News y la App Store no piden clave.
 - Solo se clasifican los posts de los últimos 14 días (la semana del reporte y la anterior), los más nuevos primero, hasta `max_posts`.
 - Si Claude devuelve un JSON roto o con campos faltantes, se reintenta solo con los posts que faltan (`max_retries`). Los que siguen fallando quedan para la próxima corrida.
 - Para sumar otra fuente: escribir `fetch_<fuente>(cfg)` en `radar.py`, que devuelva posts con `{id, fuente, texto, url, fecha}`, registrarla en `SOURCES` y agregar su bloque en `config.yaml` bajo `sources:`.
+
+## Qué genera
+
+Todo en esta carpeta (o donde apunte `--out`):
+
+- `reporte.md`: el reporte de la última corrida. Arriba, la comparación con la semana anterior (temas nuevos y que crecen).
+- `reportes/AAAA-MM-DD.md`: una copia de cada corrida, para mirar semanas viejas.
+- `dashboard.html`: se abre con doble clic en el navegador (no necesita internet). Muestra las últimas 8 semanas (`dashboard_weeks`): menciones por semana y fuente, y cada tema con su estado (nuevo, crece, estable, baja), su evolución, potencial, cuántos ya pagan y ejemplos con link.
+- `radar.db`: la base con todo el historial.
 
 ## Fuentes
 
@@ -54,10 +66,23 @@ En ninguna fuente se guardan nombres de autor.
 `crontab -e` y, por ejemplo, los lunes a las 8:00:
 
 ```cron
-0 8 * * 1  cd /ruta/a/tools/radar && REDDIT_CLIENT_ID=xxx REDDIT_CLIENT_SECRET=yyy YOUTUBE_API_KEY=www ANTHROPIC_API_KEY=zzz .venv/bin/python radar.py --max-posts 200 >> radar.log 2>&1
+0 8 * * 1  cd /ruta/a/tools/radar && . ./radar.env && .venv/bin/python radar.py --max-posts 200 >> radar.log 2>&1
 ```
 
-Mejor que dejar las claves en el crontab: guardarlas en un archivo `radar.env` con permisos `600` (`export REDDIT_CLIENT_ID=...`, una por línea) y usar `. ./radar.env && .venv/bin/python radar.py`. Cron usa la hora del sistema; revisala con `date`.
+Las claves van en `radar.env` (está en `.gitignore`), con permisos `600` (`chmod 600 radar.env`):
+
+```bash
+export REDDIT_CLIENT_ID=...
+export REDDIT_CLIENT_SECRET=...
+export YOUTUBE_API_KEY=...
+export ANTHROPIC_API_KEY=...
+export RADAR_EMAIL_TO=vos@tumail.com
+export SMTP_HOST=smtp.gmail.com
+export SMTP_USER=vos@gmail.com
+export SMTP_PASSWORD=contraseña-de-aplicacion
+```
+
+Cron usa la hora del sistema; revisala con `date`. Si la compu está apagada a esa hora, esa semana no corre (en una Mac que duerme, `launchd` es más confiable que cron).
 
 ## Tests
 
@@ -65,4 +90,4 @@ Mejor que dejar las claves en el crontab: guardarlas en un archivo `radar.env` c
 .venv/bin/python -m pytest -q
 ```
 
-Son sin red: filtro, fuentes con respuestas de ejemplo (YouTube, Google News, App Store), parseo y validación del JSON (con un cliente de Claude falso para los reintentos), deduplicación en SQLite y comparación semanal del reporte.
+Son sin red: filtro, fuentes con respuestas de ejemplo (YouTube, Google News, App Store), parseo y validación del JSON (con un cliente de Claude falso para los reintentos), deduplicación en SQLite, comparación semanal del reporte, copia fechada, dashboard (semanas, estados, que un texto de internet no pueda inyectar código) y mail con un servidor SMTP falso.

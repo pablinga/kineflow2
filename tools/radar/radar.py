@@ -10,7 +10,9 @@ Uso:
 
 Variables de entorno: REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET (Reddit), REDDIT_USER_AGENT (opcional),
 YOUTUBE_API_KEY (YouTube), ANTHROPIC_API_KEY (para clasificar).
-Salida: radar.db (SQLite), reporte.md y posts.json (los que pasaron el filtro en esta corrida).
+Mail (opcional): RADAR_EMAIL_TO, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, RADAR_EMAIL_FROM.
+Salida: radar.db (SQLite), reporte.md, reportes/AAAA-MM-DD.md (copia de cada corrida), dashboard.html
+y posts.json (los que pasaron el filtro en esta corrida).
 """
 import argparse, hashlib, html, json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
 import xml.etree.ElementTree as ET
@@ -20,6 +22,8 @@ from email.utils import parsedate_to_datetime
 
 import yaml
 
+import dashboard
+import mailer
 import store
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -430,15 +434,22 @@ def build_report(current, previous, min_potential=2, period=""):
 
 
 def report(conn, path, min_potential, now=None):
+    """Escribe el reporte en `path` y una copia fechada en reportes/. Devuelve (texto, resumen)."""
     now = now or datetime.now(timezone.utc)
     # +1 s: las fechas se guardan sin fracciones; un post cargado en este mismo segundo entra.
     cur = store.classified_between(conn, iso(now - WEEK), iso(now + timedelta(seconds=1)))
     prev = store.classified_between(conn, iso(now - 2 * WEEK), iso(now - WEEK))
     period = f"Semana del {(now - WEEK):%d/%m/%Y} al {now:%d/%m/%Y} (UTC)."
     text, n = build_report(cur, prev, min_potential, period)
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(text)
-    print(f"Reporte: {path} ({n} temas)")
+    archive = os.path.join(os.path.dirname(os.path.abspath(path)), "reportes", f"{now:%Y-%m-%d}.md")
+    os.makedirs(os.path.dirname(archive), exist_ok=True)
+    for p in (path, archive):
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(text)
+    print(f"Reporte: {path} ({n} temas), copia en {archive}")
+    prev_temas = set(group_by_tema(prev, min_potential))
+    nuevos = sum(1 for t in group_by_tema(cur, min_potential) if t not in prev_temas)
+    return text, {"temas": n, "nuevos": nuevos, "desde": now - WEEK, "hasta": now}
 
 
 # --- Main --------------------------------------------------------------------
@@ -452,6 +463,7 @@ def main(argv=None):
     ap.add_argument("--db", default=os.path.join(HERE, "radar.db"))
     ap.add_argument("--out", default=os.path.join(HERE, "reporte.md"))
     ap.add_argument("--find-app", metavar="NOMBRE", help="busca el id de una app de la App Store y sale")
+    ap.add_argument("--no-email", action="store_true", help="no manda el mail aunque RADAR_EMAIL_TO esté definido")
     a = ap.parse_args(argv)
     cfg = load_config(a.config)
     if a.find_app:
@@ -486,11 +498,19 @@ def main(argv=None):
     if a.dry:
         print(f"{len(pending)} se clasificarían (modo --dry: no se llama a Claude)")
         return
+    email = None if a.no_email else mailer.email_settings()  # si está a medias, corta antes de gastar
     if pending:
         items = classify(pending, cfg["model"], cfg.get("batch_size", 15), cfg.get("max_retries", 2))
         store.save_classifications(conn, items, cfg["model"])
         print(f"{len(items)} clasificados")
-    report(conn, a.out, cfg.get("min_potential", 2))
+    now = datetime.now(timezone.utc)
+    text, summary = report(conn, a.out, cfg.get("min_potential", 2), now)
+    dash = os.path.join(os.path.dirname(os.path.abspath(a.out)), "dashboard.html")
+    dashboard.write(conn, dash, now, cfg.get("min_potential", 2), cfg.get("dashboard_weeks", 8))
+    if email:
+        subject = (f"Radar de dolores {summary['desde']:%d/%m}–{summary['hasta']:%d/%m}: "
+                   f"{summary['temas']} temas, {summary['nuevos']} nuevos")
+        mailer.send(email, mailer.build_message(email, subject, text, [dash]))
 
 
 if __name__ == "__main__":

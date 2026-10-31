@@ -5,3 +5,7 @@ posts.json
 __pycache__/
 .pytest_cache/
 radar.env
+reportes/
+dashboard.html
+radar.log
+ejemplo/
