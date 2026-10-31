@@ -47,7 +47,12 @@ Todo en esta carpeta (o donde apunte `--out`):
 
 - `reporte.md`: el reporte de la última corrida. Arriba, la comparación con la semana anterior (temas nuevos y que crecen).
 - `reportes/AAAA-MM-DD.md`: una copia de cada corrida, para mirar semanas viejas.
-- `dashboard.html`: se abre con doble clic en el navegador (no necesita internet). Muestra las últimas 8 semanas (`dashboard_weeks`): menciones por semana y fuente, y cada tema con su estado (nuevo, crece, estable, baja), su evolución, potencial, cuántos ya pagan y ejemplos con link.
+- `dashboard.html`: se abre con doble clic en el navegador (no necesita internet). Cada gráfico trae su explicación; en resumen:
+  - **Mapa de oportunidades** (últimas 4 semanas): cada tema según cuánto se repite y qué parte dice que ya paga. Arriba a la derecha, "validar primero"; arriba a la izquierda, "nicho que ya paga"; abajo a la derecha, "mucha queja, nadie paga". La línea vertical es la mediana de menciones y la horizontal, 25 % que ya paga (`PAY_THRESHOLD` en `dashboard.py`).
+  - **Qué está creciendo:** menciones de las últimas 2 semanas contra las 2 anteriores, por tema.
+  - **Rubros:** menciones por rubro y qué parte ya paga.
+  - **Temas de la semana:** tabla con estado (nuevo, crece, estable, baja), evolución de 8 semanas (`dashboard_weeks`), potencial, cuántos ya pagan y ejemplos con link.
+  - **Salud del radar:** menciones por semana y por fuente, para notar si una fuente dejó de traer datos.
 - `radar.db`: la base con todo el historial.
 
 ## Fuentes

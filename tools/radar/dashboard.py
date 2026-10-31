@@ -1,13 +1,21 @@
 """Dashboard HTML autocontenido (sin internet ni dependencias) a partir de radar.db.
 
-Muestra las últimas semanas: menciones por fuente, y cada tema con su evolución,
-estado (nuevo / crece / estable / baja) y ejemplos.
+Gráficos (los que ayudan a decidir qué oportunidad validar primero):
+- Mapa de oportunidades: cuánto se repite cada tema vs. qué parte dice que ya paga.
+- Qué está creciendo: menciones de las últimas 2 semanas vs. las 2 anteriores.
+- Rubros: dónde hay más quejas y en cuáles ya se paga.
+- Temas de la semana (tabla) y salud del radar (menciones por semana y fuente).
 """
 import json
+from statistics import median
 from collections import Counter, defaultdict
 from datetime import timedelta, timezone
 
 WEEK = timedelta(days=7)
+WINDOW_WEEKS = 4        # ventana del mapa, el crecimiento y los rubros (más estable que una semana)
+PAY_THRESHOLD = 25      # % de menciones con "ya paga" que separa el mapa en arriba/abajo
+MIN_MENTIONS_MAP = 2    # con 1 sola mención el % no dice nada
+TOP_RUBROS = 8
 SOURCE_ORDER = ["reddit", "youtube", "noticias", "appstore", "manual"]  # color fijo por fuente
 SOURCE_LABELS = {"reddit": "Reddit", "youtube": "YouTube", "noticias": "Noticias",
                  "appstore": "App Store", "manual": "Manual"}
@@ -83,7 +91,13 @@ def build_data(items, now, min_potential=2, weeks=8, examples=5):
     rows.sort(key=lambda r: (r["count"], r["avg"] * r["count"]), reverse=True)
 
     prev_topics = sum(1 for t in topics.values() if t["series"][-2]) if weeks > 1 else 0
+    win = max(2, min(WINDOW_WEEKS, weeks))
+    window_items = [it for it in relevant if (week_of(it) is not None and week_of(it) >= weeks - win)]
     return {
+        "window_weeks": win,
+        "opportunities": opportunity_map(window_items),
+        "momentum": momentum(topics, win),
+        "rubros": rubros(window_items),
         "generated": now.strftime("%d/%m/%Y %H:%M UTC"),
         "period": f"{wins[-1][0]:%d/%m} al {now:%d/%m/%Y}",
         "sources": [{"key": s, "label": SOURCE_LABELS[s]} for s in SOURCE_ORDER],
@@ -99,6 +113,56 @@ def build_data(items, now, min_potential=2, weeks=8, examples=5):
             "pagan": sum(r["pagan"] for r in rows),
         },
     }
+
+
+def opportunity_map(items):
+    """Un punto por tema: menciones en la ventana vs. % donde dicen que ya pagan."""
+    g = defaultdict(list)
+    for it in items:
+        g[it["tema"].lower()].append(it)
+    points = []
+    for tema, xs in g.items():
+        if len(xs) < MIN_MENTIONS_MAP:
+            continue
+        pagan = sum(1 for x in xs if x.get("paga_hoy"))
+        points.append({"tema": tema, "menciones": len(xs), "pagan": pagan,
+                       "pct": round(100 * pagan / len(xs)),
+                       "avg": round(sum(x["monetizable"] for x in xs) / len(xs), 1),
+                       "rubro": Counter(x["rubro"].strip().lower() for x in xs).most_common(1)[0][0]})
+    x_threshold = max(MIN_MENTIONS_MAP, median(p["menciones"] for p in points)) if points else MIN_MENTIONS_MAP
+    for p in points:
+        many, pay = p["menciones"] >= x_threshold, p["pct"] >= PAY_THRESHOLD
+        p["quadrant"] = ("validar" if many and pay else "nicho" if pay else "queja" if many else "mirar")
+    points.sort(key=lambda p: (p["quadrant"] != "validar", -p["menciones"], -p["pct"]))
+    return {"points": points, "x_threshold": x_threshold, "y_threshold": PAY_THRESHOLD}
+
+
+def momentum(topics, win):
+    """Menciones de la última mitad de la ventana vs. la mitad anterior, por tema."""
+    half = win // 2
+    rows = []
+    for tema, t in topics.items():
+        recent, before = sum(t["series"][-half:]), sum(t["series"][-win:-half])
+        if recent != before:
+            rows.append({"tema": tema, "recent": recent, "before": before, "delta": recent - before})
+    ups = sorted((r for r in rows if r["delta"] > 0), key=lambda r: (-r["delta"], -r["recent"]))[:6]
+    downs = sorted((r for r in rows if r["delta"] < 0), key=lambda r: (r["delta"], r["recent"]))[:3]
+    return {"half_weeks": half, "rows": ups + downs[::-1]}
+
+
+def rubros(items):
+    c, pagan = Counter(), Counter()
+    for it in items:
+        r = (it.get("rubro") or "sin rubro").strip().lower()
+        c[r] += 1
+        pagan[r] += 1 if it.get("paga_hoy") else 0
+    top = [r for r, _ in c.most_common(TOP_RUBROS)]
+    rows = [{"rubro": r, "pagan": pagan[r], "resto": c[r] - pagan[r]} for r in top]
+    otros = [r for r in c if r not in top]
+    if otros:
+        rows.append({"rubro": f"otros ({len(otros)})", "pagan": sum(pagan[r] for r in otros),
+                     "resto": sum(c[r] - pagan[r] for r in otros)})
+    return rows
 
 
 def render(data):
@@ -130,6 +194,7 @@ TEMPLATE = r"""<!DOCTYPE html>
   --wash: rgba(11,11,11,0.04);
   --s-reddit: #2a78d6; --s-youtube: #eb6834; --s-noticias: #1baf7a; --s-appstore: #eda100; --s-manual: #e87ba4;
   --accent: #2a78d6; --spark: #898781; --up: #006300; --down: #52514e;
+  --pos: #2a78d6; --neg: #e34948; --rest: #c3c2b7; --dot-off: #a8a69f;
 }
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) .viz-root {
@@ -139,6 +204,7 @@ TEMPLATE = r"""<!DOCTYPE html>
     --wash: rgba(255,255,255,0.05);
     --s-reddit: #3987e5; --s-youtube: #d95926; --s-noticias: #199e70; --s-appstore: #c98500; --s-manual: #d55181;
     --accent: #3987e5; --spark: #898781; --up: #0ca30c; --down: #c3c2b7;
+    --pos: #3987e5; --neg: #e66767; --rest: #52514e; --dot-off: #6b6a64;
   }
 }
 * { box-sizing: border-box; }
@@ -162,8 +228,19 @@ h2 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
 .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0 6px; color: var(--text-secondary); font-size: 12px; }
 .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px;
   margin-right: 6px; vertical-align: -1px; background: var(--c); }
-#chart { position: relative; }
-#chart svg { display: block; width: 100%; }
+.chart { position: relative; margin-top: 8px; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart svg line, .chart svg text, .chart svg path { pointer-events: none; }
+.explain { margin: 8px 0 4px; padding: 10px 12px; border-radius: 8px; background: var(--wash);
+  color: var(--text-secondary); font-size: 13px; }
+.explain p { margin: 0 0 6px; } .explain p:last-child { margin-bottom: 0; }
+.explain strong, .explain b { color: var(--text-primary); font-weight: 600; }
+.how { font-size: 12px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+.card { min-width: 0; }
+code { font-size: 12px; }
+.tip .t { font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
 .tip { position: absolute; pointer-events: none; background: var(--surface-1); border: 1px solid var(--border);
   border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.12);
   white-space: nowrap; display: none; z-index: 2; }
@@ -213,18 +290,69 @@ a { color: var(--accent); }
   <div class="tiles" id="tiles"></div>
 
   <div class="card">
-    <h2>Menciones por semana</h2>
-    <p class="sub">Quejas con potencial, por fuente. Cada barra es una semana (7 días).</p>
-    <div class="legend" id="legend"></div>
-    <div id="chart"><div class="tip" id="tip"></div></div>
-    <details><summary>Ver como tabla</summary><div class="scroll"><table id="weekTable"></table></div></details>
+    <h2>Mapa de oportunidades</h2>
+    <p class="sub" id="mapSub"></p>
+    <div class="explain">
+      <p><strong>Qué muestra:</strong> cada punto es un tema. Hacia la derecha, más gente se queja de eso; hacia arriba,
+        más de esas personas dicen que <em>ya pagan</em> por alguna solución (un contador, una app, un gestor, alguien que lo haga).</p>
+      <p><strong>Cómo leerlo:</strong> arriba a la derecha (<b>validar primero</b>, en azul) están los problemas frecuentes
+        donde ya hay plata en juego: competir con algo que la gente ya paga es más fácil que convencerla de pagar por primera vez.
+        Arriba a la izquierda, <b>nicho que ya paga</b>: pocos, pero dispuestos. Abajo a la derecha, <b>mucha queja, nadie paga</b>:
+        cuidado, puede ser solo bronca. Abajo a la izquierda, <b>seguir mirando</b>.</p>
+      <p class="how" id="mapHow"></p>
+    </div>
+    <div class="chart" id="map"></div>
+    <details><summary>Ver como tabla</summary><div class="scroll"><table id="mapTable"></table></div></details>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Qué está creciendo</h2>
+      <p class="sub" id="momSub"></p>
+      <div class="explain">
+        <p><strong>Para qué sirve:</strong> un tema que sube varias semanas seguidas puede ser un problema nuevo (un cambio de
+          normativa, un aumento, un servicio que empeoró). Es el momento de llegar antes que otros.</p>
+        <p><strong>Cómo leerlo:</strong> la barra muestra cuántas menciones más (azul, a la derecha) o menos (rojo, a la izquierda)
+          tuvo cada tema. Un salto de una sola semana puede ser una noticia puntual: confirmalo la semana siguiente.</p>
+      </div>
+      <div class="chart" id="mom"></div>
+    </div>
+    <div class="card">
+      <h2>Rubros</h2>
+      <p class="sub" id="rubSub"></p>
+      <div class="explain">
+        <p><strong>Para qué sirve:</strong> ver en qué rubros se concentran las quejas y en cuáles la gente ya gasta plata.
+          Un rubro con mucho azul es un mercado donde ya existe la costumbre de pagar.</p>
+        <p><strong>Cómo leerlo:</strong> el largo total es la cantidad de menciones; la parte azul, las que dicen que ya pagan.
+          El rubro lo pone Claude con texto libre, así que puede haber nombres parecidos separados.</p>
+      </div>
+      <div class="legend" id="rubLegend"></div>
+      <div class="chart" id="rub"></div>
+    </div>
   </div>
 
   <div class="card" style="margin-top:16px">
     <h2>Temas de la semana</h2>
-    <p class="sub">Ordenados por frecuencia y potencial. Tocá un tema para ver ejemplos.</p>
+    <p class="sub">Ordenados por frecuencia y potencial. Tocá un tema para ver ejemplos y entrar a las fuentes.</p>
+    <div class="explain">
+      <p><strong>Columnas:</strong> <b>Estado</b> compara con la semana anterior. <b>Potencial</b> es la nota de 0 a 5 que le pone
+        Claude a qué tan monetizable parece (es una opinión, no un dato). <b>Ya pagan</b> son las menciones donde la persona
+        dice que hoy paga por resolverlo: es la señal más fuerte que da el radar.</p>
+    </div>
     <div class="filters" id="filters"></div>
     <div class="scroll"><table id="topics"></table></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>Salud del radar</h2>
+    <p class="sub">Menciones con potencial por semana y por fuente.</p>
+    <div class="explain">
+      <p><strong>Para qué sirve:</strong> chequear que el radar esté funcionando. Si una fuente desaparece de golpe, puede haber
+        fallado (credenciales, cuota de YouTube, cambios en la API): revisá <code>radar.log</code>. No mide oportunidades.</p>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="chart" id="chart"></div>
+    <details><summary>Ver como tabla</summary><div class="scroll"><table id="weekTable"></table></div></details>
   </div>
   <p class="foot" id="foot"></p>
 </div></div>
@@ -283,7 +411,183 @@ a { color: var(--accent); }
   }
 
   // --- stacked columns ---
-  const chart = document.getElementById("chart"), tip = document.getElementById("tip");
+  const makeTip = c => { const t = el("div", { class: "tip" }); c.append(t); return t; };
+  const placeTip = (tip, c, x, y) => {
+    tip.style.display = "block";
+    const W = c.clientWidth;
+    tip.style.left = Math.min(Math.max(0, x - tip.offsetWidth / 2), W - tip.offsetWidth) + "px";
+    tip.style.top = Math.max(0, y - tip.offsetHeight - 12) + "px";
+  };
+  const tipLine = (value, text, c) => {
+    const r = el("div", { class: c ? "row" : "" }); if (c) r.style.setProperty("--c", c);
+    r.append(el("span", { class: "v" }, String(value)), el("span", { class: "k" }, " " + text)); return r;
+  };
+  const svgText = (svg, x, y, txt, attrs) => {
+    const t = sv("text", Object.assign({ x, y, fill: "var(--muted)", "font-size": 11 }, attrs || {}));
+    t.textContent = txt; svg.append(t); return t;
+  };
+  const niceMax = max => { const steps = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500];
+    const st = steps.find(s => max / s <= 5) || Math.ceil(max / 5); return [Math.max(st, Math.ceil(max / st) * st), st]; };
+  const W2 = D.window_weeks;
+
+  // --- mapa de oportunidades ---
+  const M = D.opportunities, QN = { validar: "Validar primero", nicho: "Nicho que ya paga", queja: "Mucha queja, nadie paga", mirar: "Seguir mirando" };
+  document.getElementById("mapSub").textContent = `Temas con 2 o más menciones en las últimas ${W2} semanas.`;
+  document.getElementById("mapHow").textContent = `Cómo se calcula: la línea vertical es la mediana de menciones (${M.x_threshold}); `
+    + `la horizontal, ${M.y_threshold}% (al menos 1 de cada 4 menciones dice que ya paga). Con pocas menciones el % se mueve mucho: `
+    + `tomalo como pista. Solo cuentan las quejas con potencial igual o mayor a min_potential (config.yaml).`;
+  const mapEl = document.getElementById("map"), mapTip = makeTip(mapEl);
+  function drawMap() {
+    mapEl.querySelectorAll("svg, .empty").forEach(n => n.remove());
+    if (!M.points.length) { mapEl.append(el("p", { class: "empty" }, "Todavía no hay temas con 2 o más menciones.")); return; }
+    const W = mapEl.clientWidth || 600, H = W < 500 ? 300 : 360, pl = 44, pr = 16, pt = 20, pb = 40;
+    const [xMax, xStep] = niceMax(Math.max(M.x_threshold + 1, ...M.points.map(p => p.menciones)));
+    const X = v => pl + (W - pl - pr) * v / xMax, Y = v => pt + (H - pt - pb) * (1 - v / 100);
+    const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img",
+      "aria-label": "Mapa de oportunidades: menciones contra porcentaje que ya paga; los valores están en la tabla" });
+    mapEl.prepend(svg);
+    for (let v = 0; v <= 100; v += 25) {
+      svg.append(sv("line", { x1: pl, x2: W - pr, y1: Y(v), y2: Y(v), stroke: v === 0 ? "var(--axis)" : "var(--grid)" }));
+      svgText(svg, pl - 6, Y(v) + 4, v + "%", { "text-anchor": "end" });
+    }
+    for (let v = 0; v <= xMax; v += xStep) svgText(svg, X(v), H - pb + 16, v, { "text-anchor": "middle" });
+    svgText(svg, (pl + W - pr) / 2, H - 4, `Menciones (últimas ${W2} semanas)`, { "text-anchor": "middle" });
+    svgText(svg, 12, pt - 8, "% que ya paga", {});
+    // líneas de cuadrante y nombres en las esquinas
+    svg.append(sv("line", { x1: X(M.x_threshold), x2: X(M.x_threshold), y1: pt, y2: H - pb, stroke: "var(--axis)" }));
+    svg.append(sv("line", { x1: pl, x2: W - pr, y1: Y(M.y_threshold), y2: Y(M.y_threshold), stroke: "var(--axis)" }));
+    const corners = [
+      svgText(svg, W - pr - 4, pt + 12, "Validar primero", { "text-anchor": "end", fill: "var(--text-secondary)", "font-weight": 600 }),
+      svgText(svg, pl + 6, pt + 12, "Nicho que ya paga", {}),
+      svgText(svg, W - pr - 4, H - pb - 8, "Mucha queja, nadie paga", { "text-anchor": "end" }),
+      svgText(svg, pl + 6, H - pb - 8, "Seguir mirando", {})];
+    // puntos (los que comparten lugar se agrupan)
+    const spots = new Map();
+    for (const p of M.points) { const k = p.menciones + "|" + p.pct; if (!spots.has(k)) spots.set(k, []); spots.get(k).push(p); }
+    const placed = [];
+    const boxes = corners.map(t => t.getBBox());
+    for (const group of spots.values()) {
+      const p = group[0], cx = X(p.menciones), cy = Y(p.pct), on = group.some(g => g.quadrant === "validar");
+      const dot = sv("circle", { cx, cy, r: 5 + Math.min(3, group.length - 1), fill: on ? "var(--accent)" : "var(--dot-off)",
+        stroke: "var(--surface-1)", "stroke-width": 2, tabindex: 0 });
+      svg.append(dot); placed.push({ cx, cy, group, dot });
+    }
+    // etiquetas: primero los de "validar primero", después los más mencionados; sin superponerse
+    const order = [...placed].sort((a, b) => (b.group[0].quadrant === "validar") - (a.group[0].quadrant === "validar")
+      || b.group[0].menciones - a.group[0].menciones);
+    let labeled = 0;
+    for (const pt_ of order) {
+      if (labeled >= 7) break;
+      const name = pt_.group.length > 1 ? `${pt_.group[0].tema} +${pt_.group.length - 1}` : pt_.group[0].tema;
+      const right = pt_.cx < W - 140;
+      const t = svgText(svg, pt_.cx + (right ? 10 : -10), pt_.cy + 4, name,
+        { "text-anchor": right ? "start" : "end", fill: "var(--text-primary)", "font-size": 12 });
+      const b = t.getBBox();
+      if (boxes.some(o => !(b.x + b.width < o.x || o.x + o.width < b.x || b.y + b.height < o.y || o.y + o.height < b.y))
+          || b.x < pl || b.x + b.width > W) { t.remove(); continue; }
+      boxes.push(b); labeled++;
+    }
+    const show = pt_ => {
+      mapTip.replaceChildren();
+      for (const g of pt_.group) {
+        mapTip.append(el("div", { class: "t" }, g.tema));
+        mapTip.append(tipLine(g.menciones, "menciones"), tipLine(`${g.pct}%`, `ya pagan (${g.pagan})`),
+          tipLine(`${g.avg}/5`, "potencial"), el("div", { class: "k" }, `${g.rubro} · ${QN[g.quadrant]}`));
+      }
+      placeTip(mapTip, mapEl, pt_.cx, pt_.cy);
+      pt_.dot.setAttribute("stroke", "var(--text-primary)");
+    };
+    const hide = () => { mapTip.style.display = "none"; placed.forEach(p => p.dot.setAttribute("stroke", "var(--surface-1)")); };
+    svg.addEventListener("pointermove", ev => {
+      const r = svg.getBoundingClientRect(), mx = (ev.clientX - r.left) * W / r.width, my = (ev.clientY - r.top) * H / r.height;
+      let best = null, bd = 24;
+      for (const p of placed) { const d = Math.hypot(p.cx - mx, p.cy - my); if (d < bd) { bd = d; best = p; } }
+      hide(); if (best) show(best);
+    });
+    svg.addEventListener("pointerleave", hide);
+    placed.forEach(p => { p.dot.addEventListener("focus", () => { hide(); show(p); }); p.dot.addEventListener("blur", hide); });
+  }
+  const mt = document.getElementById("mapTable");
+  const mh = el("tr"); ["Tema", "Zona", "Menciones", "% ya pagan", "Potencial", "Rubro"].forEach((t, i) => mh.append(el("th", { class: i >= 2 && i <= 4 ? "num" : "" }, t)));
+  mt.append(mh);
+  for (const p of M.points) {
+    const tr = el("tr");
+    tr.append(el("td", {}, p.tema), el("td", {}, QN[p.quadrant]), el("td", { class: "num" }, String(p.menciones)),
+      el("td", { class: "num" }, p.pct + "%"), el("td", { class: "num" }, p.avg + "/5"), el("td", {}, p.rubro));
+    mt.append(tr);
+  }
+
+  // --- qué está creciendo ---
+  const MO = D.momentum, half = MO.half_weeks;
+  document.getElementById("momSub").textContent = `Menciones de las últimas ${half} semanas contra las ${half} anteriores.`;
+  const momEl = document.getElementById("mom"), momTip = makeTip(momEl);
+  function drawMom() {
+    momEl.querySelectorAll("svg, .empty").forEach(n => n.remove());
+    if (!MO.rows.length) { momEl.append(el("p", { class: "empty" }, "Sin cambios todavía: hacen falta al menos 4 semanas de datos.")); return; }
+    const W = momEl.clientWidth || 400, rowH = 30, pt = 4, H = pt + rowH * MO.rows.length + 4;
+    const labW = Math.min(170, W * 0.42), x0 = labW + (W - labW) * 0.38, maxAbs = Math.max(...MO.rows.map(r => Math.abs(r.delta)));
+    const neg = x0 - labW - 30, pos = W - x0 - 30, scale = v => v > 0 ? pos * v / maxAbs : neg * v / maxAbs;
+    const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "Cambio de menciones por tema" });
+    momEl.prepend(svg);
+    svg.append(sv("line", { x1: x0, x2: x0, y1: 0, y2: H, stroke: "var(--axis)" }));
+    MO.rows.forEach((r, i) => {
+      const cy = pt + rowH * i + rowH / 2, w = Math.abs(scale(r.delta)), bh = 14, up = r.delta > 0;
+      const tt = svgText(svg, 0, cy + 4, r.tema, { fill: "var(--text-primary)", "font-size": 12 });
+      while (tt.getComputedTextLength() > labW - 8 && tt.textContent.length > 4) tt.textContent = tt.textContent.slice(0, -2) + "…";
+      const x = up ? x0 : x0 - w, rr = Math.min(4, w);
+      const d = up ? `M${x},${cy - bh / 2} H${x + w - rr} Q${x + w},${cy - bh / 2} ${x + w},${cy - bh / 2 + rr} V${cy + bh / 2 - rr} Q${x + w},${cy + bh / 2} ${x + w - rr},${cy + bh / 2} H${x} Z`
+                   : `M${x0},${cy - bh / 2} H${x + rr} Q${x},${cy - bh / 2} ${x},${cy - bh / 2 + rr} V${cy + bh / 2 - rr} Q${x},${cy + bh / 2} ${x + rr},${cy + bh / 2} H${x0} Z`;
+      svg.append(sv("path", { d, fill: up ? "var(--pos)" : "var(--neg)" }));
+      svgText(svg, up ? x0 + w + 6 : x0 - w - 6, cy + 4, (up ? "+" : "") + r.delta, { "text-anchor": up ? "start" : "end", fill: "var(--text-secondary)" });
+      const hit = sv("rect", { x: 0, y: cy - rowH / 2, width: W, height: rowH, fill: "transparent", tabindex: 0 });
+      const show = () => { momTip.replaceChildren(el("div", { class: "t" }, r.tema),
+          tipLine(r.recent, `menciones en las últimas ${half} semanas`), tipLine(r.before, `en las ${half} anteriores`));
+        placeTip(momTip, momEl, x0, cy - rowH / 2); hit.setAttribute("fill", "var(--wash)"); };
+      const hide = () => { momTip.style.display = "none"; hit.setAttribute("fill", "transparent"); };
+      hit.addEventListener("pointerenter", show); hit.addEventListener("focus", show);
+      hit.addEventListener("pointerleave", hide); hit.addEventListener("blur", hide);
+      svg.insertBefore(hit, svg.firstChild);
+    });
+  }
+
+  // --- rubros ---
+  const R = D.rubros;
+  document.getElementById("rubSub").textContent = `Menciones de las últimas ${W2} semanas por rubro.`;
+  const rubEl = document.getElementById("rub"), rubTip = makeTip(rubEl);
+  const rl = document.getElementById("rubLegend");
+  [["Mencionan que ya pagan", "var(--accent)"], ["Sin mención de pago", "var(--rest)"]].forEach(([t, c]) => {
+    const sp = el("span", {}, t); sp.style.setProperty("--c", c); rl.append(sp); });
+  function drawRub() {
+    rubEl.querySelectorAll("svg, .empty").forEach(n => n.remove());
+    if (!R.length) { rubEl.append(el("p", { class: "empty" }, "Sin datos todavía.")); return; }
+    const W = rubEl.clientWidth || 400, rowH = 30, H = rowH * R.length + 4, labW = Math.min(150, W * 0.38);
+    const max = Math.max(...R.map(r => r.pagan + r.resto)), span = W - labW - 34;
+    const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "Menciones por rubro" });
+    rubEl.prepend(svg);
+    svg.append(sv("line", { x1: labW, x2: labW, y1: 0, y2: H, stroke: "var(--axis)" }));
+    R.forEach((r, i) => {
+      const cy = rowH * i + rowH / 2, bh = 14, tot = r.pagan + r.resto;
+      const tt = svgText(svg, 0, cy + 4, r.rubro, { fill: "var(--text-primary)", "font-size": 12 });
+      while (tt.getComputedTextLength() > labW - 8 && tt.textContent.length > 4) tt.textContent = tt.textContent.slice(0, -2) + "…";
+      const wp = span * r.pagan / max, wr = span * r.resto / max, gap = r.pagan && r.resto ? 2 : 0;
+      const seg = (x, w, fill, end) => { if (w <= 0) return; const rr = end ? Math.min(4, w) : 0;
+        svg.append(sv("path", { fill, d: `M${x},${cy - bh / 2} H${x + w - rr} Q${x + w},${cy - bh / 2} ${x + w},${cy - bh / 2 + rr} V${cy + bh / 2 - rr} Q${x + w},${cy + bh / 2} ${x + w - rr},${cy + bh / 2} H${x} Z` })); };
+      seg(labW, wp - (gap ? 1 : 0), "var(--accent)", !r.resto);
+      seg(labW + wp + (gap ? 1 : 0), wr - (gap ? 1 : 0), "var(--rest)", true);
+      svgText(svg, labW + wp + wr + 6, cy + 4, tot, { fill: "var(--text-secondary)" });
+      const hit = sv("rect", { x: 0, y: cy - rowH / 2, width: W, height: rowH, fill: "transparent", tabindex: 0 });
+      const show = () => { rubTip.replaceChildren(el("div", { class: "t" }, r.rubro), tipLine(tot, "menciones"),
+          tipLine(r.pagan, `ya pagan (${Math.round(100 * r.pagan / tot)}%)`, "var(--accent)"));
+        placeTip(rubTip, rubEl, labW + (wp + wr) / 2, cy - rowH / 2); hit.setAttribute("fill", "var(--wash)"); };
+      const hide = () => { rubTip.style.display = "none"; hit.setAttribute("fill", "transparent"); };
+      hit.addEventListener("pointerenter", show); hit.addEventListener("focus", show);
+      hit.addEventListener("pointerleave", hide); hit.addEventListener("blur", hide);
+      svg.insertBefore(hit, svg.firstChild);
+    });
+  }
+
+  // --- salud del radar ---
+  const chart = document.getElementById("chart"), tip = makeTip(chart);
   function drawChart() {
     chart.querySelectorAll("svg").forEach(n => n.remove());
     const W = chart.clientWidth || 600, H = 220, padL = 32, padR = 8, padT = 12, padB = 26;
@@ -339,8 +643,9 @@ a { color: var(--accent); }
     });
     chart.append(svg);
   }
-  drawChart();
-  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(drawChart, 100); });
+  const drawAll = () => { drawMap(); drawMom(); drawRub(); drawChart(); };
+  drawAll();
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(drawAll, 100); });
 
   // --- topics ---
   const STATUS = { nuevo: "★ Nuevo", crece: "▲ Crece", estable: "= Estable", baja: "▼ Baja" };

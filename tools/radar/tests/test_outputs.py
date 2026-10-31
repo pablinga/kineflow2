@@ -116,3 +116,34 @@ def test_mail_que_falla_no_corta():
             raise OSError("sin red")
     s = mailer.email_settings({"RADAR_EMAIL_TO": "a@b.c", "SMTP_HOST": "h", "SMTP_USER": "u", "SMTP_PASSWORD": "p"})
     assert mailer.send(s, mailer.build_message(s, "x", "y"), smtp_factory=Boom) is False
+
+
+def test_mapa_crecimiento_y_rubros():
+    def it(pid, tema, days, paga, rubro="salud"):
+        return {"id": pid, "tema": tema, "rubro": rubro, "dolor": "d", "paga_hoy": paga, "monetizable": 3,
+                "fuente": "r/argentina", "url": "", "fecha": (NOW - timedelta(days=days)).isoformat()}
+    items = ([it(f"a{i}", "turnos", 2 + i, i < 2, "Salud ") for i in range(6)] +     # 6 menciones, 33% pagan, recientes
+             [it(f"b{i}", "contadores", 20, True, "contable") for i in range(2)] +   # 2, 100%, viejas
+             [it(f"c{i}", "quejas varias", 3 + 3 * i, False, "varios") for i in range(5)] +  # 5, 0%
+             [it("d0", "suelto", 1, True, "otro")])                                  # 1 mención: fuera del mapa
+    d = dashboard.build_data(items, NOW)
+    m = {p["tema"]: p for p in d["opportunities"]["points"]}
+    assert set(m) == {"turnos", "contadores", "quejas varias"}
+    assert d["opportunities"]["x_threshold"] == 5
+    assert (m["turnos"]["quadrant"], m["turnos"]["pct"], m["turnos"]["rubro"]) == ("validar", 33, "salud")
+    assert m["contadores"]["quadrant"] == "nicho"
+    assert m["quejas varias"]["quadrant"] == "queja"
+    assert d["opportunities"]["points"][0]["tema"] == "turnos"
+    mom = {r["tema"]: r for r in d["momentum"]["rows"]}
+    assert (mom["turnos"]["recent"], mom["turnos"]["before"]) == (6, 0)
+    assert mom["contadores"]["delta"] == -2
+    assert d["momentum"]["rows"][0]["tema"] == "turnos" and d["momentum"]["rows"][-1]["tema"] == "contadores"
+    rub = {r["rubro"]: r for r in d["rubros"]}
+    assert rub["salud"] == {"rubro": "salud", "pagan": 2, "resto": 4}
+    assert rub["contable"]["pagan"] == 2
+
+
+def test_dashboard_sin_datos():
+    d = dashboard.build_data([], NOW)
+    assert d["opportunities"]["points"] == [] and d["momentum"]["rows"] == [] and d["rubros"] == []
+    assert "Mapa de oportunidades" in dashboard.render(d)
