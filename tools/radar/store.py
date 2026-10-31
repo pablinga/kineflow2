@@ -4,7 +4,7 @@ Solo se guarda texto, fuente/subreddit, url y fechas. Nunca usernames.
 """
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 SCHEMA = """
 create table if not exists posts (
@@ -87,3 +87,14 @@ def classified_between(conn, start_iso, end_iso):
         (start_iso, end_iso),
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+def purge_older_than(conn, id_prefix, days):
+    """Borra los posts (y su clasificación) de una fuente bajados hace más de `days` días."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).replace(microsecond=0).isoformat()
+    like = id_prefix.replace("_", r"\_") + "%"
+    old = "select id from posts where id like ? escape '\\' and fetched_at < ?"
+    conn.execute(f"delete from classifications where post_id in ({old})", (like, cutoff))
+    n = conn.execute(f"delete from posts where id in ({old})", (like, cutoff)).rowcount
+    conn.commit()
+    return n

@@ -6,13 +6,17 @@ Uso:
   python radar.py --dry                # solo descarga y filtro por palabras, sin API de Claude
   python radar.py --max-posts 50       # tope de posts nuevos a clasificar (costo)
 
+  python radar.py --find-app "mi argentina"   # busca el id de una app de la App Store
+
 Variables de entorno: REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET (Reddit), REDDIT_USER_AGENT (opcional),
-ANTHROPIC_API_KEY (para clasificar).
+YOUTUBE_API_KEY (YouTube), ANTHROPIC_API_KEY (para clasificar).
 Salida: radar.db (SQLite), reporte.md y posts.json (los que pasaron el filtro en esta corrida).
 """
-import argparse, hashlib, json, os, re, sys, time
+import argparse, hashlib, html, json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
+import xml.etree.ElementTree as ET
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 
 import yaml
 
@@ -76,19 +80,202 @@ def fetch_reddit(cfg):
     return posts
 
 
-SOURCES = {"reddit": fetch_reddit}
+def http_get(url, timeout=20):
+    req = urllib.request.Request(url, headers={"User-Agent": DEFAULT_USER_AGENT})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read().decode("utf-8")
 
 
-def fetch_all(cfg):
+def http_error_reason(e):
+    """Motivo de un error de las APIs de Google (ej. 'commentsDisabled', 'quotaExceeded')."""
+    try:
+        return json.loads(e.read().decode("utf-8"))["error"]["errors"][0]["reason"]
+    except Exception:
+        return ""
+
+
+def parse_youtube_comments(data, video_id):
+    out = []
+    for t in data.get("items", []):
+        top = t.get("snippet", {}).get("topLevelComment", {})
+        sn = top.get("snippet", {})
+        text = html.unescape(sn.get("textDisplay") or "").strip()
+        if not text or not top.get("id"):
+            continue
+        out.append({"id": f"youtube_{top['id']}", "fuente": "youtube", "texto": text[:1200],
+                    "url": f"https://www.youtube.com/watch?v={video_id}&lc={top['id']}",
+                    "fecha": iso(datetime.fromisoformat(sn["publishedAt"].replace("Z", "+00:00")))})
+    return out
+
+
+def fetch_youtube(cfg, get=http_get):
+    """Comentarios de videos recientes que coinciden con las búsquedas (YouTube Data API v3).
+
+    Cuota: cada búsqueda cuesta 100 unidades y cada página de comentarios 1 (10.000 por día gratis).
+    """
+    key = os.environ.get("YOUTUBE_API_KEY")
+    if not key:
+        sys.exit("Falta YOUTUBE_API_KEY para la fuente youtube (clave de la YouTube Data API v3 en "
+                 "https://console.cloud.google.com/apis/credentials). Ver README.md, o poné "
+                 "enabled: false en config.yaml.")
+    api = "https://www.googleapis.com/youtube/v3/"
+    since = iso(datetime.now(timezone.utc) - timedelta(days=cfg.get("video_days", 30))).replace("+00:00", "Z")
+    sleep = cfg.get("sleep_seconds", 1)
+    posts, seen_videos = [], set()
+    for q in cfg["queries"]:
+        params = {"part": "snippet", "q": q, "type": "video", "regionCode": cfg.get("region", "AR"),
+                  "relevanceLanguage": cfg.get("language", "es"), "publishedAfter": since,
+                  "maxResults": cfg.get("videos_per_query", 5), "order": "relevance", "key": key}
+        try:
+            found = json.loads(get(api + "search?" + urllib.parse.urlencode(params)))
+        except urllib.error.HTTPError as e:
+            reason = http_error_reason(e)
+            if e.code == 400 and reason in ("keyInvalid", "badRequest"):
+                sys.exit("YouTube rechazó YOUTUBE_API_KEY: revisá la clave.")
+            if reason in ("quotaExceeded", "dailyLimitExceeded"):
+                print("[warn] youtube: se terminó la cuota diaria; sigo con lo bajado", file=sys.stderr)
+                break
+            print(f"[warn] youtube/{q}: {e} {reason}", file=sys.stderr)
+            continue
+        except Exception as e:
+            print(f"[warn] youtube/{q}: {e}", file=sys.stderr)
+            continue
+        time.sleep(sleep)
+        for v in found.get("items", []):
+            vid = v.get("id", {}).get("videoId")
+            if not vid or vid in seen_videos:
+                continue
+            seen_videos.add(vid)
+            params = {"part": "snippet", "videoId": vid, "maxResults": cfg.get("comments_per_video", 50),
+                      "order": "time", "textFormat": "plainText", "key": key}
+            try:
+                data = json.loads(get(api + "commentThreads?" + urllib.parse.urlencode(params)))
+                posts.extend(parse_youtube_comments(data, vid))
+            except urllib.error.HTTPError as e:
+                if http_error_reason(e) != "commentsDisabled":
+                    print(f"[warn] youtube/{vid}: {e}", file=sys.stderr)
+            except Exception as e:
+                print(f"[warn] youtube/{vid}: {e}", file=sys.stderr)
+            time.sleep(sleep)
+    return posts
+
+
+def parse_news_rss(xml_text):
+    out = []
+    for it in ET.fromstring(xml_text).iter("item"):
+        title = (it.findtext("title") or "").strip()
+        link = (it.findtext("link") or "").strip()
+        if not title or not link:
+            continue
+        medio = (it.findtext("source") or "").strip()
+        guid = (it.findtext("guid") or link).strip()
+        try:
+            fecha = iso(parsedate_to_datetime(it.findtext("pubDate")))
+        except (TypeError, ValueError):
+            fecha = None
+        out.append({"id": "news_" + hashlib.sha1(guid.encode("utf-8")).hexdigest()[:16],
+                    "fuente": f"noticias/{medio}" if medio else "noticias",
+                    "texto": title[:1200], "url": link, "fecha": fecha})
+    return out
+
+
+def fetch_news(cfg, get=http_get):
+    """Titulares de Google News (RSS público) para cada búsqueda, de los últimos días."""
+    posts, seen = [], set()
+    for q in cfg["queries"]:
+        params = {"q": f"{q} when:{cfg.get('days', 7)}d", "hl": cfg.get("hl", "es-419"),
+                  "gl": cfg.get("gl", "AR"), "ceid": cfg.get("ceid", "AR:es-419")}
+        try:
+            items = parse_news_rss(get("https://news.google.com/rss/search?" + urllib.parse.urlencode(params)))
+        except Exception as e:
+            print(f"[warn] noticias/{q}: {e}", file=sys.stderr)
+            items = []
+        for p in items:
+            if p["id"] not in seen:
+                seen.add(p["id"])
+                posts.append(p)
+        time.sleep(cfg.get("sleep_seconds", 2))
+    return posts
+
+
+def parse_appstore_reviews(data, app, max_rating):
+    entries = data.get("feed", {}).get("entry", [])
+    if isinstance(entries, dict):  # con una sola reseña el feed no trae lista
+        entries = [entries]
+    out = []
+    for e in entries:
+        rating = e.get("im:rating", {}).get("label")
+        if rating is None:  # la primera entrada a veces es la ficha de la app
+            continue
+        if int(rating) > max_rating:
+            continue
+        title = e.get("title", {}).get("label", "").strip()
+        content = e.get("content", {}).get("label", "").strip()
+        rid = e.get("id", {}).get("label")
+        if not rid or not (title or content):
+            continue
+        updated = e.get("updated", {}).get("label")
+        out.append({"id": f"appstore_{rid}", "fuente": f"appstore/{app['name']}",
+                    "texto": f"[{app['name']}, {rating} estrellas] {title}\n{content}"[:1200],
+                    "url": f"https://apps.apple.com/{app.get('country', 'ar')}/app/id{app['id']}",
+                    "fecha": iso(datetime.fromisoformat(updated)) if updated else None})
+    return out
+
+
+def fetch_appstore(cfg, get=http_get):
+    """Reseñas recientes de baja puntuación de apps de la App Store (feed RSS público de Apple)."""
+    if not cfg.get("apps"):
+        print("[warn] appstore: no hay apps en config.yaml (buscá ids con --find-app)", file=sys.stderr)
+        return []
+    country = cfg.get("country", "ar")
     posts = []
+    for app in cfg["apps"]:
+        app = {**app, "country": country}
+        for page in range(1, cfg.get("pages", 2) + 1):
+            url = (f"https://itunes.apple.com/{country}/rss/customerreviews/page={page}/"
+                   f"id={app['id']}/sortby=mostrecent/json")
+            try:
+                batch = parse_appstore_reviews(json.loads(get(url)), app, cfg.get("max_rating", 2))
+            except Exception as e:
+                print(f"[warn] appstore/{app['name']}: {e}", file=sys.stderr)
+                break
+            posts.extend(batch)
+            time.sleep(cfg.get("sleep_seconds", 2))
+    return posts
+
+
+def find_app(term, country="ar", get=http_get):
+    """Busca apps en la App Store para completar config.yaml."""
+    params = {"term": term, "country": country, "entity": "software", "limit": 8}
+    data = json.loads(get("https://itunes.apple.com/search?" + urllib.parse.urlencode(params)))
+    for r in data.get("results", []):
+        print(f"- {{name: {r.get('trackName')}, id: {r.get('trackId')}}}   # {r.get('sellerName')}")
+    if not data.get("results"):
+        print("Sin resultados.")
+
+
+SOURCES = {"reddit": fetch_reddit, "youtube": fetch_youtube, "news": fetch_news, "appstore": fetch_appstore}
+
+
+def collect(cfg, pain):
+    """Baja de todas las fuentes activas y aplica el filtro de dolor (salvo filter: false).
+
+    Devuelve (total bajado, posts que pasan).
+    """
+    total, kept = 0, []
     for name, src_cfg in (cfg.get("sources") or {}).items():
-        if not src_cfg or not src_cfg.get("enabled", True):
+        src_cfg = src_cfg or {}
+        if not src_cfg.get("enabled", True):
             continue
         if name not in SOURCES:
             print(f"[warn] fuente desconocida en config.yaml: {name}", file=sys.stderr)
             continue
-        posts.extend(SOURCES[name](src_cfg))
-    return posts
+        posts = SOURCES[name](src_cfg)
+        passed = prefilter(posts, pain) if src_cfg.get("filter", True) else posts
+        print(f"  {name}: {len(posts)} bajados, {len(passed)} pasan el filtro")
+        total += len(posts)
+        kept.extend(passed)
+    return total, kept
 
 
 def from_file(path):
@@ -237,7 +424,7 @@ def build_report(current, previous, min_potential=2, period=""):
         tag = "nuevo" if prev is None else f"semana anterior: {prev}"
         lines.append(f"## {tema} — {len(xs)} menciones, {pagan} ya pagan, potencial {avg:.1f}/5 ({tag})")
         for x in xs[:3]:
-            lines.append(f"- {x['dolor']} ({x['rubro']}) {x['url']}".rstrip())
+            lines.append(f"- {x['dolor']} ({x['rubro']}; {x.get('fuente', '')}) {x['url']}".rstrip())
         lines.append("")
     return "\n".join(lines) + "\n", len(ranked)
 
@@ -264,17 +451,30 @@ def main(argv=None):
     ap.add_argument("--config", default=os.path.join(HERE, "config.yaml"))
     ap.add_argument("--db", default=os.path.join(HERE, "radar.db"))
     ap.add_argument("--out", default=os.path.join(HERE, "reporte.md"))
+    ap.add_argument("--find-app", metavar="NOMBRE", help="busca el id de una app de la App Store y sale")
     a = ap.parse_args(argv)
     cfg = load_config(a.config)
+    if a.find_app:
+        find_app(a.find_app, ((cfg.get("sources") or {}).get("appstore") or {}).get("country", "ar"))
+        return
 
-    posts = from_file(a.file) if a.file else fetch_all(cfg)
-    print(f"{len(posts)} posts bajados")
-    posts = prefilter(posts, build_pain_regex(cfg["pain_words"]))
+    pain = build_pain_regex(cfg["pain_words"])
+    if a.file:
+        posts = from_file(a.file)
+        total, posts = len(posts), prefilter(posts, pain)
+    else:
+        total, posts = collect(cfg, pain)
+    print(f"{total} posts bajados")
     print(f"{len(posts)} pasan el filtro de quejas")
     with open(os.path.join(os.path.dirname(a.out), "posts.json"), "w", encoding="utf-8") as f:
         json.dump(posts, f, ensure_ascii=False, indent=1)
 
     conn = store.connect(a.db)
+    for name, src_cfg in (cfg.get("sources") or {}).items():
+        if src_cfg and src_cfg.get("retention_days"):
+            n = store.purge_older_than(conn, f"{name}_", src_cfg["retention_days"])
+            if n:
+                print(f"{n} posts de {name} borrados por antigüedad (retention_days)")
     print(f"{store.save_posts(conn, posts)} nuevos en la base")
     # Solo vale la pena pagar por lo que entra en el reporte: esta semana y la anterior.
     cutoff = iso(datetime.now(timezone.utc) - 2 * WEEK)

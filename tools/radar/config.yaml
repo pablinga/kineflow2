@@ -24,8 +24,47 @@ sources:
     limit_per_query: 25
     sleep_seconds: 2      # pausa entre búsquedas (PRAW además respeta el rate limit de la API)
 
+  youtube:
+    enabled: true             # necesita YOUTUBE_API_KEY
+    queries:                  # cada búsqueda gasta 100 unidades de cuota (10.000 gratis por día)
+      - cómo hacer el trámite
+      - monotributo
+      - alquilar departamento
+      - sacar turno
+      - emprender en argentina
+      - cuánto cobrar
+    region: AR
+    language: es
+    video_days: 30            # solo videos publicados en los últimos N días
+    videos_per_query: 5
+    comments_per_video: 50    # 1 unidad de cuota por video
+    sleep_seconds: 1
+    retention_days: 30        # las políticas de la API de YouTube limitan cuánto se guardan sus datos
+
+  news:                       # Google News por RSS, sin clave
+    enabled: true
+    queries:
+      - reclamos vecinos
+      - falta de turnos
+      - quejas usuarios
+      - demoras trámite
+      - aumento de precios servicio
+    days: 7
+    sleep_seconds: 2
+
+  appstore:                   # reseñas de la App Store (RSS público de Apple), sin clave
+    enabled: true
+    country: ar
+    max_rating: 2             # solo reseñas de 1 y 2 estrellas
+    pages: 2                  # hasta 50 reseñas por página, máx. 10
+    filter: false             # una reseña de 1-2 estrellas ya es una queja: no pasa por pain_words
+    sleep_seconds: 2
+    # Completar con ids reales: python radar.py --find-app "mi argentina"
+    apps: []
+    #  - {name: Mi Argentina, id: 0000000000}
+
 # Fragmentos de expresión regular (sin distinguir mayúsculas). Un post pasa el filtro
-# si su texto contiene alguno.
+# si su texto contiene alguno. Cada fuente puede saltear el filtro con filter: false.
 pain_words:
   - no encuentro
   - alguien sab
@@ -44,3 +83,9 @@ pain_words:
   - planilla
   - excel
   - turno
+  - reclam
+  - quej
+  - falta de
+  - faltan
+  - no funciona
+  - no anda
