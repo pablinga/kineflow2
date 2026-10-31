@@ -66,7 +66,30 @@ Todo en esta carpeta (o donde apunte `--out`):
 
 En ninguna fuente se guardan nombres de autor.
 
-## Agendarlo semanalmente (cron)
+## Agendarlo en GitHub Actions (recomendado)
+
+`.github/workflows/radar.yml` lo corre todos los **lunes a las 08:17 (Argentina)**, aunque tu compu esté apagada, y te manda el mail. Funciona con el radar en la raíz de un repo propio (privado).
+
+**Configuración, una sola vez** (en el repo: Settings → Secrets and variables → Actions):
+
+| Tipo | Nombre | Valor |
+| --- | --- | --- |
+| Secret | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` | App de Reddit |
+| Secret | `YOUTUBE_API_KEY` | Clave de YouTube (si no la cargás, poné `enabled: false` en la fuente `youtube`) |
+| Secret | `ANTHROPIC_API_KEY` | Clave de Anthropic |
+| Secret | `SMTP_PASSWORD` | API key de Resend (solo envío) |
+| Variable | `RADAR_EMAIL_TO` | Tu mail |
+| Variable | `RADAR_EMAIL_FROM` | `Radar de dolores <radar@mail.kineflow.ar>` |
+| Variable | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` | `smtp.resend.com` / `465` / `resend` |
+| Variable (opcional) | `REDDIT_USER_AGENT` | `python:radar-dolores:0.2 (by /u/tu_usuario)` |
+
+**Correrlo a mano:** pestaña Actions → "Radar semanal" → "Run workflow". Se puede tildar `dry` (solo descarga y filtra, sin gastar en Claude ni mandar mail) y cambiar el tope de posts. Conviene hacer primero una corrida `dry` para ver cuánto trae cada fuente.
+
+**Dónde quedan los datos:** `radar.db`, `reporte.md`, `reportes/` y `dashboard.html` se guardan como artifact `radar-datos` de cada corrida (se descarga desde la página de la corrida). La corrida siguiente baja el de la última exitosa y sigue desde ahí. No se commitean al repo, así los datos de YouTube se borran a los 30 días. Cada artifact dura 90 días: si el radar pasa más de 90 días sin correr bien, la base se pierde y vuelve a empezar (no se rompe nada; solo se pierde la comparación con semanas viejas).
+
+Si una corrida falla, GitHub te avisa por mail y la siguiente usa la base de la última que anduvo. En un repo privado el plan gratis incluye 2.000 minutos por mes; cada corrida usa unos pocos.
+
+## Agendarlo en tu compu (cron)
 
 `crontab -e` y, por ejemplo, los lunes a las 8:00:
 

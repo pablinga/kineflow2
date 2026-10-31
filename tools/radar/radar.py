@@ -470,6 +470,8 @@ def main(argv=None):
         find_app(a.find_app, ((cfg.get("sources") or {}).get("appstore") or {}).get("country", "ar"))
         return
 
+    for path in (a.out, a.db):
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     pain = build_pain_regex(cfg["pain_words"])
     if a.file:
         posts = from_file(a.file)
