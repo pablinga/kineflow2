@@ -147,3 +147,25 @@ def test_dashboard_sin_datos():
     d = dashboard.build_data([], NOW)
     assert d["opportunities"]["points"] == [] and d["momentum"]["rows"] == [] and d["rubros"] == []
     assert "Mapa de oportunidades" in dashboard.render(d)
+
+
+def test_mail_html_formatea_y_escapa():
+    md = ("# Radar de dolores\n\n> **Ojo:** una queja repetida no prueba nada.\n\n"
+          "## turnos — 3 menciones, 1 ya pagan\n- No hay <script>alert(1)</script> turnos (salud; r/x) https://reddit.com/a?b=1&c=2\n"
+          "- Sin link (manual)\n")
+    h = mailer.report_html(md)
+    assert "<script>" not in h and "&lt;script&gt;" in h
+    assert "<h1" in h and "<h2" in h and "<strong>Ojo:</strong>" in h
+    assert h.count("<li") == 2
+    assert 'href="https://reddit.com/a?b=1&amp;c=2"' in h
+    assert "3 menciones, 1 ya pagan" in h
+
+
+def test_mail_tiene_texto_html_y_adjunto(tmp_path):
+    s = mailer.email_settings({"RADAR_EMAIL_TO": "a@b.c", "SMTP_HOST": "h", "SMTP_USER": "u", "SMTP_PASSWORD": "p"})
+    dash = tmp_path / "dashboard.html"
+    dash.write_text("<html></html>", encoding="utf-8")
+    m = mailer.build_message(s, "x", "# Radar\n- uno\n", [str(dash)])
+    assert m.get_body(("plain",)).get_content().startswith("# Radar")
+    assert "<h1" in m.get_body(("html",)).get_content()
+    assert [p.get_filename() for p in m.iter_attachments()] == ["dashboard.html"]
