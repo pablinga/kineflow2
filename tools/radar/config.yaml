@@ -1,0 +1,46 @@
+# Configuración del radar de dolores.
+
+model: claude-haiku-5-5   # modelo de Claude para clasificar
+batch_size: 15            # textos por llamada a Claude
+max_posts: 200            # tope de posts nuevos a clasificar por corrida (lo pisa --max-posts)
+max_retries: 2            # reintentos si Claude devuelve un JSON inválido o incompleto
+min_potential: 2          # monetizable mínimo para entrar al reporte
+
+sources:
+  reddit:
+    enabled: true
+    subreddits: [argentina, merval, emprendedores, buenosaires, RepublicaArgentina]
+    queries:
+      - alguien sabe como
+      - no encuentro
+      - me cansé
+      - es un desastre
+      - recomiendan
+      - cuánto cobran
+      - cómo hago para
+      - pierdo tiempo
+    sort: new
+    time_filter: month    # hour | day | week | month | year | all
+    limit_per_query: 25
+    sleep_seconds: 2      # pausa entre búsquedas (PRAW además respeta el rate limit de la API)
+
+# Fragmentos de expresión regular (sin distinguir mayúsculas). Un post pasa el filtro
+# si su texto contiene alguno.
+pain_words:
+  - no encuentro
+  - alguien sab
+  - c[oó]mo hago
+  - me cans
+  - desastre
+  - recomiend
+  - cobran
+  - pierdo tiempo
+  - imposible
+  - odio
+  - no hay forma
+  - pago por
+  - me cobra
+  - manual
+  - planilla
+  - excel
+  - turno
