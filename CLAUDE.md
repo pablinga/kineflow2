@@ -159,6 +159,7 @@ Revisión de UX del dashboard en tres bloques (commits `4420409`, `b9b8297`, `01
 
 - `/admin` (reporte semanal de KPIs) con login propio, independiente de las cuentas de KineFlow. Variables en Vercel (Preview y Production, valores distintos): `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET`. Sin ellas `/admin` responde 404.
 - Cambiar la contraseña: `node scripts/admin-password-hash.mjs` y reemplazar `ADMIN_PASSWORD_HASH` en Vercel (invalida las sesiones abiertas). No hay recuperación por mail a propósito.
+- "Últimos ingresos" se ordena por **última actividad** (`admin_recent_activity`, `202611030001`, solo `service_role`): `last_sign_in_at` solo cambia al escribir la contraseña, así que con la sesión abierta no refleja el uso; la actividad sale de la renovación de la sesión (`auth.sessions`). El login se muestra debajo. Aplicada en QA (2026-11-03); falta prod.
 - Seguridad: cookie firmada HMAC httpOnly/SameSite=strict de 8 h; bloqueo tras 5 fallos en 15 min por IP (50 global) en `admin_login_attempts`; `admin_weekly_kpis()` solo la ejecuta `service_role`.
 - `appointments.booking_source` (`manual` | `public_link` | `public_qr`): la reserva pública lo completa (`?src=qr` → `public_qr`). Los turnos online previos se marcaron por la nota "Reserva creada desde enlace público." — `202609280002`, aplicada en QA y prod.
 

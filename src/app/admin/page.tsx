@@ -118,20 +118,24 @@ async function getStalePendingSubscriptionCount(
 }
 
 /**
- * Últimos ingresos según auth.users.last_sign_in_at: es el último login de
- * cada usuario (no cada login) y no se actualiza al renovar una sesión abierta.
+ * Últimos ingresos ordenados por última actividad real (admin_recent_activity):
+ * last_sign_in_at solo cambia al escribir la contraseña; con la sesión abierta
+ * la actividad sale de la renovación de la sesión (auth.sessions).
  */
+type RecentActivityRow = {
+  email: string | null;
+  last_activity_at: string | null;
+  last_sign_in_at: string | null;
+  user_id: string;
+};
+
 async function getRecentLogins(
   admin: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
 ): Promise<AccountRow[]> {
-  const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const { data, error } = await admin.rpc("admin_recent_activity", { p_limit: RECENT_LOGINS });
   if (error) throw error;
 
-  const recent = data.users
-    .filter((user) => user.last_sign_in_at)
-    .sort((a, b) => (b.last_sign_in_at ?? "").localeCompare(a.last_sign_in_at ?? ""))
-    .slice(0, RECENT_LOGINS);
-
+  const recent = (data ?? []) as RecentActivityRow[];
   if (recent.length === 0) return [];
 
   const { data: profiles } = await admin
@@ -139,18 +143,19 @@ async function getRecentLogins(
     .select("id, account_type, full_name, organization_name")
     .in(
       "id",
-      recent.map((user) => user.id),
+      recent.map((user) => user.user_id),
     );
   const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
 
   return recent.map((user) => {
-    const profile = profileById.get(user.id);
+    const profile = profileById.get(user.user_id);
     const email = user.email ?? "";
     return {
       account_type: profile?.account_type ?? "",
       email,
-      id: user.id,
-      last_sign_in_at: user.last_sign_in_at,
+      id: user.user_id,
+      last_activity_at: user.last_activity_at ?? undefined,
+      last_sign_in_at: user.last_sign_in_at ?? undefined,
       name: profile?.organization_name?.trim() || profile?.full_name?.trim() || email,
     };
   });
@@ -205,12 +210,14 @@ function KpiCard({
 function AccountTable({
   emptyText,
   rows,
+  secondaryOf,
   title,
   valueHeader,
   valueOf,
 }: {
   emptyText: string;
   rows: AccountRow[];
+  secondaryOf?: (row: AccountRow) => string | null;
   title: string;
   valueHeader: string;
   valueOf: (row: AccountRow) => string;
@@ -245,7 +252,12 @@ function AccountTable({
                   <td className="hidden py-2 pr-3 text-slate-600 sm:table-cell">
                     {accountTypeLabel(row.account_type)}
                   </td>
-                  <td className="py-2 text-right align-top font-semibold text-ink">{valueOf(row)}</td>
+                  <td className="py-2 text-right align-top font-semibold text-ink">
+                    {valueOf(row)}
+                    {secondaryOf?.(row) ? (
+                      <p className="text-xs font-normal text-slate-500">{secondaryOf(row)}</p>
+                    ) : null}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -499,8 +511,14 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                 emptyText="Todavía no hay ingresos registrados."
                 rows={recentLogins}
                 title="Últimos ingresos"
-                valueHeader="Último login"
-                valueOf={(row) => (row.last_sign_in_at ? formatDateTime(row.last_sign_in_at) : "—")}
+                secondaryOf={(row) =>
+                  row.last_sign_in_at ? `Login: ${formatDateTime(row.last_sign_in_at)}` : null
+                }
+                valueHeader="Última actividad"
+                valueOf={(row) => {
+                  const value = row.last_activity_at ?? row.last_sign_in_at;
+                  return value ? formatDateTime(value) : "—";
+                }}
               />
             ) : (
               <Alert tone="error">No pudimos cargar los últimos ingresos.</Alert>
