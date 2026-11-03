@@ -92,7 +92,12 @@ Contacto: contacto@kineflow.ar
 `https://www.kineflow.ar/politica-de-privacidad`
 
 ### Acceso a la app (importante)
-Los revisores de Google necesitan entrar. Elegí **"Todas o algunas funciones están restringidas"** y cargá un usuario y contraseña de una **cuenta de prueba con datos ficticios** en producción. Esa cuenta todavía no existe (ver "Pendientes" al final).
+Los revisores de Google necesitan entrar. Elegí **"Todas o algunas funciones están restringidas"** y cargá la cuenta de prueba de producción:
+
+- Usuario: `revision.play@kineflow.ar`
+- Contraseña: la que se pasó por el chat (no se guarda en el repo).
+
+Es una cuenta de kinesióloga particular ("Paula Medina") con prueba activa hasta 2031, 8 pacientes ficticios, turnos desde 3 semanas antes hasta 6 semanas después de su creación (2026-11-03), una evaluación con mapa corporal, un tratamiento y evoluciones. Los pacientes no tienen consentimiento de WhatsApp, así que no se envía ningún mensaje.
 
 Instrucciones para el revisor:
 ```
@@ -162,6 +167,6 @@ No se recopila: ubicación, contactos del teléfono, calendario, mensajes, audio
 
 ## 4. Pendientes antes de enviar a revisión
 
-1. **Cuenta para el revisor:** crear en producción un usuario de prueba (kinesiólogo particular con plan activo) con pacientes y turnos ficticios. Lo puedo armar con tu OK.
+1. **Cuenta para el revisor:** creada (ver "Acceso a la app"). Probar el login una vez desde el celular. Los turnos futuros llegan hasta mediados de diciembre de 2026: si la revisión de una versión nueva cae después, cargar turnos nuevos.
 2. **Huellas SHA-256:** después de subir el primer `.aab`, pasame las dos huellas y las cargo en Vercel.
 3. **Prueba cerrada:** si la cuenta de Play Console es personal, hace falta una prueba cerrada con 12 testers durante 14 días antes de pasar a producción.
