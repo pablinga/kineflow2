@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import { Fragment, type FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -465,7 +465,7 @@ function DayDetailPanel({
                         <span className="block truncate text-xs font-bold text-ink sm:text-sm">
                           {appointment.patient}
                         </span>
-                        <span className="mt-0.5 block truncate text-[0.68rem] font-semibold text-slate-600 sm:text-xs">
+                        <span className="mt-0.5 block truncate text-xs font-semibold text-slate-600">
                           {appointment.time} - {formatMinutesAsTime(appointmentEnd)}
                         </span>
                       </button>
@@ -1479,18 +1479,18 @@ function LegacyAppointmentsPage() {
               </Link>
             )}
             {appointment.attentionTypeName ? (
-              <p className="mt-0.5 min-w-0 truncate text-[0.68rem] font-medium text-slate-500">
+              <p className="mt-0.5 min-w-0 truncate text-xs lg:text-[0.68rem] font-medium text-slate-500">
                 {appointment.attentionTypeName}
               </p>
             ) : null}
             {activeWorkspace?.type === "CLINICA" ? (
-              <p className="mt-0.5 min-w-0 truncate text-[0.68rem] font-medium text-slate-500">
+              <p className="mt-0.5 min-w-0 truncate text-xs lg:text-[0.68rem] font-medium text-slate-500">
                 {appointment.professionalName ?? "Sin profesional asignado"}
               </p>
             ) : null}
           </div>
           <span
-            className={`w-fit shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[0.62rem] font-semibold leading-none ${
+            className={`w-fit shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-xs lg:text-[0.62rem] font-semibold leading-none ${
               appointmentStatusStyles[status] ?? "bg-slate-100 text-slate-700"
             }`}
           >
@@ -1500,7 +1500,7 @@ function LegacyAppointmentsPage() {
 
         <div className="mt-2 flex flex-wrap gap-1.5">
           <span
-            className="w-fit rounded-full px-2 py-1 text-[0.62rem] font-semibold text-white"
+            className="w-fit rounded-full px-2 py-1 text-xs lg:text-[0.62rem] font-semibold text-white"
             style={{ backgroundColor: appointment.originColor }}
           >
             {appointment.originLabel}
@@ -1517,7 +1517,7 @@ function LegacyAppointmentsPage() {
 
             if (isClinic && !appointment.allowsSimultaneous) {
               return (
-                <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[0.62rem] font-semibold text-slate-600">
+                <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-xs lg:text-[0.62rem] font-semibold text-slate-600">
                   Exclusivo
                 </span>
               );
@@ -1525,7 +1525,7 @@ function LegacyAppointmentsPage() {
 
             if (!isClinic && appointment.allowsSimultaneous) {
               return (
-                <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[0.62rem] font-semibold text-slate-600">
+                <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-xs lg:text-[0.62rem] font-semibold text-slate-600">
                   Simultáneo
                 </span>
               );
@@ -1534,13 +1534,13 @@ function LegacyAppointmentsPage() {
             return null;
           })()}
           {appointment.depositStatus && appointment.depositStatus !== "awaiting" ? (
-            <span className="w-fit rounded-full bg-violet-50 px-2 py-1 text-[0.62rem] font-semibold text-violet-800 ring-1 ring-violet-200">
+            <span className="w-fit rounded-full bg-violet-50 px-2 py-1 text-xs lg:text-[0.62rem] font-semibold text-violet-800 ring-1 ring-violet-200">
               {getDepositChipLabel(appointment.depositStatus, appointment.depositAmount)}
             </span>
           ) : null}
           {clinicAppointment ? null : !isPatientPaidAppointment(appointment) ? (
             <>
-              <span className="w-fit rounded-full bg-sky-50 px-2 py-1 text-[0.62rem] font-semibold text-sky-800 ring-1 ring-sky-200">
+              <span className="w-fit rounded-full bg-sky-50 px-2 py-1 text-xs lg:text-[0.62rem] font-semibold text-sky-800 ring-1 ring-sky-200">
                 {getCoverageLabel(appointment)}
               </span>
               {medicalOrders.hasOrders ? (
@@ -1556,7 +1556,7 @@ function LegacyAppointmentsPage() {
                   era un segundo "Pendiente" al lado del de asistencia. */}
               {isAttended || appointment.paymentStatus !== "pending" ? (
                 <span
-                  className={`w-fit rounded-full px-2 py-1 text-[0.62rem] font-semibold ${
+                  className={`w-fit rounded-full px-2 py-1 text-xs lg:text-[0.62rem] font-semibold ${
                     appointment.paymentStatus === "pending"
                       ? "bg-amber-50 text-amber-800 ring-1 ring-amber-200"
                       : paymentStatusStyles[appointment.paymentStatusLabel] ??
@@ -1569,7 +1569,7 @@ function LegacyAppointmentsPage() {
                 </span>
               ) : null}
               {canSeeAmounts ? (
-                <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[0.62rem] font-semibold text-slate-600">
+                <span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-xs lg:text-[0.62rem] font-semibold text-slate-600">
                   {formatSessionAmount(appointment.amount)}
                 </span>
               ) : null}
@@ -1578,7 +1578,7 @@ function LegacyAppointmentsPage() {
         </div>
 
         {appointment.conflictWarning ? (
-          <p className="mt-2 rounded-md border border-amber-100 bg-amber-50 px-2 py-1.5 text-[0.68rem] font-semibold leading-4 text-amber-800">
+          <p className="mt-2 rounded-md border border-amber-100 bg-amber-50 px-2 py-1.5 text-xs lg:text-[0.68rem] font-semibold leading-4 text-amber-800">
             Conflicto de agenda: {appointment.conflictWarning}
           </p>
         ) : null}
@@ -1823,10 +1823,23 @@ function LegacyAppointmentsPage() {
 
             return (
               <div
-                className={`min-h-24 border-b border-r border-ocean-100 p-2 text-left transition hover:bg-ocean-50 md:min-h-36 ${
+                aria-label={`${day.toLocaleDateString("es-AR", {
+                  day: "numeric",
+                  month: "long",
+                  weekday: "long",
+                })}: ${dayAppointments.length === 1 ? "1 turno" : `${dayAppointments.length} turnos`}`}
+                className={`min-h-24 cursor-pointer border-b border-r border-ocean-100 p-2 text-left transition hover:bg-ocean-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ocean-500 md:min-h-36 ${
                   isOutsideMonth ? "opacity-40" : ""
                 } ${isToday ? "border-ocean-400 ring-2 ring-ocean-100" : ""}`}
                 key={day.toISOString()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedMobileDay({ appointments: dayAppointments, date: day });
+                  }
+                }}
+                role="button"
+                tabIndex={0}
                 onClick={(e) => {
                   const target = e.target as HTMLElement;
                   const pill = target.closest(
@@ -1893,88 +1906,150 @@ function LegacyAppointmentsPage() {
     );
   }
 
-  function renderWeekView() {
+  function renderWeekPill(appointment: Appointment, size: "list" | "grid") {
+    const showUnpaid =
+      appointment.paymentStatus !== "paid" &&
+      !isProfessionalClinicAppointment(appointment) &&
+      isPatientPaidAppointment(appointment);
+
     return (
-      <section className="mt-4 overflow-x-auto rounded-lg border border-ocean-100 bg-white shadow-card sm:mt-6">
-        <div className="grid min-w-[56rem] grid-cols-7 border-b border-ocean-100">
+      <button
+        aria-label={`${appointment.time} ${appointment.patient}: acciones del turno`}
+        className={`flex w-full min-w-0 items-center gap-1 rounded-md text-left font-semibold ${
+          size === "list" ? "min-h-9 px-2 py-1 text-sm" : "px-1.5 py-1 text-xs leading-4"
+        } ${getCalendarStatusClass(appointment, !isProfessionalClinicAppointment(appointment) && isPatientPaidAppointment(appointment))}`}
+        key={appointment.id}
+        onClick={() => setActionsAppointment(appointment)}
+        title={`${appointment.time} ${appointment.patient}`}
+        type="button"
+      >
+        {size === "grid" ? (
+          // Hora arriba y nombre abajo: en tablet la columna es angosta.
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-1 tabular-nums opacity-80">
+              {appointment.time}
+              {showUnpaid ? <DollarSign aria-label="Sin cobrar" className="h-3 w-3 shrink-0" /> : null}
+            </span>
+            <span className="block truncate">{appointment.patient}</span>
+          </span>
+        ) : (
+          <>
+            <span className="truncate">{appointment.patient}</span>
+            {showUnpaid ? <DollarSign aria-label="Sin cobrar" className="h-3 w-3 shrink-0" /> : null}
+          </>
+        )}
+      </button>
+    );
+  }
+
+  function renderWeekView() {
+    const today = new Date();
+
+    return (
+      <>
+        {/* Celular: un bloque por día (7 columnas no entran en 360 px). */}
+        <section className="mt-4 space-y-3 md:hidden">
           {weekDays.map((day) => {
-            const isToday = sameDay(day, new Date());
+            const dayAppointments = getAppointmentsForDay(day);
+            const isToday = sameDay(day, today);
 
             return (
-              <div className="border-r border-ocean-100 p-3 text-center" key={day.toISOString()}>
-                <span
-                  className={`inline-flex min-h-8 items-center justify-center rounded-full px-3 text-sm font-bold capitalize ${
-                    isToday ? "bg-ocean-600 text-white" : "text-ink"
+              <div
+                className={`overflow-hidden rounded-lg border bg-white shadow-card ${
+                  isToday ? "border-ocean-300" : "border-ocean-100"
+                }`}
+                key={day.toISOString()}
+              >
+                <div
+                  className={`flex items-center justify-between gap-2 border-b border-ocean-100 px-4 py-2 ${
+                    isToday ? "bg-ocean-50" : ""
                   }`}
                 >
-                  {day.toLocaleDateString("es-AR", {
-                    day: "2-digit",
-                    weekday: "short",
-                  })}
-                </span>
+                  <span className="text-sm font-bold capitalize text-ink">
+                    {day.toLocaleDateString("es-AR", {
+                      day: "numeric",
+                      month: "short",
+                      weekday: "long",
+                    })}
+                    {isToday ? (
+                      <span className="ml-2 rounded-full bg-ocean-600 px-2 py-0.5 text-xs font-bold normal-case text-white">
+                        Hoy
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold text-slate-500">
+                    {dayAppointments.length === 1
+                      ? "1 turno"
+                      : `${dayAppointments.length} turnos`}
+                  </span>
+                </div>
+                {dayAppointments.length === 0 ? (
+                  <p className="px-4 py-3 text-sm text-slate-500">Sin turnos</p>
+                ) : (
+                  <ul className="divide-y divide-ocean-50">
+                    {dayAppointments.map((appointment) => (
+                      <li className="flex items-center gap-3 px-4 py-1.5" key={appointment.id}>
+                        <span className="w-12 shrink-0 text-sm font-semibold tabular-nums text-slate-600">
+                          {appointment.time}
+                        </span>
+                        <div className="min-w-0 flex-1">{renderWeekPill(appointment, "list")}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             );
           })}
-        </div>
-        <div className="grid min-w-[56rem] grid-cols-7">
-          {weekDays.map((day) => (
-            <div className="border-r border-ocean-100" key={day.toISOString()}>
-              {timeSlots.map((hour) => {
-                const slotAppointments = getAppointmentsForDay(day).filter(
-                  (appointment) =>
-                    new Date(appointment.scheduledAt).getHours() === hour,
-                );
+        </section>
 
-                return (
-                  <div
-                    className="min-h-[48px] border-b border-ocean-100 p-1.5"
-                    key={`${day.toISOString()}-${hour}`}
-                    onClick={(e) => {
-                      const target = e.target as HTMLElement;
-                      const pill = target.closest(
-                        "[data-appointment-id]",
-                      ) as HTMLElement | null;
+        {/* Tablet y escritorio: filas de hora compartidas, así las horas quedan alineadas entre días. */}
+        <section className="mt-4 hidden overflow-x-auto rounded-lg border border-ocean-100 bg-white shadow-card sm:mt-6 md:block">
+          <div
+            className="grid min-w-[40rem]"
+            style={{ gridTemplateColumns: "3.5rem repeat(7, minmax(0, 1fr))" }}
+          >
+            <div className="border-b border-r border-ocean-100" />
+            {weekDays.map((day) => {
+              const isToday = sameDay(day, today);
 
-                      if (pill) {
-                        const id = pill.dataset.appointmentId;
-                        const appointment = appointments.find(
-                          (item) => item.id === id,
-                        );
-
-                        if (appointment) {
-                          setActionsAppointment(appointment);
-                        }
-                      }
-                    }}
+              return (
+                <div
+                  className="border-b border-r border-ocean-100 p-2 text-center last:border-r-0"
+                  key={day.toISOString()}
+                >
+                  <span
+                    className={`inline-flex min-h-8 items-center justify-center rounded-full px-3 text-sm font-bold capitalize ${
+                      isToday ? "bg-ocean-600 text-white" : "text-ink"
+                    }`}
                   >
-                    <p className="text-[0.68rem] font-semibold text-slate-400">
-                      {String(hour).padStart(2, "0")}:00
-                    </p>
-                    <div className="mt-1 space-y-1">
-                      {slotAppointments.map((appointment) => (
-                        <div
-                          className={`flex w-full min-w-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-semibold ${getCalendarStatusClass(appointment, !isProfessionalClinicAppointment(appointment) && isPatientPaidAppointment(appointment))}`}
-                          data-appointment-id={appointment.id}
-                          key={appointment.id}
-                        >
-                          <span className="pointer-events-none truncate">
-                            {appointment.time} {appointment.patient}
-                          </span>
-                          {appointment.paymentStatus !== "paid" &&
-                      !isProfessionalClinicAppointment(appointment) &&
-                      isPatientPaidAppointment(appointment) ? (
-                            <DollarSign className="pointer-events-none h-3 w-3 shrink-0" />
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
+                    {day.toLocaleDateString("es-AR", {
+                      day: "2-digit",
+                      weekday: "short",
+                    })}
+                  </span>
+                </div>
+              );
+            })}
+            {timeSlots.map((hour) => (
+              <Fragment key={hour}>
+                <div className="border-b border-r border-ocean-100 px-2 py-1.5 text-right text-xs font-semibold text-slate-400">
+                  {String(hour).padStart(2, "0")}:00
+                </div>
+                {weekDays.map((day) => (
+                  <div
+                    className="min-h-12 min-w-0 space-y-1 border-b border-r border-ocean-100 p-1"
+                    key={`${day.toISOString()}-${hour}`}
+                  >
+                    {getAppointmentsForDay(day)
+                      .filter((appointment) => new Date(appointment.scheduledAt).getHours() === hour)
+                      .map((appointment) => renderWeekPill(appointment, "grid"))}
                   </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </section>
+                ))}
+              </Fragment>
+            ))}
+          </div>
+        </section>
+      </>
     );
   }
 

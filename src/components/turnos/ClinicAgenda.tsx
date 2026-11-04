@@ -773,10 +773,8 @@ export function ClinicAgenda() {
               <p className="text-sm font-semibold text-ocean-700">Agenda de la clínica</p>
               <h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">Dar y ver turnos</h1>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:flex xl:items-end">
-              <label
-                className={`block xl:w-60 ${attentionTypes.length > 0 ? "" : "col-span-2 sm:col-span-1"}`}
-              >
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 xl:flex xl:items-end">
+              <label className="block xl:w-60">
                 <span className="text-xs font-semibold text-slate-600">Profesional</span>
                 <select
                   className={`mt-1 ${selectClassName}`}
@@ -815,7 +813,7 @@ export function ClinicAgenda() {
                 </label>
               ) : null}
               <Link
-                className="col-span-2 inline-flex min-h-10 items-center justify-end rounded-lg px-1 text-sm font-semibold text-ocean-700 hover:text-ocean-900 xl:min-h-11 xl:justify-center xl:px-3 xl:hover:bg-ocean-50"
+                className="inline-flex min-h-10 items-center justify-end rounded-lg px-1 text-sm font-semibold text-ocean-700 sm:col-span-2 hover:text-ocean-900 xl:min-h-11 xl:justify-center xl:px-3 xl:hover:bg-ocean-50"
                 href="/dashboard/turnos?vista=anterior"
                 prefetch={false}
               >

@@ -368,12 +368,12 @@ export function AttentionTypesSection({
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate text-sm font-bold text-ink">{type.name}</p>
                   {showSimultaneous ? (
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.68rem] font-semibold text-slate-600">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
                       {type.allowsSimultaneous ? "Simultáneo" : "Exclusivo"}
                     </span>
                   ) : null}
                   {type.active ? null : (
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.68rem] font-semibold text-slate-500">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
                       Inactivo
                     </span>
                   )}

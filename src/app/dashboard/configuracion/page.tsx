@@ -447,7 +447,7 @@ export default function WorkspaceSettingsPage() {
 
         <nav
           aria-label="Secciones de configuración"
-          className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ocean-100 bg-white p-1 shadow-sm"
+          className="mt-4 flex flex-wrap gap-1 rounded-lg border border-ocean-100 bg-white p-1 shadow-sm"
         >
           {CONFIG_SECTIONS.filter(
             // Señas: por ahora solo el espacio particular del kinesiólogo.

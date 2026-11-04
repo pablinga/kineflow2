@@ -989,7 +989,7 @@ function PatientDetailPageContent() {
 
               <nav
                 aria-label="Secciones de la ficha"
-                className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ocean-100 bg-white p-1 shadow-sm xl:hidden"
+                className="mt-4 flex flex-wrap gap-1 rounded-lg border border-ocean-100 bg-white p-1 shadow-sm xl:hidden"
               >
                 {(
                   [

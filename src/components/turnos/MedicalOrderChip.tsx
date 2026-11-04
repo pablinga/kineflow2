@@ -29,7 +29,7 @@ export function MedicalOrderChip({
   return (
     <span
       className={`w-fit whitespace-nowrap rounded-full px-2 py-1 font-semibold ring-1 ${tone} ${
-        size === "xs" ? "text-[0.62rem]" : "text-xs"
+        size === "xs" ? "text-xs lg:text-[0.62rem]" : "text-xs"
       }`}
       title={
         info.kind === "covered"
