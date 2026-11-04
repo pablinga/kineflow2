@@ -1,5 +1,6 @@
 "use client";
 
+import { clearQueryCache } from "@/lib/query-cache";
 import {
   createContext,
   useCallback,
@@ -291,6 +292,8 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const displayName = getProfileDisplayName(profile?.profileName ?? "", user);
 
   const clearSessionState = useCallback(() => {
+    // Datos de pacientes y turnos guardados en memoria: no deben sobrevivir al cierre de sesión.
+    clearQueryCache();
     setUser(null);
     setProfile(null);
     setWorkspaces([]);

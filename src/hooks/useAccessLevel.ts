@@ -131,6 +131,19 @@ function isSnapshotFresh(userId: string | null, workspaceId: string | null) {
   );
 }
 
+/**
+ * Hay un valor de esta cuenta y este espacio, aunque tenga más de 15 s: se
+ * muestra ya y se actualiza por detrás (la base hace cumplir el acceso igual
+ * en cada consulta), así volver a una pantalla no la bloquea.
+ */
+function isSnapshotUsable(userId: string | null, workspaceId: string | null) {
+  return (
+    accessSnapshot.loaded &&
+    (userId === null || accessSnapshot.userId === userId) &&
+    accessSnapshot.workspaceId === workspaceId
+  );
+}
+
 export function useAccessLevel() {
   const { activeWorkspace, loaded: workspaceLoaded } = useActiveWorkspace();
   const workspaceId = activeWorkspace?.id ?? null;
@@ -144,7 +157,7 @@ export function useAccessLevel() {
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(
     accessSnapshot.trialEndsAt,
   );
-  const [loaded, setLoaded] = useState(isSnapshotFresh(null, workspaceId));
+  const [loaded, setLoaded] = useState(isSnapshotUsable(null, workspaceId));
 
   useEffect(() => {
     let mounted = true;
@@ -179,7 +192,9 @@ export function useAccessLevel() {
           return;
         }
 
-        if (mounted) {
+        if (isSnapshotUsable(userId, workspaceId)) {
+          apply(accessSnapshot);
+        } else if (mounted) {
           setLoaded(false);
         }
 

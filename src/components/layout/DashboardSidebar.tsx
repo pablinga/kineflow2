@@ -1,5 +1,6 @@
 "use client";
 
+import { clearQueryCache } from "@/lib/query-cache";
 import Link from "next/link";
 import { type MouseEvent, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -219,6 +220,7 @@ export function DashboardSidebar() {
 
     setLoggingOut(true);
     setLogoutError("");
+    clearQueryCache();
 
     try {
       const supabase = getSupabaseClient();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { buildQueryCacheKey, readQueryCache, writeQueryCache } from "@/lib/query-cache";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
@@ -96,6 +97,12 @@ type PatientRow = {
 
 type ClinicIdRow = {
   id: string;
+};
+
+type PatientsCacheEntry = {
+  activePatientCount: number;
+  patients: Patient[];
+  totalCount: number;
 };
 
 export type UsePatientsOptions = {
@@ -256,22 +263,61 @@ export function usePatients(options: UsePatientsOptions = {}) {
     error: activeWorkspaceError,
     loaded: activeWorkspaceLoaded,
   } = useActiveWorkspace();
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [activePatientCount, setActivePatientCount] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loaded, setLoaded] = useState(false);
-  // Solo la primera carga bloquea la página; las siguientes (búsqueda,
-  // filtros) actualizan la lista sin desmontar los inputs.
-  const [initialLoaded, setInitialLoaded] = useState(false);
-  const [error, setError] = useState("");
   const page = Math.max(options.page ?? 1, 1);
   const pageSize = options.pageSize ?? null;
   const search = options.search?.trim() ?? "";
   const withStats = options.withStats ?? true;
+  // Últimos pacientes de esta misma consulta (ver src/lib/query-cache.ts): al
+  // volver a la pantalla se muestran al instante y se actualizan por detrás.
+  const cacheKey =
+    user && activeWorkspaceLoaded && activeWorkspace?.id
+      ? buildQueryCacheKey("patients", [
+          user.id,
+          activeWorkspace.id,
+          activeWorkspace.type,
+          activeWorkspace.role,
+          activeWorkspace.sourceClinicId ?? null,
+          page,
+          pageSize,
+          search,
+          withStats,
+        ])
+      : null;
+  const [initialCache] = useState(() => readQueryCache<PatientsCacheEntry>(cacheKey));
+  const [patients, setPatients] = useState<Patient[]>(initialCache?.patients ?? []);
+  const [activePatientCount, setActivePatientCount] = useState(
+    initialCache?.activePatientCount ?? 0,
+  );
+  const [totalCount, setTotalCount] = useState(initialCache?.totalCount ?? 0);
+  const [loaded, setLoaded] = useState(Boolean(initialCache));
+  // Solo la primera carga bloquea la página; las siguientes (búsqueda,
+  // filtros) actualizan la lista sin desmontar los inputs.
+  const [initialLoaded, setInitialLoaded] = useState(Boolean(initialCache));
+  const [error, setError] = useState("");
+
+  // Otra página o búsqueda que ya se había cargado: mostrarla mientras se actualiza.
+  useEffect(() => {
+    const cached = readQueryCache<PatientsCacheEntry>(cacheKey);
+
+    if (cached) {
+      setPatients(cached.patients);
+      setActivePatientCount(cached.activePatientCount);
+      setTotalCount(cached.totalCount);
+      setInitialLoaded(true);
+    }
+  }, [cacheKey]);
+
 
   const loadPatients = useCallback(async (signal?: AbortSignal) => {
     if (!activeWorkspaceLoaded) {
       return;
+    }
+
+    function applyPatients(entry: PatientsCacheEntry) {
+      setPatients(entry.patients);
+      setActivePatientCount(entry.activePatientCount);
+      setTotalCount(entry.totalCount);
+      writeQueryCache(cacheKey, entry);
     }
 
     setLoaded(false);
@@ -432,9 +478,11 @@ export function usePatients(options: UsePatientsOptions = {}) {
       const patientIds = patientRows.map((patient) => patient.id);
 
       if (patientIds.length === 0 || !withStats) {
-        setTotalCount(count ?? patientRows.length);
-        setActivePatientCount(activeCount ?? 0);
-        setPatients(patientRows.map((patient) => mapPatient(patient, [], [])));
+        applyPatients({
+          activePatientCount: activeCount ?? 0,
+          patients: patientRows.map((patient) => mapPatient(patient, [], [])),
+          totalCount: count ?? patientRows.length,
+        });
         return;
       }
 
@@ -480,17 +528,17 @@ export function usePatients(options: UsePatientsOptions = {}) {
         return;
       }
 
-      setTotalCount(count ?? patientRows.length);
-      setActivePatientCount(activeCount ?? 0);
-      setPatients(
-        patientRows.map((patient) =>
+      applyPatients({
+        activePatientCount: activeCount ?? 0,
+        patients: patientRows.map((patient) =>
           mapPatient(
             patient,
             (appointmentsData ?? []) as PatientAppointmentRow[],
             (evolutionsData ?? []) as PatientEvolutionRow[],
           ),
         ),
-      );
+        totalCount: count ?? patientRows.length,
+      });
     } catch (loadError) {
       if (signal?.aborted) {
         return;
@@ -512,6 +560,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
     activeWorkspace?.type,
     activeWorkspaceError,
     activeWorkspaceLoaded,
+    cacheKey,
     page,
     pageSize,
     search,

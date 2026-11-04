@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { buildQueryCacheKey, readQueryCache, writeQueryCache } from "@/lib/query-cache";
 import { seriesSessionNumbers } from "@/lib/appointment-series";
 import type { DepositStatus } from "@/lib/deposits";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -546,12 +547,6 @@ export function useAppointments(
   const { clinic: activeClinic } = useActiveClinic(
     accountType === "CONSULTORIO",
   );
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  // Solo la primera carga bloquea la pantalla; las recargas después de marcar
-  // asistencia o cobrar no desmontan la agenda (ni el aviso de "Deshacer").
-  const [initialLoaded, setInitialLoaded] = useState(false);
-  const [error, setError] = useState("");
   const unified = options.unified ?? false;
   const rangeFrom = options.from ?? null;
   const rangeTo = options.to ?? null;
@@ -559,6 +554,43 @@ export function useAppointments(
   const workspaceCapacityKey = workspaces
     .map((workspace) => `${workspace.id}:${workspace.maxSimultaneousAppointments ?? 1}`)
     .join(",");
+  // Últimos turnos de esta misma consulta (ver src/lib/query-cache.ts): al
+  // volver a la pantalla se muestran al instante y se actualizan por detrás.
+  const cacheKey =
+    user && activeWorkspaceLoaded && activeWorkspace?.id
+      ? buildQueryCacheKey("appointments", [
+          user.id,
+          activeWorkspace.id,
+          activeWorkspace.type,
+          activeWorkspace.role,
+          unified,
+          workspaceCapacityKey,
+          patientId ?? null,
+          rangeFrom,
+          rangeTo,
+        ])
+      : null;
+  const [appointments, setAppointments] = useState<Appointment[]>(
+    () => readQueryCache<Appointment[]>(cacheKey) ?? [],
+  );
+  const [loaded, setLoaded] = useState(() => readQueryCache(cacheKey) !== undefined);
+  // Solo la primera carga bloquea la pantalla; las recargas después de marcar
+  // asistencia o cobrar no desmontan la agenda (ni el aviso de "Deshacer").
+  const [initialLoaded, setInitialLoaded] = useState(
+    () => readQueryCache(cacheKey) !== undefined,
+  );
+  const [error, setError] = useState("");
+
+  // Si la consulta cambia (otro rango, otro espacio) y ya había datos de esa
+  // consulta, mostrarlos mientras se actualizan.
+  useEffect(() => {
+    const cached = readQueryCache<Appointment[]>(cacheKey);
+
+    if (cached) {
+      setAppointments(cached);
+      setInitialLoaded(true);
+    }
+  }, [cacheKey]);
 
   const loadAppointments = useCallback(async (signal?: AbortSignal) => {
     if (!activeWorkspaceLoaded) {
@@ -642,19 +674,19 @@ export function useAppointments(
         return;
       }
 
-      setAppointments(
-        markAppointmentConflicts(
-          ((data ?? []) as unknown as AppointmentRow[]).map(mapAppointment),
-          getWorkspaceCapacityMap(
-            workspaceCapacityKey
-              ? workspaceCapacityKey.split(",").map((entry) => {
-                  const [id, capacity] = entry.split(":");
-                  return { id, maxSimultaneousAppointments: Number(capacity) };
-                })
-              : [],
-          ),
+      const nextAppointments = markAppointmentConflicts(
+        ((data ?? []) as unknown as AppointmentRow[]).map(mapAppointment),
+        getWorkspaceCapacityMap(
+          workspaceCapacityKey
+            ? workspaceCapacityKey.split(",").map((entry) => {
+                const [id, capacity] = entry.split(":");
+                return { id, maxSimultaneousAppointments: Number(capacity) };
+              })
+            : [],
         ),
       );
+      setAppointments(nextAppointments);
+      writeQueryCache(cacheKey, nextAppointments);
     } catch (loadError) {
       if (signal?.aborted) {
         return;
@@ -675,6 +707,7 @@ export function useAppointments(
     activeWorkspace?.type,
     activeWorkspaceError,
     activeWorkspaceLoaded,
+    cacheKey,
     patientId,
     rangeFrom,
     rangeTo,

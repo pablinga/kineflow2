@@ -29,6 +29,7 @@
     "test:orders": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/medical-orders.test.mjs",
     "test:age": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/patient-age.test.mjs",
     "test:deletion": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/account-deletion.test.mjs",
+    "test:cache": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/query-cache.test.mjs",
     "test:testimonials": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/landing-testimonials.test.mjs",
     "test:demo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/demo.test.mjs",
     "test:demo:e2e": "node scripts/demo-e2e.mjs",

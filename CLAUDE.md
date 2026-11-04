@@ -336,7 +336,14 @@ Revisión de UX del dashboard en tres bloques (commits `4420409`, `b9b8297`, `01
 ### Skeletons por pantalla (2026-11-04, en QA)
 
 - `DashboardLoading` acepta `variant` (`inicio` | `agenda` | `pacientes` | `ingresos`): en vez del esqueleto genérico (título + 4 tarjetas) muestra uno con la forma de la pantalla (`src/components/layout/DashboardSkeletons.tsx`), dentro del mismo `PageContainer` que la pantalla real, así el contenido aparece en su lugar sin saltar. Agenda: en el celular imita la vista Día; en escritorio, encabezado + leyenda + filtros + calendario. La agenda de clínica ("Dar turno") y el resto de las pantallas siguen con el genérico.
-- No acelera la carga real. Siguiente paso acordado: guardar en memoria los datos de Agenda y Pacientes para que volver a esas pantallas sea instantáneo (y actualizar por detrás).
+- No acelera la carga real; eso lo hace la memoria de abajo.
+
+### Datos en memoria al volver a una pantalla (2026-11-04, en QA)
+
+- `src/lib/query-cache.ts` (`npm run test:cache`): `Map` en memoria (máx. 40 entradas, la más vieja se descarta), nunca en disco. `useAppointments` y `usePatients` arman una clave con usuario, espacio (tipo, rol, capacidad, clínica) y parámetros (paciente, rango, página, búsqueda, `withStats`); al montar, si hay datos de esa clave los muestran ya (`initialLoaded`/`loaded` en true) y piden los nuevos por detrás; cada respuesta exitosa (también la recarga después de marcar asistencia o cobrar) reemplaza lo guardado. Se vacía en `clearSessionState` (AuthSessionContext) y al tocar "Cerrar sesión".
+- `useAccessLevel`: si ya hay un valor de la misma cuenta y espacio, aunque tenga más de 15 s, se usa al instante y se actualiza por detrás (antes, pasados 15 s, cada pantalla se bloqueaba hasta volver a pedirlo). La base hace cumplir el acceso igual.
+- La Agenda espera `initialLoaded` de `usePatients` (no `loaded`, que vuelve a false en cada actualización).
+- Medido (build de producción, 4G, CPU ×4, +300 ms a la base): volver a Agenda 1,2 s → 0,24 s; volver a Pacientes 1,3 s → 0,19 s. Si algo se cambió desde otra pantalla (ej. asistencia desde la ficha), al volver se ve el dato anterior hasta que llega la actualización (menos de un segundo).
 
 ## Pendientes abiertos (al 2026-10-28)
 

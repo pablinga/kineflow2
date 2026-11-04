@@ -575,7 +575,8 @@ function LegacyAppointmentsPage() {
     isReadOnly,
     loaded: accessLoaded,
   } = useAccessLevel();
-  const { activePatients, loaded: patientsLoaded } = usePatients({ withStats: false });
+  // initialLoaded (no loaded): con datos en memoria, la actualización por detrás no vuelve a mostrar la carga.
+  const { activePatients, initialLoaded: patientsLoaded } = usePatients({ withStats: false });
   const {
     appointments,
     error,
