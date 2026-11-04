@@ -1,5 +1,6 @@
 "use client";
 
+import { toArgentinaDateValue } from "@/lib/dates";
 import {
   useEffect,
   useRef,
@@ -232,6 +233,32 @@ export function NuevoPacienteModal({
               placeholder="paciente@email.com"
               type="email"
               value={newPatient.email}
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold text-slate-700">
+              Fecha de nacimiento
+            </span>
+            <input
+              className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+              max={toArgentinaDateValue()}
+              min="1900-01-01"
+              onChange={(event) => onUpdateField("birthDate", event.target.value)}
+              type="date"
+              value={newPatient.birthDate ?? ""}
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold text-slate-700">
+              Ocupación
+            </span>
+            <input
+              className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+              maxLength={120}
+              onChange={(event) => onUpdateField("occupation", event.target.value)}
+              placeholder="Ej. Docente"
+              type="text"
+              value={newPatient.occupation ?? ""}
             />
           </label>
           <label className="block md:col-span-2">

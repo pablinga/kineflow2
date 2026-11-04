@@ -61,6 +61,9 @@ import {
 import { uploadTreatmentFiles } from "@/hooks/useTreatmentFiles";
 import { toArgentinaDateValue } from "@/lib/dates";
 import { isRecepcionWorkspace } from "@/lib/workspace-permissions";
+import { useAuthSessionContext } from "@/contexts/AuthSessionContext";
+import { OptionalPainSelect } from "@/components/evolutions/OptionalPainSelect";
+import { formatPatientAge, getPatientAge } from "@/lib/patient-age";
 
 function createEmptyEvolution(patientId: string): NewEvolutionInput {
   return {
@@ -68,9 +71,8 @@ function createEmptyEvolution(patientId: string): NewEvolutionInput {
     treatmentId: "",
     appointmentId: "",
     sessionDate: toArgentinaDateValue(),
-    painLevel: 0,
+    painLevel: null,
     clinicalNotes: "",
-    nextGoals: "",
   };
 }
 
@@ -102,6 +104,7 @@ function PatientDetailPageContent() {
     updateAppointmentStatus,
   } = useAppointments(patientId);
   const { activeWorkspace } = useActiveWorkspace();
+  const currentUserId = useAuthSessionContext()?.user?.id ?? "";
   // Recepción: evoluciones, tratamientos y archivos en solo lectura; los
   // cobros se registran desde el historial de turnos.
   const isRecepcion = isRecepcionWorkspace(activeWorkspace);
@@ -120,8 +123,10 @@ function PatientDetailPageContent() {
   } = useTreatments(patientId);
   const {
     addEvaluation,
+    addStudyFiles,
     error: evaluationsError,
     evaluations,
+    removeStudyFile,
   } = usePatientEvaluations(patientId);
   const {
     activePatients,
@@ -490,10 +495,10 @@ function PatientDetailPageContent() {
   }
 
   async function handleEvaluationSave(input: NewEvaluationInput) {
-    await addEvaluation(input);
+    const { filesError } = await addEvaluation(input);
     setEvaluationModalOpen(false);
-    setActionError("");
-    setActionSuccess("Evaluación guardada.");
+    setActionError(filesError);
+    setActionSuccess(filesError ? "" : "Evaluación guardada.");
   }
 
   async function handleTreatmentStatus(id: string, status: TreatmentStatus) {
@@ -665,7 +670,16 @@ function PatientDetailPageContent() {
                       {patient.name}
                     </h1>
                     <p className="mt-2 text-slate-600">
-                      DNI {patient.document} · {patient.condition}
+                      {[
+                        `DNI ${patient.document}`,
+                        formatPatientAge(
+                          getPatientAge(patient.birthDate, toArgentinaDateValue()),
+                        ),
+                        patient.occupation,
+                        patient.condition,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -1070,7 +1084,12 @@ function PatientDetailPageContent() {
                     ) : null}
                     <EvaluationList
                       canCreateTreatment={!isRecepcion && !isReadOnly}
+                      canManageFiles={(item) =>
+                        !isReadOnly && Boolean(currentUserId) && item.ownerId === currentUserId
+                      }
                       evaluations={evaluations}
+                      onAddStudyFiles={addStudyFiles}
+                      onRemoveStudyFile={removeStudyFile}
                       latestEvolutionPain={
                         evolutions[0] && evolutions[0].pain !== "Sin dato"
                           ? evolutions[0].pain
@@ -1164,10 +1183,12 @@ function PatientDetailPageContent() {
                                 {item.date}
                               </p>
                             </div>
-                            <span className="flex w-fit shrink-0 items-center gap-2 rounded-full bg-ocean-50 px-3 py-1 text-sm font-semibold text-ocean-800 ring-1 ring-ocean-100">
-                              <Activity className="h-4 w-4" />
-                              Dolor {item.pain}
-                            </span>
+                            {item.painScore !== null ? (
+                              <span className="flex w-fit shrink-0 items-center gap-2 rounded-full bg-ocean-50 px-3 py-1 text-sm font-semibold text-ocean-800 ring-1 ring-ocean-100">
+                                <Activity className="h-4 w-4" />
+                                Dolor {item.pain}
+                              </span>
+                            ) : null}
                           </div>
                           <details className="mt-2 text-sm leading-6 text-slate-600">
                             <summary className="cursor-pointer font-semibold text-ocean-800">
@@ -1478,29 +1499,14 @@ function PatientDetailPageContent() {
                       value={evolution.sessionDate}
                     />
                   </label>
-                  <label className="block">
-                    <span className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700">
-                      Nivel de dolor
-                      <span className="rounded-full bg-ocean-50 px-3 py-1 text-ocean-800">
-                        {evolution.painLevel}/10
-                      </span>
-                    </span>
-                    <input
-                      className="mt-3 w-full accent-ocean-600"
-                      max={10}
-                      min={0}
-                      onChange={(event) =>
-                        updateField("painLevel", Number(event.target.value))
-                      }
-                      step={1}
-                      type="range"
-                      value={evolution.painLevel}
-                    />
-                  </label>
+                  <OptionalPainSelect
+                    onChange={(value) => updateField("painLevel", value)}
+                    value={evolution.painLevel}
+                  />
                 </div>
 
                 <label className="mt-4 block">
-                  <FieldLabel required>Tratamiento</FieldLabel>
+                  <FieldLabel required>¿Qué se hizo en la sesión?</FieldLabel>
                   <textarea
                     className="mt-2 min-h-16 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400 sm:min-h-20"
                     onChange={(event) =>
@@ -1508,16 +1514,6 @@ function PatientDetailPageContent() {
                     }
                     required
                     value={evolution.clinicalNotes}
-                  />
-                </label>
-                <label className="mt-4 block">
-                  <span className="text-sm font-semibold text-slate-700">
-                    Próximos objetivos
-                  </span>
-                  <textarea
-                    className="mt-2 min-h-14 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400 sm:min-h-16"
-                    onChange={(event) => updateField("nextGoals", event.target.value)}
-                    value={evolution.nextGoals}
                   />
                 </label>
 

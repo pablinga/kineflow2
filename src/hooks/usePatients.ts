@@ -21,6 +21,9 @@ export type Patient = {
   phone: string;
   email: string;
   condition: string;
+  /** YYYY-MM-DD o "" (la edad se calcula con `getPatientAge`). */
+  birthDate: string;
+  occupation: string;
   insuranceMemberNumber: string;
   insuranceProviderId: string | null;
   insuranceProviderName: string;
@@ -40,6 +43,9 @@ export type NewPatientInput = {
   phone: string;
   email: string;
   condition: string;
+  /** YYYY-MM-DD; sin definir = no se toca al editar. */
+  birthDate?: string;
+  occupation?: string;
   insuranceMemberNumber?: string;
   insuranceProviderId?: string;
   status?: PatientStatus;
@@ -58,6 +64,8 @@ type PatientRow = {
   phone: string | null;
   email: string | null;
   initial_condition: string;
+  birth_date: string | null;
+  occupation: string | null;
   insurance_member_number: string | null;
   insurance_provider_id: string | null;
   insurance_providers: { name: string } | Array<{ name: string }> | null;
@@ -157,6 +165,8 @@ function mapPatient(
     phone: row.phone ?? "",
     email: row.email ?? "",
     condition: row.initial_condition,
+    birthDate: row.birth_date ?? "",
+    occupation: row.occupation ?? "",
     insuranceMemberNumber: row.insurance_member_number ?? "",
     insuranceProviderId: row.insurance_provider_id,
     insuranceProviderName:
@@ -181,8 +191,10 @@ function mapPatient(
 function normalizePatientInput(input: NewPatientInput) {
   return {
     assignedProfessionalId: input.assignedProfessionalId?.trim() ?? "",
+    birthDate: input.birthDate === undefined ? undefined : input.birthDate.trim(),
     condition: input.condition.trim(),
     document: normalizeDocumentNumber(input.document),
+    occupation: input.occupation === undefined ? undefined : input.occupation.trim().slice(0, 120),
     email: input.email.trim(),
     insuranceMemberNumber: input.insuranceMemberNumber?.trim() ?? "",
     insuranceProviderId: input.insuranceProviderId?.trim() ?? "",
@@ -266,7 +278,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
       let patientQuery = supabase
         .from("patients")
         .select(
-          "id, assigned_professional_id, clinic_id, full_name, document_number, phone, email, initial_condition, insurance_provider_id, insurance_member_number, insurance_providers(name), status, phone_e164, whatsapp_consent",
+          "id, assigned_professional_id, clinic_id, full_name, document_number, phone, email, initial_condition, birth_date, occupation, insurance_provider_id, insurance_member_number, insurance_providers(name), status, phone_e164, whatsapp_consent",
           { count: "exact" },
         )
         .order("status", { ascending: true })
@@ -583,6 +595,8 @@ export function usePatients(options: UsePatientsOptions = {}) {
       phone: input.phone || null,
       email: input.email || null,
       initial_condition: input.condition,
+      birth_date: input.birthDate || null,
+      occupation: input.occupation || null,
       insurance_member_number: input.insuranceMemberNumber || null,
       insurance_provider_id: input.insuranceProviderId || null,
       status: mapPatientStatusToDb(input.status),
@@ -794,6 +808,12 @@ export function usePatients(options: UsePatientsOptions = {}) {
         email: normalizedInput.email || null,
         full_name: normalizedInput.name,
         initial_condition: normalizedInput.condition,
+        ...(normalizedInput.birthDate === undefined
+          ? {}
+          : { birth_date: normalizedInput.birthDate || null }),
+        ...(normalizedInput.occupation === undefined
+          ? {}
+          : { occupation: normalizedInput.occupation || null }),
         insurance_member_number: normalizedInput.insuranceMemberNumber || null,
         insurance_provider_id: normalizedInput.insuranceProviderId || null,
         phone: normalizedInput.phone || null,

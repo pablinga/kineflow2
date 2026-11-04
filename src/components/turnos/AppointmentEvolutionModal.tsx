@@ -3,6 +3,7 @@
 import { type FormEvent, useState } from "react";
 import { Save } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
+import { OptionalPainSelect } from "@/components/evolutions/OptionalPainSelect";
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import type { Appointment } from "@/hooks/useAppointments";
 import { getFriendlyErrorMessage, mapSupabaseError } from "@/lib/error-messages";
@@ -34,9 +35,8 @@ export function AppointmentEvolutionModal({
   const [sessionDate, setSessionDate] = useState(() =>
     toDateInputValue(appointment.scheduledAt),
   );
-  const [painLevel, setPainLevel] = useState(0);
+  const [painLevel, setPainLevel] = useState<number | null>(null);
   const [clinicalNotes, setClinicalNotes] = useState("");
-  const [nextGoals, setNextGoals] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -44,7 +44,7 @@ export function AppointmentEvolutionModal({
     event.preventDefault();
 
     if (!clinicalNotes.trim()) {
-      setError("Completá el tratamiento realizado en la sesión.");
+      setError("Completá qué se hizo en la sesión.");
       return;
     }
 
@@ -63,7 +63,6 @@ export function AppointmentEvolutionModal({
       const { error: insertError } = await supabase.from("evolutions").insert({
         appointment_id: appointment.id,
         clinical_notes: clinicalNotes.trim(),
-        next_goals: nextGoals.trim() || null,
         owner_id: userId,
         pain_level: painLevel,
         patient_id: appointment.patientId,
@@ -115,45 +114,17 @@ export function AppointmentEvolutionModal({
           />
         </label>
 
-        {[
-          { label: "Nivel de dolor", onChange: (value: string) => setPainLevel(Number(value)), value: String(painLevel) },
-        ].map((field) => (
-          <label className="mt-4 block" key={field.label}>
-            <span className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700">
-              {field.label}
-              <span className="rounded-full bg-ocean-50 px-3 py-1 text-ocean-800">
-                {field.value}/10
-              </span>
-            </span>
-            <input
-              className="mt-3 w-full accent-ocean-600"
-              max={10}
-              min={0}
-              onChange={(event) => field.onChange(event.target.value)}
-              step={1}
-              type="range"
-              value={field.value}
-            />
-          </label>
-        ))}
+        <div className="mt-4">
+          <OptionalPainSelect onChange={setPainLevel} value={painLevel} />
+        </div>
 
         <label className="mt-4 block">
-          <FieldLabel required>Tratamiento</FieldLabel>
+          <FieldLabel required>¿Qué se hizo en la sesión?</FieldLabel>
           <textarea
             className="mt-2 min-h-20 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
             onChange={(event) => setClinicalNotes(event.target.value)}
             required
             value={clinicalNotes}
-          />
-        </label>
-        <label className="mt-4 block">
-          <span className="text-sm font-semibold text-slate-700">
-            Próximos objetivos
-          </span>
-          <textarea
-            className="mt-2 min-h-16 w-full rounded-lg border border-ocean-100 px-4 py-3 text-sm outline-none focus:border-ocean-400"
-            onChange={(event) => setNextGoals(event.target.value)}
-            value={nextGoals}
           />
         </label>
 

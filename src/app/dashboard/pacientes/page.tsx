@@ -1,5 +1,6 @@
 "use client";
 
+import { toArgentinaDateValue } from "@/lib/dates";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -56,6 +57,8 @@ const emptyPatient: NewPatientInput = {
   phone: "",
   email: "",
   condition: "",
+  birthDate: "",
+  occupation: "",
   insuranceMemberNumber: "",
   insuranceProviderId: "",
 };
@@ -409,8 +412,10 @@ export default function PatientsPage() {
     setActionError("");
     setActionNotice("");
     setEditPatient({
+      birthDate: patient.birthDate,
       condition: patient.condition,
       document: patient.document,
+      occupation: patient.occupation,
       email: patient.email,
       insuranceMemberNumber: patient.insuranceMemberNumber,
       insuranceProviderId: patient.insuranceProviderId ?? "",
@@ -487,7 +492,14 @@ export default function PatientsPage() {
 
       if (withEvaluation && activeWorkspace?.id) {
         try {
-          await insertPatientEvaluation(activeWorkspace.id, patientId, initialEvaluation);
+          const { filesError } = await insertPatientEvaluation(
+            activeWorkspace.id,
+            patientId,
+            initialEvaluation,
+          );
+          if (filesError) {
+            notice = `Paciente creado. ${filesError}`;
+          }
         } catch (evaluationSaveError) {
           // El paciente ya quedó creado: avisar sin perderlo.
           notice = `Paciente creado, pero no pudimos guardar la evaluación (${getFriendlyErrorMessage(
@@ -1099,6 +1111,32 @@ export default function PatientsPage() {
                   onChange={(event) => updateEditField("email", event.target.value)}
                   type="email"
                   value={editPatient.email}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Fecha de nacimiento
+                </span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  max={toArgentinaDateValue()}
+                  min="1900-01-01"
+                  onChange={(event) => updateEditField("birthDate", event.target.value)}
+                  type="date"
+                  value={editPatient.birthDate ?? ""}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">
+                  Ocupación
+                </span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+                  maxLength={120}
+                  onChange={(event) => updateEditField("occupation", event.target.value)}
+                  placeholder="Ej. Docente"
+                  type="text"
+                  value={editPatient.occupation ?? ""}
                 />
               </label>
               <label className="block">

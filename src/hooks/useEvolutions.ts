@@ -25,9 +25,10 @@ export type NewEvolutionInput = {
   patientId: string;
   appointmentId?: string;
   sessionDate: string;
-  painLevel: number;
+  /** null = sin registrar (opcional). */
+  painLevel: number | null;
+  /** "¿Qué se hizo en la sesión?" */
   clinicalNotes: string;
-  nextGoals: string;
   treatmentId?: string;
 };
 
@@ -155,7 +156,6 @@ export function useEvolutions(patientId?: string) {
       session_date: input.sessionDate,
       pain_level: input.painLevel,
       clinical_notes: input.clinicalNotes,
-      next_goals: input.nextGoals || null,
     });
 
     if (insertError) {

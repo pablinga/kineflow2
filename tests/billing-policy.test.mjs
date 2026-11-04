@@ -836,7 +836,7 @@ test("Pacientes validan DNI duplicado, contacto minimo y edicion segura", () => 
   assert.match(patientsPage, /Editar paciente/);
   // El alta carga una evaluación kinésica inicial (reemplazó al tratamiento inicial).
   assert.match(newPatientModal, /Cargar evaluación inicial/);
-  assert.match(patientsPage, /insertPatientEvaluation\(activeWorkspace\.id, patientId, initialEvaluation\)/);
+  assert.match(patientsPage, /insertPatientEvaluation\(\s*activeWorkspace\.id,\s*patientId,\s*initialEvaluation,?\s*\)/);
   assert.match(patientsPage, /Paciente actualizado correctamente/);
   assert.match(migration, /patients\.owner_id = new\.owner_id/);
   assert.match(migration, /patients\.id is distinct from new\.id/);
