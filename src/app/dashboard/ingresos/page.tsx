@@ -135,7 +135,7 @@ function IncomePageContent() {
   }
 
   if (loading || !incomeInitialLoaded || !planLoaded || !workspaceLoaded) {
-    return <DashboardLoading />;
+    return <DashboardLoading variant="ingresos" />;
   }
 
   const effectiveAccountType =
@@ -518,7 +518,7 @@ function IncomePageContent() {
 
 export default function IncomePage() {
   return (
-    <Suspense fallback={<DashboardLoading />}>
+    <Suspense fallback={<DashboardLoading variant="ingresos" />}>
       <IncomePageContent />
     </Suspense>
   );

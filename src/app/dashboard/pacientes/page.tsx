@@ -287,7 +287,7 @@ export default function PatientsPage() {
   }
 
   if (loading || !initialLoaded || !accessLoaded || !planLoaded || !workspaceLoaded) {
-    return <DashboardLoading />;
+    return <DashboardLoading variant="pacientes" />;
   }
 
   const effectiveAccountType =

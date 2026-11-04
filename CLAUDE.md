@@ -333,6 +333,11 @@ Revisión de UX del dashboard en tres bloques (commits `4420409`, `b9b8297`, `01
 - Cambios en `DashboardSidebar` (solo la barra inferior): estado `pendingHref` que marca el botón tocado al instante (se limpia al cambiar `pathname`), `active:`/`group-active:` para feedback en el mismo toque, `touch-manipulation` y **`prefetch`** en esos 4 links (las pantallas del panel son estáticas `○`: precargarlas baja el JS y el payload desde la CDN, sin llamar a funciones ni a Supabase). El menú lateral y "Más" siguen con `prefetch={false}`.
 - Resultado medido: botón marcado ~0,15 s (antes 0,3–0,66) y contenido 0,6–0,8 s (antes 0,8–1,2). Lo que queda es ejecutar la pantalla y traer los datos de Supabase (prod en `us-west-1`).
 
+### Skeletons por pantalla (2026-11-04, en QA)
+
+- `DashboardLoading` acepta `variant` (`inicio` | `agenda` | `pacientes` | `ingresos`): en vez del esqueleto genérico (título + 4 tarjetas) muestra uno con la forma de la pantalla (`src/components/layout/DashboardSkeletons.tsx`), dentro del mismo `PageContainer` que la pantalla real, así el contenido aparece en su lugar sin saltar. Agenda: en el celular imita la vista Día; en escritorio, encabezado + leyenda + filtros + calendario. La agenda de clínica ("Dar turno") y el resto de las pantallas siguen con el genérico.
+- No acelera la carga real. Siguiente paso acordado: guardar en memoria los datos de Agenda y Pacientes para que volver a esas pantallas sea instantáneo (y actualizar por detrás).
+
 ## Pendientes abiertos (al 2026-10-28)
 
 - **Mercado Pago:** nunca entró un pago real. Con el primer cliente que pague, correr `supabase/queries/mercadopago-matching.sql` (¿se conservó la `external_reference`? ¿quedó ACTIVE?). Sin sandbox ni pago de prueba, por decisión del usuario.

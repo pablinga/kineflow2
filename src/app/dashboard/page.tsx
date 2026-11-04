@@ -103,7 +103,7 @@ export default function DashboardPage() {
     !workspaceLoaded ||
     !activation.loaded
   ) {
-    return <DashboardLoading />;
+    return <DashboardLoading variant="inicio" />;
   }
 
   const currentPlanName = getPlanDisplayName(plan.plan);

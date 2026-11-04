@@ -515,7 +515,7 @@ function formatShortAvailability(availability: ClinicAvailability[]) {
  */
 export default function AppointmentsPage() {
   return (
-    <Suspense fallback={<DashboardLoading />}>
+    <Suspense fallback={<DashboardLoading variant="agenda" />}>
       <AgendaRouter />
     </Suspense>
   );
@@ -526,7 +526,7 @@ function AgendaRouter() {
   const legacyRequested = useSearchParams().get("vista") === "anterior";
 
   if (!loaded) {
-    return <DashboardLoading />;
+    return <DashboardLoading variant="agenda" />;
   }
 
   if (
@@ -1123,7 +1123,7 @@ function LegacyAppointmentsPage() {
     !patientsLoaded ||
     !workspaceLoaded
   ) {
-    return <DashboardLoading />;
+    return <DashboardLoading variant="agenda" />;
   }
 
   const effectiveAccountType =

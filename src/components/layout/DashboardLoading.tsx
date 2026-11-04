@@ -1,10 +1,26 @@
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
+import {
+  AgendaSkeleton,
+  IngresosSkeleton,
+  InicioSkeleton,
+  PacientesSkeleton,
+} from "@/components/layout/DashboardSkeletons";
+import { PageContainer } from "@/components/layout/PageContainer";
+
+const SKELETONS = {
+  agenda: AgendaSkeleton,
+  ingresos: IngresosSkeleton,
+  inicio: InicioSkeleton,
+  pacientes: PacientesSkeleton,
+};
 
 type DashboardLoadingProps = {
   error?: string;
   message?: string;
   retryHref?: string;
   title?: string;
+  /** Esqueleto con la forma de la pantalla que se está cargando. */
+  variant?: keyof typeof SKELETONS;
 };
 
 export function DashboardLoading({
@@ -12,7 +28,24 @@ export function DashboardLoading({
   message = "Estamos verificando tu sesión.",
   retryHref,
   title = "Cargando contenido",
+  variant,
 }: DashboardLoadingProps) {
+  if (variant && !error) {
+    const Skeleton = SKELETONS[variant];
+
+    return (
+      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
+        <DashboardSidebar />
+        <PageContainer>
+          <div aria-busy="true" aria-label={title}>
+            <Skeleton />
+            <span className="sr-only">{message}</span>
+          </div>
+        </PageContainer>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
       <DashboardSidebar />
