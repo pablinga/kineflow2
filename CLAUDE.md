@@ -321,6 +321,11 @@ Revisión de UX del dashboard en tres bloques (commits `4420409`, `b9b8297`, `01
   - Botones de cada turno en la agenda: 44 px y `text-xs` en mobile (antes 32 px y 11 px). Botón de cerrar la firma de 44 px; `shrink-0` en el menú de la landing y en "Eliminar día bloqueado".
 - Verificado con Playwright y datos simulados (ancho de página en 360/390/412/1024/1280 y modales en 360×800 y 800×360). Pendiente de la auditoría: vista Semana en el celular, pestañas que scrollean sin aviso, letra de 10–11 px en chips, celdas del calendario como `div`, y lo de Play Store (assetlinks, borrado de cuenta, manifest).
 
+### Google Play: baja desde la app y ficha (2026-11-04, en QA)
+
+- Baja de cuenta **desde la app**: Configuración → General → "Eliminar mi cuenta" (`DeleteAccountCard`, `POST /api/account/deletion-request`, `src/lib/account-deletion.ts`, `npm run test:deletion`). No borra nada: manda un mail a `ACCOUNT_DELETION_EMAIL` (por defecto `contacto@kineflow.ar`) con usuario, espacios, suscripción y motivo, y una confirmación al usuario. Sin `RESEND_API_KEY` responde 503 y pide escribir por mail. La baja se procesa a mano (orden de limpieza de siempre). `/eliminar-cuenta` explica los dos caminos.
+- Materiales de la ficha en `docs/play-store/`: textos (`ficha.md`: nombre, descripción corta y larga sin precios ni pagos, categoría recomendada Medicina), 8 capturas de teléfono 1080×1920 y la imagen destacada 1024×500.
+
 ## Pendientes abiertos (al 2026-10-28)
 
 - **Mercado Pago:** nunca entró un pago real. Con el primer cliente que pague, correr `supabase/queries/mercadopago-matching.sql` (¿se conservó la `external_reference`? ¿quedó ACTIVE?). Sin sandbox ni pago de prueba, por decisión del usuario.

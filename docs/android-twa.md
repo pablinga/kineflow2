@@ -88,11 +88,11 @@ Commitear el `android/twa-manifest.json` actualizado y subir el `.aab` nuevo a P
 | Material | Requisito de Play | Estado en el repo |
 |---|---|---|
 | Ícono | 512×512 PNG | **Está**: `public/icon-512.png` (512×512). Play aplica su propia máscara redondeada. |
-| Imagen destacada | 1024×500 PNG o JPG | **Falta** |
-| Capturas de teléfono | 2 a 8, vertical, lado corto ≥ 320 px | **Faltan**. Las de `public/images/landing/` son de escritorio (2560×1600) y no sirven como capturas de teléfono. |
-| Descripción corta | hasta 80 caracteres | **Falta**. Base: subtítulo del hero en `src/app/page.tsx` / `LANDING_DESCRIPTION` en `src/lib/landing-content.ts`. |
-| Descripción larga | hasta 4000 caracteres | **Falta**. Base: textos de la landing y `LANDING_FAQ` (solo afirmaciones verificadas). |
-| Categoría | una de la lista de Play | Decisión pendiente (por ejemplo, Medicina o Empresa). |
+| Imagen destacada | 1024×500 PNG o JPG | **Está**: `docs/play-store/imagen-destacada-1024x500.png` |
+| Capturas de teléfono | 2 a 8, vertical, lado corto ≥ 320 px | **Están**: 8 capturas 1080×1920 en `docs/play-store/` |
+| Descripción corta | hasta 80 caracteres | **Está** (borrador): `docs/play-store/ficha.md` |
+| Descripción larga | hasta 4000 caracteres | **Está** (borrador): `docs/play-store/ficha.md` |
+| Categoría | una de la lista de Play | Recomendado Medicina (ver `docs/play-store/ficha.md`); decide el usuario. |
 | Clasificación de contenido | cuestionario en Play Console | Se completa en Play Console. |
 | Seguridad de los datos | formulario en Play Console | Se completa en Play Console (ver abajo). |
 | Declaración de apps de salud | formulario en Play Console | Se completa en Play Console: la app maneja historias clínicas cargadas por profesionales. |
