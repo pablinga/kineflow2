@@ -215,6 +215,34 @@ export function NuevoPacienteModal({
           </label>
           <label className="block">
             <span className="text-sm font-semibold text-slate-700">
+              Fecha de nacimiento
+            </span>
+            <input
+              className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
+              max={toArgentinaDateValue()}
+              min="1900-01-01"
+              onChange={(event) => onUpdateField("birthDate", event.target.value)}
+              type="date"
+              value={newPatient.birthDate ?? ""}
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold text-slate-700">Sexo</span>
+            <select
+              className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+              onChange={(event) => onUpdateField("sex", event.target.value)}
+              value={newPatient.sex ?? ""}
+            >
+              <option value="">Sin especificar</option>
+              {PATIENT_SEX_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold text-slate-700">
               Teléfono
             </span>
             <input
@@ -237,19 +265,6 @@ export function NuevoPacienteModal({
           </label>
           <label className="block">
             <span className="text-sm font-semibold text-slate-700">
-              Fecha de nacimiento
-            </span>
-            <input
-              className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 px-4 text-sm outline-none focus:border-ocean-400"
-              max={toArgentinaDateValue()}
-              min="1900-01-01"
-              onChange={(event) => onUpdateField("birthDate", event.target.value)}
-              type="date"
-              value={newPatient.birthDate ?? ""}
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-semibold text-slate-700">
               Ocupación
             </span>
             <input
@@ -260,21 +275,6 @@ export function NuevoPacienteModal({
               type="text"
               value={newPatient.occupation ?? ""}
             />
-          </label>
-          <label className="block">
-            <span className="text-sm font-semibold text-slate-700">Sexo</span>
-            <select
-              className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
-              onChange={(event) => onUpdateField("sex", event.target.value)}
-              value={newPatient.sex ?? ""}
-            >
-              <option value="">Sin especificar</option>
-              {PATIENT_SEX_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
           </label>
           <label className="block md:col-span-2">
             <FieldLabel required>
