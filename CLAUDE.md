@@ -327,6 +327,12 @@ Revisión de UX del dashboard en tres bloques (commits `4420409`, `b9b8297`, `01
 - Baja de cuenta **desde la app**: Configuración → General → "Eliminar mi cuenta" (`DeleteAccountCard`, `POST /api/account/deletion-request`, `src/lib/account-deletion.ts`, `npm run test:deletion`). No borra nada: manda un mail a `ACCOUNT_DELETION_EMAIL` (por defecto `contacto@kineflow.ar`) con usuario, espacios, suscripción y motivo, y una confirmación al usuario. Sin `RESEND_API_KEY` responde 503 y pide escribir por mail. La baja se procesa a mano (orden de limpieza de siempre). `/eliminar-cuenta` explica los dos caminos.
 - Materiales de la ficha en `docs/play-store/`: textos (`ficha.md`: nombre, descripción corta y larga sin precios ni pagos, categoría recomendada Medicina), 8 capturas de teléfono 1080×1920 y la imagen destacada 1024×500.
 
+### Barra inferior más rápida en el celular (2026-11-04, en QA)
+
+- Queja del usuario: al tocar un botón de la barra de abajo "tarda mucho en seleccionarlo". Medido con build de producción, 4G simulado (150 ms) y CPU ×4: el botón recién se marcaba a los 0,3–0,66 s y el contenido aparecía a los 0,8–1,2 s, sin ninguna señal mientras tanto.
+- Cambios en `DashboardSidebar` (solo la barra inferior): estado `pendingHref` que marca el botón tocado al instante (se limpia al cambiar `pathname`), `active:`/`group-active:` para feedback en el mismo toque, `touch-manipulation` y **`prefetch`** en esos 4 links (las pantallas del panel son estáticas `○`: precargarlas baja el JS y el payload desde la CDN, sin llamar a funciones ni a Supabase). El menú lateral y "Más" siguen con `prefetch={false}`.
+- Resultado medido: botón marcado ~0,15 s (antes 0,3–0,66) y contenido 0,6–0,8 s (antes 0,8–1,2). Lo que queda es ejecutar la pantalla y traer los datos de Supabase (prod en `us-west-1`).
+
 ## Pendientes abiertos (al 2026-10-28)
 
 - **Mercado Pago:** nunca entró un pago real. Con el primer cliente que pague, correr `supabase/queries/mercadopago-matching.sql` (¿se conservó la `external_reference`? ¿quedó ACTIVE?). Sin sandbox ni pago de prueba, por decisión del usuario.

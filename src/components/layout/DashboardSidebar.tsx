@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { type MouseEvent, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -132,6 +132,13 @@ export function DashboardSidebar() {
   const [logoutError, setLogoutError] = useState("");
   const pathname = usePathname();
   const router = useRouter();
+  // Botón de la barra inferior tocado mientras carga la pantalla: se marca al
+  // instante para que el toque se note (la navegación tarda medio segundo o más).
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
   const { accountType, loading } = useRequireAuth();
   const { plan } = useSubscriptionPlan();
   const { accessLevel } = useAccessLevel();
@@ -282,7 +289,22 @@ export function DashboardSidebar() {
   const isSubpage = Boolean(activeItem && pathname !== activeItem.href);
   const mobileTitle = mobileSubpageTitles[pathname] ?? activeItem?.label;
   const moreActive =
-    open || !visibleMobileNavigation.some((item) => isActive(item.href));
+    open || (!pendingHref && !visibleMobileNavigation.some((item) => isActive(item.href)));
+
+  function isMobileNavActive(href: string) {
+    return pendingHref ? pendingHref === href : isActive(href);
+  }
+
+  function handleMobileNavClick(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    // Abrir en otra pestaña no navega acá: no marcar.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+      return;
+    }
+
+    if (pathname !== href) {
+      setPendingHref(href);
+    }
+  }
 
   return (
     <>
@@ -426,20 +448,23 @@ export function DashboardSidebar() {
         >
           {visibleMobileNavigation.map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.href);
+            const active = isMobileNavActive(item.href);
 
             return (
               <Link
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-[3.5rem] flex-col items-center justify-center gap-1 px-1 text-[0.7rem] transition-colors duration-150 ease-out ${
+                className={`group flex min-h-[3.5rem] touch-manipulation flex-col items-center justify-center gap-1 px-1 text-[0.7rem] transition-colors duration-150 ease-out active:text-ocean-800 ${
                   active ? "font-bold text-ocean-800" : "font-semibold text-slate-500"
                 }`}
                 href={item.href}
                 key={item.href}
-                prefetch={false}
+                onClick={(event) => handleMobileNavClick(event, item.href)}
+                // Las 4 pantallas de la barra son estáticas (CDN): precargarlas
+                // no llama al servidor ni a Supabase y saca la espera al tocar.
+                prefetch
               >
                 <span
-                  className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-150 ease-out ${
+                  className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-150 ease-out group-active:bg-ocean-100 ${
                     active ? "bg-ocean-100" : ""
                   }`}
                 >
