@@ -12,6 +12,21 @@ import { hasPhoneNumberChanged } from "@/lib/phone";
 
 export type PatientStatus = "Activo" | "Inactivo";
 
+export type PatientSex = "female" | "male";
+
+export const PATIENT_SEX_OPTIONS: Array<{ label: string; value: PatientSex }> = [
+  { label: "Femenino", value: "female" },
+  { label: "Masculino", value: "male" },
+];
+
+export function getPatientSexLabel(sex: string | null | undefined) {
+  return PATIENT_SEX_OPTIONS.find((option) => option.value === sex)?.label ?? "";
+}
+
+function normalizePatientSex(value: string | null | undefined): PatientSex | "" {
+  return value === "female" || value === "male" ? value : "";
+}
+
 export type Patient = {
   id: string;
   assignedProfessionalId: string | null;
@@ -24,6 +39,7 @@ export type Patient = {
   /** YYYY-MM-DD o "" (la edad se calcula con `getPatientAge`). */
   birthDate: string;
   occupation: string;
+  sex: PatientSex | "";
   insuranceMemberNumber: string;
   insuranceProviderId: string | null;
   insuranceProviderName: string;
@@ -46,6 +62,8 @@ export type NewPatientInput = {
   /** YYYY-MM-DD; sin definir = no se toca al editar. */
   birthDate?: string;
   occupation?: string;
+  /** "female" | "male" | ""; sin definir = no se toca al editar. */
+  sex?: string;
   insuranceMemberNumber?: string;
   insuranceProviderId?: string;
   status?: PatientStatus;
@@ -66,6 +84,7 @@ type PatientRow = {
   initial_condition: string;
   birth_date: string | null;
   occupation: string | null;
+  sex: string | null;
   insurance_member_number: string | null;
   insurance_provider_id: string | null;
   insurance_providers: { name: string } | Array<{ name: string }> | null;
@@ -167,6 +186,7 @@ function mapPatient(
     condition: row.initial_condition,
     birthDate: row.birth_date ?? "",
     occupation: row.occupation ?? "",
+    sex: normalizePatientSex(row.sex),
     insuranceMemberNumber: row.insurance_member_number ?? "",
     insuranceProviderId: row.insurance_provider_id,
     insuranceProviderName:
@@ -195,6 +215,7 @@ function normalizePatientInput(input: NewPatientInput) {
     condition: input.condition.trim(),
     document: normalizeDocumentNumber(input.document),
     occupation: input.occupation === undefined ? undefined : input.occupation.trim().slice(0, 120),
+    sex: input.sex === undefined ? undefined : normalizePatientSex(input.sex),
     email: input.email.trim(),
     insuranceMemberNumber: input.insuranceMemberNumber?.trim() ?? "",
     insuranceProviderId: input.insuranceProviderId?.trim() ?? "",
@@ -278,7 +299,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
       let patientQuery = supabase
         .from("patients")
         .select(
-          "id, assigned_professional_id, clinic_id, full_name, document_number, phone, email, initial_condition, birth_date, occupation, insurance_provider_id, insurance_member_number, insurance_providers(name), status, phone_e164, whatsapp_consent",
+          "id, assigned_professional_id, clinic_id, full_name, document_number, phone, email, initial_condition, birth_date, occupation, sex, insurance_provider_id, insurance_member_number, insurance_providers(name), status, phone_e164, whatsapp_consent",
           { count: "exact" },
         )
         .order("status", { ascending: true })
@@ -597,6 +618,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
       initial_condition: input.condition,
       birth_date: input.birthDate || null,
       occupation: input.occupation || null,
+      sex: input.sex || null,
       insurance_member_number: input.insuranceMemberNumber || null,
       insurance_provider_id: input.insuranceProviderId || null,
       status: mapPatientStatusToDb(input.status),
@@ -814,6 +836,7 @@ export function usePatients(options: UsePatientsOptions = {}) {
         ...(normalizedInput.occupation === undefined
           ? {}
           : { occupation: normalizedInput.occupation || null }),
+        ...(normalizedInput.sex === undefined ? {} : { sex: normalizedInput.sex || null }),
         insurance_member_number: normalizedInput.insuranceMemberNumber || null,
         insurance_provider_id: normalizedInput.insuranceProviderId || null,
         phone: normalizedInput.phone || null,

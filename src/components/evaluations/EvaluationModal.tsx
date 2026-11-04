@@ -9,15 +9,22 @@ import {
   validateEvaluation,
   type NewEvaluationInput,
 } from "@/hooks/usePatientEvaluations";
+import type { PatientSex } from "@/hooks/usePatients";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 
 type EvaluationModalProps = {
   onClose: () => void;
   onSave: (input: NewEvaluationInput) => Promise<void>;
   patientName: string;
+  patientSex?: PatientSex | "";
 };
 
-export function EvaluationModal({ onClose, onSave, patientName }: EvaluationModalProps) {
+export function EvaluationModal({
+  onClose,
+  onSave,
+  patientName,
+  patientSex,
+}: EvaluationModalProps) {
   const [evaluation, setEvaluation] = useState<NewEvaluationInput>(createEmptyEvaluation);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -79,7 +86,7 @@ export function EvaluationModal({ onClose, onSave, patientName }: EvaluationModa
         ) : null}
 
         <div className="mt-4">
-          <EvaluationFields onChange={updateField} value={evaluation} />
+          <EvaluationFields onChange={updateField} patientSex={patientSex} value={evaluation} />
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">

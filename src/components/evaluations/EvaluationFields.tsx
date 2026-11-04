@@ -8,8 +8,11 @@ import {
   EVALUATION_STUDY_FILE_TYPES,
   type NewEvaluationInput,
 } from "@/hooks/usePatientEvaluations";
+import type { PatientSex } from "@/hooks/usePatients";
 
 type EvaluationFieldsProps = {
+  /** Sexo del paciente: silueta inicial del mapa corporal. */
+  patientSex?: PatientSex | "";
   onChange: <Field extends keyof NewEvaluationInput>(
     field: Field,
     value: NewEvaluationInput[Field],
@@ -42,7 +45,7 @@ function SectionTitle({ children }: { children: string }) {
 }
 
 /** Campos de la evaluación kinésica, compartidos por el alta y la ficha. */
-export function EvaluationFields({ onChange, value }: EvaluationFieldsProps) {
+export function EvaluationFields({ onChange, patientSex, value }: EvaluationFieldsProps) {
   function textArea(field: TextFieldName, label: string, placeholder: string, wide = true) {
     return (
       <label className={`block ${wide ? "md:col-span-2" : ""}`}>
@@ -165,6 +168,7 @@ export function EvaluationFields({ onChange, value }: EvaluationFieldsProps) {
         <FieldLabel required>Zona a tratar</FieldLabel>
         <BodyMapPicker
           onChange={(zones) => onChange("bodyZones", zones)}
+          patientSex={patientSex}
           value={value.bodyZones}
         />
       </div>

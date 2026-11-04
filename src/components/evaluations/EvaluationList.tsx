@@ -9,6 +9,7 @@ import {
   getOnsetLabel,
   type PatientEvaluation,
 } from "@/hooks/usePatientEvaluations";
+import type { PatientSex } from "@/hooks/usePatients";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 
 type EvaluationListProps = {
@@ -18,6 +19,8 @@ type EvaluationListProps = {
   canManageFiles: (evaluation: PatientEvaluation) => boolean;
   onAddStudyFiles: (evaluation: PatientEvaluation, files: File[]) => Promise<void>;
   onRemoveStudyFile: (evaluation: PatientEvaluation, path: string) => Promise<void>;
+  /** Sexo del paciente: silueta de las miniaturas. */
+  patientSex?: PatientSex | "";
   evaluations: PatientEvaluation[];
   /** Dolor de la última evolución, para comparar con la evaluación más reciente. */
   latestEvolutionPain: string | null;
@@ -169,6 +172,7 @@ export function EvaluationList({
   onAddStudyFiles,
   onCreateTreatment,
   onRemoveStudyFile,
+  patientSex,
   treatedEvaluationIds,
 }: EvaluationListProps) {
   if (evaluations.length === 0) {
@@ -203,7 +207,7 @@ export function EvaluationList({
 
             {evaluation.bodyZones.length > 0 ? (
               <div className="mt-3">
-                <BodyMapPreview zones={evaluation.bodyZones} />
+                <BodyMapPreview patientSex={patientSex} zones={evaluation.bodyZones} />
               </div>
             ) : null}
 

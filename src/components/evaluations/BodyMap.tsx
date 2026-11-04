@@ -18,8 +18,11 @@ import {
 
 const FIGURE_SEX_STORAGE_KEY = "kineflow.bodymap.figure";
 
-/** Silueta elegida (mujer / hombre), recordada en el dispositivo. */
-function useBodyFigureSex() {
+/**
+ * Silueta (mujer / hombre). Si se conoce el sexo del paciente se usa ese;
+ * si no, la última elegida en el dispositivo. Se puede cambiar a mano.
+ */
+function useBodyFigureSex(patientSex?: BodyFigureSex | "" | null) {
   const [sex, setSex] = useState<BodyFigureSex>("female");
 
   useEffect(() => {
@@ -33,6 +36,13 @@ function useBodyFigureSex() {
       // Sin acceso a localStorage: queda la silueta por defecto.
     }
   }, []);
+
+  // Después del efecto de localStorage: el sexo del paciente tiene prioridad.
+  useEffect(() => {
+    if (patientSex === "female" || patientSex === "male") {
+      setSex(patientSex);
+    }
+  }, [patientSex]);
 
   function changeSex(next: BodyFigureSex) {
     setSex(next);
@@ -121,12 +131,14 @@ function BodyFigureSvg({ className, figure, onToggle, selected, view }: BodyFigu
 
 type BodyMapPickerProps = {
   onChange: (zones: string[]) => void;
+  /** Sexo del paciente: elige la silueta inicial. */
+  patientSex?: BodyFigureSex | "" | null;
   value: string[];
 };
 
 /** Mapa para marcar las zonas a tratar, con lista y buscador como alternativa. */
-export function BodyMapPicker({ onChange, value }: BodyMapPickerProps) {
-  const [sex, setSex] = useBodyFigureSex();
+export function BodyMapPicker({ onChange, patientSex, value }: BodyMapPickerProps) {
+  const [sex, setSex] = useBodyFigureSex(patientSex);
   const [listOpen, setListOpen] = useState(false);
   const [search, setSearch] = useState("");
   const zones = normalizeBodyZones(value);
@@ -252,8 +264,14 @@ export function BodyMapPicker({ onChange, value }: BodyMapPickerProps) {
 }
 
 /** Siluetas chicas, solo lectura, con las zonas marcadas. */
-export function BodyMapPreview({ zones }: { zones: string[] }) {
-  const [sex] = useBodyFigureSex();
+export function BodyMapPreview({
+  patientSex,
+  zones,
+}: {
+  patientSex?: BodyFigureSex | "" | null;
+  zones: string[];
+}) {
+  const [sex] = useBodyFigureSex(patientSex);
   const selected = new Set(normalizeBodyZones(zones));
 
   return (

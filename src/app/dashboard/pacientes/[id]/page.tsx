@@ -34,7 +34,7 @@ import {
   type NewEvaluationInput,
   type PatientEvaluation,
 } from "@/hooks/usePatientEvaluations";
-import { usePatients } from "@/hooks/usePatients";
+import { getPatientSexLabel, usePatients } from "@/hooks/usePatients";
 import { useProfileNames } from "@/hooks/useProfileNames";
 import {
   useTreatments,
@@ -675,6 +675,7 @@ function PatientDetailPageContent() {
                         formatPatientAge(
                           getPatientAge(patient.birthDate, toArgentinaDateValue()),
                         ),
+                        getPatientSexLabel(patient.sex),
                         patient.occupation,
                         patient.condition,
                       ]
@@ -1090,6 +1091,7 @@ function PatientDetailPageContent() {
                       evaluations={evaluations}
                       onAddStudyFiles={addStudyFiles}
                       onRemoveStudyFile={removeStudyFile}
+                      patientSex={patient?.sex ?? ""}
                       latestEvolutionPain={
                         evolutions[0] && evolutions[0].pain !== "Sin dato"
                           ? evolutions[0].pain
@@ -1286,6 +1288,7 @@ function PatientDetailPageContent() {
               onClose={() => setEvaluationModalOpen(false)}
               onSave={handleEvaluationSave}
               patientName={patient?.name ?? "Paciente"}
+              patientSex={patient?.sex ?? ""}
             />
           ) : null}
 

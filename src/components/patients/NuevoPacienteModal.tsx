@@ -13,7 +13,7 @@ import { PatientInsuranceFields } from "@/components/patients/PatientInsuranceFi
 import { FieldLabel } from "@/components/ui/FieldLabel";
 import type { InsuranceProvider } from "@/hooks/useInsuranceProviders";
 import type { NewEvaluationInput } from "@/hooks/usePatientEvaluations";
-import type { NewPatientInput } from "@/hooks/usePatients";
+import { PATIENT_SEX_OPTIONS, type NewPatientInput } from "@/hooks/usePatients";
 
 type NuevoPacienteModalProps = {
   assignedProfessionalSelect: ReactNode;
@@ -261,6 +261,21 @@ export function NuevoPacienteModal({
               value={newPatient.occupation ?? ""}
             />
           </label>
+          <label className="block">
+            <span className="text-sm font-semibold text-slate-700">Sexo</span>
+            <select
+              className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+              onChange={(event) => onUpdateField("sex", event.target.value)}
+              value={newPatient.sex ?? ""}
+            >
+              <option value="">Sin especificar</option>
+              {PATIENT_SEX_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="block md:col-span-2">
             <FieldLabel required>
               Motivo de consulta / diagnóstico inicial
@@ -306,6 +321,11 @@ export function NuevoPacienteModal({
               <div className="mt-4">
                 <EvaluationFields
                   onChange={onUpdateInitialEvaluationField}
+                  patientSex={
+                    newPatient.sex === "female" || newPatient.sex === "male"
+                      ? newPatient.sex
+                      : ""
+                  }
                   value={initialEvaluation}
                 />
               </div>

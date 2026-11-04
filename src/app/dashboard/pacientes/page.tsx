@@ -27,7 +27,12 @@ import { NuevoPacienteModal } from "@/components/patients/NuevoPacienteModal";
 import { PatientInsuranceFields } from "@/components/patients/PatientInsuranceFields";
 import { getPatientInitials, PatientCard } from "@/components/patients/PatientCard";
 import { FieldLabel } from "@/components/ui/FieldLabel";
-import { usePatients, type NewPatientInput, type Patient } from "@/hooks/usePatients";
+import {
+  PATIENT_SEX_OPTIONS,
+  usePatients,
+  type NewPatientInput,
+  type Patient,
+} from "@/hooks/usePatients";
 import { useActiveWorkspace } from "@/hooks/useActiveWorkspace";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useInsuranceProviders } from "@/hooks/useInsuranceProviders";
@@ -59,6 +64,7 @@ const emptyPatient: NewPatientInput = {
   condition: "",
   birthDate: "",
   occupation: "",
+  sex: "",
   insuranceMemberNumber: "",
   insuranceProviderId: "",
 };
@@ -416,6 +422,7 @@ export default function PatientsPage() {
       condition: patient.condition,
       document: patient.document,
       occupation: patient.occupation,
+      sex: patient.sex,
       email: patient.email,
       insuranceMemberNumber: patient.insuranceMemberNumber,
       insuranceProviderId: patient.insuranceProviderId ?? "",
@@ -1138,6 +1145,21 @@ export default function PatientsPage() {
                   type="text"
                   value={editPatient.occupation ?? ""}
                 />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">Sexo</span>
+                <select
+                  className="mt-2 min-h-11 w-full rounded-lg border border-ocean-100 bg-white px-4 text-sm outline-none focus:border-ocean-400"
+                  onChange={(event) => updateEditField("sex", event.target.value)}
+                  value={editPatient.sex ?? ""}
+                >
+                  <option value="">Sin especificar</option>
+                  {PATIENT_SEX_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="block">
                 <span className="text-sm font-semibold text-slate-700">
