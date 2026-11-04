@@ -644,7 +644,7 @@ function PatientDetailPageContent() {
   }
 
   return (
-    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
       <DashboardSidebar />
       <section className="px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
@@ -1544,7 +1544,7 @@ function PatientDetailPageContent() {
           {rescheduling ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 px-4 py-6">
               <form
-                className="w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
+                className="max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] overflow-y-auto w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
                 onSubmit={handleRescheduleSubmit}
               >
                 <h2 className="text-lg font-bold text-ink">
@@ -1598,7 +1598,7 @@ function PatientDetailPageContent() {
 
           {canceling ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 px-4 py-6">
-              <div className="w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft">
+              <div className="max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] overflow-y-auto w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft">
                 <h2 className="text-lg font-bold text-ink">Cancelar turno</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   El turno de {patient?.name} del {canceling.date} a las{" "}

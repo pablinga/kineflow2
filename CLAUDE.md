@@ -311,6 +311,16 @@ Revisión de UX del dashboard en tres bloques (commits `4420409`, `b9b8297`, `01
 - En el alta y la edición el orden es Nombre, DNI, fecha de nacimiento, sexo y el resto; el número de afiliado solo aparece con una obra social elegida (se borra al pasar a "Sin obra social").
 - RLS probada en QA y prod con usuarios simulados (dueño crea evaluación, ve y sube; otro usuario no; anónimo no ejecuta la función; checks de `study_files` y `birth_date`). Sin prueba de UI en navegador.
 
+### Arreglos responsive (2026-11-04, en QA)
+
+- Auditoría previa a Google Play en la rama `ccr-0e8ed04d-7s0u4l` (`responsive-audit/REPORTE.md`, scripts con Supabase falso y Playwright). Arreglado:
+  - Layout del dashboard `lg:grid-cols-[18rem_minmax(0,1fr)]` (antes `1fr`: una tabla ancha ensanchaba toda la página en 1024/1280). Usar siempre `minmax(0,1fr)`.
+  - Inicio y Agenda vista Día con `grid-cols-1` en mobile (un nombre largo ensanchaba la página a ~450 px).
+  - Modales de la agenda y la ficha (acciones, reprogramar, firma, cancelar) con `max-h-[90dvh] overflow-y-auto`.
+  - Celular acostado: en pantallas de ≤ 500 px de alto la barra superior del dashboard y la cabecera de la Agenda (fecha / Día-Semana-Mes / días) dejan de ser `sticky` (`[@media(max-height:500px)]:static`): antes tapaban casi toda la lista de turnos.
+  - Botones de cada turno en la agenda: 44 px y `text-xs` en mobile (antes 32 px y 11 px). Botón de cerrar la firma de 44 px; `shrink-0` en el menú de la landing y en "Eliminar día bloqueado".
+- Verificado con Playwright y datos simulados (ancho de página en 360/390/412/1024/1280 y modales en 360×800 y 800×360). Pendiente de la auditoría: vista Semana en el celular, pestañas que scrollean sin aviso, letra de 10–11 px en chips, celdas del calendario como `div`, y lo de Play Store (assetlinks, borrado de cuenta, manifest).
+
 ## Pendientes abiertos (al 2026-10-28)
 
 - **Mercado Pago:** nunca entró un pago real. Con el primer cliente que pague, correr `supabase/queries/mercadopago-matching.sql` (¿se conservó la `external_reference`? ¿quedó ACTIVE?). Sin sandbox ni pago de prueba, por decisión del usuario.

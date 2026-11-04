@@ -1006,7 +1006,7 @@ export default function ClinicKinesiologistsPage() {
 
   if (!canManage) {
     return (
-      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
         <DashboardSidebar />
         <PageContainer>
           <section className="mx-auto max-w-3xl rounded-lg border border-ocean-100 bg-white p-6 shadow-card">
@@ -1021,7 +1021,7 @@ export default function ClinicKinesiologistsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
       <DashboardSidebar />
       <PageContainer>
         <PageHeader

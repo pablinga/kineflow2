@@ -838,7 +838,7 @@ function LegacyAppointmentsPage() {
         <span
           className={
             compact
-              ? "inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-50 px-2 text-[0.68rem] font-semibold text-ocean-800"
+              ? "inline-flex min-h-11 lg:min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-50 px-2 text-xs lg:text-[0.68rem] font-semibold text-ocean-800"
               : "flex w-full items-center gap-2 px-3 py-2.5 text-sm font-semibold text-ocean-800"
           }
         >
@@ -854,7 +854,7 @@ function LegacyAppointmentsPage() {
           compact === "pill"
             ? "inline-flex h-9 items-center justify-center rounded-full bg-ocean-50 px-4 text-sm font-semibold text-ocean-800 transition-colors duration-150 ease-out active:bg-ocean-100"
             : compact
-            ? "inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-600 px-2 text-[0.68rem] font-semibold text-white transition hover:bg-ocean-700"
+            ? "inline-flex min-h-11 lg:min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-600 px-2 text-xs lg:text-[0.68rem] font-semibold text-white transition hover:bg-ocean-700"
             : "flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm font-semibold text-ocean-800 hover:bg-ocean-50"
         }
         onClick={() => {
@@ -1586,7 +1586,7 @@ function LegacyAppointmentsPage() {
         <div className="mt-2 flex items-center gap-2">
           {canMarkAttended ? (
             <button
-              className="inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-emerald-600 px-2 text-[0.68rem] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+              className="inline-flex min-h-11 lg:min-h-8 flex-1 items-center justify-center rounded-lg bg-emerald-600 px-2 text-xs lg:text-[0.68rem] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
               disabled={
                 isFutureAppointment(appointment) ||
                 attendance.updatingId === appointment.id
@@ -1605,7 +1605,7 @@ function LegacyAppointmentsPage() {
             renderEvolutionAction(appointment, true)
           ) : isAttended ? (
             <Link
-              className="inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-600 px-2 text-[0.68rem] font-semibold text-white transition hover:bg-ocean-700"
+              className="inline-flex min-h-11 lg:min-h-8 flex-1 items-center justify-center rounded-lg bg-ocean-600 px-2 text-xs lg:text-[0.68rem] font-semibold text-white transition hover:bg-ocean-700"
               href={`/dashboard/pacientes/${appointment.patientId}?appointment=${appointment.id}`}
               prefetch={false}
             >
@@ -1613,7 +1613,7 @@ function LegacyAppointmentsPage() {
             </Link>
           ) : null}
           <button
-            className="flex min-h-8 flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 text-[0.68rem] font-semibold text-slate-600 transition hover:bg-slate-50 xl:hidden"
+            className="flex min-h-11 lg:min-h-8 flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 text-xs lg:text-[0.68rem] font-semibold text-slate-600 transition hover:bg-slate-50 xl:hidden"
             onClick={() => setActionsAppointment(appointment)}
             type="button"
           >
@@ -1622,7 +1622,7 @@ function LegacyAppointmentsPage() {
           </button>
 
           <details className="relative hidden flex-1 xl:block">
-            <summary className="flex min-h-8 cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 text-[0.68rem] font-semibold text-slate-600 transition hover:bg-slate-50">
+            <summary className="flex min-h-11 lg:min-h-8 cursor-pointer list-none items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 text-xs lg:text-[0.68rem] font-semibold text-slate-600 transition hover:bg-slate-50">
               <MoreVertical className="h-3.5 w-3.5" />
               Acciones
             </summary>
@@ -1642,7 +1642,7 @@ function LegacyAppointmentsPage() {
       "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 transition-colors duration-150 ease-out active:bg-ocean-100";
 
     return (
-      <section className="sticky top-14 z-30 -mx-4 -mt-4 border-b border-ocean-100 bg-white px-4 pb-3 pt-1 sm:-mx-6 sm:-mt-6 sm:px-6 lg:hidden">
+      <section className="sticky top-14 z-30 [@media(max-height:500px)]:static -mx-4 -mt-4 border-b border-ocean-100 bg-white px-4 pb-3 pt-1 sm:-mx-6 sm:-mt-6 sm:px-6 lg:hidden">
         <div className="flex items-center gap-1">
           {view === "day" ? null : (
             <button
@@ -1979,7 +1979,7 @@ function LegacyAppointmentsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
       <DashboardSidebar />
       <PageContainer>
           <PageHeader
@@ -2212,7 +2212,7 @@ function LegacyAppointmentsPage() {
 
           {view === "day" ? (
             <section className="mt-4 hidden sm:mt-6 lg:block">
-              <div className="grid gap-4 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 {mobileDays.map((day, index) => (
                   <div
                     className={`${
@@ -2276,7 +2276,7 @@ function LegacyAppointmentsPage() {
 
           {actionsAppointment ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-3 pb-3">
-              <div className="w-full max-w-sm rounded-xl border border-ocean-100 bg-white p-4 shadow-soft">
+              <div className="max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] overflow-y-auto w-full max-w-sm rounded-xl border border-ocean-100 bg-white p-4 shadow-soft">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-bold text-ink">
@@ -2316,7 +2316,7 @@ function LegacyAppointmentsPage() {
 
           {pendingAction ? (
             <div className="fixed inset-0 z-50 flex items-end bg-ink/70 px-3 pb-3 sm:items-center sm:justify-center sm:bg-ink/40 sm:px-4 sm:py-6">
-              <div className="min-h-[60vh] w-full rounded-t-2xl border border-ocean-100 bg-white p-5 shadow-soft sm:min-h-0 sm:max-w-md sm:rounded-lg">
+              <div className="max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] overflow-y-auto min-h-[60vh] w-full rounded-t-2xl border border-ocean-100 bg-white p-5 shadow-soft sm:min-h-0 sm:max-w-md sm:rounded-lg">
                 <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-slate-200 sm:hidden" />
                 <h2 className="text-lg font-bold text-ink">
                   {pendingAction.title}
@@ -2403,7 +2403,7 @@ function LegacyAppointmentsPage() {
           {rescheduling ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4 py-6">
               <form
-                className="w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
+                className="max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] overflow-y-auto w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft"
                 onSubmit={handleRescheduleSubmit}
               >
                 <h2 className="text-lg font-bold text-ink">Reprogramar turno</h2>

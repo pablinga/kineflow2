@@ -435,7 +435,7 @@ export default function WorkspaceSettingsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
       <DashboardSidebar />
       <PageContainer maxWidth="6xl">
         <PageHeader
@@ -996,7 +996,7 @@ export default function WorkspaceSettingsPage() {
                   </div>
                   <button
                     aria-label="Eliminar día bloqueado"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-100 text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-rose-100 text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
                     disabled={!canEdit}
                     onClick={async () => {
                       if (!window.confirm(`¿Desbloquear el ${formatDate(item.blockedDate)}?`)) {

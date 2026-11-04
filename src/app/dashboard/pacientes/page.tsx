@@ -736,7 +736,7 @@ export default function PatientsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
       <DashboardSidebar />
       <PageContainer>
           <PageHeader

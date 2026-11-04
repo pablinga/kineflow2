@@ -199,7 +199,7 @@ export default function DashboardPage() {
       ? getPublicBookingLink(activeWorkspace.id, process.env.NEXT_PUBLIC_APP_URL)
       : null;
   return (
-    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
       <DashboardSidebar />
       <PageContainer>
           <PageHeader
@@ -376,7 +376,7 @@ export default function DashboardPage() {
           ) : null}
 
           {isNewAccount ? null : (
-            <div className="mt-4 grid items-start gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-4 grid grid-cols-1 items-start gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
               <div className="lg:col-span-2 xl:order-1 xl:col-span-2">
                 <TodayAgendaCard
                   bookingLink={bookingLink}

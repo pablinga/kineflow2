@@ -1361,7 +1361,7 @@ export default function NewAppointmentPage() {
   );
 
   return (
-    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
       <DashboardSidebar />
       <section className="px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:px-8">
         <div className="mx-auto max-w-4xl">

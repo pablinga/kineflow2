@@ -150,7 +150,7 @@ function IncomePageContent() {
       !(plan.estadoPlan === "ACTIVO" && plan.plan === "CONSULTORIO"))
   ) {
     return (
-      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
         <DashboardSidebar />
         <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl rounded-lg border border-amber-100 bg-amber-50 p-6 shadow-sm">
@@ -168,7 +168,7 @@ function IncomePageContent() {
   }
 
   return (
-    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
       <DashboardSidebar />
       <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">

@@ -96,12 +96,12 @@ export function SignaturePad({ onCancel, onSave, patientName }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-card">
+      <div className="max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] overflow-y-auto w-full max-w-md rounded-lg bg-white p-5 shadow-card">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink">Firma de {patientName}</h2>
           <button
             aria-label="Cerrar"
-            className="text-slate-400 hover:text-slate-600"
+            className="-mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600"
             onClick={onCancel}
             type="button"
           >
@@ -129,7 +129,7 @@ export function SignaturePad({ onCancel, onSave, patientName }: Props) {
 
         <div className="mt-4 flex justify-between gap-2">
           <button
-            className="rounded-lg border border-ocean-100 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            className="min-h-11 rounded-lg border border-ocean-100 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
             onClick={handleClear}
             type="button"
           >
@@ -137,7 +137,7 @@ export function SignaturePad({ onCancel, onSave, patientName }: Props) {
           </button>
           <div className="flex gap-2">
             <button
-              className="rounded-lg border border-ocean-100 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              className="min-h-11 rounded-lg border border-ocean-100 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
               onClick={onCancel}
               type="button"
             >

@@ -286,7 +286,7 @@ export function DashboardSidebar() {
 
   return (
     <>
-      <div className="sticky top-0 z-40 flex min-h-14 items-center gap-1 border-b border-ocean-100 bg-white px-2 py-1.5 lg:hidden">
+      <div className="sticky top-0 z-40 flex min-h-14 [@media(max-height:500px)]:static items-center gap-1 border-b border-ocean-100 bg-white px-2 py-1.5 lg:hidden">
         {activeItem && isSubpage ? (
           <Link
             aria-label={`Volver a ${activeItem.label}`}

@@ -270,7 +270,7 @@ export function SubscriptionReturnPage({
     const mercadoPagoLabel = isActive ? "Aprobado" : "En proceso";
 
     return (
-      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
         <DashboardSidebar />
         <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl space-y-5">
@@ -415,7 +415,7 @@ export function SubscriptionReturnPage({
   }
 
   return (
-    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
       <DashboardSidebar />
       <section className="px-4 pb-24 pt-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl rounded-lg border border-ocean-100 bg-white p-6 text-center shadow-card">

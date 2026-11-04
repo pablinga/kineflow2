@@ -764,7 +764,7 @@ export function ClinicAgenda() {
   const calendarCells = buildMonthGrid(year, month);
 
   return (
-    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
       <DashboardSidebar />
       <PageContainer maxWidth="full">
         <header className="rounded-lg border border-ocean-100 bg-white p-4 shadow-card sm:p-5">
@@ -826,7 +826,7 @@ export function ClinicAgenda() {
         </header>
 
         {moving ? (
-          <div className="sticky top-16 z-30 mt-4 flex flex-col gap-2 rounded-lg border border-ocean-300 bg-ocean-600 px-4 py-3 text-white shadow-soft sm:flex-row sm:items-center sm:justify-between lg:top-4">
+          <div className="sticky top-16 z-30 [@media(max-height:500px)]:static mt-4 flex flex-col gap-2 rounded-lg border border-ocean-300 bg-ocean-600 px-4 py-3 text-white shadow-soft sm:flex-row sm:items-center sm:justify-between lg:top-4">
             <p className="text-sm font-semibold">
               Elegí el nuevo horario para {moving.patient}
               {moving.professionalName ? ` (${moving.professionalName})` : ""}.
@@ -1067,7 +1067,7 @@ export function ClinicAgenda() {
 
       {cancelling ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4">
-          <div className="w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft">
+          <div className="max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] overflow-y-auto w-full max-w-md rounded-lg border border-ocean-100 bg-white p-5 shadow-soft">
             <h2 className="text-lg font-bold text-ink">¿Cancelar el turno?</h2>
             <p className="mt-2 text-sm text-slate-600">
               {cancelling.patient} · {cancelling.date} · {cancelling.time}. El horario queda libre.

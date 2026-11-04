@@ -285,7 +285,7 @@ export default function IndependentAvailabilityPage() {
 
   if (!canManageAvailability && !canViewClinicLink) {
     return (
-      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
         <DashboardSidebar />
         <PageContainer maxWidth="4xl">
           <Alert tone="warning" title="Reservas online no disponibles">
@@ -298,7 +298,7 @@ export default function IndependentAvailabilityPage() {
 
   if (canViewClinicLink) {
     return (
-      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+      <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
         <DashboardSidebar />
         <PageContainer maxWidth="4xl">
           <PageHeader
@@ -353,7 +353,7 @@ export default function IndependentAvailabilityPage() {
   }
 
   return (
-    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_1fr]">
+    <main className="min-h-screen bg-ocean-50 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]">
       <DashboardSidebar />
       <PageContainer maxWidth="6xl">
         <PageHeader

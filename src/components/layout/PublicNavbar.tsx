@@ -46,7 +46,7 @@ export function PublicNavbar() {
         </div>
         <button
           aria-label="Abrir menu"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-ocean-100 bg-white text-slate-700 md:hidden"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-ocean-100 bg-white text-slate-700 md:hidden"
           onClick={() => setOpen((value) => !value)}
           type="button"
         >
