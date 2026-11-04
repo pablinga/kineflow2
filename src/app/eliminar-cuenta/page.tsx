@@ -1,6 +1,6 @@
 import { LegalPage } from "@/components/layout/LegalPage";
 
-const updatedAt = "27 de octubre de 2026";
+const updatedAt = "4 de noviembre de 2026";
 
 // URL pública de baja de cuenta que pide Google Play para la app de Android.
 export default function DeleteAccountPage() {
@@ -11,7 +11,8 @@ export default function DeleteAccountPage() {
         {
           title: "1. Cómo pedirlo",
           body: [
-            "Escribí a contacto@kineflow.ar desde el correo con el que te registraste, con el asunto \"Eliminar mi cuenta\".",
+            "Desde la app: ingresá a Configuración → General → \"Eliminar mi cuenta\" y tocá \"Pedir eliminación de la cuenta\".",
+            "Desde la web o sin acceso a la app: escribí a contacto@kineflow.ar desde el correo con el que te registraste, con el asunto \"Eliminar mi cuenta\".",
             "Si ya no tenés acceso a ese correo, indicá el nombre de la cuenta o de la clínica y te vamos a pedir que confirmes que sos el titular.",
           ],
         },

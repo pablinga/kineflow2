@@ -23,6 +23,7 @@ import { PushNotificationsCard } from "@/components/dashboard/PushNotificationsC
 import { AttentionTypesSection } from "@/components/configuracion/AttentionTypesSection";
 import { PublicProfileSection } from "@/components/configuracion/PublicProfileSection";
 import { DepositSettingsSection } from "@/components/configuracion/DepositSettingsSection";
+import { DeleteAccountCard } from "@/components/configuracion/DeleteAccountCard";
 import { getFriendlyErrorMessage } from "@/lib/error-messages";
 import { formatCurrency } from "@/lib/format";
 import { useAccessLevel } from "@/hooks/useAccessLevel";
@@ -658,6 +659,11 @@ export default function WorkspaceSettingsPage() {
             </div>
           ) : null}
         </form>
+
+        {/* Baja de la cuenta (Google Play exige poder pedirla desde la app). */}
+        <div className="mt-4 lg:max-w-[calc(50%-0.5rem)]" hidden={section !== "general"}>
+          <DeleteAccountCard />
+        </div>
 
         <section
           className={`mt-4 grid-cols-1 gap-4 lg:grid-cols-2 ${

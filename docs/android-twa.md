@@ -23,6 +23,7 @@ En el repo solo se versionan `android/twa-manifest.json` y esta guía. El proyec
 | La web detecta que corre dentro de la app por `?app=android` o por el referrer `android-app://ar.kineflow.app`, y lo guarda en `sessionStorage` (la TWA comparte `localStorage` con Chrome). Dentro de la app no se ofrece "Instalar KineFlow". | `src/lib/android-app.ts`, `src/components/AndroidAppCapture.tsx`, `src/lib/pwa-install.ts` |
 | En la app, `/dashboard/planes` no muestra el checkout de Mercado Pago (política de pagos de Play); muestra el estado del plan y deja cancelar. | `src/app/dashboard/planes/page.tsx`, `src/hooks/useIsAndroidApp.ts` |
 | Baja de cuenta (la pide Play): `https://www.kineflow.ar/eliminar-cuenta` | `src/app/eliminar-cuenta/page.tsx` |
+| Baja de cuenta **desde la app** (también la pide Play): Configuración → General → "Eliminar mi cuenta". Manda un mail a `ACCOUNT_DELETION_EMAIL` (por defecto `contacto@kineflow.ar`) con los datos para procesarla y otro de confirmación al usuario; no borra nada sola. Sin `RESEND_API_KEY` responde 503 y pide escribir por mail. | `src/components/configuracion/DeleteAccountCard.tsx`, `src/app/api/account/deletion-request/route.ts`, `src/lib/account-deletion.ts` (`npm run test:deletion`) |
 
 Chequeo de Asset Links de un ambiente (200, JSON, sin redirecciones; con `--require-fingerprints` exige la entrada de `ar.kineflow.app` con huellas válidas):
 
