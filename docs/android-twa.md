@@ -114,5 +114,6 @@ Según el código actual:
 
 ## Requisitos de la cuenta de Play
 
+- **Tipo de cuenta (lo más importante):** KineFlow maneja historias clínicas, así que en la declaración de apps de salud corresponde marcar funciones del grupo **Medicina** ("Administración y servicios de atención médica"). Google exige que esas apps las publique una **cuenta de organización** (con número D-U-N-S de una empresa con existencia legal). Con una cuenta personal la versión se rechaza por "Política de requisitos de Play Console" (pasó el 2026-11-05). No declarar menos de lo que la app hace para esquivarlo.
 - **Prueba cerrada**: las cuentas de desarrollador personales creadas desde noviembre de 2023 necesitan 12 testers durante 14 días antes de publicar en producción. Las cuentas de organización no.
 - **Pagos**: dentro de la app no se puede vender suscripciones digitales con otro medio de pago ni dirigir a pagar fuera de Play. Confirmar la política vigente antes de enviar a revisión.
