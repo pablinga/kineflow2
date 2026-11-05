@@ -139,7 +139,7 @@ Decisión: un kinesiólogo trabaja **siempre en su espacio particular**; no camb
 - Probado con Playwright y UAs emulados (evento simulado); falta prueba en dispositivos reales. `PushNotificationsCard` usa `detectStandalone()` de `pwa-install.ts`.
 - En los contenedores de Claude Code en la nube `npm ci` falla porque la red bloquea `cdn.sheetjs.com` (dependencia `xlsx`); para correr tsc/lint/tests se instaló con `xlsx@0.18.5` del registry de npm sin commitear `package.json` / lock.
 
-### Página /instalar (2026-11-05, en la rama de la sesión, sin subir a qa)
+### Página /instalar (2026-11-05, en QA)
 
 - Google Play quedó descartado: el canal es la web + PWA. `/instalar` (pública, sin login; `src/app/instalar/`) muestra primero los pasos de la plataforma detectada (`usePwaInstall`), las otras debajo, un aviso destacado con "Copiar link" si se entra desde Instagram/Facebook (`in-app`), el botón nativo "Instalar" solo si hay `beforeinstallprompt` (`PwaInstallButton source="install_page"`) y CTA a `/registro` (conserva los UTM con `buildDemoSignupHref`). Si ya corre instalada, "Abrir KineFlow".
 - Pasos en un módulo puro compartido con el modal: `src/lib/pwa-install-instructions.ts` (`getInstallInstructions`, `getInstallGuideLayout`, `getInstallPageSource`); componentes `PwaInstallSteps` y `CopyLinkButton` extraídos del modal. Test: `npm run test:install` (plataformas, orden, origen y sitemap).
