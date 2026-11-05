@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { PUBLIC_STATIC_PAGES } from "@/lib/public-pages";
 import { listIndexableProfiles } from "@/lib/public-directory";
 import { getSiteUrl } from "@/lib/site-url";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
@@ -7,19 +8,9 @@ import { getSupabaseAdminClient } from "@/lib/supabase-server";
 // noindex y no van). Se regenera cada hora.
 export const revalidate = 3600;
 
-const STATIC_PAGES: Array<{ path: string; priority: number }> = [
-  { path: "/", priority: 1 },
-  { path: "/registro", priority: 0.8 },
-  { path: "/demo", priority: 0.7 },
-  { path: "/terminos-y-condiciones", priority: 0.3 },
-  { path: "/politica-de-privacidad", priority: 0.3 },
-  { path: "/suscripciones-cancelaciones-y-reembolsos", priority: 0.3 },
-  { path: "/arrepentimiento", priority: 0.2 },
-];
-
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = getSiteUrl();
-  const entries: MetadataRoute.Sitemap = STATIC_PAGES.map((page) => ({
+  const entries: MetadataRoute.Sitemap = PUBLIC_STATIC_PAGES.map((page) => ({
     changeFrequency: page.path === "/" ? "weekly" : "monthly",
     priority: page.priority,
     url: `${siteUrl}${page.path === "/" ? "" : page.path}`,

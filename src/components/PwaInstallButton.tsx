@@ -8,12 +8,17 @@ import { usePwaInstall } from "@/hooks/usePwaInstall";
 import { promptPwaInstall, trackPwaEvent } from "@/lib/pwa-install";
 
 type PwaInstallButtonProps = {
-  /** "menu": fila del menú móvil del dashboard; "login": link secundario. */
-  source: "menu" | "login";
+  /**
+   * "menu": fila del menú móvil del dashboard; "login": link secundario;
+   * "install_page": botón principal de /instalar.
+   */
+  source: "menu" | "login" | "install_page";
   className?: string;
 };
 
 const styles = {
+  install_page:
+    "flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-ocean-500 px-5 py-3 text-base font-semibold text-white shadow-soft transition-colors duration-150 ease-out hover:bg-ocean-600 disabled:opacity-60",
   login:
     "mx-auto flex w-fit items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 transition-colors hover:text-ocean-700",
   menu: "flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-slate-600 transition-colors duration-150 ease-out hover:bg-ocean-50 hover:text-ocean-800",

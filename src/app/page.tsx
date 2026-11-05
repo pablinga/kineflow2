@@ -18,6 +18,7 @@ import { redirect } from "next/navigation";
 import { LegalLinks } from "@/components/layout/LegalLinks";
 import { PublicNavbar } from "@/components/layout/PublicNavbar";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LinkButton } from "@/components/ui/Button";
 import {
   LANDING_DESCRIPTION,
@@ -193,6 +194,16 @@ export default async function Home({
                 Sin tarjeta de crédito
               </p>
             ) : null}
+            <p className="mt-2 text-sm text-slate-500">
+              Se instala desde el navegador, sin tienda de apps.{" "}
+              <Link
+                className="font-semibold text-ocean-700 underline-offset-2 hover:underline"
+                href="/instalar"
+                prefetch={false}
+              >
+                Cómo instalarla
+              </Link>
+            </p>
             <LandingTestimonials testimonials={testimonials} variant="compact" />
           </div>
 

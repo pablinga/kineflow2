@@ -43,7 +43,11 @@ function setState(next: Partial<PwaInstallState>) {
 }
 
 export function trackPwaEvent(
-  name: "pwa_install_click" | "pwa_installed",
+  name:
+    | "pwa_install_click"
+    | "pwa_installed"
+    | "pwa_install_page_view"
+    | "pwa_install_copy_link",
   properties?: Record<string, string>,
 ) {
   try {
